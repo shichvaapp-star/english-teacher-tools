@@ -5,18 +5,18 @@ import { Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
 
-export function ThemeToggle() {
-  const { theme, setTheme, resolvedTheme } = useTheme();
-  const [mounted, setMounted] = React.useState(false);
+const subscribe = () => () => {};
+const getSnapshot = () => true;
+const getServerSnapshot = () => false;
 
-  React.useEffect(() => {
-    setMounted(true);
-  }, []);
+export function ThemeToggle() {
+  const { setTheme, resolvedTheme } = useTheme();
+  const mounted = React.useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 
   if (!mounted) {
     return (
-      <Button variant="outline" size="icon" aria-label="Toggle theme" disabled>
-        <Sun className="h-4 w-4" />
+      <Button variant="outline" size="sm" aria-label="Toggle theme" disabled>
+        <Sun className="h-4 w-4 opacity-50" />
       </Button>
     );
   }
