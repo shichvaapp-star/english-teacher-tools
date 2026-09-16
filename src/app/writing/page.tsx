@@ -35,6 +35,8 @@ import {
   X,
   Compass,
   BookOpen,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 
 interface SubmissionRecord {
@@ -72,6 +74,8 @@ export default function WritingPracticePage() {
   const [selectedTaskId, setSelectedTaskId] = useState<string>(MIDDLE_SCHOOL_TASKS[0].id);
   const [isRolling, setIsRolling] = useState(false);
   const [randomNotice, setRandomNotice] = useState<string | null>(null);
+  // Mobile accordion toggle for guidance and connectors
+  const [mobileGuidanceOpen, setMobileGuidanceOpen] = useState(false);
 
   // Writing text & copy status
   const [essayText, setEssayText] = useState("");
@@ -344,33 +348,37 @@ export default function WritingPracticePage() {
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-background text-foreground print:bg-white print:text-black">
+    <div className="flex flex-col min-h-screen bg-background text-foreground print:bg-white print:text-black overflow-x-hidden">
       {/* Top Navbar */}
       <header className="sticky top-0 z-40 border-b border-border/60 bg-background/95 backdrop-blur print:hidden">
-        <div className="container mx-auto flex h-16 items-center justify-between px-4 sm:px-8">
-          <div className="flex items-center gap-3">
+        <div className="container mx-auto flex h-16 items-center justify-between px-3 sm:px-8 gap-2">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <Link
               href="/"
-              className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground p-1.5 rounded-lg border border-border/60 hover:bg-muted/40 transition-colors"
+              className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground p-1.5 px-2 rounded-lg border border-border/60 hover:bg-muted/40 transition-colors shrink-0"
+              title="חזרה לראשי"
             >
               <ArrowLeft className="h-4 w-4" />
-              <span className="hidden sm:inline">חזרה לראשי</span>
+              <span className="hidden sm:inline">ראשי</span>
             </Link>
-            <div className="h-4 w-[1px] bg-border" />
-            <div className="flex items-center gap-2">
-              <div className="p-1.5 rounded-md bg-purple-500/10 text-purple-600 dark:text-purple-400">
+            <div className="h-4 w-[1px] bg-border hidden sm:block" />
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="p-1.5 rounded-md bg-purple-500/10 text-purple-600 dark:text-purple-400 shrink-0">
                 <PenTool className="h-4 w-4" />
               </div>
-              <span className="font-bold text-sm sm:text-base">אימון כתיבה &bull; חטיבת ביניים בן גוריון</span>
+              <span className="font-bold text-xs sm:text-base truncate">
+                <span>אימון כתיבה</span>
+                <span className="hidden sm:inline"> &bull; חטיבת ביניים בן גוריון</span>
+              </span>
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
             <Button
               variant="outline"
               size="sm"
               onClick={handleOpenHistory}
-              className="h-8 text-xs gap-1.5 cursor-pointer border-border/80"
+              className="h-8 text-xs gap-1 cursor-pointer border-border/80 px-2 sm:px-3"
               title="הצג הגשות קודמות"
             >
               <History className="h-3.5 w-3.5 text-muted-foreground" />
@@ -378,20 +386,20 @@ export default function WritingPracticePage() {
             </Button>
             <Link
               href="/guide"
-              className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border/70 hover:border-purple-500/40 bg-card hover:bg-accent/60 text-xs font-medium text-foreground transition"
+              className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border/70 hover:border-purple-500/40 bg-card hover:bg-accent/60 text-xs font-medium text-foreground transition"
             >
               <BookOpen className="h-3.5 w-3.5 text-purple-600 dark:text-purple-400" />
               <span>Guide</span>
             </Link>
             <ThemeToggle />
-            <div className="h-4 w-[1px] bg-border" />
+            <div className="h-4 w-[1px] bg-border hidden sm:block" />
             <UserNav />
           </div>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 container mx-auto px-4 sm:px-8 py-6 sm:py-8 space-y-6">
+      <main className="flex-1 container mx-auto px-3 sm:px-8 py-5 sm:py-8 space-y-5 sm:space-y-6">
         {/* Random notice banner */}
         {randomNotice && (
           <div
@@ -412,25 +420,26 @@ export default function WritingPracticePage() {
         )}
 
         {/* Section 1: Mode Switcher & Category Selection Toolbar */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border/50 pb-5" dir="rtl">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/50 pb-4" dir="rtl">
           {/* Mode Switcher */}
           <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-muted-foreground ml-1">מצב עבודה:</span>
-            <div className="inline-flex rounded-xl p-1 bg-muted/60 border border-border/80">
+            <span className="text-xs font-bold text-muted-foreground ml-1 shrink-0">מצב עבודה:</span>
+            <div className="inline-flex rounded-xl p-1 bg-muted/60 border border-border/80 w-full sm:w-auto">
               <button
                 type="button"
                 onClick={() => {
                   setActiveMode("practice");
                   setSubmissionSuccess(null);
                 }}
-                className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                className={`flex-1 sm:flex-none px-2.5 sm:px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
                   activeMode === "practice"
                     ? "bg-background text-foreground shadow-xs"
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
                 <Sparkles className="h-3.5 w-3.5 text-purple-500" />
-                <span>אימון חופשי ומשוב AI</span>
+                <span className="hidden sm:inline">אימון חופשי ומשוב AI</span>
+                <span className="sm:hidden">אימון AI</span>
               </button>
 
               <button
@@ -439,14 +448,15 @@ export default function WritingPracticePage() {
                   setActiveMode("submit");
                   setFeedback(null);
                 }}
-                className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                className={`flex-1 sm:flex-none px-2.5 sm:px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
                   activeMode === "submit"
                     ? "bg-purple-600 text-white shadow-xs"
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
                 <GraduationCap className="h-3.5 w-3.5" />
-                <span>הגשה למורה לבדיקה</span>
+                <span className="hidden sm:inline">הגשה למורה לבדיקה</span>
+                <span className="sm:hidden">הגשה למורה</span>
               </button>
             </div>
           </div>
@@ -458,25 +468,26 @@ export default function WritingPracticePage() {
               disabled={isRolling}
               variant="outline"
               size="sm"
-              className="h-9 px-4 text-xs font-bold gap-2 cursor-pointer border-purple-500/40 hover:bg-purple-500/10 hover:border-purple-500/60 transition-all text-purple-700 dark:text-purple-300 shadow-xs"
+              className="h-9 px-3 sm:px-4 text-xs font-bold gap-2 cursor-pointer border-purple-500/40 hover:bg-purple-500/10 hover:border-purple-500/60 transition-all text-purple-700 dark:text-purple-300 shadow-xs w-full sm:w-auto"
               dir="rtl"
             >
               <Dice5 className={`h-4 w-4 text-purple-600 dark:text-purple-400 ${isRolling ? "animate-spin" : ""}`} />
-              <span>🎲 הצע נושא רנדומלי (הפתע אותי!)</span>
+              <span className="hidden sm:inline">🎲 הצע נושא רנדומלי (הפתע אותי!)</span>
+              <span className="sm:hidden">🎲 הפתע אותי עם נושא!</span>
             </Button>
           </div>
         </div>
 
         {/* Section 2: Task Filter Tabs & Selector Dropdown */}
         <div className="space-y-3" dir="rtl">
-          <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
             {/* Category Filter Pills */}
-            <div className="flex flex-wrap items-center gap-1.5">
-              <span className="text-xs text-muted-foreground font-semibold ml-1">סינון נושאים:</span>
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1.5 sm:pb-0 scrollbar-none w-full sm:w-auto">
+              <span className="text-xs text-muted-foreground font-semibold ml-1 shrink-0">סינון:</span>
               <button
                 type="button"
                 onClick={() => setSelectedCategory("all")}
-                className={`px-3 py-1 rounded-lg text-xs font-semibold border transition-colors cursor-pointer ${
+                className={`px-2.5 sm:px-3 py-1 rounded-lg text-xs font-semibold border transition-colors cursor-pointer shrink-0 ${
                   selectedCategory === "all"
                     ? "bg-primary text-primary-foreground border-primary"
                     : "bg-muted/40 text-muted-foreground border-border hover:bg-muted/80"
@@ -488,51 +499,51 @@ export default function WritingPracticePage() {
               <button
                 type="button"
                 onClick={() => setSelectedCategory("letter")}
-                className={`px-3 py-1 rounded-lg text-xs font-semibold border transition-colors cursor-pointer flex items-center gap-1 ${
+                className={`px-2.5 sm:px-3 py-1 rounded-lg text-xs font-semibold border transition-colors cursor-pointer flex items-center gap-1 shrink-0 ${
                   selectedCategory === "letter"
                     ? "bg-primary text-primary-foreground border-primary"
                     : "bg-muted/40 text-muted-foreground border-border hover:bg-muted/80"
                 }`}
               >
                 <Mail className="h-3 w-3" />
-                <span>מכתבים ואימיילים (8)</span>
+                <span>מכתבים (8)</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setSelectedCategory("opinion")}
-                className={`px-3 py-1 rounded-lg text-xs font-semibold border transition-colors cursor-pointer flex items-center gap-1 ${
+                className={`px-2.5 sm:px-3 py-1 rounded-lg text-xs font-semibold border transition-colors cursor-pointer flex items-center gap-1 shrink-0 ${
                   selectedCategory === "opinion"
                     ? "bg-primary text-primary-foreground border-primary"
                     : "bg-muted/40 text-muted-foreground border-border hover:bg-muted/80"
                 }`}
               >
                 <FileText className="h-3 w-3" />
-                <span>פסקאות דעה (8)</span>
+                <span>דעה (8)</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setSelectedCategory("creative")}
-                className={`px-3 py-1 rounded-lg text-xs font-semibold border transition-colors cursor-pointer flex items-center gap-1 ${
+                className={`px-2.5 sm:px-3 py-1 rounded-lg text-xs font-semibold border transition-colors cursor-pointer flex items-center gap-1 shrink-0 ${
                   selectedCategory === "creative"
                     ? "bg-primary text-primary-foreground border-primary"
                     : "bg-muted/40 text-muted-foreground border-border hover:bg-muted/80"
                 }`}
               >
                 <Compass className="h-3 w-3" />
-                <span>כתיבה יצירתית וסיפורים (8)</span>
+                <span>סיפורים (8)</span>
               </button>
             </div>
 
             {/* Target Words Badge */}
-            <Badge variant="secondary" className="text-xs font-bold">
+            <Badge variant="secondary" className="text-xs font-bold self-start sm:self-auto">
               יעד כתיבה: {currentTask.targetWords}
             </Badge>
           </div>
 
           {/* Task Dropdown Selection */}
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-2">
             <span className="text-xs font-semibold text-muted-foreground shrink-0">בחרו נושא מתוך הרשימה:</span>
             <select
               value={selectedTaskId}
@@ -553,9 +564,9 @@ export default function WritingPracticePage() {
           </div>
         </div>
 
-        {/* Section 3: Two-Column Grid (Guidance/Form on Left, Writing Area on Right) */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          {/* Left Column: Task Guidance, Connectors Palette, and Submission Form */}
+        {/* Section 3: Two-Column Grid (Guidance on Left, Writing Area on Right) */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
+          {/* Left Column: Task Guidance & Connectors Palette */}
           <div className="lg:col-span-5 space-y-4">
             {/* Task Guidance Card */}
             <Card className="border border-border shadow-xs">
@@ -583,7 +594,7 @@ export default function WritingPracticePage() {
                   </Badge>
                 </div>
 
-                <CardTitle className="text-lg font-bold pt-1.5 text-right" dir="rtl">
+                <CardTitle className="text-base sm:text-lg font-bold pt-1.5 text-right" dir="rtl">
                   {currentTask.hebrewTitle}
                 </CardTitle>
                 <CardDescription
@@ -594,7 +605,25 @@ export default function WritingPracticePage() {
                 </CardDescription>
               </CardHeader>
 
-              <CardContent className="pt-3.5 space-y-3 text-xs">
+              {/* Mobile Accordion Toggle for instructions and connectors */}
+              <div className="lg:hidden p-3 bg-muted/30 border-b border-border/40 flex items-center justify-between">
+                <span className="text-xs font-bold text-foreground flex items-center gap-1.5" dir="rtl">
+                  <Lightbulb className="h-4 w-4 text-amber-500" />
+                  <span>הנחיות, טיפים ומילות קישור</span>
+                </span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setMobileGuidanceOpen((prev) => !prev)}
+                  className="h-7 text-xs gap-1 cursor-pointer"
+                >
+                  <span>{mobileGuidanceOpen ? "הסתר" : "הצג טיפים ומילים"}</span>
+                  {mobileGuidanceOpen ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                </Button>
+              </div>
+
+              <CardContent className={`pt-3.5 space-y-3 text-xs ${mobileGuidanceOpen ? "block" : "hidden lg:block"}`}>
                 <div className="p-3 rounded-xl bg-muted/40 border border-border/60 space-y-1" dir="rtl">
                   <span className="font-bold text-foreground">הנחיות לביצוע המשימה:</span>
                   <p className="text-muted-foreground leading-relaxed">
@@ -616,8 +645,8 @@ export default function WritingPracticePage() {
               </CardContent>
             </Card>
 
-            {/* Connectors Palette */}
-            <Card className="border border-primary/20 bg-card">
+            {/* Connectors Palette - Collapsible on mobile, always visible on desktop */}
+            <Card className={`border border-primary/20 bg-card ${mobileGuidanceOpen ? "block" : "hidden lg:block"}`}>
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-primary flex items-center gap-1.5" dir="rtl">

@@ -32,6 +32,7 @@ import {
   Send,
   Sliders,
   ArrowRight,
+  BookOpen,
 } from "lucide-react";
 
 export default function UnseenPracticePage() {
@@ -40,6 +41,8 @@ export default function UnseenPracticePage() {
 
   // App Stage: "settings" (select level, mode, and story) vs. "exercise" (active reading & questions)
   const [stage, setStage] = useState<"settings" | "exercise">("settings");
+  // Mobile active tab when in "exercise" stage: "text" (reading passage) vs. "questions"
+  const [mobileTab, setMobileTab] = useState<"text" | "questions">("text");
 
   React.useEffect(() => {
     if (typeof window !== "undefined") {
@@ -392,52 +395,55 @@ export default function UnseenPracticePage() {
   ).length;
 
   return (
-    <div className="flex flex-col min-h-screen bg-background text-foreground print:bg-white print:text-black">
+    <div className="flex flex-col min-h-screen bg-background text-foreground print:bg-white print:text-black overflow-x-hidden">
       {/* Top Navbar */}
       <header className="sticky top-0 z-40 border-b border-border/60 bg-background/95 backdrop-blur print:hidden">
-        <div className="container mx-auto flex h-16 items-center justify-between px-4 sm:px-8">
-          <div className="flex items-center gap-3">
+        <div className="container mx-auto flex h-16 items-center justify-between px-3 sm:px-8 gap-2">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             {stage === "exercise" ? (
               <button
                 type="button"
                 onClick={() => setStage("settings")}
-                className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground p-1.5 px-2.5 rounded-lg border border-border/60 hover:bg-muted/40 transition cursor-pointer"
+                className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground p-1.5 px-2 sm:px-2.5 rounded-lg border border-border/60 hover:bg-muted/40 transition cursor-pointer shrink-0"
+                title="שנה הגדרות / בחר קטע אחר"
               >
                 <Sliders className="h-3.5 w-3.5" />
-                <span>שנה הגדרות</span>
+                <span className="hidden sm:inline">הגדרות</span>
               </button>
             ) : (
               <Link
                 href="/"
-                className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground p-1.5 rounded-lg border border-border/60 hover:bg-muted/40 transition-colors"
+                className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground p-1.5 px-2 rounded-lg border border-border/60 hover:bg-muted/40 transition-colors shrink-0"
+                title="חזרה לראשי"
               >
                 <ArrowLeft className="h-4 w-4" />
-                <span>Home</span>
+                <span className="hidden sm:inline">ראשי</span>
               </Link>
             )}
 
-            <div className="flex items-center gap-2">
-              <span className="text-xl">🔍</span>
-              <div>
-                <h1 className="text-sm font-semibold tracking-tight">בלשי האנסין</h1>
-                <p className="text-[10px] text-muted-foreground">
+            <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+              <span className="text-lg sm:text-xl shrink-0">🔍</span>
+              <div className="min-w-0">
+                <h1 className="text-xs sm:text-sm font-semibold tracking-tight truncate">בלשי האנסין</h1>
+                <p className="text-[10px] text-muted-foreground truncate hidden sm:block">
                   {stage === "settings" ? "שלב 1: בחירת הגדרות וקטע קריאה" : `${currentStory.title} • 10 שאלות`}
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             <Button
               variant="outline"
               size="sm"
               onClick={() => setDrawerOpen(true)}
-              className="cursor-pointer gap-1.5 text-xs border-primary/20 hover:border-primary/40 relative"
+              className="cursor-pointer gap-1 text-xs border-primary/20 hover:border-primary/40 relative px-2 sm:px-3 h-8"
+              title="פנקס מילים"
             >
               <BookMarked className="h-3.5 w-3.5 text-primary" />
-              <span>פנקס מילים</span>
+              <span className="hidden sm:inline">פנקס מילים</span>
               {savedWords.length > 0 && (
-                <span className="ml-1 px-1.5 py-0.2 bg-primary text-primary-foreground rounded-full text-[10px] font-bold">
+                <span className="px-1.5 py-0.2 bg-primary text-primary-foreground rounded-full text-[10px] font-bold">
                   {savedWords.length}
                 </span>
               )}
@@ -743,43 +749,73 @@ export default function UnseenPracticePage() {
         </main>
       )}
 
-      {/* =========================================================================
-          STAGE 2: ACTIVE READING & EXERCISE VIEW
-          ========================================================================= */}
       {stage === "exercise" && (
-        <main className="container mx-auto flex-1 px-4 sm:px-8 py-6 space-y-6 max-w-6xl animate-in fade-in-0">
+        <main className="container mx-auto flex-1 px-3 sm:px-8 py-4 sm:py-6 space-y-4 sm:space-y-6 max-w-6xl animate-in fade-in-0">
           {/* Active Context Ribbon */}
-          <div className="flex items-center justify-between bg-card border border-border/60 rounded-xl p-3 shadow-xs print:hidden">
-            <div className="flex items-center gap-2">
+          <div className="flex items-center justify-between bg-card border border-border/60 rounded-xl p-2.5 sm:p-3 shadow-xs print:hidden gap-2">
+            <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
               <button
                 type="button"
                 onClick={() => setStage("settings")}
-                className="text-xs font-semibold text-primary hover:underline flex items-center gap-1 cursor-pointer"
+                className="text-xs font-semibold text-primary hover:underline flex items-center gap-1 cursor-pointer shrink-0"
               >
                 <Sliders className="h-3.5 w-3.5" />
-                <span>שנה הגדרות / בחר קטע אחר</span>
+                <span className="hidden sm:inline">שנה הגדרות / בחר קטע אחר</span>
+                <span className="sm:hidden">הגדרות</span>
               </button>
               <span className="text-muted-foreground">&bull;</span>
-              <span className="text-xs text-muted-foreground font-medium">{selectedLevel}</span>
-              <span className="text-muted-foreground">&bull;</span>
-              <Badge variant={mode === "practice" ? "secondary" : "default"} className="text-[10px]">
+              <span className="text-xs text-muted-foreground font-medium shrink-0">{selectedLevel}</span>
+              <span className="text-muted-foreground hidden sm:inline">&bull;</span>
+              <Badge variant={mode === "practice" ? "secondary" : "default"} className="text-[10px] hidden sm:inline-flex">
                 {mode === "practice" ? "אימון חופשי" : "מצב מבחן להגשה"}
               </Badge>
             </div>
 
-            <div className="text-xs text-muted-foreground">
+            <div className="text-[11px] sm:text-xs text-muted-foreground shrink-0">
               {mode === "graded" ? (
-                <span className="font-semibold text-primary">{answeredCount} מתוך 10 שאלות נענו</span>
+                <span className="font-semibold text-primary">{answeredCount}/10 נענו</span>
               ) : (
-                <span>שאלה פעילה: {activeQuestionIndex + 1} מתוך 10</span>
+                <span>שאלה {activeQuestionIndex + 1}/10</span>
               )}
             </div>
           </div>
 
+          {/* Mobile View Switcher (Passage vs. Questions) - Only visible on mobile (< lg) */}
+          <div className="lg:hidden flex items-center p-1 rounded-xl bg-card border border-border/80 sticky top-16 z-30 shadow-xs backdrop-blur-md">
+            <button
+              type="button"
+              onClick={() => setMobileTab("text")}
+              className={`flex-1 py-2 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                mobileTab === "text"
+                  ? "bg-primary text-primary-foreground shadow-xs"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <BookOpen className="h-3.5 w-3.5" />
+              <span>📖 קטע הקריאה</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setMobileTab("questions")}
+              className={`flex-1 py-2 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                mobileTab === "questions"
+                  ? "bg-primary text-primary-foreground shadow-xs"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <HelpCircle className="h-3.5 w-3.5" />
+              <span>❓ שאלות ({answeredCount}/10)</span>
+              {userAnswers[activeQuestion?.id || ""] !== undefined && (
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+              )}
+            </button>
+          </div>
+
           {/* Reading Passage (Left) + 10 Questions (Right) */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            {/* Reading Passage Column (7 Cols) */}
-            <div className="lg:col-span-7 space-y-4">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            {/* Reading Passage Column (7 Cols on desktop, conditioned on mobile) */}
+            <div className={`lg:col-span-7 space-y-4 ${mobileTab === "text" ? "block" : "hidden lg:block"}`}>
               <Card className="border-border/60 shadow-xs">
                 <CardHeader className="border-b border-border/50 pb-3">
                   <div className="flex items-center justify-between">
@@ -946,10 +982,38 @@ export default function UnseenPracticePage() {
                   )}
                 </CardContent>
               </Card>
+
+              {/* Mobile-only action button to jump to questions */}
+              <div className="lg:hidden pt-1">
+                <Button
+                  onClick={() => setMobileTab("questions")}
+                  className="w-full gap-2 font-bold text-xs h-10 cursor-pointer shadow-xs"
+                >
+                  <span>מעבר לשאלות ({activeQuestionIndex + 1}/10)</span>
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
 
-            {/* 10 Questions Column (5 Cols) */}
-            <div className="lg:col-span-5 space-y-4 print:hidden">
+            {/* 10 Questions Column (5 Cols on desktop, conditioned on mobile) */}
+            <div className={`lg:col-span-5 space-y-4 print:hidden ${mobileTab === "questions" ? "block" : "hidden lg:block"}`}>
+              {/* Mobile quick link to return to text */}
+              <div className="lg:hidden flex items-center justify-between px-1">
+                <button
+                  type="button"
+                  onClick={() => setMobileTab("text")}
+                  className="text-xs text-primary font-bold hover:underline flex items-center gap-1 cursor-pointer"
+                >
+                  <BookOpen className="h-3.5 w-3.5" />
+                  <span>← חזרה לקטע הקריאה</span>
+                </button>
+                {activeQuestion?.linesHint && (
+                  <span className="text-[11px] text-muted-foreground">
+                    {activeQuestion.linesHint}
+                  </span>
+                )}
+              </div>
+
               {/* Question Tabs Header (1 to 10) */}
               <div className="bg-card border border-border/60 rounded-xl p-3 shadow-xs">
                 <div className="flex items-center justify-between mb-2">
@@ -962,8 +1026,8 @@ export default function UnseenPracticePage() {
                   </span>
                 </div>
 
-                {/* 10 Question Pills */}
-                <div className="grid grid-cols-10 gap-1">
+                {/* 10 Question Pills - Touch-friendly on mobile */}
+                <div className="flex overflow-x-auto sm:grid sm:grid-cols-10 gap-1.5 pb-1 sm:pb-0 scrollbar-none">
                   {currentStory.questions.map((q, idx) => {
                     const isActive = idx === activeQuestionIndex;
                     const isAnswered = userAnswers[q.id] !== undefined && userAnswers[q.id] !== "";
@@ -980,7 +1044,7 @@ export default function UnseenPracticePage() {
                         key={q.id}
                         type="button"
                         onClick={() => setActiveQuestionIndex(idx)}
-                        className={`h-8 rounded-md border text-xs flex items-center justify-center transition cursor-pointer relative ${pillColor}`}
+                        className={`h-9 min-w-[34px] sm:min-w-0 sm:h-8 rounded-lg border text-xs flex items-center justify-center transition cursor-pointer relative shrink-0 ${pillColor}`}
                       >
                         <span>{idx + 1}</span>
                         {isAnswered && !isActive && (
@@ -1256,8 +1320,8 @@ export default function UnseenPracticePage() {
 
       {/* Instant Translation Toast / Popup */}
       {clickedWord && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 animate-in fade-in-0 slide-in-from-bottom-4 print:hidden">
-          <div className="bg-card/95 backdrop-blur border border-border/80 shadow-2xl rounded-2xl p-3.5 pr-4 pl-4 min-w-[280px] max-w-sm flex flex-col gap-1.5">
+        <div className="fixed bottom-4 left-3 right-3 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 z-50 animate-in fade-in-0 slide-in-from-bottom-4 print:hidden">
+          <div className="bg-card/95 backdrop-blur border border-border/80 shadow-2xl rounded-2xl p-3.5 pr-4 pl-4 min-w-[280px] max-w-sm mx-auto flex flex-col gap-1.5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span className="font-bold text-base text-foreground capitalize">{clickedWord.word}</span>

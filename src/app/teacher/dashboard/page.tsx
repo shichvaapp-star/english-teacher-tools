@@ -368,58 +368,62 @@ export default function TeacherDashboardPage() {
   // TEACHER DASHBOARD VIEW (Authorized Teacher)
   // -------------------------------------------------------------
   return (
-    <div className="flex flex-col min-h-screen bg-background text-foreground print:bg-white print:text-black">
+    <div className="flex flex-col min-h-screen bg-background text-foreground print:bg-white print:text-black overflow-x-hidden">
       {/* Top Navbar */}
       <header className="sticky top-0 z-40 border-b border-border/60 bg-background/95 backdrop-blur print:hidden">
-        <div className="container mx-auto flex h-16 items-center justify-between px-4 sm:px-8">
-          <div className="flex items-center gap-3">
+        <div className="container mx-auto flex h-16 items-center justify-between px-3 sm:px-8 gap-2">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <Link
               href="/"
-              className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground p-1.5 rounded-lg border border-border/60 hover:bg-muted/40 transition-colors"
+              className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground p-1.5 px-2 rounded-lg border border-border/60 hover:bg-muted/40 transition-colors shrink-0"
+              title="חזרה לראשי"
             >
               <ArrowLeft className="h-4 w-4" />
-              <span className="hidden sm:inline">חזרה לראשי</span>
+              <span className="hidden sm:inline">ראשי</span>
             </Link>
-            <div className="h-4 w-[1px] bg-border" />
-            <div className="flex items-center gap-2">
-              <div className="p-1.5 rounded-md bg-purple-500/10 text-purple-600 dark:text-purple-400">
+            <div className="h-4 w-[1px] bg-border hidden sm:block" />
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="p-1.5 rounded-md bg-purple-500/10 text-purple-600 dark:text-purple-400 shrink-0">
                 <GraduationCap className="h-4 w-4" />
               </div>
-              <span className="font-bold text-sm sm:text-base">לוח בקרת מורה &bull; חטיבת ביניים בן גוריון</span>
+              <span className="font-bold text-xs sm:text-base truncate">
+                <span>לוח מורה</span>
+                <span className="hidden sm:inline"> &bull; חטיבת ביניים בן גוריון</span>
+              </span>
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
             <Button
               variant="outline"
               size="sm"
               onClick={fetchSubmissions}
               disabled={isLoading}
-              className="h-8 text-xs gap-1.5 cursor-pointer border-border/80"
+              className="h-8 text-xs gap-1 cursor-pointer border-border/80 px-2 sm:px-3"
               title="רענן רשימת הגשות"
             >
               <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? "animate-spin text-primary" : ""}`} />
-              <span className="hidden sm:inline">רענן הגשות</span>
+              <span className="hidden sm:inline">רענן</span>
             </Button>
 
             <ThemeToggle />
-            <div className="h-4 w-[1px] bg-border" />
+            <div className="h-4 w-[1px] bg-border hidden sm:block" />
             <UserNav />
           </div>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 container mx-auto px-4 sm:px-8 py-6 sm:py-8 space-y-6">
+      <main className="flex-1 container mx-auto px-3 sm:px-8 py-5 sm:py-8 space-y-5 sm:space-y-6">
         {/* Welcome & Teacher Class Code Card */}
-        <div className="p-6 rounded-2xl border border-primary/20 bg-card shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4" dir="rtl">
+        <div className="p-4 sm:p-6 rounded-2xl border border-primary/20 bg-card shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4" dir="rtl">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <span className="text-xs font-bold text-primary px-2.5 py-0.5 rounded-full bg-primary/10">
                 סגל הוראה &bull; {user.schoolName || "חטיבת ביניים בן גוריון"}
               </span>
             </div>
-            <h1 className="text-xl sm:text-2xl font-black text-foreground">
+            <h1 className="text-lg sm:text-2xl font-black text-foreground">
               שלום, {user.name}! 👋
             </h1>
             <p className="text-xs text-muted-foreground">
@@ -429,10 +433,10 @@ export default function TeacherDashboardPage() {
 
           {/* Class Code Box */}
           {user.teacherCode && (
-            <div className="p-3.5 rounded-xl border border-border bg-muted/30 flex items-center justify-between gap-4 min-w-[260px]">
+            <div className="p-3 sm:p-3.5 rounded-xl border border-border bg-muted/30 flex items-center justify-between gap-3 w-full md:w-auto min-w-0 sm:min-w-[260px]">
               <div>
-                <span className="text-[11px] text-muted-foreground block font-semibold">קוד המורה שלך לתלמידים:</span>
-                <span className="font-mono text-lg font-black tracking-wider text-primary">
+                <span className="text-[10px] sm:text-[11px] text-muted-foreground block font-semibold">קוד המורה שלך לתלמידים:</span>
+                <span className="font-mono text-base sm:text-lg font-black tracking-wider text-primary">
                   {user.teacherCode}
                 </span>
               </div>
@@ -440,7 +444,7 @@ export default function TeacherDashboardPage() {
                 variant="outline"
                 size="sm"
                 onClick={handleCopyCode}
-                className="h-8 text-xs gap-1.5 cursor-pointer"
+                className="h-8 text-xs gap-1.5 cursor-pointer shrink-0"
               >
                 {copiedCode ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
                 <span>{copiedCode ? "הועתק!" : "העתק קוד"}</span>
@@ -501,14 +505,14 @@ export default function TeacherDashboardPage() {
         </div>
 
         {/* Filters Toolbar */}
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/50 pb-4" dir="rtl">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-border/50 pb-4" dir="rtl">
           <div className="flex flex-wrap items-center gap-2">
-            {/* Status Filter */}
-            <div className="flex items-center gap-1 bg-muted/40 p-1 rounded-lg border border-border/60 text-xs">
+            {/* Status Tabs */}
+            <div className="inline-flex rounded-lg p-1 bg-muted/60 border border-border/80 text-xs overflow-x-auto max-w-full">
               <button
                 type="button"
                 onClick={() => setStatusFilter("all")}
-                className={`px-2.5 py-1 rounded-md font-semibold transition-colors cursor-pointer ${
+                className={`px-2 sm:px-2.5 py-1 rounded-md font-semibold transition-colors cursor-pointer text-xs shrink-0 ${
                   statusFilter === "all" ? "bg-background text-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"
                 }`}
               >
@@ -517,16 +521,16 @@ export default function TeacherDashboardPage() {
               <button
                 type="button"
                 onClick={() => setStatusFilter("submitted")}
-                className={`px-2.5 py-1 rounded-md font-semibold transition-colors cursor-pointer ${
+                className={`px-2 sm:px-2.5 py-1 rounded-md font-semibold transition-colors cursor-pointer text-xs shrink-0 ${
                   statusFilter === "submitted" ? "bg-amber-500/20 text-amber-800 dark:text-amber-200" : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                ממתין לבדיקה ({pendingCount})
+                ממתין ({pendingCount})
               </button>
               <button
                 type="button"
                 onClick={() => setStatusFilter("reviewed")}
-                className={`px-2.5 py-1 rounded-md font-semibold transition-colors cursor-pointer ${
+                className={`px-2 sm:px-2.5 py-1 rounded-md font-semibold transition-colors cursor-pointer text-xs shrink-0 ${
                   statusFilter === "reviewed" ? "bg-emerald-500/20 text-emerald-800 dark:text-emerald-200" : "text-muted-foreground hover:text-foreground"
                 }`}
               >
@@ -538,18 +542,18 @@ export default function TeacherDashboardPage() {
             <select
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value as "all" | "writing" | "unseen")}
-              className="h-8 rounded-lg border border-input bg-background px-3 text-xs shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring cursor-pointer"
+              className="h-8 rounded-lg border border-input bg-background px-2.5 text-xs shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring cursor-pointer"
             >
-              <option value="all">כל סוגי המשימות</option>
-              <option value="writing">✍️ משימות כתיבה (Writing)</option>
-              <option value="unseen">📖 מבחני אנסין (Unseen)</option>
+              <option value="all">כל המשימות</option>
+              <option value="writing">✍️ כתיבה</option>
+              <option value="unseen">📖 אנסין</option>
             </select>
 
             {/* Class Filter */}
             <select
               value={classFilter}
               onChange={(e) => setClassFilter(e.target.value)}
-              className="h-8 rounded-lg border border-input bg-background px-3 text-xs shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring cursor-pointer"
+              className="h-8 rounded-lg border border-input bg-background px-2.5 text-xs shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring cursor-pointer"
             >
               <option value="all">כל הכיתות</option>
               <option value="ז'1">כיתה ז'1</option>
@@ -565,13 +569,13 @@ export default function TeacherDashboardPage() {
           </div>
 
           {/* Search Box */}
-          <div className="relative w-full sm:w-64">
+          <div className="relative w-full md:w-64">
             <Search className="h-3.5 w-3.5 absolute right-2.5 top-2.5 text-muted-foreground" />
             <Input
-              placeholder="חיפוש לפי שם תלמיד, משימה או קוד..."
+              placeholder="חיפוש לפי תלמיד, משימה או קוד..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="h-8 pr-8 pl-3 text-xs"
+              className="h-8 pr-8 pl-3 text-xs w-full"
               dir="rtl"
             />
           </div>
@@ -597,10 +601,10 @@ export default function TeacherDashboardPage() {
               return (
                 <div
                   key={sub.id}
-                  className="p-4 rounded-xl border border-border/80 bg-card hover:border-primary/40 transition-colors shadow-xs space-y-3"
+                  className="p-3.5 sm:p-4 rounded-xl border border-border/80 bg-card hover:border-primary/40 transition-colors shadow-xs space-y-3"
                 >
-                  <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/40 pb-2.5">
-                    <div className="flex items-center gap-2">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b border-border/40 pb-2.5">
+                    <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
                       <span className="font-black text-sm sm:text-base text-foreground">
                         {sub.studentName}
                       </span>
@@ -617,33 +621,35 @@ export default function TeacherDashboardPage() {
 
                       {isReviewed ? (
                         <Badge variant="default" className="text-[10px] bg-emerald-600 text-white font-bold">
-                          ✓ נבדק {sub.grade !== undefined ? `(ציון: ${sub.grade})` : sub.score !== undefined ? `(ציון: ${sub.score})` : ""}
+                          ✓ נבדק {sub.grade !== undefined ? `(${sub.grade})` : sub.score !== undefined ? `(${sub.score})` : ""}
                         </Badge>
                       ) : (
                         <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-500/40 bg-amber-500/10 font-bold">
-                          ⏳ ממתין לבדיקה
+                          ⏳ ממתין
                         </Badge>
                       )}
                     </div>
 
-                    <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                      <span>{sub.submittedAt}</span>
-                      <Button
-                        size="sm"
-                        onClick={() => handleOpenReview(sub)}
-                        className="h-7 text-xs font-bold gap-1 cursor-pointer bg-primary hover:bg-primary/90"
-                      >
-                        <Eye className="h-3 w-3" />
-                        <span>{isReviewed ? "צפה וערוך ציון" : "בדוק הגשה והזן ציון"}</span>
-                      </Button>
+                    <div className="flex items-center justify-between sm:justify-end gap-2 sm:gap-3 text-xs text-muted-foreground w-full sm:w-auto">
+                      <span className="text-[11px] sm:text-xs">{sub.submittedAt}</span>
+                      <div className="flex items-center gap-1.5">
+                        <Button
+                          size="sm"
+                          onClick={() => handleOpenReview(sub)}
+                          className="h-7 text-xs font-bold gap-1 cursor-pointer bg-primary hover:bg-primary/90 px-2.5"
+                        >
+                          <Eye className="h-3 w-3" />
+                          <span>{isReviewed ? "צפה / ערוך" : "בדוק מטלה"}</span>
+                        </Button>
 
-                      <button
-                        onClick={() => handleDeleteSubmission(sub.id, sub.studentName)}
-                        className="p-1 text-muted-foreground hover:text-destructive transition-colors cursor-pointer"
-                        title="מחק הגשה"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
+                        <button
+                          onClick={() => handleDeleteSubmission(sub.id, sub.studentName)}
+                          className="p-1 text-muted-foreground hover:text-destructive transition-colors cursor-pointer"
+                          title="מחק הגשה"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
                     </div>
                   </div>
 

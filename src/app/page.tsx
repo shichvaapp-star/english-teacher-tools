@@ -100,47 +100,51 @@ export default function Home() {
   ];
 
   return (
-    <div className="flex flex-col min-h-screen bg-background text-foreground">
+    <div className="flex flex-col min-h-screen bg-background text-foreground overflow-x-hidden">
       {/* Top Navbar */}
       <header className="sticky top-0 z-40 border-b border-border/50 bg-background/90 backdrop-blur-md">
-        <div className="container mx-auto flex h-16 items-center justify-between px-4 sm:px-8">
-          <Link href="/" className="flex items-center gap-3 group">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-xs transition-transform group-hover:scale-105">
-              <GraduationCap className="h-5 w-5" />
+        <div className="container mx-auto flex h-16 items-center justify-between px-3 sm:px-8 gap-2">
+          <Link href="/" className="flex items-center gap-2.5 sm:gap-3 group min-w-0">
+            <div className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-xs shrink-0 transition-transform group-hover:scale-105">
+              <GraduationCap className="h-4 w-4 sm:h-5 sm:w-5" />
             </div>
-            <div>
+            <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <span className="font-extrabold tracking-tight text-foreground text-lg sm:text-xl">
+                <span className="font-extrabold tracking-tight text-foreground text-base sm:text-xl truncate">
                   English Practice
                 </span>
                 <span className="text-[11px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium hidden sm:inline-block">
                   חטיבת ביניים
                 </span>
               </div>
-              <span className="text-xs text-muted-foreground font-medium block" dir="rtl">
+              <span className="text-[10px] sm:text-xs text-muted-foreground font-medium block truncate" dir="rtl">
                 חטיבת ביניים בן גוריון &bull; Ben Gurion Middle School
               </span>
             </div>
           </Link>
 
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
             {user?.role === "teacher" && (
               <Link
                 href="/teacher/dashboard"
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-purple-500/30 bg-purple-500/10 hover:bg-purple-500/20 text-xs font-bold text-purple-700 dark:text-purple-300 transition shadow-2xs"
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-purple-500/30 bg-purple-500/10 hover:bg-purple-500/20 text-xs font-bold text-purple-700 dark:text-purple-300 transition shadow-2xs"
                 dir="rtl"
+                title="לוח בקרת מורה"
               >
                 <LayoutDashboard className="h-3.5 w-3.5 text-purple-600 dark:text-purple-400" />
-                <span>לוח בקרת מורה</span>
+                <span className="hidden sm:inline">לוח בקרת מורה</span>
+                <span className="sm:hidden">לוח מורה</span>
               </Link>
             )}
 
             <Link
               href="/guide"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border/70 hover:border-primary/40 bg-card hover:bg-accent/60 text-xs font-medium text-foreground transition shadow-2xs"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border/70 hover:border-primary/40 bg-card hover:bg-accent/60 text-xs font-medium text-foreground transition shadow-2xs"
+              title="Teacher Guide"
             >
               <BookOpen className="h-3.5 w-3.5 text-primary" />
-              <span>Teacher Guide</span>
+              <span className="hidden md:inline">Teacher Guide</span>
+              <span className="md:hidden hidden sm:inline">Guide</span>
             </Link>
             <ThemeToggle />
             <div className="h-4 w-[1px] bg-border hidden sm:block" />
