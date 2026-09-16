@@ -21,6 +21,7 @@ import {
   Users,
   BookOpen,
   ArrowLeft,
+  LayoutDashboard,
 } from "lucide-react";
 
 export default function Home() {
@@ -123,6 +124,17 @@ export default function Home() {
           </Link>
 
           <div className="flex items-center gap-2.5">
+            {user?.role === "teacher" && (
+              <Link
+                href="/teacher/dashboard"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-purple-500/30 bg-purple-500/10 hover:bg-purple-500/20 text-xs font-bold text-purple-700 dark:text-purple-300 transition shadow-2xs"
+                dir="rtl"
+              >
+                <LayoutDashboard className="h-3.5 w-3.5 text-purple-600 dark:text-purple-400" />
+                <span>לוח בקרת מורה</span>
+              </Link>
+            )}
+
             <Link
               href="/guide"
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border/70 hover:border-primary/40 bg-card hover:bg-accent/60 text-xs font-medium text-foreground transition shadow-2xs"

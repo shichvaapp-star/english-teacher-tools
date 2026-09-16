@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { GraduationCap, User, LogOut, ChevronDown, School, RefreshCw, BookOpen } from "lucide-react";
+import { GraduationCap, User, LogOut, ChevronDown, School, RefreshCw, BookOpen, LayoutDashboard } from "lucide-react";
 import { TeacherAuthModal } from "./teacher-auth-modal";
 import { StudentLoginModal } from "./student-login-modal";
 
@@ -118,6 +118,17 @@ export function UserNav() {
           </div>
 
           <div className="py-1">
+            {isTeacher && (
+              <Link
+                href="/teacher/dashboard"
+                onClick={() => setDropdownOpen(false)}
+                className="w-full flex items-center gap-2 px-3 py-2 text-xs text-primary hover:bg-primary/10 rounded-lg transition text-left cursor-pointer font-bold mb-1 border border-primary/20 bg-primary/5"
+              >
+                <LayoutDashboard className="h-3.5 w-3.5 text-primary" />
+                <span>לוח בקרת מורה (Dashboard)</span>
+              </Link>
+            )}
+
             <Link
               href="/guide"
               onClick={() => setDropdownOpen(false)}
