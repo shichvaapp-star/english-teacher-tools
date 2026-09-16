@@ -41,6 +41,15 @@ export default function UnseenPracticePage() {
   // App Stage: "settings" (select level, mode, and story) vs. "exercise" (active reading & questions)
   const [stage, setStage] = useState<"settings" | "exercise">("settings");
 
+  React.useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("stage") === "exercise") {
+        setStage("exercise");
+      }
+    }
+  }, []);
+
   // Level Selection (No grade references)
   const [selectedLevel, setSelectedLevel] = useState<"Level 1" | "Level 2" | "Level 3">("Level 2");
 
@@ -433,6 +442,13 @@ export default function UnseenPracticePage() {
                 </span>
               )}
             </Button>
+            <Link
+              href="/guide"
+              className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border/70 hover:border-primary/40 bg-card hover:bg-accent/60 text-xs font-medium text-foreground transition"
+            >
+              <Info className="h-3.5 w-3.5 text-primary" />
+              <span>Guide</span>
+            </Link>
             <ThemeToggle />
             <UserNav />
           </div>

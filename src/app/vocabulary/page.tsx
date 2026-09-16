@@ -36,6 +36,7 @@ import {
   AlertCircle,
   Sparkles,
   Check,
+  BookOpen,
 } from "lucide-react";
 
 // Pure deterministic shuffle helper
@@ -63,6 +64,16 @@ export default function VocabularyPage() {
   const [activeCategory, setActiveCategory] = useState<"saved" | "grade7" | "grade8" | "grade9">(
     "saved"
   );
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const cat = params.get("category");
+      if (cat === "grade7" || cat === "grade8" || cat === "grade9") {
+        setActiveCategory(cat);
+      }
+    }
+  }, []);
   const [studyMode, setStudyMode] = useState<"flashcards" | "match" | "quiz" | "bank">("flashcards");
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -319,6 +330,13 @@ export default function VocabularyPage() {
               <span>הוספת מילה חדשה</span>
             </Button>
 
+            <Link
+              href="/guide"
+              className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border/70 hover:border-emerald-500/40 bg-card hover:bg-accent/60 text-xs font-medium text-foreground transition"
+            >
+              <BookOpen className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+              <span>Guide</span>
+            </Link>
             <ThemeToggle />
             <div className="h-4 w-[1px] bg-border" />
             <UserNav />

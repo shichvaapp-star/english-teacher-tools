@@ -29,6 +29,15 @@ export default function Home() {
   const [teacherModalOpen, setTeacherModalOpen] = useState(false);
   const [studentModalOpen, setStudentModalOpen] = useState(false);
 
+  React.useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const modal = params.get("modal");
+      if (modal === "teacher") setTeacherModalOpen(true);
+      else if (modal === "student") setStudentModalOpen(true);
+    }
+  }, []);
+
   const sections = [
     {
       englishTitle: "Unseen Practice",
@@ -113,7 +122,14 @@ export default function Home() {
             </div>
           </Link>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
+            <Link
+              href="/guide"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border/70 hover:border-primary/40 bg-card hover:bg-accent/60 text-xs font-medium text-foreground transition shadow-2xs"
+            >
+              <BookOpen className="h-3.5 w-3.5 text-primary" />
+              <span>Teacher Guide</span>
+            </Link>
             <ThemeToggle />
             <div className="h-4 w-[1px] bg-border hidden sm:block" />
             <UserNav />

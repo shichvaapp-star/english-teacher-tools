@@ -1,10 +1,11 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
+import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { GraduationCap, User, LogOut, ChevronDown, School, RefreshCw } from "lucide-react";
+import { GraduationCap, User, LogOut, ChevronDown, School, RefreshCw, BookOpen } from "lucide-react";
 import { TeacherAuthModal } from "./teacher-auth-modal";
 import { StudentLoginModal } from "./student-login-modal";
 
@@ -117,6 +118,15 @@ export function UserNav() {
           </div>
 
           <div className="py-1">
+            <Link
+              href="/guide"
+              onClick={() => setDropdownOpen(false)}
+              className="w-full flex items-center gap-2 px-3 py-2 text-xs text-foreground hover:bg-accent rounded-lg transition text-left cursor-pointer font-medium"
+            >
+              <BookOpen className="h-3.5 w-3.5 text-primary" />
+              <span>Teacher Guide & Handout</span>
+            </Link>
+
             <button
               type="button"
               onClick={() => {

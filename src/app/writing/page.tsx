@@ -34,6 +34,7 @@ import {
   AlertCircle,
   X,
   Compass,
+  BookOpen,
 } from "lucide-react";
 
 interface SubmissionRecord {
@@ -375,6 +376,13 @@ export default function WritingPracticePage() {
               <History className="h-3.5 w-3.5 text-muted-foreground" />
               <span className="hidden sm:inline">הגשות קודמות</span>
             </Button>
+            <Link
+              href="/guide"
+              className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border/70 hover:border-purple-500/40 bg-card hover:bg-accent/60 text-xs font-medium text-foreground transition"
+            >
+              <BookOpen className="h-3.5 w-3.5 text-purple-600 dark:text-purple-400" />
+              <span>Guide</span>
+            </Link>
             <ThemeToggle />
             <div className="h-4 w-[1px] bg-border" />
             <UserNav />
