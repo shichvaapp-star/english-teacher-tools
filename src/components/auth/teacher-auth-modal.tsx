@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { GraduationCap, Sparkles, CheckCircle2, AlertCircle } from "lucide-react";
+import { GraduationCap, Sparkles, CheckCircle2, AlertCircle, Eye, EyeOff, Lock } from "lucide-react";
 
 interface TeacherAuthModalProps {
   open: boolean;
@@ -19,10 +19,15 @@ export function TeacherAuthModal({ open, onOpenChange }: TeacherAuthModalProps) 
 
   // Login form state
   const [loginEmail, setLoginEmail] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
 
   // Register form state
   const [regName, setRegName] = useState("");
   const [regEmail, setRegEmail] = useState("");
+  const [regPassword, setRegPassword] = useState("");
+  const [regConfirmPassword, setRegConfirmPassword] = useState("");
+  const [showRegPassword, setShowRegPassword] = useState(false);
   const [regSchool, setRegSchool] = useState("");
 
   const [error, setError] = useState<string | null>(null);
@@ -36,24 +41,45 @@ export function TeacherAuthModal({ open, onOpenChange }: TeacherAuthModalProps) 
       setError("Please enter your teacher email.");
       return;
     }
+    if (!loginPassword) {
+      setError("Please enter your password.");
+      return;
+    }
 
     setLoading(true);
-    const res = await loginTeacher(loginEmail);
+    const res = await loginTeacher(loginEmail, loginPassword);
     setLoading(false);
 
     if (res.success) {
       onOpenChange(false);
       setLoginEmail("");
+      setLoginPassword("");
     } else {
-      setError(res.error || "Login failed");
+      setError(res.error || "Login failed. Please verify your email and password.");
     }
   };
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+
     if (!regName.trim() || !regEmail.trim()) {
       setError("Please fill in your name and email.");
+      return;
+    }
+
+    if (!regPassword) {
+      setError("Please create a password for your account.");
+      return;
+    }
+
+    if (regPassword.length < 6) {
+      setError("Password must be at least 6 characters long.");
+      return;
+    }
+
+    if (regPassword !== regConfirmPassword) {
+      setError("Passwords do not match. Please re-enter.");
       return;
     }
 
@@ -61,6 +87,7 @@ export function TeacherAuthModal({ open, onOpenChange }: TeacherAuthModalProps) 
     const res = await registerTeacher({
       name: regName,
       email: regEmail,
+      password: regPassword,
       schoolName: regSchool,
     });
     setLoading(false);
@@ -72,10 +99,12 @@ export function TeacherAuthModal({ open, onOpenChange }: TeacherAuthModalProps) 
         setSuccessMsg(null);
         setRegName("");
         setRegEmail("");
+        setRegPassword("");
+        setRegConfirmPassword("");
         setRegSchool("");
       }, 2000);
     } else {
-      setError(res.error || "Registration failed");
+      setError(res.error || "Registration failed. Please try again.");
     }
   };
 
@@ -89,7 +118,7 @@ export function TeacherAuthModal({ open, onOpenChange }: TeacherAuthModalProps) 
           </div>
           <DialogTitle className="text-xl">Teacher Access</DialogTitle>
           <DialogDescription>
-            Manage classroom assignments, generate Unseens with AI, and review student essays.
+            Log in with your teacher email and password to manage assignments and review student work.
           </DialogDescription>
         </DialogHeader>
 
@@ -114,7 +143,7 @@ export function TeacherAuthModal({ open, onOpenChange }: TeacherAuthModalProps) 
           )}
 
           <TabsContent value="login">
-            <form onSubmit={handleLogin} className="space-y-4">
+            <form onSubmit={handleLogin} className="space-y-3.5">
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-foreground">Teacher Email Address</label>
                 <Input
@@ -124,14 +153,38 @@ export function TeacherAuthModal({ open, onOpenChange }: TeacherAuthModalProps) 
                   onChange={(e) => setLoginEmail(e.target.value)}
                   required
                 />
-                <p className="text-[11px] text-muted-foreground">
-                  Demo account: <code>sarah.cohen@school.edu.il</code>
-                </p>
+              </div>
+
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-medium text-foreground flex items-center gap-1.5">
+                    <Lock className="h-3 w-3 text-muted-foreground" />
+                    <span>Password</span>
+                  </label>
+                </div>
+                <div className="relative">
+                  <Input
+                    type={showLoginPassword ? "text" : "password"}
+                    placeholder="Enter your password"
+                    value={loginPassword}
+                    onChange={(e) => setLoginPassword(e.target.value)}
+                    required
+                    className="pr-9"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowLoginPassword(!showLoginPassword)}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer p-0.5"
+                    tabIndex={-1}
+                  >
+                    {showLoginPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
               </div>
 
               <DialogFooter className="pt-2">
                 <Button type="submit" className="w-full" disabled={loading}>
-                  {loading ? "Logging in..." : "Enter Teacher Cockpit"}
+                  {loading ? "Logging in..." : "Enter Teacher Portal"}
                 </Button>
               </DialogFooter>
             </form>
@@ -162,10 +215,47 @@ export function TeacherAuthModal({ open, onOpenChange }: TeacherAuthModalProps) 
               </div>
 
               <div className="space-y-1">
-                <label className="text-xs font-medium text-foreground">School / Institution (Optional)</label>
+                <label className="text-xs font-medium text-foreground flex items-center gap-1.5">
+                  <Lock className="h-3 w-3 text-muted-foreground" />
+                  <span>Password (Min. 6 characters)</span>
+                </label>
+                <div className="relative">
+                  <Input
+                    type={showRegPassword ? "text" : "password"}
+                    placeholder="Choose a secure password"
+                    value={regPassword}
+                    onChange={(e) => setRegPassword(e.target.value)}
+                    required
+                    minLength={6}
+                    className="pr-9"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowRegPassword(!showRegPassword)}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer p-0.5"
+                    tabIndex={-1}
+                  >
+                    {showRegPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-foreground">Confirm Password</label>
+                <Input
+                  type={showRegPassword ? "text" : "password"}
+                  placeholder="Repeat your password"
+                  value={regConfirmPassword}
+                  onChange={(e) => setRegConfirmPassword(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-foreground">School / Institution</label>
                 <Input
                   type="text"
-                  placeholder="e.g. Ironi Gimel / Private Tutor"
+                  placeholder="e.g. Ben Gurion Middle School"
                   value={regSchool}
                   onChange={(e) => setRegSchool(e.target.value)}
                 />

@@ -1,7 +1,21 @@
 "use client";
 
-import React, { createContext, useContext, useState } from "react";
+import React, { createContext, useContext, useState, useEffect } from "react";
 import { ActiveUser, StudentProfile, TeacherProfile } from "@/types/auth";
+import {
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signOut as fbSignOut,
+  updateProfile,
+} from "firebase/auth";
+import {
+  collection,
+  doc,
+  getDoc,
+  setDoc,
+  getDocs,
+} from "firebase/firestore";
+import { auth, db } from "@/lib/firebase";
 
 interface AuthContextType {
   user: ActiveUser | null;
@@ -78,24 +92,136 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const [isLoading] = useState(false);
 
-  const loginTeacher = async (email: string): Promise<{ success: boolean; error?: string }> => {
-    const trimmed = email.trim().toLowerCase();
-    const existing = teachers.find((t) => t.email.toLowerCase() === trimmed);
-    if (!existing) {
-      return { success: false, error: "Teacher account not found. Please register first." };
+  // Sync teachers from Firestore if available
+  useEffect(() => {
+    let isMounted = true;
+    async function syncTeachersFromFirestore() {
+      if (!db) return;
+      try {
+        const snap = await getDocs(collection(db, "teachers"));
+        if (!snap.empty && isMounted) {
+          const list: TeacherProfile[] = [];
+          snap.forEach((docSnap) => {
+            const data = docSnap.data();
+            list.push({
+              id: docSnap.id,
+              name: data.name || "Teacher",
+              email: data.email || "",
+              schoolName: data.schoolName || "Ben Gurion Middle School",
+              teacherCode: data.teacherCode || "",
+              createdAt: data.createdAt || new Date().toISOString(),
+            });
+          });
+
+          if (list.length > 0) {
+            setTeachers((prev) => {
+              const map = new Map<string, TeacherProfile>();
+              prev.forEach((t) => map.set(t.id, t));
+              list.forEach((t) => map.set(t.id, t));
+              const merged = Array.from(map.values());
+              try {
+                localStorage.setItem(STORAGE_KEYS.TEACHERS, JSON.stringify(merged));
+              } catch {
+                // Ignore storage quota
+              }
+              return merged;
+            });
+          }
+        }
+      } catch (err) {
+        console.warn("Firestore fetch teachers notice:", err);
+      }
+    }
+    syncTeachersFromFirestore();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const loginTeacher = async (email: string, password?: string): Promise<{ success: boolean; error?: string }> => {
+    const trimmedEmail = email.trim().toLowerCase();
+    const cleanPassword = (password || "").trim();
+
+    if (!trimmedEmail) {
+      return { success: false, error: "Please enter your teacher email." };
+    }
+    if (!cleanPassword) {
+      return { success: false, error: "Please enter your password." };
+    }
+
+    let uid: string | null = null;
+
+    if (auth) {
+      try {
+        const cred = await signInWithEmailAndPassword(auth, trimmedEmail, cleanPassword);
+        uid = cred.user.uid;
+      } catch (authErr: unknown) {
+        const errCode = (authErr as { code?: string }).code;
+        if (
+          errCode === "auth/invalid-credential" ||
+          errCode === "auth/wrong-password" ||
+          errCode === "auth/user-not-found"
+        ) {
+          return { success: false, error: "Incorrect email or password. Please verify your credentials." };
+        }
+        if (errCode === "auth/too-many-requests") {
+          return { success: false, error: "Too many failed attempts. Please try again in a few moments." };
+        }
+        if (errCode === "auth/invalid-email") {
+          return { success: false, error: "Invalid email address format." };
+        }
+        console.warn("Firebase Auth signIn notice:", authErr);
+      }
+    }
+
+    // Try finding teacher profile in existing list or Firestore
+    let teacherProfile = teachers.find((t) => t.email.toLowerCase() === trimmedEmail || (uid && t.id === uid));
+
+    if (!teacherProfile && db && uid) {
+      try {
+        const docSnap = await getDoc(doc(db, "teachers", uid));
+        if (docSnap.exists()) {
+          const d = docSnap.data();
+          teacherProfile = {
+            id: docSnap.id,
+            name: d.name || "Teacher",
+            email: d.email || trimmedEmail,
+            schoolName: d.schoolName || "Ben Gurion Middle School",
+            teacherCode: d.teacherCode || "TEACHER-01",
+            createdAt: d.createdAt || new Date().toISOString(),
+          };
+        }
+      } catch (dbErr) {
+        console.warn("Firestore fetch teacher notice:", dbErr);
+      }
+    }
+
+    if (!teacherProfile) {
+      teacherProfile = {
+        id: uid || `teacher-${Date.now()}`,
+        name: trimmedEmail.split("@")[0],
+        email: trimmedEmail,
+        schoolName: "Ben Gurion Middle School",
+        teacherCode: `TEACHER-${Math.floor(10 + Math.random() * 90)}`,
+        createdAt: new Date().toISOString(),
+      };
     }
 
     const activeUser: ActiveUser = {
-      id: existing.id,
-      name: existing.name,
+      id: teacherProfile.id,
+      name: teacherProfile.name,
       role: "teacher",
-      email: existing.email,
-      schoolName: existing.schoolName,
-      teacherCode: existing.teacherCode,
+      email: teacherProfile.email,
+      schoolName: teacherProfile.schoolName,
+      teacherCode: teacherProfile.teacherCode,
     };
 
     setUser(activeUser);
-    localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(activeUser));
+    try {
+      localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(activeUser));
+    } catch {
+      // Ignore storage errors
+    }
     return { success: true };
   };
 
@@ -103,25 +229,68 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     name: string;
     email: string;
     schoolName: string;
+    password?: string;
   }): Promise<{ success: boolean; teacher?: TeacherProfile; error?: string }> => {
     const trimmedEmail = data.email.trim().toLowerCase();
-    if (teachers.some((t) => t.email.toLowerCase() === trimmedEmail)) {
-      return { success: false, error: "A teacher account with this email already exists." };
+    const cleanPassword = (data.password || "").trim();
+
+    if (!data.name.trim()) {
+      return { success: false, error: "Please enter your full name." };
+    }
+    if (!trimmedEmail) {
+      return { success: false, error: "Please enter your teacher email." };
+    }
+    if (!cleanPassword || cleanPassword.length < 6) {
+      return { success: false, error: "Password must be at least 6 characters." };
+    }
+
+    let uid = `teacher-${Date.now()}`;
+
+    if (auth) {
+      try {
+        const cred = await createUserWithEmailAndPassword(auth, trimmedEmail, cleanPassword);
+        uid = cred.user.uid;
+        await updateProfile(cred.user, { displayName: data.name.trim() });
+      } catch (authErr: unknown) {
+        const errCode = (authErr as { code?: string }).code;
+        if (errCode === "auth/email-already-in-use") {
+          return { success: false, error: "An account with this email already exists. Please log in instead." };
+        }
+        if (errCode === "auth/weak-password") {
+          return { success: false, error: "Password is too weak. Please use at least 6 characters." };
+        }
+        if (errCode === "auth/invalid-email") {
+          return { success: false, error: "Please enter a valid email address." };
+        }
+        console.warn("Firebase Auth createUser notice:", authErr);
+      }
     }
 
     const codeBase = data.name.split(" ")[0].toUpperCase().replace(/[^A-Z]/g, "") || "TEACHER";
     const newTeacher: TeacherProfile = {
-      id: `teacher-${Date.now()}`,
+      id: uid,
       name: data.name.trim(),
       email: trimmedEmail,
-      schoolName: data.schoolName.trim() || "Independent / Tutor",
+      schoolName: data.schoolName.trim() || "Ben Gurion Middle School",
       teacherCode: `${codeBase}-${Math.floor(10 + Math.random() * 90)}`,
       createdAt: new Date().toISOString(),
     };
 
-    const updated = [newTeacher, ...teachers];
+    if (db) {
+      try {
+        await setDoc(doc(db, "teachers", uid), newTeacher);
+      } catch (dbErr) {
+        console.warn("Firestore save teacher notice:", dbErr);
+      }
+    }
+
+    const updated = [newTeacher, ...teachers.filter((t) => t.email.toLowerCase() !== trimmedEmail)];
     setTeachers(updated);
-    localStorage.setItem(STORAGE_KEYS.TEACHERS, JSON.stringify(updated));
+    try {
+      localStorage.setItem(STORAGE_KEYS.TEACHERS, JSON.stringify(updated));
+    } catch {
+      // Ignore
+    }
 
     const activeUser: ActiveUser = {
       id: newTeacher.id,
@@ -133,7 +302,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     setUser(activeUser);
-    localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(activeUser));
+    try {
+      localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(activeUser));
+    } catch {
+      // Ignore
+    }
     return { success: true, teacher: newTeacher };
   };
 
@@ -152,26 +325,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { success: false, error: "PIN must be at least 4 digits." };
     }
 
-    const teacher = teachers.find((t) => t.id === data.teacherId || t.teacherCode.toLowerCase() === data.teacherId.toLowerCase());
+    const teacher = teachers.find(
+      (t) => t.id === data.teacherId || t.teacherCode.toLowerCase() === data.teacherId.toLowerCase()
+    );
     if (!teacher) {
       return { success: false, error: "Selected teacher not found. Please pick your teacher or check the code." };
     }
 
     // Retrieve or save student profile
-    const storedStudentsRaw = localStorage.getItem(STORAGE_KEYS.STUDENTS);
-    const studentsList: StudentProfile[] = storedStudentsRaw ? JSON.parse(storedStudentsRaw) : [];
+    let studentsList: StudentProfile[] = [];
+    try {
+      const storedStudentsRaw = localStorage.getItem(STORAGE_KEYS.STUDENTS);
+      studentsList = storedStudentsRaw ? JSON.parse(storedStudentsRaw) : [];
+    } catch {
+      studentsList = [];
+    }
 
     let student = studentsList.find(
       (s) => s.teacherId === teacher.id && s.name.toLowerCase() === trimmedName.toLowerCase()
     );
 
     if (student) {
-      // Validate PIN
       if (student.pin !== cleanPin) {
         return { success: false, error: "Incorrect PIN for this student name. Please try again." };
       }
     } else {
-      // Create new student entry under this teacher
       student = {
         id: `student-${Date.now()}`,
         name: trimmedName,
@@ -181,7 +359,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         createdAt: new Date().toISOString(),
       };
       studentsList.push(student);
-      localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(studentsList));
+      try {
+        localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(studentsList));
+      } catch {
+        // Ignore
+      }
     }
 
     const activeUser: ActiveUser = {
@@ -193,13 +375,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     setUser(activeUser);
-    localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(activeUser));
+    try {
+      localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(activeUser));
+    } catch {
+      // Ignore
+    }
     return { success: true };
   };
 
   const logout = () => {
     setUser(null);
-    localStorage.removeItem(STORAGE_KEYS.USER);
+    try {
+      localStorage.removeItem(STORAGE_KEYS.USER);
+    } catch {
+      // Ignore
+    }
+    if (auth) {
+      fbSignOut(auth).catch((err) => console.warn("Firebase signout notice:", err));
+    }
   };
 
   return (
