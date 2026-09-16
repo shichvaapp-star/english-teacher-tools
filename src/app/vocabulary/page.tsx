@@ -207,8 +207,8 @@ export default function VocabularyPage() {
       <main className="flex-1 container mx-auto px-4 sm:px-8 py-6 sm:py-8 space-y-6 print:p-0 print:m-0">
         {/* Category Picker (Middle School Grades + Saved from Unseen) */}
         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border/50 pb-4 print:hidden">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs font-semibold text-muted-foreground mr-1">מאגר מילים:</span>
+          <div className="flex flex-wrap items-center gap-2" dir="rtl">
+            <span className="text-xs font-semibold text-muted-foreground ml-1">מאגר מילים:</span>
 
             <Button
               variant={activeCategory === "saved" ? "default" : "outline"}
@@ -232,7 +232,7 @@ export default function VocabularyPage() {
                 setCardIndex(0);
               }}
             >
-              כיתה ז׳ (רמה קלה)
+              רמה 1 (בסיסי)
             </Button>
 
             <Button
@@ -244,7 +244,7 @@ export default function VocabularyPage() {
                 setCardIndex(0);
               }}
             >
-              כיתה ח׳ (בינוני)
+              רמה 2 (שוטף)
             </Button>
 
             <Button
@@ -256,7 +256,7 @@ export default function VocabularyPage() {
                 setCardIndex(0);
               }}
             >
-              כיתה ט׳ (מתקדם)
+              רמה 3 (מתקדם)
             </Button>
           </div>
 
