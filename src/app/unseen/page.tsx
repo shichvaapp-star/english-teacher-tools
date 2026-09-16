@@ -6,6 +6,7 @@ import { useAuth } from "@/lib/auth-context";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { UserNav } from "@/components/auth/user-nav";
 import { MIDDLE_SCHOOL_UNSEENS, MSUnseenStory } from "@/data/unseen-middle-school";
+import { lookupBuiltInTranslation } from "@/data/built-in-dictionary";
 import { saveWordToBuilder, VocabItem, loadSavedWords } from "@/lib/vocab-storage";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -61,7 +62,7 @@ export default function UnseenPracticePage() {
 
   // Handle word click anywhere in the passage
   const handleWordClick = async (rawWord: string) => {
-    const clean = rawWord.trim().toLowerCase().replace(/[^a-zA-Z'\-]/g, "");
+    const clean = rawWord.trim().toLowerCase().replace(/^[^a-zA-Z]+|[^a-zA-Z]+$/g, "");
     if (!clean || clean.length < 2) return;
 
     setClickedWord({
@@ -70,7 +71,7 @@ export default function UnseenPracticePage() {
       loading: true,
     });
 
-    // 1. Check if word is already in the story's vocabulary hints
+    // 1. Check if word is in the current story vocabulary hints
     const hint = currentStory.vocabularyHints.find(
       (h) => h.word.toLowerCase().replace(/[^a-zA-Z]/g, "") === clean
     );
@@ -91,7 +92,51 @@ export default function UnseenPracticePage() {
       return;
     }
 
-    // 2. Call translation API
+    // 2. Check instant built-in offline dictionary (0 ms latency)
+    const builtInHebrew = lookupBuiltInTranslation(clean);
+    if (builtInHebrew) {
+      saveWordToBuilder(
+        { english: clean, hebrew: builtInHebrew, example: `From "${currentStory.title}"` },
+        user?.id
+      );
+      setClickedWord({
+        word: clean,
+        hebrew: builtInHebrew,
+        loading: false,
+        example: `From "${currentStory.title}"`,
+        saved: true,
+      });
+      setSavedWords(loadSavedWords(user?.id));
+      return;
+    }
+
+    // 3. Check browser localStorage cache
+    const cacheKey = `trans_cache_${clean}`;
+    try {
+      const cached = localStorage.getItem(cacheKey);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (parsed?.hebrew) {
+          saveWordToBuilder(
+            { english: clean, hebrew: parsed.hebrew, example: parsed.example || `From "${currentStory.title}"` },
+            user?.id
+          );
+          setClickedWord({
+            word: clean,
+            hebrew: parsed.hebrew,
+            loading: false,
+            example: parsed.example || `From "${currentStory.title}"`,
+            saved: true,
+          });
+          setSavedWords(loadSavedWords(user?.id));
+          return;
+        }
+      }
+    } catch {
+      // Ignore cache errors
+    }
+
+    // 4. Call server translation API
     try {
       const res = await fetch("/api/translate-word", {
         method: "POST",
@@ -101,7 +146,12 @@ export default function UnseenPracticePage() {
 
       if (res.ok) {
         const data = await res.json();
-        if (data.success && data.data) {
+        if (data.success && data.data?.hebrew) {
+          try {
+            localStorage.setItem(cacheKey, JSON.stringify(data.data));
+          } catch {
+            // Ignore storage quota
+          }
           saveWordToBuilder(
             {
               english: clean,
@@ -124,7 +174,40 @@ export default function UnseenPracticePage() {
         }
       }
     } catch {
-      // fallback
+      // Fallback to client-side translation
+    }
+
+    // 5. Client-side direct MyMemory fallback if server is unreachable
+    try {
+      const fallbackUrl = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(clean)}&langpair=en|he`;
+      const fbRes = await fetch(fallbackUrl);
+      if (fbRes.ok) {
+        const fbData = await fbRes.json();
+        const tr = fbData?.responseData?.translatedText;
+        if (tr && typeof tr === "string" && !tr.includes("MYMEMORY WARNING")) {
+          const cleanTranslation = tr.trim();
+          try {
+            localStorage.setItem(cacheKey, JSON.stringify({ english: clean, hebrew: cleanTranslation }));
+          } catch {
+            // Ignore
+          }
+          saveWordToBuilder(
+            { english: clean, hebrew: cleanTranslation, example: `From "${currentStory.title}"` },
+            user?.id
+          );
+          setClickedWord({
+            word: clean,
+            hebrew: cleanTranslation,
+            loading: false,
+            example: `From "${currentStory.title}"`,
+            saved: true,
+          });
+          setSavedWords(loadSavedWords(user?.id));
+          return;
+        }
+      }
+    } catch {
+      // Ignore
     }
 
     setClickedWord({

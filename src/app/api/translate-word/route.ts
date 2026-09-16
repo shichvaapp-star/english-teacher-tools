@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { lookupBuiltInTranslation } from "@/data/built-in-dictionary";
 
 interface TranslationResult {
   english: string;
@@ -10,9 +11,9 @@ interface TranslationResult {
 // In-memory server cache for instant lookup
 const serverTranslationCache = new Map<string, TranslationResult>();
 
-async function translateWithFreeFallback(word: string): Promise<string | null> {
+async function translateWithMyMemory(word: string): Promise<string | null> {
   try {
-    const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=iw&dt=t&q=${encodeURIComponent(word)}`;
+    const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(word)}&langpair=en|he`;
     const res = await fetch(url, {
       headers: {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
@@ -21,19 +22,38 @@ async function translateWithFreeFallback(word: string): Promise<string | null> {
 
     if (res.ok) {
       const data = await res.json();
-      if (Array.isArray(data) && Array.isArray(data[0])) {
-        const fullTranslation = data[0]
-          .map((item: unknown) => (Array.isArray(item) && item[0] ? String(item[0]) : ""))
-          .join("")
-          .trim();
-        if (fullTranslation) {
-          return fullTranslation;
-        }
+      const tr = data?.responseData?.translatedText;
+      if (tr && typeof tr === "string" && !tr.includes("MYMEMORY WARNING")) {
+        return tr.trim();
       }
     }
   } catch (err) {
-    console.warn("Free translation fallback error:", err);
+    console.warn("MyMemory translation error:", err);
   }
+  return null;
+}
+
+async function translateWithFreeFallback(word: string): Promise<string | null> {
+  // First try MyMemory
+  const myMem = await translateWithMyMemory(word);
+  if (myMem) return myMem;
+
+  // Secondary try: Lingva API public mirrors
+  try {
+    const lingvaUrl = `https://lingva.ml/api/v1/en/he/${encodeURIComponent(word)}`;
+    const res = await fetch(lingvaUrl, {
+      headers: { "User-Agent": "Mozilla/5.0" },
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data?.translation && typeof data.translation === "string") {
+        return data.translation.trim();
+      }
+    }
+  } catch {
+    // ignore
+  }
+
   return null;
 }
 
@@ -45,12 +65,24 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, reason: "missing_word" }, { status: 400 });
     }
 
-    const cleanWord = word.trim().toLowerCase().replace(/[^a-zA-Z'\-]/g, "");
+    const cleanWord = word.trim().toLowerCase().replace(/^[^a-zA-Z]+|[^a-zA-Z]+$/g, "");
     if (!cleanWord) {
       return NextResponse.json({ success: false, reason: "invalid_word" }, { status: 400 });
     }
 
-    // 1. Check in-memory server cache
+    // 1. Check built-in offline dictionary (0 latency!)
+    const builtIn = lookupBuiltInTranslation(cleanWord);
+    if (builtIn) {
+      const result: TranslationResult = {
+        english: cleanWord,
+        hebrew: builtIn,
+        partOfSpeech: "noun",
+        example: `The word "${cleanWord}" was translated from the text.`,
+      };
+      return NextResponse.json({ success: true, data: result, source: "dictionary" });
+    }
+
+    // 2. Check in-memory server cache
     if (serverTranslationCache.has(cleanWord)) {
       return NextResponse.json({
         success: true,
@@ -61,7 +93,7 @@ export async function POST(request: Request) {
 
     const apiKey = process.env.GEMINI_API_KEY;
 
-    // 2. If Gemini API key is missing or empty, use instant free Google Translate
+    // 3. If Gemini API key is missing or empty, use MyMemory & fallback
     if (!apiKey) {
       const fallbackHebrew = await translateWithFreeFallback(cleanWord);
       if (fallbackHebrew) {
@@ -72,13 +104,13 @@ export async function POST(request: Request) {
           example: `The word "${cleanWord}" appeared in the reading text.`,
         };
         serverTranslationCache.set(cleanWord, fallbackResult);
-        return NextResponse.json({ success: true, data: fallbackResult });
+        return NextResponse.json({ success: true, data: fallbackResult, source: "mymemory" });
       }
 
       return NextResponse.json({ success: false, reason: "translation_unavailable" }, { status: 500 });
     }
 
-    // 3. Translate using Gemini Flash
+    // 4. Translate using Gemini Flash
     const systemPrompt = `You are an expert English-Hebrew translator and English middle-school teacher. Translate the given English word into natural Hebrew.
 Return ONLY a raw JSON object matching this schema:
 {
@@ -149,15 +181,29 @@ Return ONLY a raw JSON object matching this schema:
         serverTranslationCache.set(cleanWord, fallbackResult);
         return NextResponse.json({ success: true, data: fallbackResult, fallback: true });
       }
-      return NextResponse.json({ success: false, reason: "empty_response" }, { status: 500 });
+      return NextResponse.json({ success: false, reason: "empty_response" }, { status: 502 });
     }
 
-    const parsedData = JSON.parse(generatedText.trim()) as TranslationResult;
-    serverTranslationCache.set(cleanWord, parsedData);
-    return NextResponse.json({ success: true, data: parsedData });
-  } catch (error: unknown) {
-    const msg = error instanceof Error ? error.message : String(error);
-    console.error("Word translation handler error:", msg);
-    return NextResponse.json({ success: false, reason: "exception", message: msg }, { status: 500 });
+    try {
+      const parsed: TranslationResult = JSON.parse(generatedText);
+      serverTranslationCache.set(cleanWord, parsed);
+      return NextResponse.json({ success: true, data: parsed });
+    } catch {
+      const fallbackHebrew = await translateWithFreeFallback(cleanWord);
+      if (fallbackHebrew) {
+        const fallbackResult: TranslationResult = {
+          english: cleanWord,
+          hebrew: fallbackHebrew,
+          partOfSpeech: "noun",
+          example: `The word "${cleanWord}" appeared in the reading text.`,
+        };
+        serverTranslationCache.set(cleanWord, fallbackResult);
+        return NextResponse.json({ success: true, data: fallbackResult, fallback: true });
+      }
+      return NextResponse.json({ success: false, reason: "parse_error" }, { status: 500 });
+    }
+  } catch (error) {
+    console.error("Translate route error:", error);
+    return NextResponse.json({ success: false, reason: "server_error" }, { status: 500 });
   }
 }
