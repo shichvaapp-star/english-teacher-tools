@@ -156,7 +156,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const cred = await signInWithEmailAndPassword(auth, trimmedEmail, cleanPassword);
         uid = cred.user.uid;
       } catch (authErr: unknown) {
-        const errCode = (authErr as { code?: string }).code;
+        const errCode = (authErr as { code?: string; message?: string }).code;
+        const errMsg = (authErr as { message?: string }).message;
         if (
           errCode === "auth/invalid-credential" ||
           errCode === "auth/wrong-password" ||
@@ -170,7 +171,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (errCode === "auth/invalid-email") {
           return { success: false, error: "Invalid email address format." };
         }
-        console.warn("Firebase Auth signIn notice:", authErr);
+        if (errCode === "auth/operation-not-allowed") {
+          return {
+            success: false,
+            error:
+              "Email/Password provider is disabled in Firebase! Go to Firebase Console -> Authentication -> Sign-in method, click 'Email/Password' and toggle 'Enable'.",
+          };
+        }
+        console.error("Firebase Auth signIn error:", authErr);
+        return {
+          success: false,
+          error: errMsg || "Failed to sign in with Firebase.",
+        };
       }
     }
 
@@ -252,7 +264,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         uid = cred.user.uid;
         await updateProfile(cred.user, { displayName: data.name.trim() });
       } catch (authErr: unknown) {
-        const errCode = (authErr as { code?: string }).code;
+        const errCode = (authErr as { code?: string; message?: string }).code;
+        const errMsg = (authErr as { message?: string }).message;
         if (errCode === "auth/email-already-in-use") {
           return { success: false, error: "An account with this email already exists. Please log in instead." };
         }
@@ -262,7 +275,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (errCode === "auth/invalid-email") {
           return { success: false, error: "Please enter a valid email address." };
         }
-        console.warn("Firebase Auth createUser notice:", authErr);
+        if (errCode === "auth/operation-not-allowed") {
+          return {
+            success: false,
+            error:
+              "Email/Password provider is disabled in Firebase! Go to Firebase Console -> Authentication -> Sign-in method, click 'Email/Password' and toggle 'Enable'.",
+          };
+        }
+        console.error("Firebase Auth createUser error:", authErr);
+        return {
+          success: false,
+          error: errMsg || "Failed to create account in Firebase.",
+        };
       }
     }
 
