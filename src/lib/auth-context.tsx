@@ -27,32 +27,20 @@ interface AuthContextType {
   isLoading: boolean;
 }
 
-const DEFAULT_TEACHERS: TeacherProfile[] = [
-  {
-    id: "teacher-1",
-    name: "Sarah Cohen (שרה כהן)",
-    email: "sarah.cohen@school.edu.il",
-    schoolName: "Ironi Alef Tel Aviv",
-    teacherCode: "COHEN-26",
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: "teacher-2",
-    name: "David Levi (דוד לוי)",
-    email: "david.levi@school.edu.il",
-    schoolName: "Rabin Comprehensive Jerusalem",
-    teacherCode: "LEVI-26",
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: "teacher-3",
-    name: "Rachel Stern (רחל שטרן)",
-    email: "rachel.stern@school.edu.il",
-    schoolName: "Haifa Science & Arts",
-    teacherCode: "STERN-26",
-    createdAt: new Date().toISOString(),
-  },
-];
+const DEFAULT_TEACHERS: TeacherProfile[] = [];
+
+const isMockTeacher = (t: Partial<TeacherProfile>): boolean => {
+  if (!t) return true;
+  return (
+    t.id === "teacher-1" ||
+    t.id === "teacher-2" ||
+    t.id === "teacher-3" ||
+    t.email === "sarah.cohen@school.edu.il" ||
+    t.email === "david.levi@school.edu.il" ||
+    t.email === "rachel.stern@school.edu.il" ||
+    (t.email ? t.email.endsWith("@school.edu.il") : false)
+  );
+};
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -74,25 +62,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   });
 
   const [teachers, setTeachers] = useState<TeacherProfile[]>(() => {
-    if (typeof window === "undefined") return DEFAULT_TEACHERS;
+    if (typeof window === "undefined") return [];
     try {
       const storedTeachers = localStorage.getItem(STORAGE_KEYS.TEACHERS);
       if (storedTeachers) {
         const parsed = JSON.parse(storedTeachers);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed;
+        if (Array.isArray(parsed)) {
+          const clean = parsed.filter((t) => !isMockTeacher(t));
+          localStorage.setItem(STORAGE_KEYS.TEACHERS, JSON.stringify(clean));
+          return clean;
         }
       }
-      localStorage.setItem(STORAGE_KEYS.TEACHERS, JSON.stringify(DEFAULT_TEACHERS));
-      return DEFAULT_TEACHERS;
+      localStorage.setItem(STORAGE_KEYS.TEACHERS, JSON.stringify([]));
+      return [];
     } catch {
-      return DEFAULT_TEACHERS;
+      return [];
     }
   });
 
   const [isLoading] = useState(false);
 
-  // Sync teachers from Firestore if available
+  // Sync real teachers from Firestore if available
   useEffect(() => {
     let isMounted = true;
     async function syncTeachersFromFirestore() {
@@ -103,29 +93,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const list: TeacherProfile[] = [];
           snap.forEach((docSnap) => {
             const data = docSnap.data();
-            list.push({
+            const candidate: TeacherProfile = {
               id: docSnap.id,
               name: data.name || "Teacher",
               email: data.email || "",
               schoolName: data.schoolName || "Ben Gurion Middle School",
               teacherCode: data.teacherCode || "",
               createdAt: data.createdAt || new Date().toISOString(),
-            });
+            };
+            if (!isMockTeacher(candidate)) {
+              list.push(candidate);
+            }
           });
 
-          if (list.length > 0) {
-            setTeachers((prev) => {
-              const map = new Map<string, TeacherProfile>();
-              prev.forEach((t) => map.set(t.id, t));
-              list.forEach((t) => map.set(t.id, t));
-              const merged = Array.from(map.values());
-              try {
-                localStorage.setItem(STORAGE_KEYS.TEACHERS, JSON.stringify(merged));
-              } catch {
-                // Ignore storage quota
-              }
-              return merged;
-            });
+          if (isMounted) {
+            setTeachers(list);
+            try {
+              localStorage.setItem(STORAGE_KEYS.TEACHERS, JSON.stringify(list));
+            } catch {
+              // Ignore storage quota
+            }
           }
         }
       } catch (err) {

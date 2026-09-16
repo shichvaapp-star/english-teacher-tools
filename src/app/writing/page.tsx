@@ -257,8 +257,8 @@ export default function WritingPracticePage() {
       type: "writing",
       studentId: user?.id || `guest-${Date.now()}`,
       studentName: trimmedName,
-      teacherId: teacherObj ? teacherObj.id : "teacher-1",
-      teacherName: teacherObj ? teacherObj.name : "Sarah Cohen",
+      teacherId: teacherObj ? teacherObj.id : (teachers[0]?.id || ""),
+      teacherName: teacherObj ? teacherObj.name : (teachers[0]?.name || "מורה לאנגלית"),
       studentClass: studentClass,
       studentNote: studentNote.trim(),
       taskId: currentTask.id,
@@ -812,17 +812,27 @@ export default function WritingPracticePage() {
                       {/* Teacher Selection */}
                       <div className="space-y-1">
                         <label className="font-semibold text-foreground">בחירת מורה לבדיקה:</label>
-                        <select
-                          value={selectedTeacherId}
-                          onChange={(e) => setSelectedTeacherId(e.target.value)}
-                          className="w-full h-9 rounded-lg border border-input bg-background px-3 text-xs shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring cursor-pointer"
-                        >
-                          {teachers.map((t) => (
-                            <option key={t.id} value={t.id}>
-                              {t.name} ({t.schoolName || "חטיבת ביניים בן גוריון"})
-                            </option>
-                          ))}
-                        </select>
+                        {teachers.length > 0 ? (
+                          <select
+                            value={selectedTeacherId}
+                            onChange={(e) => setSelectedTeacherId(e.target.value)}
+                            className="w-full h-9 rounded-lg border border-input bg-background px-3 text-xs shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring cursor-pointer"
+                          >
+                            {teachers.map((t) => (
+                              <option key={t.id} value={t.id}>
+                                {t.name} ({t.schoolName || "חטיבת ביניים בן גוריון"})
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          <input
+                            type="text"
+                            placeholder="שם המורה לבדיקה"
+                            value={selectedTeacherId}
+                            onChange={(e) => setSelectedTeacherId(e.target.value)}
+                            className="w-full h-9 rounded-lg border border-input bg-background px-3 text-xs shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                          />
+                        )}
                       </div>
 
                       {/* Student Note */}

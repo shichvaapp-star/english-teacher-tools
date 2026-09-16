@@ -112,10 +112,10 @@ export function StudentLoginModal({ open, onOpenChange }: StudentLoginModalProps
               </button>
             </div>
 
-            {useCodeDirectly ? (
+            {useCodeDirectly || teachers.length === 0 ? (
               <Input
                 type="text"
-                placeholder="e.g. COHEN-26"
+                placeholder="הזינו קוד מורה (למשל: NIR-34)"
                 value={teacherCodeInput}
                 onChange={(e) => setTeacherCodeInput(e.target.value.toUpperCase())}
                 className="uppercase tracking-wider font-mono text-sm"
