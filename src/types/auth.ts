@@ -15,7 +15,9 @@ export interface StudentProfile {
   pin: string; // 4-digit PIN
   teacherId: string;
   teacherName: string;
-  classGrade?: string;
+  classGrade?: string; // e.g. "ז" | "ח" | "ט"
+  classNumber?: number; // 1-6
+  fullClass?: string; // e.g. "ז׳2"
   createdAt: string;
 }
 
@@ -28,4 +30,7 @@ export interface ActiveUser {
   teacherCode?: string;
   teacherId?: string;
   teacherName?: string;
+  classGrade?: string;
+  classNumber?: number;
+  fullClass?: string;
 }

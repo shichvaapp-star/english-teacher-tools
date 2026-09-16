@@ -1,9 +1,12 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
+import { db } from "@/lib/firebase";
+import { collection, getDocs } from "firebase/firestore";
+import { SubmissionItem } from "@/types/submission";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { UserNav } from "@/components/auth/user-nav";
 import { StudentLoginModal } from "@/components/auth/student-login-modal";
@@ -29,8 +32,10 @@ export default function Home() {
   const { user } = useAuth();
   const [teacherModalOpen, setTeacherModalOpen] = useState(false);
   const [studentModalOpen, setStudentModalOpen] = useState(false);
+  const [studentSubmissions, setStudentSubmissions] = useState<SubmissionItem[]>([]);
+  const [loadingSubmissions, setLoadingSubmissions] = useState(false);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
       const modal = params.get("modal");
@@ -38,6 +43,69 @@ export default function Home() {
       else if (modal === "student") setStudentModalOpen(true);
     }
   }, []);
+
+  useEffect(() => {
+    if (!user || user.role !== "student") return;
+
+    let isMounted = true;
+    setLoadingSubmissions(true);
+
+    const loadData = async () => {
+      let list: SubmissionItem[] = [];
+      try {
+        const localRaw = localStorage.getItem("ett_writing_submissions");
+        if (localRaw) {
+          const parsed: SubmissionItem[] = JSON.parse(localRaw);
+          list = parsed.filter(
+            (i) =>
+              i.studentId === user.id ||
+              i.studentName.trim().toLowerCase() === user.name.trim().toLowerCase()
+          );
+        }
+      } catch {
+        list = [];
+      }
+
+      if (db) {
+        try {
+          const snap = await getDocs(collection(db, "submissions"));
+          const fbItems: SubmissionItem[] = [];
+          snap.forEach((docSnap) => {
+            const data = docSnap.data() as Omit<SubmissionItem, "id">;
+            if (
+              data.studentId === user.id ||
+              data.studentName.trim().toLowerCase() === user.name.trim().toLowerCase()
+            ) {
+              fbItems.push({ id: docSnap.id, ...data });
+            }
+          });
+          if (fbItems.length > 0) {
+            const map = new Map<string, SubmissionItem>();
+            list.forEach((i) => map.set(i.receiptCode || i.id, i));
+            fbItems.forEach((i) => map.set(i.receiptCode || i.id, i));
+            list = Array.from(map.values());
+          }
+        } catch (err) {
+          console.warn("Firestore fetch student notice:", err);
+        }
+      }
+
+      list.sort(
+        (a, b) =>
+          (new Date(b.submittedAt).getTime() || 0) - (new Date(a.submittedAt).getTime() || 0)
+      );
+
+      if (isMounted) {
+        setStudentSubmissions(list);
+        setLoadingSubmissions(false);
+      }
+    };
+
+    loadData();
+    return () => {
+      isMounted = false;
+    };
+  }, [user]);
 
   const sections = [
     {
@@ -137,6 +205,19 @@ export default function Home() {
               </Link>
             )}
 
+            {user?.role === "student" && (
+              <Link
+                href="/student"
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-xs font-bold text-emerald-700 dark:text-emerald-300 transition shadow-2xs"
+                dir="rtl"
+                title="העבודות והציונים שלי"
+              >
+                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                <span className="hidden sm:inline">ההגשות והציונים שלי</span>
+                <span className="sm:hidden">ההגשות שלי</span>
+              </Link>
+            )}
+
             <Link
               href="/guide"
               className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border/70 hover:border-primary/40 bg-card hover:bg-accent/60 text-xs font-medium text-foreground transition shadow-2xs"
@@ -173,9 +254,19 @@ export default function Home() {
                 </Badge>
               )}
             </div>
-            <span className="text-muted-foreground hidden sm:inline">
-              ההתקדמות שלך נשמרת אוטומטית.
-            </span>
+            {user.role === "student" ? (
+              <Link
+                href="/student"
+                className="text-emerald-700 dark:text-emerald-300 font-bold hover:underline flex items-center gap-1"
+              >
+                <span>העבודות והציונים שלי</span>
+                <ArrowLeft className="h-3 w-3" />
+              </Link>
+            ) : (
+              <span className="text-muted-foreground hidden sm:inline">
+                ההתקדמות שלך נשמרת אוטומטית.
+              </span>
+            )}
           </div>
         </div>
       )}
@@ -224,7 +315,7 @@ export default function Home() {
                 </Button>
               </>
             ) : (
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center justify-center gap-3">
                 <Button
                   size="default"
                   onClick={() => router.push("/unseen")}
@@ -234,10 +325,118 @@ export default function Home() {
                   <span>התחלת תרגול</span>
                   <ArrowLeft className="h-4 w-4" />
                 </Button>
+
+                {user.role === "student" && (
+                  <Button
+                    variant="outline"
+                    size="default"
+                    onClick={() => router.push("/student")}
+                    className="cursor-pointer gap-2 font-bold h-10 px-5 border-emerald-500/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/10"
+                  >
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                    <span>העבודות והציונים שלי</span>
+                  </Button>
+                )}
               </div>
             )}
           </div>
         </div>
+
+        {/* Student Submissions Status Section (When logged in as a student) */}
+        {user?.role === "student" && (
+          <div className="max-w-6xl mx-auto space-y-4" dir="rtl">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                  <CheckCircle2 className="h-4 w-4" />
+                </div>
+                <h2 className="text-lg sm:text-xl font-black text-foreground">
+                  העבודות והמבחנים שהגשת לבדיקה
+                </h2>
+                {studentSubmissions.length > 0 && (
+                  <Badge variant="secondary" className="text-xs">
+                    {studentSubmissions.length} הגשות
+                  </Badge>
+                )}
+              </div>
+
+              <Link
+                href="/student"
+                className="text-xs text-primary hover:underline font-bold flex items-center gap-1"
+              >
+                <span>צפה בכל ההגשות והציונים</span>
+                <ArrowLeft className="h-3.5 w-3.5" />
+              </Link>
+            </div>
+
+            {loadingSubmissions ? (
+              <p className="text-xs text-muted-foreground text-center py-4">טוען נתוני הגשות...</p>
+            ) : studentSubmissions.length === 0 ? (
+              <Card className="p-6 text-center border-dashed border-border/80 text-xs text-muted-foreground space-y-1">
+                <p className="font-semibold text-foreground">עדיין לא הגשת עבודות לבדיקה.</p>
+                <p>כאשר תגיש/י מבחן אנסין או חיבור, תוכלי לעקוב כאן אחר הציון ומשוב המורה בזמן אמת!</p>
+              </Card>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {studentSubmissions.slice(0, 3).map((sub) => {
+                  const isReviewed = sub.status === "reviewed";
+                  const displayGrade = sub.grade !== undefined ? sub.grade : sub.score;
+                  return (
+                    <Card
+                      key={sub.id}
+                      className="p-4 border-border/80 hover:border-emerald-500/40 transition-colors bg-card flex flex-col justify-between gap-3 shadow-2xs"
+                    >
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <Badge variant="secondary" className="text-[10px]">
+                            {sub.type === "unseen" ? "📖 אנסין" : "✍️ כתיבה"}
+                          </Badge>
+                          {isReviewed ? (
+                            <Badge className="text-[10px] bg-emerald-600 text-white font-bold">
+                              ✓ נבדק (ציון: {displayGrade})
+                            </Badge>
+                          ) : (
+                            <Badge
+                              variant="outline"
+                              className="text-[10px] text-amber-600 border-amber-500/40 bg-amber-500/10 font-bold"
+                            >
+                              ⏳ ממתין לבדיקה
+                            </Badge>
+                          )}
+                        </div>
+
+                        <div>
+                          <h4 className="font-bold text-sm text-foreground">{sub.hebrewTitle}</h4>
+                          <p className="text-xs text-muted-foreground" dir="ltr">
+                            {sub.taskTitle}
+                          </p>
+                        </div>
+
+                        {sub.teacherFeedback && (
+                          <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-950 dark:text-emerald-100">
+                            <span className="font-bold block text-[11px]">משוב המורה:</span>
+                            <p className="line-clamp-2 mt-0.5">{sub.teacherFeedback}</p>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="pt-2 border-t border-border/40 flex items-center justify-between text-[11px] text-muted-foreground">
+                        <span>{sub.submittedAt}</span>
+                        <Link
+                          href="/student"
+                          className="font-bold text-primary hover:underline flex items-center gap-0.5"
+                        >
+                          <span>פרטים מלאים</span>
+                          <ArrowLeft className="h-3 w-3" />
+                        </Link>
+                      </div>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* 3 Core Cards with Clean English Header & Hebrew RTL body */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl mx-auto">

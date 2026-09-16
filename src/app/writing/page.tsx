@@ -107,6 +107,11 @@ export default function WritingPracticePage() {
     if (user) {
       if (user.role === "student") {
         setStudentName(user.name);
+        if (user.fullClass) {
+          setStudentClass(user.fullClass);
+        } else if (user.classGrade) {
+          setStudentClass(`${user.classGrade}׳${user.classNumber || 1}`);
+        }
         if (user.teacherId) {
           setSelectedTeacherId(user.teacherId);
         }
@@ -957,6 +962,17 @@ export default function WritingPracticePage() {
                         <Printer className="h-3.5 w-3.5" />
                         <span>הדפס חיבור</span>
                       </Button>
+
+                      <Link href="/student">
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          className="text-xs gap-1.5 cursor-pointer font-bold"
+                        >
+                          <BookOpen className="h-3.5 w-3.5" />
+                          <span>לדף העבודות והציונים שלי &rarr;</span>
+                        </Button>
+                      </Link>
 
                       <Button
                         variant="default"

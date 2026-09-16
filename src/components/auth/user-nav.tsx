@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { GraduationCap, User, LogOut, ChevronDown, School, RefreshCw, BookOpen, LayoutDashboard } from "lucide-react";
+import { GraduationCap, User, LogOut, ChevronDown, School, RefreshCw, BookOpen, LayoutDashboard, CheckCircle2 } from "lucide-react";
 import { TeacherAuthModal } from "./teacher-auth-modal";
 import { StudentLoginModal } from "./student-login-modal";
 
@@ -126,6 +126,17 @@ export function UserNav() {
               >
                 <LayoutDashboard className="h-3.5 w-3.5 text-primary" />
                 <span>לוח בקרת מורה (Dashboard)</span>
+              </Link>
+            )}
+
+            {!isTeacher && (
+              <Link
+                href="/student"
+                onClick={() => setDropdownOpen(false)}
+                className="w-full flex items-center gap-2 px-3 py-2 text-xs text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/10 rounded-lg transition text-left cursor-pointer font-bold mb-1 border border-emerald-500/20 bg-emerald-500/5"
+              >
+                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                <span>ההגשות והציונים שלי (My Work)</span>
               </Link>
             )}
 

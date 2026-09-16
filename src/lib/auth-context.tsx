@@ -14,6 +14,8 @@ import {
   getDoc,
   setDoc,
   getDocs,
+  query,
+  where,
 } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 
@@ -22,7 +24,15 @@ interface AuthContextType {
   teachers: TeacherProfile[];
   loginTeacher: (email: string, password?: string) => Promise<{ success: boolean; error?: string }>;
   registerTeacher: (data: { name: string; email: string; schoolName: string; password?: string }) => Promise<{ success: boolean; teacher?: TeacherProfile; error?: string }>;
+  registerStudent: (data: {
+    teacherId: string;
+    studentName: string;
+    classGrade: string;
+    classNumber: number;
+    pin: string;
+  }) => Promise<{ success: boolean; error?: string }>;
   loginStudent: (data: { teacherId: string; studentName: string; pin: string }) => Promise<{ success: boolean; error?: string }>;
+  getStudentsByTeacher: (teacherId: string) => Promise<StudentProfile[]>;
   logout: () => void;
   isLoading: boolean;
 }
@@ -321,16 +331,105 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { success: true, teacher: newTeacher };
   };
 
-  const loginStudent = async (data: {
+  const registerStudent = async (data: {
     teacherId: string;
     studentName: string;
+    classGrade: string;
+    classNumber: number;
     pin: string;
   }): Promise<{ success: boolean; error?: string }> => {
     const trimmedName = data.studentName.trim();
     const cleanPin = data.pin.trim();
 
+    // Validate name is in English
+    const englishNameRegex = /^[A-Za-z\s'-]+$/;
+    if (!trimmedName || !englishNameRegex.test(trimmedName)) {
+      return {
+        success: false,
+        error: "Please enter your full name in English letters only (A-Z).",
+      };
+    }
+    if (cleanPin.length < 4) {
+      return { success: false, error: "PIN must be at least 4 digits." };
+    }
+
+    const teacher = teachers.find(
+      (t) => t.id === data.teacherId || t.teacherCode.toLowerCase() === data.teacherId.toLowerCase()
+    );
+    if (!teacher) {
+      return { success: false, error: "Selected teacher not found. Please pick your teacher." };
+    }
+
+    const fullClass = `${data.classGrade}׳${data.classNumber}`;
+    const studentId = `student-${Date.now()}`;
+    const newStudent: StudentProfile = {
+      id: studentId,
+      name: trimmedName,
+      pin: cleanPin,
+      teacherId: teacher.id,
+      teacherName: teacher.name,
+      classGrade: data.classGrade,
+      classNumber: data.classNumber,
+      fullClass: fullClass,
+      createdAt: new Date().toISOString(),
+    };
+
+    // 1. Save to Firestore for cross-device persistence
+    if (db) {
+      try {
+        await setDoc(doc(db, "students", studentId), newStudent);
+      } catch (dbErr) {
+        console.warn("Firestore save student error:", dbErr);
+      }
+    }
+
+    // 2. Save to local storage
+    let studentsList: StudentProfile[] = [];
+    try {
+      const storedStudentsRaw = localStorage.getItem(STORAGE_KEYS.STUDENTS);
+      studentsList = storedStudentsRaw ? JSON.parse(storedStudentsRaw) : [];
+    } catch {
+      studentsList = [];
+    }
+    studentsList.push(newStudent);
+    try {
+      localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(studentsList));
+    } catch {
+      // Ignore
+    }
+
+    // 3. Set active user session
+    const activeUser: ActiveUser = {
+      id: newStudent.id,
+      name: newStudent.name,
+      role: "student",
+      teacherId: teacher.id,
+      teacherName: teacher.name,
+      schoolName: teacher.schoolName,
+      classGrade: data.classGrade,
+      classNumber: data.classNumber,
+      fullClass: fullClass,
+    };
+
+    setUser(activeUser);
+    try {
+      localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(activeUser));
+    } catch {
+      // Ignore
+    }
+    return { success: true };
+  };
+
+  const loginStudent = async (data: {
+    teacherId: string;
+    studentName: string;
+    pin: string;
+  }): Promise<{ success: boolean; error?: string }> => {
+    const trimmedName = data.studentName.trim().toLowerCase();
+    const cleanPin = data.pin.trim();
+
     if (!trimmedName) {
-      return { success: false, error: "Please enter your name." };
+      return { success: false, error: "Please enter or select your name." };
     }
     if (cleanPin.length < 4) {
       return { success: false, error: "PIN must be at least 4 digits." };
@@ -343,46 +442,64 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { success: false, error: "Selected teacher not found. Please pick your teacher or check the code." };
     }
 
-    // Retrieve or save student profile
-    let studentsList: StudentProfile[] = [];
-    try {
-      const storedStudentsRaw = localStorage.getItem(STORAGE_KEYS.STUDENTS);
-      studentsList = storedStudentsRaw ? JSON.parse(storedStudentsRaw) : [];
-    } catch {
-      studentsList = [];
+    let foundStudent: StudentProfile | null = null;
+
+    // 1. Check Firestore for cross-device support
+    if (db) {
+      try {
+        const q = query(
+          collection(db, "students"),
+          where("teacherId", "==", teacher.id)
+        );
+        const snap = await getDocs(q);
+        snap.forEach((docSnap) => {
+          const s = docSnap.data() as StudentProfile;
+          if (s.name.toLowerCase().trim() === trimmedName) {
+            foundStudent = { ...s, id: docSnap.id };
+          }
+        });
+      } catch (err) {
+        console.warn("Firestore student login lookup error:", err);
+      }
     }
 
-    let student = studentsList.find(
-      (s) => s.teacherId === teacher.id && s.name.toLowerCase() === trimmedName.toLowerCase()
-    );
-
-    if (student) {
-      if (student.pin !== cleanPin) {
-        return { success: false, error: "Incorrect PIN for this student name. Please try again." };
-      }
-    } else {
-      student = {
-        id: `student-${Date.now()}`,
-        name: trimmedName,
-        pin: cleanPin,
-        teacherId: teacher.id,
-        teacherName: teacher.name,
-        createdAt: new Date().toISOString(),
-      };
-      studentsList.push(student);
+    // 2. Fallback to local storage
+    if (!foundStudent) {
       try {
-        localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(studentsList));
+        const storedStudentsRaw = localStorage.getItem(STORAGE_KEYS.STUDENTS);
+        const studentsList: StudentProfile[] = storedStudentsRaw ? JSON.parse(storedStudentsRaw) : [];
+        const match = studentsList.find(
+          (s) => s.teacherId === teacher.id && s.name.toLowerCase().trim() === trimmedName
+        );
+        if (match) {
+          foundStudent = match;
+        }
       } catch {
         // Ignore
       }
     }
 
+    if (!foundStudent) {
+      return {
+        success: false,
+        error: "Student account not found for this teacher. Please use the Sign Up tab first.",
+      };
+    }
+
+    if (foundStudent.pin !== cleanPin) {
+      return { success: false, error: "Incorrect 4-digit PIN. Please try again." };
+    }
+
     const activeUser: ActiveUser = {
-      id: student.id,
-      name: student.name,
+      id: foundStudent.id,
+      name: foundStudent.name,
       role: "student",
       teacherId: teacher.id,
       teacherName: teacher.name,
+      schoolName: teacher.schoolName,
+      classGrade: foundStudent.classGrade,
+      classNumber: foundStudent.classNumber,
+      fullClass: foundStudent.fullClass,
     };
 
     setUser(activeUser);
@@ -392,6 +509,49 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Ignore
     }
     return { success: true };
+  };
+
+  const getStudentsByTeacher = async (teacherId: string): Promise<StudentProfile[]> => {
+    if (!teacherId) return [];
+    const teacher = teachers.find(
+      (t) => t.id === teacherId || t.teacherCode.toLowerCase() === teacherId.toLowerCase()
+    );
+    const targetId = teacher ? teacher.id : teacherId;
+    const listMap = new Map<string, StudentProfile>();
+
+    // 1. From local storage
+    try {
+      const storedStudentsRaw = localStorage.getItem(STORAGE_KEYS.STUDENTS);
+      if (storedStudentsRaw) {
+        const localList: StudentProfile[] = JSON.parse(storedStudentsRaw);
+        localList
+          .filter((s) => s.teacherId === targetId)
+          .forEach((s) => listMap.set(s.id || s.name.toLowerCase(), s));
+      }
+    } catch {
+      // Ignore
+    }
+
+    // 2. From Firestore
+    if (db) {
+      try {
+        const q = query(
+          collection(db, "students"),
+          where("teacherId", "==", targetId)
+        );
+        const snap = await getDocs(q);
+        snap.forEach((docSnap) => {
+          const s = docSnap.data() as StudentProfile;
+          listMap.set(docSnap.id, { ...s, id: docSnap.id });
+        });
+      } catch (err) {
+        console.warn("Firestore getStudentsByTeacher error:", err);
+      }
+    }
+
+    const students = Array.from(listMap.values());
+    students.sort((a, b) => a.name.localeCompare(b.name));
+    return students;
   };
 
   const logout = () => {
@@ -413,7 +573,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         teachers,
         loginTeacher,
         registerTeacher,
+        registerStudent,
         loginStudent,
+        getStudentsByTeacher,
         logout,
         isLoading,
       }}

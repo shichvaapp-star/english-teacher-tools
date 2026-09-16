@@ -44,29 +44,7 @@ import {
   Lock,
 } from "lucide-react";
 
-interface SubmissionItem {
-  id: string;
-  type?: "writing" | "unseen";
-  studentId?: string;
-  studentName: string;
-  teacherId?: string;
-  teacherName?: string;
-  studentClass?: string;
-  studentNote?: string;
-  taskId?: string;
-  taskTitle: string;
-  hebrewTitle: string;
-  category?: string;
-  essayText?: string;
-  wordCount?: number;
-  score?: number;
-  grade?: number;
-  teacherFeedback?: string;
-  submittedAt: string;
-  receiptCode?: string;
-  status: "submitted" | "reviewed";
-  reviewedAt?: string;
-}
+import { SubmissionItem } from "@/types/submission";
 
 const LOCAL_SUBMISSIONS_KEY = "ett_writing_submissions";
 
@@ -658,11 +636,21 @@ export default function TeacherDashboardPage() {
                       <span>משימה: </span>
                       <strong className="text-foreground">{sub.hebrewTitle}</strong> ({sub.taskTitle})
                     </div>
-                    {sub.wordCount !== undefined && (
+                    {sub.type === "unseen" ? (
                       <div>
-                        <span>ספירת מילים: </span>
-                        <strong className="text-foreground">{sub.wordCount} מילים</strong>
+                        <span>רמת אנסין: </span>
+                        <strong className="text-foreground">{sub.storyLevel || "חטיבת ביניים"}</strong>
+                        {sub.score !== undefined && (
+                          <span className="mr-2"> &bull; ציון: <strong>{sub.grade ?? sub.score}/100</strong></span>
+                        )}
                       </div>
+                    ) : (
+                      sub.wordCount !== undefined && (
+                        <div>
+                          <span>ספירת מילים: </span>
+                          <strong className="text-foreground">{sub.wordCount} מילים</strong>
+                        </div>
+                      )
                     )}
                     {sub.receiptCode && (
                       <div>
@@ -672,11 +660,19 @@ export default function TeacherDashboardPage() {
                     )}
                   </div>
 
-                  {/* Essay snippet */}
-                  {sub.essayText && (
-                    <div className="p-3 rounded-lg bg-muted/40 border border-border/40 font-sans text-xs text-foreground/90 line-clamp-2" dir="ltr">
-                      {sub.essayText}
-                    </div>
+                  {/* Essay or Unseen snippet */}
+                  {sub.type === "unseen" ? (
+                    sub.passageText && (
+                      <div className="p-3 rounded-lg bg-muted/40 border border-border/40 font-sans text-xs text-foreground/90 line-clamp-2" dir="ltr">
+                        📖 {sub.passageText}
+                      </div>
+                    )
+                  ) : (
+                    sub.essayText && (
+                      <div className="p-3 rounded-lg bg-muted/40 border border-border/40 font-sans text-xs text-foreground/90 line-clamp-2" dir="ltr">
+                        {sub.essayText}
+                      </div>
+                    )
                   )}
 
                   {/* Teacher Feedback snippet if reviewed */}
@@ -710,7 +706,7 @@ export default function TeacherDashboardPage() {
                     בדיקת הגשה &bull; {reviewItem.studentName}
                   </h3>
                   <p className="text-xs text-muted-foreground">
-                    {reviewItem.hebrewTitle} &bull; {reviewItem.studentClass || "חטיבת ביניים"}
+                    {reviewItem.hebrewTitle} &bull; {reviewItem.studentClass || "חטיבת ביניים"} ({reviewItem.type === "unseen" ? "מבחן אנסין" : "חיבור כתיבה"})
                   </p>
                 </div>
               </div>
@@ -723,22 +719,107 @@ export default function TeacherDashboardPage() {
             </div>
 
             {/* Student Work Content */}
-            <div className="space-y-2 flex-1">
-              <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span>טקסט החיבור שהוגש על ידי התלמיד/ה:</span>
-                {reviewItem.wordCount !== undefined && (
-                  <Badge variant="outline" className="text-[11px]">
-                    {reviewItem.wordCount} מילים
-                  </Badge>
-                )}
-              </div>
+            <div className="space-y-3 flex-1">
+              {reviewItem.type === "unseen" ? (
+                <>
+                  {/* Unseen Passage Viewer */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <span className="font-bold text-foreground">קטע הקריאה (Reading Passage):</span>
+                      <Badge variant="outline" className="text-[11px]">
+                        {reviewItem.storyLevel || "Unseen"} &bull; ציון ממוחשב: {reviewItem.score ?? 0}/100
+                      </Badge>
+                    </div>
+                    <div
+                      className="p-3.5 rounded-xl border border-border bg-muted/20 text-xs font-sans leading-relaxed text-foreground whitespace-pre-wrap max-h-44 overflow-y-auto"
+                      dir="ltr"
+                    >
+                      {reviewItem.passageText || "קטע קריאה לא זמין"}
+                    </div>
+                  </div>
 
-              <div
-                className="p-4 rounded-xl border border-border bg-muted/20 text-sm font-sans leading-relaxed text-foreground whitespace-pre-wrap max-h-60 overflow-y-auto"
-                dir="ltr"
-              >
-                {reviewItem.essayText || "אין טקסט זמין"}
-              </div>
+                  {/* 10 Questions Breakdown */}
+                  <div className="space-y-2">
+                    <span className="font-bold text-xs text-foreground block">
+                      פירוט תשובות התלמיד/ה ({reviewItem.questionsBreakdown?.length || 0} שאלות):
+                    </span>
+                    <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                      {reviewItem.questionsBreakdown && reviewItem.questionsBreakdown.length > 0 ? (
+                        reviewItem.questionsBreakdown.map((q) => (
+                          <div
+                            key={q.id}
+                            className={`p-3 rounded-xl border text-xs space-y-1.5 ${
+                              q.isCorrect
+                                ? "border-emerald-500/40 bg-emerald-500/5"
+                                : "border-destructive/40 bg-destructive/5"
+                            }`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="font-bold text-foreground">
+                                שאלה {q.number}: {q.prompt}
+                              </span>
+                              <Badge
+                                variant={q.isCorrect ? "default" : "destructive"}
+                                className="text-[10px] font-bold"
+                              >
+                                {q.isCorrect ? `✓ ${q.points || 10} נק'` : "✗ 0 נק'"}
+                              </Badge>
+                            </div>
+
+                            <div className="text-muted-foreground" dir="ltr">
+                              <span>תשובת התלמיד/ה: </span>
+                              <strong className={q.isCorrect ? "text-emerald-700 dark:text-emerald-300 font-bold" : "text-destructive font-bold"}>
+                                {q.type === "mcq" && q.options && typeof q.userAnswer === "number"
+                                  ? q.options[q.userAnswer] || q.userAnswer
+                                  : String(q.userAnswer || "לא נענה")}
+                              </strong>
+                            </div>
+
+                            {!q.isCorrect && (
+                              <div className="text-muted-foreground" dir="ltr">
+                                <span>תשובה נכונה: </span>
+                                <strong className="text-foreground">
+                                  {q.type === "mcq" && q.options && typeof q.correctAnswer === "number"
+                                    ? q.options[q.correctAnswer]
+                                    : String(q.correctAnswer || q.targetSentence || q.modelAnswer || "")}
+                                </strong>
+                              </div>
+                            )}
+
+                            {q.explanationHebrew && (
+                              <p className="text-[11px] text-muted-foreground pt-1 border-t border-border/30" dir="rtl">
+                                💡 {q.explanationHebrew}
+                              </p>
+                            )}
+                          </div>
+                        ))
+                      ) : (
+                        <div className="p-3 rounded-lg bg-muted/30 text-xs text-muted-foreground text-center">
+                          ציון ממוחשב: {reviewItem.score ?? 0} מתוך 100
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <span>טקסט החיבור שהוגש על ידי התלמיד/ה:</span>
+                    {reviewItem.wordCount !== undefined && (
+                      <Badge variant="outline" className="text-[11px]">
+                        {reviewItem.wordCount} מילים
+                      </Badge>
+                    )}
+                  </div>
+
+                  <div
+                    className="p-4 rounded-xl border border-border bg-muted/20 text-sm font-sans leading-relaxed text-foreground whitespace-pre-wrap max-h-60 overflow-y-auto"
+                    dir="ltr"
+                  >
+                    {reviewItem.essayText || "אין טקסט זמין"}
+                  </div>
+                </>
+              )}
 
               {reviewItem.studentNote && (
                 <div className="p-2.5 rounded-lg bg-muted/40 border border-border/60 text-xs">

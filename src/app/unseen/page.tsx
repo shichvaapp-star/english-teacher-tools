@@ -1,10 +1,13 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { UserNav } from "@/components/auth/user-nav";
+import { db } from "@/lib/firebase";
+import { collection, addDoc } from "firebase/firestore";
+import { SubmissionItem, SubmissionQuestionBreakdown } from "@/types/submission";
 import { MIDDLE_SCHOOL_UNSEENS, MSUnseenStory, MSUnseenQuestion } from "@/data/unseen-middle-school";
 import { lookupBuiltInTranslation } from "@/data/built-in-dictionary";
 import { saveWordToBuilder, VocabItem, loadSavedWords } from "@/lib/vocab-storage";
@@ -35,8 +38,10 @@ import {
   BookOpen,
 } from "lucide-react";
 
+const LOCAL_SUBMISSIONS_KEY = "ett_writing_submissions";
+
 export default function UnseenPracticePage() {
-  const { user } = useAuth();
+  const { user, teachers } = useAuth();
   const [stories, setStories] = useState<MSUnseenStory[]>(MIDDLE_SCHOOL_UNSEENS);
 
   // App Stage: "settings" (select level, mode, and story) vs. "exercise" (active reading & questions)
@@ -87,6 +92,35 @@ export default function UnseenPracticePage() {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [gradedScore, setGradedScore] = useState<number | null>(null);
   const [showSubmitModal, setShowSubmitModal] = useState(false);
+  const [studentNameInput, setStudentNameInput] = useState("");
+  const [studentClassInput, setStudentClassInput] = useState("ז׳1");
+  const [selectedTeacherId, setSelectedTeacherId] = useState("");
+  const [studentNoteInput, setStudentNoteInput] = useState("");
+  const [submissionRecord, setSubmissionRecord] = useState<SubmissionItem | null>(null);
+  const [copiedReceipt, setCopiedReceipt] = useState(false);
+  const [showReviewAnswers, setShowReviewAnswers] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Pre-fill student info if logged in
+  useEffect(() => {
+    if (user) {
+      if (user.name) setStudentNameInput(user.name);
+      if (user.fullClass) {
+        setStudentClassInput(user.fullClass);
+      } else if (user.classGrade) {
+        setStudentClassInput(`${user.classGrade}׳${user.classNumber || 1}`);
+      }
+      if (user.teacherId) {
+        setSelectedTeacherId(user.teacherId);
+      }
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (!selectedTeacherId && teachers.length > 0) {
+      setSelectedTeacherId(teachers[0].id);
+    }
+  }, [teachers, selectedTeacherId]);
 
   // Word Click & Translation Popup
   const [clickedWord, setClickedWord] = useState<{
@@ -357,35 +391,113 @@ export default function UnseenPracticePage() {
   };
 
   // Graded mode: Submit all answers
-  const handleSubmitGradedExam = () => {
+  const handleSubmitGradedExam = async () => {
     let earned = 0;
-    currentStory.questions.forEach((q) => {
+
+    const breakdown: SubmissionQuestionBreakdown[] = currentStory.questions.map((q) => {
       const ans = userAnswers[q.id];
+      let isCorrect = false;
+      let targetSentence: string | undefined = undefined;
+      let modelAnswer: string | undefined = undefined;
+      let correctAnswer: string | number | undefined = undefined;
+
       if (q.type === "mcq") {
-        if (ans === q.correctIndex) {
-          earned += 10;
-        }
+        isCorrect = ans === q.correctIndex;
+        correctAnswer = q.correctIndex;
+        if (isCorrect) earned += 10;
       } else if (q.type === "copy") {
+        targetSentence = q.targetSentence;
+        correctAnswer = q.targetSentence;
         if (typeof ans === "string" && q.targetSentence) {
           const cleanUser = ans.trim().toLowerCase().replace(/[^a-z0-9]/g, "");
           const cleanTarget = q.targetSentence.trim().toLowerCase().replace(/[^a-z0-9]/g, "");
           if (cleanUser === cleanTarget || cleanTarget.includes(cleanUser)) {
+            isCorrect = true;
             earned += 10;
           }
         }
       } else if (q.type === "open") {
+        modelAnswer = q.modelAnswer || (q.keywords ? q.keywords.join(", ") : "");
+        correctAnswer = modelAnswer;
         if (typeof ans === "string" && ans.trim().length > 3) {
           const cleanUser = ans.toLowerCase();
           const matches = (q.keywords || []).filter((kw) => cleanUser.includes(kw.toLowerCase()));
           if (matches.length > 0 || ans.length > 10) {
+            isCorrect = true;
             earned += 10;
           }
         }
       }
+
+      return {
+        id: q.id,
+        number: q.number,
+        type: q.type,
+        prompt: q.prompt,
+        options: q.options,
+        userAnswer: ans,
+        correctAnswer: correctAnswer,
+        isCorrect: isCorrect,
+        targetSentence: targetSentence,
+        modelAnswer: modelAnswer,
+        explanationHebrew: q.explanationHebrew,
+        points: isCorrect ? 10 : 0,
+      };
     });
 
+    const teacherObj = teachers.find((t) => t.id === selectedTeacherId) || teachers[0];
+    const receiptCode = `ETT-UN-${Math.floor(100000 + Math.random() * 900000)}`;
+
+    const newSubmission: SubmissionItem = {
+      id: `sub-${Date.now()}`,
+      type: "unseen",
+      studentId: user?.id || `guest-${Date.now()}`,
+      studentName: (studentNameInput.trim() || user?.name || "תלמיד/ה").trim(),
+      teacherId: teacherObj ? teacherObj.id : (teachers[0]?.id || ""),
+      teacherName: teacherObj ? teacherObj.name : (teachers[0]?.name || "מורה לאנגלית"),
+      studentClass: studentClassInput || user?.fullClass || "חטיבת ביניים",
+      studentNote: studentNoteInput.trim(),
+      taskId: currentStory.id,
+      taskTitle: currentStory.title,
+      hebrewTitle: currentStory.hebrewTitle,
+      storyLevel: currentStory.level,
+      passageText: currentStory.paragraphs.join("\n\n"),
+      questionsBreakdown: breakdown,
+      score: earned,
+      grade: earned,
+      submittedAt: new Date().toLocaleString("he-IL"),
+      receiptCode: receiptCode,
+      status: "submitted",
+    };
+
+    setIsSubmitting(true);
+
+    // 1. Save to localStorage
+    try {
+      const existingJson = localStorage.getItem(LOCAL_SUBMISSIONS_KEY);
+      const list: SubmissionItem[] = existingJson ? JSON.parse(existingJson) : [];
+      list.unshift(newSubmission);
+      localStorage.setItem(LOCAL_SUBMISSIONS_KEY, JSON.stringify(list));
+    } catch (localErr) {
+      console.warn("Could not save unseen submission to local storage:", localErr);
+    }
+
+    // 2. Save to Firestore if available
+    if (db) {
+      try {
+        await addDoc(collection(db, "submissions"), {
+          ...newSubmission,
+          timestamp: new Date().toISOString(),
+        });
+      } catch (fbErr) {
+        console.warn("Firestore unseen submission fallback to local storage:", fbErr);
+      }
+    }
+
+    setIsSubmitting(false);
     setGradedScore(earned);
     setIsSubmitted(true);
+    setSubmissionRecord(newSubmission);
     setShowSubmitModal(false);
   };
 
@@ -1267,21 +1379,88 @@ export default function UnseenPracticePage() {
 
               {/* Graded Mode Summary Card */}
               {mode === "graded" && isSubmitted && gradedScore !== null && (
-                <Card className="border-emerald-500/40 bg-emerald-500/5 shadow-md animate-in fade-in-0">
-                  <CardHeader className="pb-2 text-center">
-                    <span className="text-3xl">🏆</span>
-                    <CardTitle className="text-lg text-emerald-700 dark:text-emerald-300">
+                <Card className="border-emerald-500/40 bg-emerald-500/5 shadow-md animate-in fade-in-0 space-y-4 p-5" dir="rtl">
+                  <CardHeader className="p-0 text-center space-y-2">
+                    <span className="text-4xl">🏆</span>
+                    <CardTitle className="text-xl text-emerald-700 dark:text-emerald-300 font-black">
                       ציון המבחן שלך: {gradedScore} / 100
                     </CardTitle>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-xs text-muted-foreground max-w-md mx-auto">
                       {gradedScore >= 90
                         ? "מצוין! הפגנת שליטה יוצאת מן הכלל בטקסט!"
                         : gradedScore >= 70
                         ? "עבודה יפה מאוד! כל הכבוד על המאמץ!"
-                        : "המשך לתרגל, כל אנסין משפר את אוצר המילים שלך!"}
+                        : "המשך לתרגל, כל אנסין משפר את אוצר המילים וההבנה שלך!"}
                     </p>
                   </CardHeader>
-                  <CardContent className="pt-2 text-center flex items-center justify-center gap-2">
+
+                  {/* Submission Receipt Box */}
+                  {submissionRecord && (
+                    <div className="p-4 rounded-xl border border-emerald-500/30 bg-card text-xs space-y-2.5 text-right">
+                      <div className="flex items-center justify-between border-b border-border/40 pb-2">
+                        <span className="font-bold text-emerald-700 dark:text-emerald-300 flex items-center gap-1.5">
+                          <CheckCircle2 className="h-4 w-4" />
+                          <span>המבחן הוגש בהצלחה למורה!</span>
+                        </span>
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-300 font-bold border border-amber-500/30">
+                          ⏳ ממתין לבדיקת המורה
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 text-muted-foreground">
+                        <div>
+                          <span>תלמיד/ה: </span>
+                          <strong className="text-foreground">{submissionRecord.studentName}</strong> ({submissionRecord.studentClass})
+                        </div>
+                        <div>
+                          <span>מורה מקבל/ת: </span>
+                          <strong className="text-foreground">{submissionRecord.teacherName}</strong>
+                        </div>
+                        <div className="col-span-2 flex items-center justify-between pt-1">
+                          <span>
+                            קוד אישור הגשה: <code className="font-mono font-bold text-foreground px-1.5 py-0.5 bg-muted rounded">{submissionRecord.receiptCode}</code>
+                          </span>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              navigator.clipboard.writeText(submissionRecord.receiptCode);
+                              setCopiedReceipt(true);
+                              setTimeout(() => setCopiedReceipt(false), 2000);
+                            }}
+                            className="h-7 text-xs gap-1 cursor-pointer"
+                          >
+                            {copiedReceipt ? <Check className="h-3 w-3 text-emerald-600" /> : <Copy className="h-3 w-3" />}
+                            <span>{copiedReceipt ? "הועתק!" : "העתק קוד"}</span>
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Actions */}
+                  <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowReviewAnswers(!showReviewAnswers)}
+                      className="cursor-pointer text-xs gap-1.5"
+                    >
+                      <HelpCircle className="h-3.5 w-3.5" />
+                      <span>{showReviewAnswers ? "הסתר פירוט תשובות" : "בדוק פירוט שאלות ותשובות נכונות"}</span>
+                    </Button>
+
+                    <Link href="/student">
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        className="cursor-pointer text-xs gap-1.5 font-bold"
+                      >
+                        <BookOpen className="h-3.5 w-3.5" />
+                        <span>לדף העבודות והציונים שלי &rarr;</span>
+                      </Button>
+                    </Link>
+
                     <Button
                       variant="outline"
                       size="sm"
@@ -1289,6 +1468,8 @@ export default function UnseenPracticePage() {
                         setIsSubmitted(false);
                         setGradedScore(null);
                         setUserAnswers({});
+                        setSubmissionRecord(null);
+                        setShowReviewAnswers(false);
                       }}
                       className="cursor-pointer text-xs gap-1.5"
                     >
@@ -1303,6 +1484,8 @@ export default function UnseenPracticePage() {
                         setIsSubmitted(false);
                         setGradedScore(null);
                         setUserAnswers({});
+                        setSubmissionRecord(null);
+                        setShowReviewAnswers(false);
                         setStage("settings");
                       }}
                       className="cursor-pointer text-xs gap-1.5"
@@ -1310,7 +1493,61 @@ export default function UnseenPracticePage() {
                       <Sliders className="h-3.5 w-3.5" />
                       <span>בחר קטע קריאה נוסף</span>
                     </Button>
-                  </CardContent>
+                  </div>
+
+                  {/* Detailed Question Review Breakdown */}
+                  {showReviewAnswers && submissionRecord?.questionsBreakdown && (
+                    <div className="mt-4 border-t border-border/50 pt-4 space-y-3 text-right">
+                      <h4 className="font-bold text-sm text-foreground">פירוט התשובות שלך במבחן:</h4>
+                      <div className="space-y-2.5 max-h-96 overflow-y-auto pr-1">
+                        {submissionRecord.questionsBreakdown.map((q) => (
+                          <div
+                            key={q.id}
+                            className={`p-3 rounded-xl border text-xs space-y-1.5 ${
+                              q.isCorrect
+                                ? "border-emerald-500/30 bg-emerald-500/5"
+                                : "border-destructive/30 bg-destructive/5"
+                            }`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="font-bold text-foreground">
+                                שאלה {q.number}: {q.prompt}
+                              </span>
+                              <Badge variant={q.isCorrect ? "default" : "destructive"} className="text-[10px]">
+                                {q.isCorrect ? "✓ 10/10 נכון" : "✗ 0/10 לא נכון"}
+                              </Badge>
+                            </div>
+
+                            <div className="text-muted-foreground" dir="ltr">
+                              <span>התשובה שלך: </span>
+                              <strong className={q.isCorrect ? "text-emerald-600 dark:text-emerald-400" : "text-destructive"}>
+                                {q.type === "mcq" && q.options && typeof q.userAnswer === "number"
+                                  ? q.options[q.userAnswer] || q.userAnswer
+                                  : String(q.userAnswer || "לא נענה")}
+                              </strong>
+                            </div>
+
+                            {!q.isCorrect && (
+                              <div className="text-muted-foreground" dir="ltr">
+                                <span>תשובה נכונה: </span>
+                                <strong className="text-foreground">
+                                  {q.type === "mcq" && q.options && typeof q.correctAnswer === "number"
+                                    ? q.options[q.correctAnswer]
+                                    : String(q.correctAnswer || q.targetSentence || q.modelAnswer || "")}
+                                </strong>
+                              </div>
+                            )}
+
+                            {q.explanationHebrew && (
+                              <p className="text-[11px] text-muted-foreground pt-1 border-t border-border/30" dir="rtl">
+                                💡 {q.explanationHebrew}
+                              </p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </Card>
               )}
             </div>
@@ -1437,19 +1674,87 @@ export default function UnseenPracticePage() {
 
       {/* Confirmation Modal for Graded Exam Submission */}
       {showSubmitModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 animate-in fade-in-0 print:hidden">
-          <div className="bg-card border border-border rounded-xl p-5 max-w-sm w-full shadow-2xl space-y-3">
-            <div className="flex items-center gap-2 text-primary">
-              <Award className="h-5 w-5" />
-              <h3 className="font-bold text-base text-foreground">הגשת המבחן לקבלת ציון</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in-0 print:hidden">
+          <div className="bg-card border border-border rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4" dir="rtl">
+            <div className="flex items-center gap-2.5 text-primary border-b border-border/50 pb-3">
+              <Award className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
+              <div>
+                <h3 className="font-black text-lg text-foreground">הגשת מבחן אנסין לבדיקה וציון</h3>
+                <p className="text-xs text-muted-foreground">{currentStory.hebrewTitle} &bull; {currentStory.title}</p>
+              </div>
             </div>
 
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              ענית על <strong>{answeredCount}</strong> מתוך <strong>10</strong> שאלות.
-              {answeredCount < 10 && " שים לב: ישנן שאלות שטרם נענו. האם ברצונך להגיש כעת?"}
-            </p>
+            <div className="p-3 rounded-xl bg-muted/40 border border-border/50 space-y-1 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">מענה על שאלות:</span>
+                <span className={`font-bold ${answeredCount === 10 ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"}`}>
+                  {answeredCount} מתוך 10 שאלות נענו
+                </span>
+              </div>
+              {answeredCount < 10 && (
+                <p className="text-[11px] text-amber-700 dark:text-amber-300 pt-1">
+                  ⚠️ שים לב: ישנן שאלות ללא מענה. כל שאלה שלא נענתה תקבל 0 נקודות.
+                </p>
+              )}
+            </div>
 
-            <div className="flex items-center justify-end gap-2 pt-2">
+            <div className="space-y-3 pt-1">
+              {/* Student Name */}
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-foreground">שם התלמיד/ה:</label>
+                <Input
+                  type="text"
+                  placeholder="שם מלא באנגלית או בעברית"
+                  value={studentNameInput}
+                  onChange={(e) => setStudentNameInput(e.target.value)}
+                  className="h-9 text-xs font-bold"
+                  required
+                />
+              </div>
+
+              {/* Class & Teacher */}
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-foreground">כיתה:</label>
+                  <Input
+                    type="text"
+                    placeholder="למשל: ז׳2"
+                    value={studentClassInput}
+                    onChange={(e) => setStudentClassInput(e.target.value)}
+                    className="h-9 text-xs"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-foreground">מורה בודק/ת:</label>
+                  <select
+                    value={selectedTeacherId}
+                    onChange={(e) => setSelectedTeacherId(e.target.value)}
+                    className="w-full h-9 rounded-md border border-input bg-background px-2.5 py-1 text-xs shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring cursor-pointer"
+                  >
+                    {teachers.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.name} ({t.teacherCode})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Optional note */}
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-foreground">הערה אישית למורה (אופציונלי):</label>
+                <Input
+                  type="text"
+                  placeholder="למשל: היה לי מאתגר עם שאלה 5"
+                  value={studentNoteInput}
+                  onChange={(e) => setStudentNoteInput(e.target.value)}
+                  className="h-9 text-xs"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-border/50">
               <Button
                 variant="outline"
                 size="sm"
@@ -1462,9 +1767,11 @@ export default function UnseenPracticePage() {
                 variant="default"
                 size="sm"
                 onClick={handleSubmitGradedExam}
-                className="cursor-pointer text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+                disabled={isSubmitting}
+                className="cursor-pointer text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs gap-1.5"
               >
-                הגש וחשב ציון
+                <Send className="h-3.5 w-3.5" />
+                <span>{isSubmitting ? "שולח הגשה..." : "שלח למורה וחשב ציון"}</span>
               </Button>
             </div>
           </div>
