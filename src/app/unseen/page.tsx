@@ -5,239 +5,158 @@ import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { UserNav } from "@/components/auth/user-nav";
-import { SAMPLE_UNSEENS } from "@/data/unseen-samples";
-import { UnseenPassage, BagrutModule, StudentAnswers, UnseenEvaluationResult } from "@/types/unseen";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import { MIDDLE_SCHOOL_UNSEENS, MSUnseenStory } from "@/data/unseen-middle-school";
+import { saveWordToBuilder, VocabItem, loadSavedWords } from "@/lib/vocab-storage";
+import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
-  BookOpen,
   ArrowLeft,
-  Printer,
+  Search,
+  BookMarked,
   Volume2,
-  VolumeX,
-  Sparkles,
   CheckCircle2,
-  XCircle,
-  RotateCcw,
-  Send,
-  PlusCircle,
+  Sparkles,
+  Info,
+  Copy,
+  Printer,
+  ChevronRight,
+  X,
 } from "lucide-react";
 
-export default function UnseenPage() {
+export default function UnseenPracticePage() {
   const { user } = useAuth();
-  const isTeacher = user?.role === "teacher";
+  const [stories] = useState<MSUnseenStory[]>(MIDDLE_SCHOOL_UNSEENS);
+  const [selectedStoryId, setSelectedStoryId] = useState<string>(MIDDLE_SCHOOL_UNSEENS[0].id);
+  const [selectedLevel, setSelectedLevel] = useState<"all" | "Easy" | "Medium" | "Hard">("all");
 
-  const [passages, setPassages] = useState<UnseenPassage[]>(SAMPLE_UNSEENS);
-  const [selectedPassageId, setSelectedPassageId] = useState<string>(SAMPLE_UNSEENS[0].id);
-  const [selectedModuleFilter, setSelectedModuleFilter] = useState<string>("all");
+  // Active question in detective mode
+  const [activeQuestionIndex, setActiveQuestionIndex] = useState(0);
 
-  // Reading ergonomics
-  const [fontSize, setFontSize] = useState<"sm" | "base" | "lg" | "xl">("base");
-  const [isReadingAloud, setIsReadingAloud] = useState(false);
+  // Student answers
+  const [userAnswers, setUserAnswers] = useState<Record<string, string | number>>({});
+  const [checkedQuestions, setCheckedQuestions] = useState<Record<string, boolean>>({});
 
-  // Student test state
-  const [answers, setAnswers] = useState<StudentAnswers>({});
-  const [evaluation, setEvaluation] = useState<UnseenEvaluationResult | null>(null);
-  const [isSubmitted, setIsSubmitted] = useState(false);
+  // Word Click & Translation Popup
+  const [clickedWord, setClickedWord] = useState<{
+    word: string;
+    hebrew: string;
+    loading: boolean;
+    partOfSpeech?: string;
+    example?: string;
+    saved?: boolean;
+  } | null>(null);
 
-  // Teacher generator state
-  const [genModule, setGenModule] = useState<BagrutModule>("Module E");
-  const [genTopic, setGenTopic] = useState("");
-  const [isGenerating, setIsGenerating] = useState(false);
+  // Notebook drawer
+  const [isNotebookOpen, setIsNotebookOpen] = useState(false);
+  const [savedWords, setSavedWords] = useState<VocabItem[]>(() => loadSavedWords(user?.id));
 
-  const currentPassage = passages.find((p) => p.id === selectedPassageId) || passages[0];
+  const currentStory = stories.find((s) => s.id === selectedStoryId) || stories[0];
+  const activeQuestion = currentStory.questions[activeQuestionIndex];
 
-  const filteredPassages = passages.filter((p) => {
-    if (selectedModuleFilter === "all") return true;
-    return p.module === selectedModuleFilter;
+  const filteredStories = stories.filter((s) => {
+    if (selectedLevel === "all") return true;
+    return s.level === selectedLevel;
   });
 
-  // Handle answering
-  const handleAnswerChange = (questionId: string, val: string | number) => {
-    if (isSubmitted) return;
-    setAnswers((prev) => ({ ...prev, [questionId]: val }));
-  };
+  // Handle word click anywhere in the passage
+  const handleWordClick = async (rawWord: string) => {
+    const clean = rawWord.trim().toLowerCase().replace(/[^a-zA-Z'\-]/g, "");
+    if (!clean || clean.length < 2) return;
 
-  // Evaluate test
-  const handleSubmitTest = () => {
-    let earnedTotal = 0;
-    const breakdown = currentPassage.questions.map((q) => {
-      const studentVal = answers[q.id];
-      let isCorrect = false;
-      let earned = 0;
-      let feedback = "";
-
-      if (q.type === "multiple_choice") {
-        isCorrect = Number(studentVal) === q.correctOptionIndex;
-        earned = isCorrect ? q.points : 0;
-        feedback = isCorrect
-          ? "Correct! Exact match with the text."
-          : `Incorrect. The correct option was (${String.fromCharCode(65 + (q.correctOptionIndex ?? 0))}).`;
-      } else {
-        // Open-ended evaluation heuristics
-        const textAnswer = String(studentVal || "").trim().toLowerCase();
-        if (!textAnswer) {
-          isCorrect = false;
-          earned = 0;
-          feedback = "No answer provided.";
-        } else {
-          const matchedKeywords = (q.keywordsRequired || []).filter((kw) =>
-            textAnswer.includes(kw.toLowerCase())
-          );
-          const ratio = (q.keywordsRequired?.length || 1) > 0 ? matchedKeywords.length / (q.keywordsRequired?.length || 1) : 0;
-          if (ratio >= 0.5) {
-            isCorrect = true;
-            earned = q.points;
-            feedback = "Well articulated! Essential points covered accurately.";
-          } else if (ratio >= 0.25 || textAnswer.length > 20) {
-            isCorrect = false;
-            earned = Math.round(q.points * 0.5);
-            feedback = "Partial credit: Good direction, but missing key supporting details.";
-          } else {
-            isCorrect = false;
-            earned = 0;
-            feedback = "Needs more detail matching the paragraph evidence.";
-          }
-        }
-      }
-
-      earnedTotal += earned;
-
-      return {
-        questionId: q.id,
-        questionNumber: q.number,
-        isCorrect,
-        earnedPoints: earned,
-        maxPoints: q.points,
-        feedback,
-        studentAnswer: studentVal !== undefined ? studentVal : "Not answered",
-        correctAnswer:
-          q.type === "multiple_choice"
-            ? `${String.fromCharCode(65 + (q.correctOptionIndex ?? 0))}. ${q.options?.[q.correctOptionIndex ?? 0]}`
-            : q.modelAnswer || "",
-      };
+    setClickedWord({
+      word: clean,
+      hebrew: "מתרגם...",
+      loading: true,
     });
 
-    const result: UnseenEvaluationResult = {
-      score: earnedTotal,
-      maxScore: currentPassage.totalPoints,
-      percentage: Math.round((earnedTotal / currentPassage.totalPoints) * 100),
-      breakdown,
-    };
+    // 1. Check if word is already in the story's vocabulary hints
+    const hint = currentStory.vocabularyHints.find(
+      (h) => h.word.toLowerCase().replace(/[^a-zA-Z]/g, "") === clean
+    );
 
-    setEvaluation(result);
-    setIsSubmitted(true);
-  };
-
-  const handleReset = () => {
-    setAnswers({});
-    setEvaluation(null);
-    setIsSubmitted(false);
-  };
-
-  // Text-To-Speech
-  const handleToggleTTS = () => {
-    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
-
-    if (isReadingAloud) {
-      window.speechSynthesis.cancel();
-      setIsReadingAloud(false);
-    } else {
-      window.speechSynthesis.cancel();
-      const textToRead = `${currentPassage.title}. ${currentPassage.paragraphs.join(" ")}`;
-      const utterance = new SpeechSynthesisUtterance(textToRead);
-      utterance.lang = "en-US";
-      utterance.rate = 0.9;
-      utterance.onend = () => setIsReadingAloud(false);
-      utterance.onerror = () => setIsReadingAloud(false);
-      window.speechSynthesis.speak(utterance);
-      setIsReadingAloud(true);
+    if (hint) {
+      saveWordToBuilder(
+        { english: clean, hebrew: hint.translation, example: `From "${currentStory.title}"` },
+        user?.id
+      );
+      setClickedWord({
+        word: clean,
+        hebrew: hint.translation,
+        loading: false,
+        example: `From "${currentStory.title}"`,
+        saved: true,
+      });
+      setSavedWords(loadSavedWords(user?.id));
+      return;
     }
+
+    // 2. Call translation API
+    try {
+      const res = await fetch("/api/translate-word", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ word: clean }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && data.data) {
+          saveWordToBuilder(
+            {
+              english: clean,
+              hebrew: data.data.hebrew,
+              partOfSpeech: data.data.partOfSpeech,
+              example: data.data.example,
+            },
+            user?.id
+          );
+          setClickedWord({
+            word: clean,
+            hebrew: data.data.hebrew,
+            partOfSpeech: data.data.partOfSpeech,
+            example: data.data.example,
+            loading: false,
+            saved: true,
+          });
+          setSavedWords(loadSavedWords(user?.id));
+          return;
+        }
+      }
+    } catch {
+      // fallback
+    }
+
+    setClickedWord({
+      word: clean,
+      hebrew: "לא נמצא תרגום",
+      loading: false,
+      saved: false,
+    });
   };
 
-  // Print Exam
-  const handlePrint = () => {
-    window.print();
+  // Pronounce word
+  const handleSpeak = (text: string) => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = "en-US";
+    utterance.rate = 0.9;
+    window.speechSynthesis.speak(utterance);
   };
 
-  // Simulate Teacher AI Generation
-  const handleCreatePassage = (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsGenerating(true);
-
-    setTimeout(() => {
-      const topicName = genTopic.trim() || "The Role of Renewable Energy";
-      const newPassage: UnseenPassage = {
-        id: `unseen-custom-${Date.now()}`,
-        title: topicName,
-        module: genModule,
-        levelDescription: `${genModule} Calibrated by Gemini Pro`,
-        paragraphs: [
-          `As global energy demands escalate, researchers are turning toward innovative decentralized renewable grids. Unlike traditional centralized power plants, localized solar and micro-wind installations empower municipalities to generate and distribute their own clean power.`,
-          `Economic analysts project that adopting smart regional grids will mitigate electrical grid instability while significantly diminishing greenhouse emissions over the next decade.`,
-          `Nevertheless, overcoming initial infrastructure costs remains the foremost challenge for emerging economies. International cooperative grants are progressively bridging this gap, demonstrating that sustainable energy independence is well within reach.`,
-        ],
-        wordCount: 140,
-        totalPoints: 70,
-        targetBands: ["Band II", "Band III"],
-        questions: [
-          {
-            id: `q-gen-1`,
-            number: 1,
-            paragraphRef: 1,
-            type: "multiple_choice",
-            prompt: "What is the primary advantage of decentralized renewable grids over traditional plants?",
-            options: [
-              "They produce power only during daylight hours.",
-              "They allow local communities to generate and manage their own power.",
-              "They require zero maintenance.",
-              "They completely eliminate the need for batteries.",
-            ],
-            correctOptionIndex: 1,
-            points: 20,
-          },
-          {
-            id: `q-gen-2`,
-            number: 2,
-            paragraphRef: 2,
-            type: "open_ended",
-            prompt: "According to paragraph 2, what two positive outcomes do economic analysts anticipate?",
-            modelAnswer: "Decreased electrical grid instability and significantly reduced greenhouse emissions.",
-            keywordsRequired: ["instability", "diminishing", "greenhouse", "emissions", "stability"],
-            points: 25,
-          },
-          {
-            id: `q-gen-3`,
-            number: 3,
-            paragraphRef: 3,
-            type: "open_ended",
-            prompt: "What is cited in paragraph 3 as the foremost obstacle to implementing these systems?",
-            modelAnswer: "The initial infrastructure costs for emerging economies.",
-            keywordsRequired: ["initial", "infrastructure", "costs", "challenge"],
-            points: 25,
-          },
-        ],
-      };
-
-      setPassages([newPassage, ...passages]);
-      setSelectedPassageId(newPassage.id);
-      setIsGenerating(false);
-      setGenTopic("");
-      handleReset();
-    }, 1200);
+  // Answer checking
+  const handleCheckAnswer = (qId: string) => {
+    setCheckedQuestions((prev) => ({ ...prev, [qId]: true }));
   };
 
-  const fontClasses = {
-    sm: "text-sm leading-relaxed",
-    base: "text-base leading-relaxed",
-    lg: "text-lg leading-loose",
-    xl: "text-xl leading-loose",
-  }[fontSize];
+  const handleCopySentence = (sentence: string) => {
+    if (!activeQuestion || activeQuestion.type !== "copy") return;
+    setUserAnswers((prev) => ({ ...prev, [activeQuestion.id]: sentence.trim() }));
+  };
 
   return (
-    <div className="flex flex-col min-h-screen bg-background print:bg-white print:text-black">
+    <div className="flex flex-col min-h-screen bg-background text-foreground print:bg-white print:text-black">
       {/* Top Navbar */}
       <header className="sticky top-0 z-40 border-b border-border/60 bg-background/95 backdrop-blur print:hidden">
         <div className="container mx-auto flex h-16 items-center justify-between px-4 sm:px-8">
@@ -247,21 +166,28 @@ export default function UnseenPage() {
               className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground p-1.5 rounded-lg border border-border/60 hover:bg-muted/40 transition-colors"
             >
               <ArrowLeft className="h-4 w-4" />
-              <span className="hidden sm:inline">Back to Hub</span>
+              <span className="hidden sm:inline">חזרה לראשי</span>
             </Link>
             <div className="h-4 w-[1px] bg-border" />
             <div className="flex items-center gap-2">
-              <div className="p-1.5 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400">
-                <BookOpen className="h-4 w-4" />
+              <div className="p-1.5 rounded-md bg-sky-500/10 text-sky-600 dark:text-sky-400">
+                <Search className="h-4 w-4" />
               </div>
-              <span className="font-bold text-sm sm:text-base">Unseen Reading Engine</span>
-              <Badge variant="outline" className="text-[10px] hidden md:inline-block">
-                Bagrut Modules A–G
-              </Badge>
+              <span className="font-bold text-sm sm:text-base">בלשי האנסין &bull; חטיבת ביניים בן גוריון</span>
             </div>
           </div>
 
           <div className="flex items-center gap-3">
+            {/* Word Notebook Button */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsNotebookOpen(true)}
+              className="cursor-pointer gap-1.5 text-xs border-primary/30 text-primary"
+            >
+              <BookMarked className="h-4 w-4" />
+              <span>פנקס מילים ({savedWords.length})</span>
+            </Button>
             <ThemeToggle />
             <div className="h-4 w-[1px] bg-border" />
             <UserNav />
@@ -269,407 +195,459 @@ export default function UnseenPage() {
         </div>
       </header>
 
-      {/* Main Container */}
+      {/* Main Content */}
       <main className="flex-1 container mx-auto px-4 sm:px-8 py-6 sm:py-8 space-y-6 print:p-0 print:m-0">
-        {/* Module Filter & Passage Selection Bar */}
-        <div className="flex flex-wrap items-center justify-between gap-4 print:hidden border-b border-border/60 pb-4">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs font-semibold text-muted-foreground mr-1">Filter by Module:</span>
-            {["all", "Module C", "Module E", "Module G"].map((mod) => (
+        {/* Level Filters & Story Picker */}
+        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border/50 pb-4 print:hidden">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold text-muted-foreground">רמת כיתה:</span>
+            {(["all", "Easy", "Medium", "Hard"] as const).map((lvl) => (
               <Button
-                key={mod}
-                variant={selectedModuleFilter === mod ? "default" : "outline"}
+                key={lvl}
+                variant={selectedLevel === lvl ? "default" : "outline"}
                 size="sm"
-                className="text-xs cursor-pointer h-7"
-                onClick={() => setSelectedModuleFilter(mod)}
+                className="text-xs h-7 cursor-pointer"
+                onClick={() => setSelectedLevel(lvl)}
               >
-                {mod === "all" ? "All Levels" : mod}
+                {lvl === "all" ? "כל הרמות" : lvl === "Easy" ? "כיתה ז׳ (קל)" : lvl === "Medium" ? "כיתה ח׳ (בינוני)" : "כיתה ט׳ (מתקדם)"}
               </Button>
             ))}
           </div>
 
           <div className="flex items-center gap-2">
             <select
-              value={selectedPassageId}
+              value={selectedStoryId}
               onChange={(e) => {
-                setSelectedPassageId(e.target.value);
-                handleReset();
+                setSelectedStoryId(e.target.value);
+                setActiveQuestionIndex(0);
+                setUserAnswers({});
+                setCheckedQuestions({});
               }}
-              className="h-8 rounded-md border border-input bg-background px-3 text-xs shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring cursor-pointer max-w-[240px] truncate"
+              className="h-8 rounded-md border border-input bg-background px-3 text-xs shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring cursor-pointer max-w-[280px] truncate"
             >
-              {filteredPassages.map((p) => (
-                <option key={p.id} value={p.id}>
-                  [{p.module}] {p.title}
+              {filteredStories.map((s) => (
+                <option key={s.id} value={s.id}>
+                  [{s.gradeLabel}] {s.title} ({s.hebrewTitle})
                 </option>
               ))}
             </select>
-          </div>
-        </div>
 
-        {/* Action Controls & Teacher Generator */}
-        <div className="flex flex-wrap items-center justify-between gap-3 print:hidden">
-          <div className="flex items-center gap-2">
-            <Badge variant="default" className="text-xs">
-              {currentPassage.module}
-            </Badge>
-            <Badge variant="outline" className="text-xs">
-              {currentPassage.levelDescription}
-            </Badge>
-            <span className="text-xs text-muted-foreground">
-              {currentPassage.wordCount} words &bull; Total: {currentPassage.totalPoints} Points
-            </span>
-          </div>
-
-          {/* Reading Tools & Print */}
-          <div className="flex items-center gap-1.5">
-            {/* Font size toggles */}
-            <div className="flex items-center border border-border rounded-lg p-0.5 bg-muted/30 text-xs">
-              <button
-                type="button"
-                onClick={() => setFontSize("sm")}
-                className={`px-2 py-1 rounded cursor-pointer ${fontSize === "sm" ? "bg-background shadow-xs font-bold" : "text-muted-foreground"}`}
-                title="Small text"
-              >
-                A-
-              </button>
-              <button
-                type="button"
-                onClick={() => setFontSize("base")}
-                className={`px-2 py-1 rounded cursor-pointer ${fontSize === "base" ? "bg-background shadow-xs font-bold" : "text-muted-foreground"}`}
-                title="Standard text"
-              >
-                A
-              </button>
-              <button
-                type="button"
-                onClick={() => setFontSize("lg")}
-                className={`px-2 py-1 rounded cursor-pointer ${fontSize === "lg" ? "bg-background shadow-xs font-bold" : "text-muted-foreground"}`}
-                title="Large text"
-              >
-                A+
-              </button>
-            </div>
-
-            {/* TTS Read Aloud */}
             <Button
               variant="outline"
               size="sm"
-              className={`gap-1.5 text-xs cursor-pointer ${isReadingAloud ? "border-primary bg-primary/10 text-primary" : ""}`}
-              onClick={handleToggleTTS}
-              title="Text-to-speech read aloud"
-            >
-              {isReadingAloud ? <VolumeX className="h-3.5 w-3.5" /> : <Volume2 className="h-3.5 w-3.5" />}
-              <span className="hidden sm:inline">{isReadingAloud ? "Stop Audio" : "Read Aloud"}</span>
-            </Button>
-
-            {/* Print Official Exam Booklet */}
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-1.5 text-xs cursor-pointer"
-              onClick={handlePrint}
-              title="Print Ministry Exam Booklet"
+              onClick={() => window.print()}
+              className="gap-1.5 text-xs h-8 cursor-pointer"
             >
               <Printer className="h-3.5 w-3.5" />
-              <span>Print Booklet</span>
+              <span className="hidden sm:inline">הדפסת דף עבודה</span>
             </Button>
           </div>
         </div>
 
-        {/* Printable Header (Visible only when printing) */}
-        <div className="hidden print:block border-b-2 border-black pb-4 mb-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-xl font-bold tracking-tight">STATE OF ISRAEL &bull; MINISTRY OF EDUCATION</h1>
-              <p className="text-sm">English Examination &bull; {currentPassage.module}</p>
+        {/* Word Click Toast Popup */}
+        {clickedWord && (
+          <div className="fixed bottom-6 right-6 z-50 p-4 rounded-2xl border border-primary/30 bg-card shadow-2xl max-w-sm w-full animate-in fade-in slide-in-from-bottom-4">
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-2">
+                <h4 className="text-xl font-extrabold text-foreground capitalize">
+                  {clickedWord.word}
+                </h4>
+                <button
+                  type="button"
+                  onClick={() => handleSpeak(clickedWord.word)}
+                  className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground cursor-pointer"
+                >
+                  <Volume2 className="h-4 w-4" />
+                </button>
+              </div>
+              <button
+                type="button"
+                onClick={() => setClickedWord(null)}
+                className="text-muted-foreground hover:text-foreground p-1 cursor-pointer"
+              >
+                <X className="h-4 w-4" />
+              </button>
             </div>
-            <div className="text-right text-xs">
-              <p>Student Name: ___________________________</p>
-              <p className="mt-1">Date: ______________ Class: ___________</p>
+
+            <div className="mt-2 text-right" dir="rtl">
+              <span className="text-xl font-black text-primary block">
+                {clickedWord.hebrew}
+              </span>
+              {clickedWord.example && (
+                <p className="text-xs text-muted-foreground mt-1 font-sans" dir="ltr">
+                  &quot;{clickedWord.example}&quot;
+                </p>
+              )}
+            </div>
+
+            <div className="mt-3 pt-2.5 border-t border-border flex items-center justify-between text-xs">
+              <span className="text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
+                <CheckCircle2 className="h-3.5 w-3.5" /> נוסף לפנקס המילים שלך!
+              </span>
+              <Link
+                href="/vocabulary"
+                className="text-primary hover:underline font-medium cursor-pointer"
+              >
+                תרגול בפנקס &rarr;
+              </Link>
             </div>
           </div>
-        </div>
+        )}
 
-        {/* Two-Column Layout: Passage (Left) & Questions (Right) */}
+        {/* Two Column Detective Layout */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          {/* Passage Column */}
-          <div className="lg:col-span-6 space-y-4">
-            <Card className="border border-border/80 shadow-xs print:border-none print:shadow-none">
+          {/* Left Column: Passage with Clickable Words */}
+          <div className="lg:col-span-7 space-y-4">
+            <Card className="border border-border/80 shadow-xs">
               <CardHeader className="pb-3 border-b border-border/40">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs uppercase tracking-wider text-primary font-bold">
-                    Part I: Access to Information from Written Texts
+                  <div className="flex items-center gap-2">
+                    <Badge variant="default" className="text-xs">
+                      {currentStory.gradeLabel}
+                    </Badge>
+                    <span className="text-xs text-muted-foreground">
+                      {currentStory.hebrewTitle}
+                    </span>
+                  </div>
+                  <span className="text-[11px] text-muted-foreground">
+                    💡 לחצו על כל מילה לתרגום ושמירה
                   </span>
-                  <Badge variant="secondary" className="text-[11px] print:hidden">
-                    {currentPassage.totalPoints} Points
-                  </Badge>
                 </div>
-                <CardTitle className="text-2xl font-bold tracking-tight text-foreground pt-1">
-                  {currentPassage.title}
+                <CardTitle className="text-2xl font-black text-foreground pt-1.5">
+                  {currentStory.title}
                 </CardTitle>
-                <CardDescription className="text-xs">
-                  Read the passage below carefully and answer the questions that follow.
-                </CardDescription>
               </CardHeader>
 
               <CardContent className="pt-4 space-y-4 font-serif">
-                {currentPassage.paragraphs.map((para, idx) => (
-                  <div key={idx} className="flex items-start gap-2.5">
-                    <span className="font-mono text-xs font-bold text-primary shrink-0 select-none mt-1 print:text-black">
-                      [{idx + 1}]
-                    </span>
-                    <p className={`text-foreground/90 leading-relaxed ${fontClasses}`}>
-                      {para}
-                    </p>
+                {currentStory.paragraphs.map((para, pIdx) => {
+                  const isTargetPara = activeQuestion?.paragraphIndex === pIdx + 1;
+                  const sentences = para.match(/[^.!?]+[.!?]+/g) || [para];
+
+                  return (
+                    <div
+                      key={pIdx}
+                      className={`p-3 rounded-xl transition-all ${
+                        isTargetPara
+                          ? "bg-sky-500/10 border-2 border-sky-500/40 shadow-xs"
+                          : "opacity-80 hover:opacity-100"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-mono text-xs font-bold px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
+                          Paragraph [{pIdx + 1}]
+                        </span>
+                        {isTargetPara && (
+                          <Badge variant="secondary" className="text-[10px] text-sky-600 dark:text-sky-300">
+                            🎯 התשובה לשאלה {activeQuestionIndex + 1} נמצאת כאן!
+                          </Badge>
+                        )}
+                      </div>
+
+                      <p className="text-base md:text-lg leading-relaxed text-foreground/90 select-text">
+                        {sentences.map((sent, sIdx) => {
+                          const wordsInSent = sent.split(/(\s+)/);
+                          return (
+                            <span
+                              key={sIdx}
+                              onClick={() => {
+                                if (activeQuestion?.type === "copy") {
+                                  handleCopySentence(sent);
+                                }
+                              }}
+                              className={
+                                activeQuestion?.type === "copy"
+                                  ? "cursor-pointer hover:bg-sky-500/20 hover:text-sky-800 dark:hover:text-sky-200 rounded px-0.5"
+                                  : ""
+                              }
+                              title={activeQuestion?.type === "copy" ? "לחצו כאן כדי להעתיק משפט זה לשדה התשובה" : undefined}
+                            >
+                              {wordsInSent.map((token, wIdx) => {
+                                if (/^\s+$/.test(token)) return <span key={wIdx}>{token}</span>;
+                                return (
+                                  <span
+                                    key={wIdx}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleWordClick(token);
+                                    }}
+                                    className="cursor-pointer hover:underline hover:text-primary hover:bg-primary/10 rounded px-0.5 transition-colors"
+                                    title="לחץ לתרגום המילה והוספה לפנקס"
+                                  >
+                                    {token}
+                                  </span>
+                                );
+                              })}
+                            </span>
+                          );
+                        })}
+                      </p>
+                    </div>
+                  );
+                })}
+
+                {/* Vocabulary Hints Bank */}
+                <div className="pt-3 border-t border-dashed border-border text-xs space-y-2">
+                  <span className="font-bold text-primary flex items-center gap-1">
+                    <Info className="h-4 w-4" />
+                    <span>מילון עזר לטקסט (לחצו על מילה כדי לשמוע ולשמור):</span>
+                  </span>
+                  <div className="flex flex-wrap gap-2" dir="rtl">
+                    {currentStory.vocabularyHints.map((h, i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => handleWordClick(h.word)}
+                        className="px-2.5 py-1 rounded-lg border border-border bg-muted/40 hover:bg-primary/10 hover:border-primary/30 transition-all text-xs flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <span className="font-bold text-foreground" dir="ltr">{h.word}</span>
+                        <span className="opacity-40">=</span>
+                        <span className="text-muted-foreground">{h.translation}</span>
+                      </button>
+                    ))}
                   </div>
-                ))}
+                </div>
               </CardContent>
             </Card>
+          </div>
 
-            {/* Teacher AI Generator Panel (Teacher only) */}
-            {isTeacher && (
-              <Card className="border border-primary/20 bg-primary/5 print:hidden">
-                <CardHeader className="pb-2">
-                  <div className="flex items-center gap-2 text-primary font-semibold text-xs">
-                    <Sparkles className="h-4 w-4" />
-                    <span>Teacher Cockpit &bull; Advanced AI Passage Generator</span>
+          {/* Right Column: Detective Question Box */}
+          <div className="lg:col-span-5 space-y-4">
+            {/* Step Navigation Bar */}
+            <div className="flex items-center justify-between p-3 rounded-xl border border-border bg-card text-xs">
+              <span className="font-bold text-foreground">
+                שאלה {activeQuestionIndex + 1} מתוך {currentStory.questions.length}
+              </span>
+              <div className="flex items-center gap-1">
+                {currentStory.questions.map((_, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => setActiveQuestionIndex(i)}
+                    className={`h-7 w-7 rounded-full text-xs font-bold transition-all cursor-pointer ${
+                      activeQuestionIndex === i
+                        ? "bg-primary text-primary-foreground shadow-xs"
+                        : checkedQuestions[currentStory.questions[i].id]
+                        ? "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300"
+                        : "bg-muted text-muted-foreground hover:bg-muted/80"
+                    }`}
+                  >
+                    {i + 1}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Active Question Card */}
+            {activeQuestion && (
+              <Card className="border border-border shadow-xs">
+                <CardHeader className="pb-3 border-b border-border/40">
+                  <div className="flex items-center justify-between">
+                    <Badge variant="outline" className="text-xs">
+                      שאלה {activeQuestion.number} &bull; פסקה [{activeQuestion.paragraphIndex}]
+                    </Badge>
+                    <span className="text-xs font-semibold text-muted-foreground">
+                      {activeQuestion.points} נקודות
+                    </span>
                   </div>
-                  <CardTitle className="text-base">Generate New Calibrated Unseen</CardTitle>
-                  <CardDescription className="text-xs">
-                    Uses high-reasoning Gemini Pro to generate authentic vocabulary, natural sentence rhythm, and Ministry-grade questions.
-                  </CardDescription>
+                  <CardTitle className="text-base font-bold text-foreground pt-1.5 leading-snug">
+                    {activeQuestion.prompt}
+                  </CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <form onSubmit={handleCreatePassage} className="space-y-3">
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1">
-                        <label className="text-xs font-medium">Target Bagrut Module</label>
-                        <select
-                          value={genModule}
-                          onChange={(e) => setGenModule(e.target.value as BagrutModule)}
-                          className="w-full h-8 rounded-md border border-input bg-background px-2 text-xs"
-                        >
-                          <option value="Module A">Module A (3 Points - Foundation)</option>
-                          <option value="Module C">Module C (3-4 Points - Intermediate)</option>
-                          <option value="Module E">Module E (4-5 Points - Advanced)</option>
-                          <option value="Module G">Module G (5 Points - High Level)</option>
-                        </select>
-                      </div>
 
-                      <div className="space-y-1">
-                        <label className="text-xs font-medium">Topic / Theme</label>
-                        <Input
-                          placeholder="e.g. Clean Energy, Social Media, AI in Medicine"
-                          value={genTopic}
-                          onChange={(e) => setGenTopic(e.target.value)}
-                          className="h-8 text-xs"
-                        />
-                      </div>
+                <CardContent className="space-y-4 pt-4">
+                  {/* Multiple Choice Question */}
+                  {activeQuestion.type === "mcq" && activeQuestion.options && (
+                    <div className="space-y-2">
+                      {activeQuestion.options.map((opt, optIdx) => {
+                        const isChosen = userAnswers[activeQuestion.id] === optIdx;
+                        const isChecked = checkedQuestions[activeQuestion.id];
+                        const isCorrect = optIdx === activeQuestion.correctIndex;
+
+                        let style = "border-border hover:bg-muted/40 text-foreground";
+                        if (isChecked) {
+                          if (isCorrect) style = "border-emerald-500 bg-emerald-500/15 text-emerald-950 dark:text-emerald-200 font-bold";
+                          else if (isChosen) style = "border-destructive bg-destructive/15 text-destructive font-medium";
+                        } else if (isChosen) {
+                          style = "border-primary bg-primary/10 text-foreground font-semibold ring-2 ring-primary/20";
+                        }
+
+                        return (
+                          <button
+                            key={optIdx}
+                            type="button"
+                            onClick={() => setUserAnswers((prev) => ({ ...prev, [activeQuestion.id]: optIdx }))}
+                            className={`w-full text-left p-3 rounded-xl border text-xs sm:text-sm transition-all cursor-pointer flex items-start gap-2.5 ${style}`}
+                          >
+                            <span className="font-bold shrink-0">{String.fromCharCode(65 + optIdx)}.</span>
+                            <span>{opt}</span>
+                          </button>
+                        );
+                      })}
                     </div>
+                  )}
 
-                    <Button type="submit" size="sm" className="w-full gap-1.5" disabled={isGenerating}>
-                      <PlusCircle className="h-3.5 w-3.5" />
-                      <span>{isGenerating ? "Synthesizing with Gemini Pro..." : "Generate Passage & Question Set"}</span>
+                  {/* Sentence Copying Question */}
+                  {activeQuestion.type === "copy" && (
+                    <div className="space-y-2">
+                      <div className="p-3 rounded-xl bg-sky-500/10 border border-sky-500/20 text-xs text-sky-700 dark:text-sky-300 flex items-center gap-2">
+                        <Copy className="h-4 w-4 shrink-0" />
+                        <span>לחצו על המשפט המתאים בפסקה [{activeQuestion.paragraphIndex}] בצד שמאל, והוא יועתק לכאן אוטומטית!</span>
+                      </div>
+                      <textarea
+                        rows={3}
+                        placeholder="העתיקו את המשפט באנגלית כאן או לחצו עליו בפסקה..."
+                        value={String(userAnswers[activeQuestion.id] || "")}
+                        onChange={(e) => setUserAnswers((prev) => ({ ...prev, [activeQuestion.id]: e.target.value }))}
+                        className="w-full rounded-md border border-input bg-background p-2.5 text-xs sm:text-sm"
+                      />
+                    </div>
+                  )}
+
+                  {/* Open-ended Question */}
+                  {activeQuestion.type === "open" && (
+                    <div className="space-y-2">
+                      <textarea
+                        rows={3}
+                        placeholder="Write your answer in English..."
+                        value={String(userAnswers[activeQuestion.id] || "")}
+                        onChange={(e) => setUserAnswers((prev) => ({ ...prev, [activeQuestion.id]: e.target.value }))}
+                        className="w-full rounded-md border border-input bg-background p-2.5 text-xs sm:text-sm"
+                      />
+                    </div>
+                  )}
+
+                  {/* Check Answer Button */}
+                  {!checkedQuestions[activeQuestion.id] ? (
+                    <Button
+                      onClick={() => handleCheckAnswer(activeQuestion.id)}
+                      className="w-full font-semibold cursor-pointer gap-1.5"
+                    >
+                      <CheckCircle2 className="h-4 w-4" />
+                      <span>בדיקת תשובה</span>
                     </Button>
-                  </form>
+                  ) : (
+                    /* Explanation in Hebrew */
+                    <div className="p-3.5 rounded-xl bg-muted/60 border border-border space-y-2 text-xs" dir="rtl">
+                      <span className="font-bold text-foreground block">
+                        הסבר התשובה בעברית:
+                      </span>
+                      <p className="text-muted-foreground leading-relaxed">
+                        {activeQuestion.explanationHebrew}
+                      </p>
+                      {activeQuestion.type === "copy" && (
+                        <p className="text-[11px] font-mono text-primary pt-1" dir="ltr">
+                          <strong>Target Sentence:</strong> &quot;{activeQuestion.targetSentence}&quot;
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </CardContent>
+
+                <CardFooter className="pt-2 border-t border-border/40 flex items-center justify-between">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={activeQuestionIndex === 0}
+                    onClick={() => setActiveQuestionIndex((i) => Math.max(0, i - 1))}
+                    className="cursor-pointer text-xs"
+                  >
+                    שאלה קודמת
+                  </Button>
+
+                  {activeQuestionIndex < currentStory.questions.length - 1 ? (
+                    <Button
+                      size="sm"
+                      onClick={() => setActiveQuestionIndex((i) => i + 1)}
+                      className="cursor-pointer text-xs gap-1"
+                    >
+                      <span>לשאלה הבאה</span>
+                      <ChevronRight className="h-3.5 w-3.5" />
+                    </Button>
+                  ) : (
+                    <Button
+                      size="sm"
+                      onClick={() => alert("כל הכבוד! סיימת את כל השאלות לקטע קריאה זה!")}
+                      className="cursor-pointer text-xs gap-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+                    >
+                      <Sparkles className="h-3.5 w-3.5" />
+                      <span>סיום בהצלחה!</span>
+                    </Button>
+                  )}
+                </CardFooter>
               </Card>
             )}
           </div>
+        </div>
+      </main>
 
-          {/* Questions Column */}
-          <div className="lg:col-span-6 space-y-6">
-            {/* Score & Evaluation Banner if submitted */}
-            {evaluation && (
-              <div className="p-4 rounded-xl border border-primary/30 bg-primary/10 space-y-2 print:hidden">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-                    <span className="font-bold text-sm">Evaluation Complete!</span>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-2xl font-extrabold text-foreground">
-                      {evaluation.score}
-                    </span>
-                    <span className="text-xs text-muted-foreground"> / {evaluation.maxScore} pts</span>
-                    <Badge variant="default" className="ml-2">
-                      {evaluation.percentage}%
-                    </Badge>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between pt-1">
-                  <p className="text-xs text-muted-foreground">
-                    Review your answers and teacher guidance below.
-                  </p>
-                  <Button variant="outline" size="sm" onClick={handleReset} className="h-7 text-xs gap-1">
-                    <RotateCcw className="h-3 w-3" />
-                    <span>Try Again</span>
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            {/* Questions List */}
+      {/* Slide-out Word Notebook Drawer */}
+      {isNotebookOpen && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex justify-end">
+          <div className="w-full max-w-md bg-background h-full p-6 shadow-2xl flex flex-col justify-between overflow-y-auto">
             <div className="space-y-4">
-              <div className="flex items-center justify-between border-b border-border/40 pb-2">
-                <h3 className="font-bold text-sm text-foreground">
-                  Questions (Answer all questions according to the text)
-                </h3>
-                <span className="text-xs text-muted-foreground">
-                  {currentPassage.questions.length} Questions
-                </span>
+              <div className="flex items-center justify-between border-b border-border pb-3">
+                <div className="flex items-center gap-2">
+                  <BookMarked className="h-5 w-5 text-primary" />
+                  <h3 className="text-lg font-bold">פנקס המילים שלי</h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsNotebookOpen(false)}
+                  className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground cursor-pointer"
+                >
+                  <X className="h-5 w-5" />
+                </button>
               </div>
 
-              {currentPassage.questions.map((q) => {
-                const evalItem = evaluation?.breakdown.find((b) => b.questionId === q.id);
+              <p className="text-xs text-muted-foreground">
+                כל מילה שתלחצו עליה במהלך קריאת האנסין נשמרת כאן אוטומטית לתרגול אישי!
+              </p>
 
-                return (
-                  <Card
-                    key={q.id}
-                    className={`border transition-colors ${
-                      evalItem
-                        ? evalItem.isCorrect
-                          ? "border-emerald-500/50 bg-emerald-500/5"
-                          : evalItem.earnedPoints > 0
-                          ? "border-amber-500/50 bg-amber-500/5"
-                          : "border-destructive/40 bg-destructive/5"
-                        : "border-border/80"
-                    }`}
-                  >
-                    <CardHeader className="pb-2">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Badge variant="outline" className="text-xs font-mono font-bold">
-                            Question {q.number}
-                          </Badge>
-                          {q.paragraphRef && (
-                            <span className="text-[11px] text-muted-foreground">
-                              (Paragraph [{q.paragraphRef}])
-                            </span>
-                          )}
-                        </div>
-                        <span className="text-xs font-semibold text-muted-foreground">
-                          {q.points} Points
-                        </span>
-                      </div>
-                      <CardTitle className="text-sm font-semibold text-foreground pt-1.5 leading-snug">
-                        {q.prompt}
-                      </CardTitle>
-                    </CardHeader>
-
-                    <CardContent className="space-y-3 pt-1">
-                      {/* Multiple Choice Form */}
-                      {q.type === "multiple_choice" && q.options && (
-                        <div className="space-y-2">
-                          {q.options.map((opt, optIdx) => {
-                            const isChosen = Number(answers[q.id]) === optIdx;
-                            return (
-                              <label
-                                key={optIdx}
-                                className={`flex items-start gap-2.5 p-2.5 rounded-lg border text-xs transition-colors cursor-pointer ${
-                                  isChosen
-                                    ? "border-primary bg-primary/10 font-medium text-foreground"
-                                    : "border-border/60 hover:bg-muted/50 text-foreground/90"
-                                }`}
-                              >
-                                <input
-                                  type="radio"
-                                  name={`question-${q.id}`}
-                                  checked={isChosen}
-                                  onChange={() => handleAnswerChange(q.id, optIdx)}
-                                  disabled={isSubmitted}
-                                  className="mt-0.5 accent-primary"
-                                />
-                                <span>
-                                  <strong className="mr-1">{String.fromCharCode(65 + optIdx)}.</strong> {opt}
-                                </span>
-                              </label>
-                            );
-                          })}
-                        </div>
-                      )}
-
-                      {/* Open-Ended Form */}
-                      {q.type === "open_ended" && (
-                        <div className="space-y-1.5">
-                          <textarea
-                            rows={3}
-                            placeholder="Type your answer in English here..."
-                            value={String(answers[q.id] || "")}
-                            onChange={(e) => handleAnswerChange(q.id, e.target.value)}
-                            disabled={isSubmitted}
-                            className="w-full rounded-md border border-input bg-background p-2.5 text-xs leading-relaxed shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-80"
-                          />
-                        </div>
-                      )}
-
-                      {/* Feedback breakdown if submitted */}
-                      {evalItem && (
-                        <div className="pt-2 border-t border-border/40 text-xs space-y-1">
-                          <div className="flex items-center justify-between">
-                            <span className="font-semibold flex items-center gap-1">
-                              {evalItem.isCorrect ? (
-                                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
-                              ) : (
-                                <XCircle className="h-3.5 w-3.5 text-destructive" />
-                              )}
-                              <span>Earned: {evalItem.earnedPoints} / {evalItem.maxPoints} pts</span>
-                            </span>
-                          </div>
-                          <p className="text-muted-foreground">{evalItem.feedback}</p>
-                          {!evalItem.isCorrect && (
-                            <p className="text-[11px] text-foreground font-mono bg-muted/60 p-2 rounded">
-                              <strong>Model Answer:</strong> {evalItem.correctAnswer}
-                            </p>
-                          )}
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
-
-            {/* Test Submission Footer */}
-            <div className="pt-2 print:hidden">
-              {!isSubmitted ? (
-                <Button
-                  onClick={handleSubmitTest}
-                  className="w-full h-11 text-sm font-semibold cursor-pointer gap-2 shadow-sm"
-                >
-                  <Send className="h-4 w-4" />
-                  <span>Submit Unseen for Instant Grading ({currentPassage.totalPoints} pts)</span>
-                </Button>
+              {savedWords.length === 0 ? (
+                <div className="p-8 text-center rounded-xl border border-dashed border-border text-xs text-muted-foreground">
+                  עדיין לא שמרתם מילים. לחצו על מילים בטקסט כדי להוסיף אותן לכאן!
+                </div>
               ) : (
-                <div className="flex items-center gap-3">
-                  <Button
-                    onClick={handleReset}
-                    variant="outline"
-                    className="w-full h-11 text-sm font-semibold cursor-pointer gap-2"
-                  >
-                    <RotateCcw className="h-4 w-4" />
-                    <span>Reset & Retake Test</span>
-                  </Button>
-                  <Button
-                    onClick={() => {
-                      const next = passages.find((p) => p.id !== selectedPassageId);
-                      if (next) {
-                        setSelectedPassageId(next.id);
-                        handleReset();
-                      }
-                    }}
-                    className="w-full h-11 text-sm font-semibold cursor-pointer gap-2"
-                  >
-                    <span>Next Passage</span>
-                    <ArrowLeft className="h-4 w-4 rotate-180" />
-                  </Button>
+                <div className="space-y-2">
+                  {savedWords.map((w) => (
+                    <div
+                      key={w.id}
+                      className="p-3 rounded-xl border border-border bg-card flex items-center justify-between"
+                    >
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-foreground text-sm">{w.english}</span>
+                          <button
+                            type="button"
+                            onClick={() => handleSpeak(w.english)}
+                            className="text-muted-foreground hover:text-foreground cursor-pointer"
+                          >
+                            <Volume2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                        {w.example && (
+                          <p className="text-[11px] text-muted-foreground italic mt-0.5">{w.example}</p>
+                        )}
+                      </div>
+                      <span className="font-bold text-primary text-sm" dir="rtl">{w.hebrew}</span>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
+
+            <div className="pt-4 border-t border-border">
+              <Link
+                href="/vocabulary"
+                className="w-full flex items-center justify-center gap-2 p-2.5 rounded-xl bg-primary text-primary-foreground font-semibold text-xs cursor-pointer shadow-xs"
+              >
+                <span>עבור לתרגול מלא בכרטיסיות ומשחקים</span>
+                <ArrowLeft className="h-4 w-4 rotate-180" />
+              </Link>
+            </div>
           </div>
         </div>
-      </main>
+      )}
     </div>
   );
 }

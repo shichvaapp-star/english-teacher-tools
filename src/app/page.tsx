@@ -11,19 +11,16 @@ import { StudentLoginModal } from "@/components/auth/student-login-modal";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   BookOpen,
   BookA,
   PenTool,
-  Sparkles,
   ArrowRight,
   GraduationCap,
-  Users,
+  Sparkles,
+  Search,
   CheckCircle2,
-  BrainCircuit,
-  Printer,
-  School,
+  Users,
 } from "lucide-react";
 
 export default function Home() {
@@ -32,78 +29,80 @@ export default function Home() {
   const [teacherModalOpen, setTeacherModalOpen] = useState(false);
   const [studentModalOpen, setStudentModalOpen] = useState(false);
 
-  // Mini-demo interactive states for home page
-  const [vocabCardFlipped, setVocabCardFlipped] = useState(false);
-  const [demoSelectedOption, setDemoSelectedOption] = useState<number | null>(null);
-
-  const modules = [
+  const sections = [
     {
-      title: "Unseen Reading Engine",
-      hebrewTitle: "אנסין והבנת הנקרא",
-      description: "Authentic, calibrated reading comprehension texts with Bagrut-aligned questions, instant answer keys, and printable exam booklets.",
-      icon: BookOpen,
-      tag: "Modules A–G",
+      title: "בלשי האנסין (Unseen Practice)",
+      englishTitle: "Reading Detective",
+      description: "קטעי קריאה מרתקים המותאמים לכיתות ז׳, ח׳, ט׳. לחצו על כל מילה בטקסט כדי לקבל תרגום מיידי ולשמור אותה לפנקס אוצר המילים שלכם!",
+      icon: Search,
+      badge: "כיתות ז׳, ח׳, ט׳",
       badgeVariant: "default" as const,
-      features: [
-        "Advanced AI calibrated for Modules A through G (3, 4, 5 Points)",
-        "Question sets: Multiple Choice, open-ended & sentence completion",
-        "1-Click Printable PDF matching Israeli Ministry exam layout",
-      ],
+      color: "text-sky-500 dark:text-sky-400",
+      bgColor: "bg-sky-500/10",
+      borderColor: "hover:border-sky-500/40",
       href: "/unseen",
-      accent: "from-blue-500/10 to-indigo-500/10 dark:from-blue-950/20 dark:to-indigo-950/20",
-      iconColor: "text-blue-600 dark:text-blue-400",
+      highlights: [
+        "תרגול לפי רמות: קל (ז׳), בינוני (ח׳), מתקדם (ט׳)",
+        "לחיצה על כל מילה בטקסט מציגה תרגום מיידי לעברית",
+        "שאלות אמריקאיות, שאלות פתוחות והעתקת משפטים",
+      ],
     },
     {
-      title: "Vocabulary Trainer",
-      hebrewTitle: "מאגר אוצר מילים (Bands)",
-      description: "Master Ministry of Education Band I, II, and III vocabulary through interactive flashcards, Hebrew translation drills, and spaced repetition.",
+      title: "אימון אוצר מילים (Vocab Trainer)",
+      englishTitle: "Word Mastery",
+      description: "שינון ותרגול מילים נבחרות לחטיבת הביניים, יחד עם כל המילים ששמרתם מקטעי האנסין, באמצעות משחקים חווייתיים וכרטיסיות.",
       icon: BookA,
-      tag: "Bands I, II, III",
+      badge: "כרטיסיות ומשחקים",
       badgeVariant: "secondary" as const,
-      features: [
-        "Preloaded Core Band I, II, and III word lists with Hebrew definitions",
-        "Interactive Speed Match & Contextual Fill-in-the-Blanks",
-        "Custom wordlist assignments & student retention tracking",
-      ],
+      color: "text-emerald-500 dark:text-emerald-400",
+      bgColor: "bg-emerald-500/10",
+      borderColor: "hover:border-emerald-500/40",
       href: "/vocabulary",
-      accent: "from-emerald-500/10 to-teal-500/10 dark:from-emerald-950/20 dark:to-teal-950/20",
-      iconColor: "text-emerald-600 dark:text-emerald-400",
+      highlights: [
+        "המילים ששמרתם מהאנסין מחכות לכם כאן לתרגול",
+        "כרטיסיות חכמות עם היפוך ושמע הגייה באנגלית",
+        "משחק התאמה מהיר (Speed Match) ובחנים אינטראקטיביים",
+      ],
     },
     {
-      title: "Writing Workshop",
-      hebrewTitle: "סדנת כתיבה והערכת חיבורים",
-      description: "Structured essay writing for Module C and Module G with real-time connectors guidance and official Ministry 4-criteria rubric feedback.",
+      title: "אימון כתיבה (Writing Practice)",
+      englishTitle: "Guided Writing",
+      description: "כתיבת מכתבים, אימיילים ופסקאות דעה קצרות (50–80 מילים) בסביבה תומכת, עם מילות קישור ומשוב מעודד ומדויק מבינה מלאכותית.",
       icon: PenTool,
-      tag: "Rubric Feedback",
+      badge: "משוב מעודד",
       badgeVariant: "outline" as const,
-      features: [
-        "Opinion essay & informal letter prompt library",
-        "Interactive paragraph structure builder (Intro, Body, Conclusion)",
-        "AI diagnostic rubric scoring (Content, Organization, Language, Vocab)",
-      ],
+      color: "text-purple-500 dark:text-purple-400",
+      bgColor: "bg-purple-500/10",
+      borderColor: "hover:border-purple-500/40",
       href: "/writing",
-      accent: "from-purple-500/10 to-pink-500/10 dark:from-purple-950/20 dark:to-pink-950/20",
-      iconColor: "text-purple-600 dark:text-purple-400",
+      highlights: [
+        "מסלולי כתיבה: מכתב לחבר/מנהל או פסקת דעה קצרה",
+        "בנק מילות קישור (קודם כל, בנוסף, אולם, לסיכום)",
+        "משוב AI מיידי עם הצעות לשיפור שגיאות ואוצר מילים",
+      ],
     },
   ];
 
   return (
-    <div className="flex flex-col min-h-screen bg-background">
-      {/* Navigation Header */}
-      <header className="sticky top-0 z-40 border-b border-border/60 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+    <div className="flex flex-col min-h-screen bg-background text-foreground">
+      {/* Top Navbar */}
+      <header className="sticky top-0 z-40 border-b border-border/50 bg-background/90 backdrop-blur-md">
         <div className="container mx-auto flex h-16 items-center justify-between px-4 sm:px-8">
-          <Link href="/" className="flex items-center gap-3 group cursor-pointer">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm transition-transform group-hover:scale-105">
+          <Link href="/" className="flex items-center gap-3 group">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-xs transition-transform group-hover:scale-105">
               <GraduationCap className="h-5 w-5" />
             </div>
             <div>
-              <span className="font-bold tracking-tight text-foreground text-lg sm:text-xl block leading-tight">
-                English Teacher Tools
-              </span>
-              <span className="text-[11px] text-muted-foreground font-medium flex items-center gap-1">
-                <span>Shichva Education Suite</span>
-                <span>&bull;</span>
-                <span className="text-primary font-semibold">Bilingual & Bagrut Ready</span>
+              <div className="flex items-center gap-2">
+                <span className="font-extrabold tracking-tight text-foreground text-lg sm:text-xl">
+                  English Practice
+                </span>
+                <span className="text-[11px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium hidden sm:inline-block">
+                  חטיבת ביניים
+                </span>
+              </div>
+              <span className="text-xs text-muted-foreground font-medium block">
+                Ben Gurion Middle School &bull; חטיבת ביניים בן גוריון
               </span>
             </div>
           </Link>
@@ -116,370 +115,156 @@ export default function Home() {
         </div>
       </header>
 
-      {/* User Session Banner (if logged in) */}
+      {/* User Session Bar (if logged in) */}
       {user && (
-        <div className="bg-primary/5 border-b border-primary/15 py-2.5 px-4 sm:px-8">
-          <div className="container mx-auto flex flex-wrap items-center justify-between gap-3 text-xs">
+        <div className="bg-primary/5 border-b border-primary/15 py-2 px-4 sm:px-8 text-xs">
+          <div className="container mx-auto flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <span className="inline-block h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span className="font-medium text-foreground">
-                Logged in as <strong>{user.name}</strong> ({user.role === "teacher" ? "Teacher Admin" : "Student"})
+              <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span>
+                שלום <strong>{user.name}</strong> ({user.role === "teacher" ? "מורה מנהל/ת" : "תלמיד/ה"})
               </span>
-              {user.role === "teacher" && user.teacherCode && (
-                <Badge variant="outline" className="text-[11px] font-mono bg-background">
-                  Classroom Code: <strong>{user.teacherCode}</strong>
-                </Badge>
-              )}
               {user.role === "student" && user.teacherName && (
-                <Badge variant="secondary" className="text-[11px]">
-                  Assigned Teacher: {user.teacherName}
+                <Badge variant="secondary" className="text-[10px]">
+                  מורה: {user.teacherName}
+                </Badge>
+              )}
+              {user.role === "teacher" && user.teacherCode && (
+                <Badge variant="outline" className="text-[10px] font-mono">
+                  קוד כיתה: {user.teacherCode}
                 </Badge>
               )}
             </div>
-            <div className="flex items-center gap-2">
-              {user.role === "teacher" ? (
-                <span className="text-muted-foreground">Students can join using your name or classroom code.</span>
-              ) : (
-                <span className="text-muted-foreground">Your work is synced with your teacher.</span>
-              )}
-            </div>
+            <span className="text-muted-foreground hidden sm:inline">
+              ההתקדמות שלך נשמרת אוטומטית.
+            </span>
           </div>
         </div>
       )}
 
       {/* Hero Section */}
-      <main className="flex-1 container mx-auto px-4 sm:px-8 py-12 md:py-16 space-y-16">
-        <div className="max-w-4xl mx-auto text-center space-y-6">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-primary/30 bg-primary/5 text-primary text-xs font-semibold shadow-xs">
-            <Sparkles className="h-3.5 w-3.5" />
-            <span>Dedicated Israeli Curriculum & CEFR Teaching Platform</span>
+      <main className="flex-1 container mx-auto px-4 sm:px-8 py-10 sm:py-14 space-y-12">
+        <div className="max-w-3xl mx-auto text-center space-y-4">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-border bg-muted/40 text-xs text-muted-foreground">
+            <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+            <span>סביבת למידה ותרגול באנגלית לתלמידי בית הספר</span>
           </div>
 
-          <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tight text-foreground leading-[1.15]">
-            Targeted English Mastery for Classrooms, Tutors & Students
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-foreground">
+            English Practice
           </h1>
 
-          <p className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
-            Everything your classroom needs in one cohesive workspace: high-caliber Unseen reading comprehension, Ministry Band I-III vocabulary, and rubric-guided writing evaluations.
+          <p className="text-base sm:text-lg text-muted-foreground max-w-xl mx-auto leading-relaxed">
+            ברוכים הבאים למרחב התרגול באנגלית של חטיבת הביניים בן גוריון.
+            <br />
+            בחרו את אחד התחומים למטה כדי להתחיל לתרגל קריאה, אוצר מילים וכתיבה!
           </p>
 
-          {/* Dual Role Fast CTAs */}
-          <div className="flex flex-wrap items-center justify-center gap-4 pt-2">
-            <Button
-              size="lg"
-              className="gap-2 shadow-sm font-semibold cursor-pointer text-base px-6 h-12"
-              onClick={() => {
-                if (user) {
-                  router.push("/unseen");
-                } else {
-                  setStudentModalOpen(true);
-                }
-              }}
-            >
-              <Users className="h-5 w-5" />
-              <span>Student Classroom Access (כניסת תלמידים)</span>
-              <ArrowRight className="h-4 w-4" />
-            </Button>
-
-            <Button
-              variant="outline"
-              size="lg"
-              className="gap-2 font-semibold cursor-pointer text-base px-6 h-12 border-primary/30 hover:bg-primary/5"
-              onClick={() => {
-                if (user) {
-                  router.push("/unseen");
-                } else {
-                  setTeacherModalOpen(true);
-                }
-              }}
-            >
-              <GraduationCap className="h-5 w-5 text-primary" />
-              <span>Teacher / Admin Cockpit (כניסת מורים)</span>
-            </Button>
-          </div>
-
-          <div className="flex flex-wrap items-center justify-center gap-6 pt-4 text-xs text-muted-foreground">
-            <div className="flex items-center gap-1.5">
-              <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-              <span>No email required for students</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-              <span>Ministry Bands I, II, III Preloaded</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-              <span>Concurrent Classroom Scalability</span>
-            </div>
-          </div>
-        </div>
-
-        {/* The Three Pillars Section */}
-        <div className="space-y-6">
-          <div className="text-center max-w-xl mx-auto">
-            <h2 className="text-2xl sm:text-3xl font-bold text-foreground">The Three Pedagogical Pillars</h2>
-            <p className="text-sm text-muted-foreground mt-1">
-              Select any tool to start practicing or creating assignments immediately.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {modules.map((m) => {
-              const Icon = m.icon;
-              return (
-                <Card
-                  key={m.title}
-                  className={`flex flex-col justify-between border border-border/80 hover:border-primary/50 hover:shadow-lg transition-all duration-200 bg-gradient-to-b ${m.accent}`}
+          <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+            {!user ? (
+              <>
+                <Button
+                  size="default"
+                  onClick={() => setStudentModalOpen(true)}
+                  className="cursor-pointer gap-2 font-semibold h-10 px-5"
                 >
-                  <CardHeader>
-                    <div className="flex items-center justify-between mb-3">
-                      <div className={`p-3 rounded-xl bg-background shadow-xs ${m.iconColor}`}>
-                        <Icon className="h-6 w-6" />
-                      </div>
-                      <Badge variant={m.badgeVariant} className="font-semibold text-xs">
-                        {m.tag}
-                      </Badge>
-                    </div>
-                    <CardTitle className="text-xl flex items-baseline justify-between">
-                      <span>{m.title}</span>
-                    </CardTitle>
-                    <p className="text-xs font-medium text-muted-foreground">{m.hebrewTitle}</p>
-                    <CardDescription className="text-sm pt-2 leading-relaxed text-muted-foreground">
-                      {m.description}
-                    </CardDescription>
-                  </CardHeader>
-
-                  <CardContent className="flex-1">
-                    <div className="border-t border-border/50 pt-4 space-y-2.5">
-                      {m.features.map((feat, idx) => (
-                        <div key={idx} className="flex items-start gap-2 text-xs text-foreground/80">
-                          <CheckCircle2 className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
-                          <span>{feat}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-
-                  <CardFooter className="pt-4 border-t border-border/40">
-                    <Link
-                      href={m.href}
-                      className={buttonVariants({
-                        className: "w-full justify-between font-medium cursor-pointer shadow-xs",
-                      })}
-                    >
-                      <span>Open {m.title}</span>
-                      <ArrowRight className="h-4 w-4" />
-                    </Link>
-                  </CardFooter>
-                </Card>
-              );
-            })}
+                  <Users className="h-4 w-4" />
+                  <span>כניסת תלמידים (ללא אימייל)</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="default"
+                  onClick={() => setTeacherModalOpen(true)}
+                  className="cursor-pointer gap-2 h-10 px-5"
+                >
+                  <GraduationCap className="h-4 w-4 text-primary" />
+                  <span>כניסת מורים</span>
+                </Button>
+              </>
+            ) : (
+              <div className="flex items-center gap-2">
+                <Button
+                  size="default"
+                  onClick={() => router.push("/unseen")}
+                  className="cursor-pointer gap-2 font-semibold h-10 px-5"
+                >
+                  <BookOpen className="h-4 w-4" />
+                  <span>התחלת תרגול</span>
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Live Interactive Feature Showcase */}
-        <div className="rounded-2xl border border-border/80 bg-card p-6 sm:p-8 shadow-xs space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <div className="inline-flex items-center gap-1.5 text-primary text-xs font-semibold uppercase tracking-wider mb-1">
-                <BrainCircuit className="h-4 w-4" />
-                <span>Interactive Live Preview</span>
-              </div>
-              <h3 className="text-xl sm:text-2xl font-bold text-foreground">
-                Experience the Tools in Action
-              </h3>
-            </div>
-            <span className="text-xs text-muted-foreground">
-              Click any sample below to see how students and teachers interact with the suite.
-            </span>
-          </div>
-
-          <Tabs defaultValue="unseen" className="w-full">
-            <TabsList className="grid grid-cols-3 w-full max-w-md mx-auto sm:mx-0">
-              <TabsTrigger value="unseen">1. Unseen Sample</TabsTrigger>
-              <TabsTrigger value="vocab">2. Vocabulary Flip</TabsTrigger>
-              <TabsTrigger value="writing">3. Writing Rubric</TabsTrigger>
-            </TabsList>
-
-            {/* Unseen Live Preview */}
-            <TabsContent value="unseen" className="pt-4 space-y-4">
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                <div className="lg:col-span-7 space-y-3 p-4 rounded-xl bg-muted/40 border border-border/60">
-                  <div className="flex items-center justify-between border-b border-border/60 pb-2">
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline" className="text-xs font-semibold">Module E (4-5 Points)</Badge>
-                      <span className="text-xs text-muted-foreground">Paragraph 1 of 3</span>
+        {/* 3 Core Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl mx-auto">
+          {sections.map((sec) => {
+            const Icon = sec.icon;
+            return (
+              <Card
+                key={sec.title}
+                className={`flex flex-col justify-between border border-border/70 hover:shadow-lg transition-all duration-200 bg-card ${sec.borderColor}`}
+              >
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className={`p-2.5 rounded-xl ${sec.bgColor} ${sec.color}`}>
+                      <Icon className="h-6 w-6" />
                     </div>
-                    <Badge variant="secondary" className="text-[11px] gap-1">
-                      <Printer className="h-3 w-3" /> Printable Mode
+                    <Badge variant={sec.badgeVariant} className="text-xs font-semibold">
+                      {sec.badge}
                     </Badge>
                   </div>
-                  <h4 className="font-bold text-base text-foreground">The Rise of Community Micro-Libraries</h4>
-                  <p className="text-sm text-foreground/90 leading-relaxed font-sans">
-                    <span className="font-semibold text-primary mr-1">[1]</span>
-                    In recent years, small wooden boxes filled with free books have popped up on suburban sidewalks and street corners across the globe. Known as &quot;little free libraries,&quot; these grassroots initiatives operate on a simple yet profound premise: take a book, leave a book. What began as an individual tribute in 2009 has blossomed into an international literacy phenomenon with over 150,000 registered exchanges worldwide.
-                  </p>
-                </div>
+                  <CardTitle className="text-lg sm:text-xl font-bold text-foreground">
+                    {sec.title}
+                  </CardTitle>
+                  <CardDescription className="text-xs leading-relaxed text-muted-foreground pt-1.5">
+                    {sec.description}
+                  </CardDescription>
+                </CardHeader>
 
-                <div className="lg:col-span-5 space-y-3 p-4 rounded-xl border border-primary/20 bg-primary/5">
-                  <span className="text-xs font-semibold text-primary block">Sample Question 1 (7 Points)</span>
-                  <p className="text-sm font-medium text-foreground">
-                    What is the core rule that governs how little free libraries function?
-                  </p>
-                  <div className="space-y-2 pt-1">
-                    {[
-                      "Books must be returned within two weeks.",
-                      "Visitors take a book and are encouraged to leave one.",
-                      "Only registered members may borrow English literature.",
-                      "A small donation is required for every hardback taken.",
-                    ].map((opt, i) => (
-                      <button
-                        key={i}
-                        type="button"
-                        onClick={() => setDemoSelectedOption(i)}
-                        className={`w-full text-left text-xs p-2.5 rounded-lg border transition-all cursor-pointer ${
-                          demoSelectedOption === i
-                            ? i === 1
-                              ? "border-emerald-500 bg-emerald-500/15 text-emerald-950 dark:text-emerald-200 font-semibold"
-                              : "border-destructive bg-destructive/10 text-destructive"
-                            : "border-border/60 hover:bg-background/80 text-foreground"
-                        }`}
-                      >
-                        <span className="font-semibold mr-2">{String.fromCharCode(65 + i)}.</span>
-                        {opt}
-                      </button>
+                <CardContent className="flex-1">
+                  <div className="border-t border-border/50 pt-3.5 space-y-2">
+                    {sec.highlights.map((h, i) => (
+                      <div key={i} className="flex items-start gap-2 text-xs text-foreground/85">
+                        <CheckCircle2 className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
+                        <span>{h}</span>
+                      </div>
                     ))}
                   </div>
-                  {demoSelectedOption !== null && (
-                    <p className="text-xs text-muted-foreground pt-1">
-                      {demoSelectedOption === 1 ? (
-                        <span className="text-emerald-600 dark:text-emerald-400 font-semibold">
-                          ✓ Correct! The text mentions &quot;take a book, leave a book&quot;.
-                        </span>
-                      ) : (
-                        <span className="text-destructive font-semibold">
-                          ✗ Re-read sentence 2 in paragraph [1].
-                        </span>
-                      )}
-                    </p>
-                  )}
-                </div>
-              </div>
-            </TabsContent>
+                </CardContent>
 
-            {/* Vocabulary Flip Live Preview */}
-            <TabsContent value="vocab" className="pt-4">
-              <div className="max-w-md mx-auto text-center space-y-4">
-                <p className="text-xs text-muted-foreground">
-                  Click the flashcard to flip between English and Hebrew Ministry Band II/III definitions:
-                </p>
-
-                <div
-                  onClick={() => setVocabCardFlipped(!vocabCardFlipped)}
-                  className="h-48 w-full rounded-2xl border-2 border-dashed border-primary/40 bg-gradient-to-br from-primary/5 to-muted/50 p-6 flex flex-col items-center justify-center cursor-pointer shadow-sm hover:scale-[1.02] transition-transform select-none"
-                >
-                  {!vocabCardFlipped ? (
-                    <div className="space-y-2">
-                      <Badge variant="outline" className="text-[11px] mb-1">Band II &bull; Verb</Badge>
-                      <h3 className="text-3xl font-extrabold text-foreground">Accomplish</h3>
-                      <p className="text-xs text-muted-foreground italic">&quot;She worked hard to accomplish her goal.&quot;</p>
-                      <span className="text-[11px] text-primary block mt-2 font-medium">Click to reveal Hebrew translation ↺</span>
-                    </div>
-                  ) : (
-                    <div className="space-y-2" dir="rtl">
-                      <Badge variant="secondary" className="text-[11px] mb-1">תרגום והגדרה</Badge>
-                      <h3 className="text-3xl font-extrabold text-primary">להשיג, להשלים בהצלחה</h3>
-                      <p className="text-xs text-muted-foreground">השלמת משימה או יעד לאחר מאמץ</p>
-                      <span className="text-[11px] text-primary/80 block mt-2 font-medium">לחץ כדי להפוך חזרה ↺</span>
-                    </div>
-                  )}
-                </div>
-
-                <div className="flex items-center justify-center gap-3">
-                  <Link href="/vocabulary" className={buttonVariants({ size: "sm" })}>
-                    Open Full Vocabulary Bank (Bands I, II, III)
+                <CardFooter className="pt-3 border-t border-border/40">
+                  <Link
+                    href={sec.href}
+                    className={buttonVariants({
+                      className: "w-full justify-between font-semibold cursor-pointer shadow-xs",
+                    })}
+                  >
+                    <span>התחל תרגול</span>
+                    <ArrowRight className="h-4 w-4" />
                   </Link>
-                </div>
-              </div>
-            </TabsContent>
-
-            {/* Writing Rubric Live Preview */}
-            <TabsContent value="writing" className="pt-4">
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                {[
-                  { title: "1. Content & Task", score: "40 pts", desc: "Clarity of opinion, relevant supporting arguments, and addressing all prompt bullets." },
-                  { title: "2. Organization", score: "20 pts", desc: "Paragraphing: introduction, reasons with examples, connectors, and conclusion." },
-                  { title: "3. Language & Grammar", score: "20 pts", desc: "Accurate tenses, sentence structure variety, subject-verb agreement." },
-                  { title: "4. Vocabulary", score: "20 pts", desc: "Rich usage of Band II & III vocabulary, correct collocations, accurate spelling." },
-                ].map((item, idx) => (
-                  <div key={idx} className="p-4 rounded-xl border border-border bg-muted/20 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-foreground">{item.title}</span>
-                      <Badge variant="secondary" className="text-[10px]">{item.score}</Badge>
-                    </div>
-                    <p className="text-xs text-muted-foreground leading-relaxed">{item.desc}</p>
-                  </div>
-                ))}
-              </div>
-              <div className="text-center pt-4">
-                <Link href="/writing" className={buttonVariants({ variant: "outline", size: "sm" })}>
-                  Launch Writing Workshop with Rubric Evaluation
-                </Link>
-              </div>
-            </TabsContent>
-          </Tabs>
-        </div>
-
-        {/* Class Concurrency & Reliability Info */}
-        <div className="rounded-2xl border border-primary/20 bg-primary/5 p-6 sm:p-8 flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="space-y-2 max-w-2xl">
-            <div className="flex items-center gap-2 text-primary font-bold text-sm">
-              <BrainCircuit className="h-4 w-4" />
-              <span>High-Capacity Classroom Architecture</span>
-            </div>
-            <h3 className="text-xl font-bold text-foreground">
-              Built to Handle Full Classes Submitting Concurrently
-            </h3>
-            <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
-              When 30-40 students take an unseen or submit essays simultaneously during class, our intelligent Firestore caching and asynchronous evaluation engine prevent API throttles and keep tests running smoothly.
-            </p>
-          </div>
-
-          <div className="shrink-0">
-            <Button
-              variant="default"
-              onClick={() => {
-                if (!user) setTeacherModalOpen(true);
-                else router.push("/unseen");
-              }}
-              className="cursor-pointer gap-2 font-semibold"
-            >
-              <School className="h-4 w-4" />
-              <span>{user ? "Go to Dashboard" : "Register as Teacher"}</span>
-            </Button>
-          </div>
+                </CardFooter>
+              </Card>
+            );
+          })}
         </div>
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-border/60 bg-muted/20 py-8 text-center text-xs text-muted-foreground space-y-2">
-        <div className="container mx-auto px-4 flex flex-wrap items-center justify-between gap-4">
+      <footer className="border-t border-border/50 py-6 text-center text-xs text-muted-foreground bg-muted/20">
+        <div className="container mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <GraduationCap className="h-4 w-4 text-primary" />
-            <span className="font-semibold text-foreground">English Teacher Tools</span>
+            <span className="font-semibold text-foreground">English Practice</span>
             <span>&bull;</span>
-            <span>Shichva Education Suite</span>
+            <span>Ben Gurion Middle School</span>
           </div>
-
           <div className="flex items-center gap-4">
-            <Link href="/unseen" className="hover:text-foreground">Unseen Engine</Link>
-            <Link href="/vocabulary" className="hover:text-foreground">Vocabulary Trainer</Link>
-            <Link href="/writing" className="hover:text-foreground">Writing Workshop</Link>
+            <Link href="/unseen" className="hover:text-foreground">בלשי האנסין</Link>
+            <Link href="/vocabulary" className="hover:text-foreground">אוצר מילים</Link>
+            <Link href="/writing" className="hover:text-foreground">אימון כתיבה</Link>
           </div>
-
-          <p className="text-[11px]">
-            Connected with <span className="font-mono text-foreground">shichva.app</span> &bull; Israeli Bagrut & CEFR Curriculum
-          </p>
         </div>
       </footer>
 

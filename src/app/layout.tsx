@@ -17,8 +17,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "English Teacher Tools | Unseen, Vocabulary & Writing",
-  description: "Comprehensive English teaching suite for reading comprehension, vocabulary training, and writing instruction.",
+  title: "English Practice | Ben Gurion Middle School",
+  description: "English learning and practice suite for Ben Gurion Middle School: Unseen Detective, Vocabulary Trainer, and Writing Practice.",
 };
 
 export default function RootLayout({
