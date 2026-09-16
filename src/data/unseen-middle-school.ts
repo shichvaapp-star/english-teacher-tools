@@ -36,9 +36,11 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
     "levelLabel": "רמה 1 - קוראים מתחילים",
     "levelDescription": "Starting level English, for students who are beginner readers.",
     "paragraphs": [
-      "Tom has a small dog. The dog is white. His name is Max. Max has long ears and a short tail. Tom likes Max very much. Max is three years old. Every day, Tom walks with Max. They walk near the big house. Max sees a yellow cat. He does not run after the cat. Max is a good dog. He stands next to Tom. Tom gives Max a small cookie. Max is happy.",
+      "Tom has a small dog.  The dog is white.  His name is Max.  Max has long ears and a short tail.  Tom likes Max very much.  Max is three years old.  Every day, Tom walks with Max.",
+      "They walk near the big house.  Max sees a yellow cat.  He does not run after the cat.  Max is a good dog.  He stands next to Tom.  Tom gives Max a small cookie.  Max is happy.",
       "Max sleeps in a warm bed near the door. The bed is soft and brown. Every morning, Max runs to Tom's room. Max wakes Tom up because he wants to eat his food. Tom gets up from his bed. He walks to the kitchen. Tom puts dog food in a red bowl. Max eats his food fast. He drinks cold water from a blue bowl. Then, Max waits by the door.",
-      "In the afternoon, Tom and Max play in the big garden. Max runs after a red ball. Max is very happy when he plays with Tom. There are many green trees in the garden. Tom throws the ball. Max runs and catches it. He brings the ball back to Tom. Tom says, 'Good dog, Max!' They play for one hour. Then, they go into the house to rest."
+      "In the afternoon, Tom and Max play in the big garden.  Max runs after a red ball.  Max is very happy when he plays with Tom.  There are many green trees in the garden.  Tom throws the ball.",
+      "Max runs and catches it.  He brings the ball back to Tom.  Tom says, 'Good dog, Max!'  They play for one hour.  Then, they go into the house to rest."
     ],
     "vocabularyHints": [
       {
@@ -71,7 +73,7 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
         "id": "story-level1-1-q1",
         "number": 1,
         "paragraphIndex": 0,
-        "linesHint": "lines 1-5",
+        "linesHint": "Paragraph 1",
         "type": "mcq",
         "prompt": "What color is Max the dog?",
         "options": [
@@ -88,7 +90,7 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
         "id": "story-level1-1-q2",
         "number": 2,
         "paragraphIndex": 0,
-        "linesHint": "lines 3-5",
+        "linesHint": "Paragraph 1",
         "type": "open",
         "prompt": "How old is Max?",
         "correctIndex": 0,
@@ -104,8 +106,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level1-1-q3",
         "number": 3,
-        "paragraphIndex": 0,
-        "linesHint": "lines 4-5",
+        "paragraphIndex": 1,
+        "linesHint": "Paragraph 2",
         "type": "mcq",
         "prompt": "What does Max see near the big house?",
         "options": [
@@ -121,8 +123,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level1-1-q4",
         "number": 4,
-        "paragraphIndex": 1,
-        "linesHint": "lines 8-9",
+        "paragraphIndex": 2,
+        "linesHint": "Paragraph 3",
         "type": "mcq",
         "prompt": "Where does Tom put the dog food?",
         "options": [
@@ -138,8 +140,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level1-1-q5",
         "number": 5,
-        "paragraphIndex": 1,
-        "linesHint": "lines 6-10",
+        "paragraphIndex": 2,
+        "linesHint": "Paragraph 3",
         "type": "copy",
         "prompt": "Copy the sentence that tells us where Max sleeps.",
         "correctIndex": 0,
@@ -150,8 +152,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level1-1-q6",
         "number": 6,
-        "paragraphIndex": 2,
-        "linesHint": "lines 11-15",
+        "paragraphIndex": 3,
+        "linesHint": "Paragraph 4",
         "type": "open",
         "prompt": "What does Max run after in the garden?",
         "correctIndex": 0,
@@ -167,8 +169,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level1-1-q7",
         "number": 7,
-        "paragraphIndex": 2,
-        "linesHint": "lines 13-15",
+        "paragraphIndex": 4,
+        "linesHint": "Paragraph 5",
         "type": "copy",
         "prompt": "Copy the sentence that tells us how long Tom and Max play in the garden.",
         "correctIndex": 0,
@@ -179,7 +181,7 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level1-1-q8",
         "number": 8,
-        "paragraphIndex": 3,
+        "paragraphIndex": -1,
         "linesHint": "The entire text",
         "type": "mcq",
         "prompt": "What is the main idea of this story?",
@@ -196,8 +198,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level1-1-q9",
         "number": 9,
-        "paragraphIndex": 1,
-        "linesHint": "Paragraph 2",
+        "paragraphIndex": 2,
+        "linesHint": "Paragraph 3",
         "type": "copy",
         "prompt": "Copy the first sentence of the second paragraph that introduces the new event.",
         "targetSentence": "Max sleeps in a warm bed near the door.",
@@ -207,8 +209,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level1-1-q10",
         "number": 10,
-        "paragraphIndex": 3,
-        "linesHint": "General understanding",
+        "paragraphIndex": -1,
+        "linesHint": "The entire text",
         "type": "open",
         "prompt": "Based on the text, what is one important lesson or fact the reader learns from this passage?",
         "modelAnswer": "The reader learns about max the small dog and why it is important.",
@@ -233,9 +235,11 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
     "levelLabel": "רמה 1 - קוראים מתחילים",
     "levelDescription": "Starting level English, for students who are beginner readers.",
     "paragraphs": [
-      "Maya is eight years old. She loves stars and planets. Her father is an engineer. For her birthday, he builds a small blue robot named Sparky. Sparky has two bright yellow eyes and small wheels. Maya puts Sparky on her table. Sparky says, 'Hello Maya, let's explore space!' Maya is very excited.",
+      "Maya is eight years old.  She loves stars and planets.  Her father is an engineer.  For her birthday, he builds a small blue robot named Sparky.",
+      "Sparky has two bright yellow eyes and small wheels.  Maya puts Sparky on her table.  Sparky says, 'Hello Maya, let's explore space!'  Maya is very excited.",
       "Every afternoon, Maya and Sparky learn about space together. Sparky shows colorful pictures of Mars and the Moon on the wall. Maya writes new English words in her green notebook. Sparky plays soft space music while Maya draws a big rocket. When Maya's mother enters the room, Sparky turns his lights green and says good evening.",
-      "At night, Maya looks at the sky through her bedroom window. Sparky stands on the window sill next to her. They count five bright stars together. Maya dreams of traveling to Mars in a shiny white spaceship. She smiles and goes to bed. Sparky goes to sleep on his charging dock."
+      "At night, Maya looks at the sky through her bedroom window.  Sparky stands on the window sill next to her.  They count five bright stars together.",
+      "Maya dreams of traveling to Mars in a shiny white spaceship.  She smiles and goes to bed.  Sparky goes to sleep on his charging dock."
     ],
     "vocabularyHints": [
       {
@@ -264,7 +268,7 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
         "id": "story-level1-2-q1",
         "number": 1,
         "paragraphIndex": 0,
-        "linesHint": "lines 1-4",
+        "linesHint": "Paragraph 1",
         "type": "mcq",
         "prompt": "What does Maya love?",
         "options": [
@@ -281,7 +285,7 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
         "id": "story-level1-2-q2",
         "number": 2,
         "paragraphIndex": 0,
-        "linesHint": "lines 3-5",
+        "linesHint": "Paragraph 1",
         "type": "copy",
         "prompt": "Copy the sentence that tells what Maya's father builds for her birthday.",
         "correctIndex": 0,
@@ -292,8 +296,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level1-2-q3",
         "number": 3,
-        "paragraphIndex": 0,
-        "linesHint": "lines 4-6",
+        "paragraphIndex": 1,
+        "linesHint": "Paragraph 2",
         "type": "open",
         "prompt": "What color are Sparky's eyes?",
         "correctIndex": 0,
@@ -308,8 +312,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level1-2-q4",
         "number": 4,
-        "paragraphIndex": 1,
-        "linesHint": "lines 7-10",
+        "paragraphIndex": 2,
+        "linesHint": "Paragraph 3",
         "type": "mcq",
         "prompt": "What does Sparky show on the wall?",
         "options": [
@@ -325,8 +329,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level1-2-q5",
         "number": 5,
-        "paragraphIndex": 1,
-        "linesHint": "lines 8-10",
+        "paragraphIndex": 2,
+        "linesHint": "Paragraph 3",
         "type": "copy",
         "prompt": "Copy the sentence that tells what Maya writes in her notebook.",
         "correctIndex": 0,
@@ -337,8 +341,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level1-2-q6",
         "number": 6,
-        "paragraphIndex": 2,
-        "linesHint": "lines 12-15",
+        "paragraphIndex": 3,
+        "linesHint": "Paragraph 4",
         "type": "open",
         "prompt": "How many bright stars do Maya and Sparky count together?",
         "correctIndex": 0,
@@ -354,8 +358,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level1-2-q7",
         "number": 7,
-        "paragraphIndex": 2,
-        "linesHint": "lines 13-16",
+        "paragraphIndex": 4,
+        "linesHint": "Paragraph 5",
         "type": "mcq",
         "prompt": "Where does Sparky go to sleep at night?",
         "options": [
@@ -371,7 +375,7 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level1-2-q8",
         "number": 8,
-        "paragraphIndex": 3,
+        "paragraphIndex": -1,
         "linesHint": "The entire text",
         "type": "mcq",
         "prompt": "What is this story mostly about?",
@@ -388,8 +392,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level1-2-q9",
         "number": 9,
-        "paragraphIndex": 1,
-        "linesHint": "Paragraph 2",
+        "paragraphIndex": 2,
+        "linesHint": "Paragraph 3",
         "type": "copy",
         "prompt": "Copy the first sentence of the second paragraph that introduces the new event.",
         "targetSentence": "Every afternoon, Maya and Sparky learn about space together.",
@@ -399,8 +403,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level1-2-q10",
         "number": 10,
-        "paragraphIndex": 3,
-        "linesHint": "General understanding",
+        "paragraphIndex": -1,
+        "linesHint": "The entire text",
         "type": "open",
         "prompt": "Based on the text, what is one important lesson or fact the reader learns from this passage?",
         "modelAnswer": "The reader learns about maya's space robot and why it is important.",
@@ -425,9 +429,11 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
     "levelLabel": "רמה 1 - קוראים מתחילים",
     "levelDescription": "Starting level English, for students who are beginner readers.",
     "paragraphs": [
-      "Dan and his sister Roni live near a green forest. In the middle of the forest, there is a very tall oak tree. Last summer, their grandfather helped them build a wooden treehouse high in the tree. The treehouse has a red roof and three small windows. To climb up, the children use a strong rope ladder.",
+      "Dan and his sister Roni live near a green forest.  In the middle of the forest, there is a very tall oak tree.  Last summer, their grandfather helped them build a wooden treehouse high in the tree.",
+      "The treehouse has a red roof and three small windows.  To climb up, the children use a strong rope ladder.",
       "Inside the treehouse, Dan and Roni keep their favorite things. There is a soft rug, two wooden chairs, and a box of adventure books. Every Saturday morning, they climb up to eat fresh apples and read stories. Sometimes, a curious brown squirrel visits the treehouse. Roni gives the squirrel nuts, and it does not run away.",
-      "One afternoon, it begins to rain softly. The children sit inside the warm treehouse and listen to the raindrops on the roof. They drink warm chocolate milk from a yellow bottle. Dan looks through his toy telescope and watches the forest birds. The treehouse is their favorite place in the world."
+      "One afternoon, it begins to rain softly.  The children sit inside the warm treehouse and listen to the raindrops on the roof.  They drink warm chocolate milk from a yellow bottle.",
+      "Dan looks through his toy telescope and watches the forest birds.  The treehouse is their favorite place in the world."
     ],
     "vocabularyHints": [
       {
@@ -456,7 +462,7 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
         "id": "story-level1-3-q1",
         "number": 1,
         "paragraphIndex": 0,
-        "linesHint": "lines 1-4",
+        "linesHint": "Paragraph 1",
         "type": "mcq",
         "prompt": "Who helped Dan and Roni build the treehouse?",
         "options": [
@@ -472,8 +478,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level1-3-q2",
         "number": 2,
-        "paragraphIndex": 0,
-        "linesHint": "lines 3-5",
+        "paragraphIndex": 1,
+        "linesHint": "Paragraph 2",
         "type": "open",
         "prompt": "What color is the treehouse roof?",
         "correctIndex": 0,
@@ -488,8 +494,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level1-3-q3",
         "number": 3,
-        "paragraphIndex": 0,
-        "linesHint": "lines 4-6",
+        "paragraphIndex": 1,
+        "linesHint": "Paragraph 2",
         "type": "copy",
         "prompt": "Copy the sentence that tells how the children climb up to the treehouse.",
         "correctIndex": 0,
@@ -500,8 +506,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level1-3-q4",
         "number": 4,
-        "paragraphIndex": 1,
-        "linesHint": "lines 7-10",
+        "paragraphIndex": 2,
+        "linesHint": "Paragraph 3",
         "type": "mcq",
         "prompt": "What animal visits the treehouse?",
         "options": [
@@ -517,8 +523,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level1-3-q5",
         "number": 5,
-        "paragraphIndex": 1,
-        "linesHint": "lines 8-11",
+        "paragraphIndex": 2,
+        "linesHint": "Paragraph 3",
         "type": "open",
         "prompt": "What does Roni give to the squirrel?",
         "correctIndex": 0,
@@ -533,8 +539,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level1-3-q6",
         "number": 6,
-        "paragraphIndex": 2,
-        "linesHint": "lines 12-15",
+        "paragraphIndex": 3,
+        "linesHint": "Paragraph 4",
         "type": "copy",
         "prompt": "Copy the sentence that shows what the children drink in the treehouse.",
         "correctIndex": 0,
@@ -545,8 +551,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level1-3-q7",
         "number": 7,
-        "paragraphIndex": 2,
-        "linesHint": "lines 13-16",
+        "paragraphIndex": 3,
+        "linesHint": "Paragraph 4",
         "type": "mcq",
         "prompt": "What does Dan use to watch the forest birds?",
         "options": [
@@ -562,7 +568,7 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level1-3-q8",
         "number": 8,
-        "paragraphIndex": 3,
+        "paragraphIndex": -1,
         "linesHint": "The entire text",
         "type": "mcq",
         "prompt": "What is this passage mostly about?",
@@ -579,8 +585,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level1-3-q9",
         "number": 9,
-        "paragraphIndex": 1,
-        "linesHint": "Paragraph 2",
+        "paragraphIndex": 2,
+        "linesHint": "Paragraph 3",
         "type": "copy",
         "prompt": "Copy the first sentence of the second paragraph that introduces the new event.",
         "targetSentence": "Inside the treehouse, Dan and Roni keep their favorite things.",
@@ -590,8 +596,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level1-3-q10",
         "number": 10,
-        "paragraphIndex": 3,
-        "linesHint": "General understanding",
+        "paragraphIndex": -1,
+        "linesHint": "The entire text",
         "type": "open",
         "prompt": "Based on the text, what is one important lesson or fact the reader learns from this passage?",
         "modelAnswer": "The reader learns about the secret treehouse and why it is important.",
@@ -616,9 +622,11 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
     "levelLabel": "רמה 1 - קוראים מתחילים",
     "levelDescription": "Starting level English, for students who are beginner readers.",
     "paragraphs": [
-      "Leo is nine years old and he loves to cook. Every Friday, he wakes up early to help his grandmother in the kitchen. His grandmother is a baker who makes sweet bread and fruit cakes. Leo wears a white apron and a big chef hat. Today, they are making special chocolate cookies for the family dinner.",
+      "Leo is nine years old and he loves to cook.  Every Friday, he wakes up early to help his grandmother in the kitchen.  His grandmother is a baker who makes sweet bread and fruit cakes.",
+      "Leo wears a white apron and a big chef hat.  Today, they are making special chocolate cookies for the family dinner.",
       "In the kitchen, Leo mixes sugar, eggs, and brown flour in a big bowl. Then, his grandmother adds delicious chocolate chips and sweet vanilla. Leo uses his hands to roll the dough into small round balls. He places twelve balls on a baking tray. His grandmother puts the tray into the hot oven. Soon, a wonderful sweet smell fills the whole house.",
-      "After twenty minutes, the cookies are ready and golden brown. Leo waits patiently for them to cool down. In the evening, his parents and brothers sit around the table. Leo proudly serves the warm cookies with cold milk. Everyone smiles and says that Leo is the best baker in the city."
+      "After twenty minutes, the cookies are ready and golden brown.  Leo waits patiently for them to cool down.  In the evening, his parents and brothers sit around the table.",
+      "Leo proudly serves the warm cookies with cold milk.  Everyone smiles and says that Leo is the best baker in the city."
     ],
     "vocabularyHints": [
       {
@@ -647,7 +655,7 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
         "id": "story-level1-4-q1",
         "number": 1,
         "paragraphIndex": 0,
-        "linesHint": "lines 1-3",
+        "linesHint": "Paragraph 1",
         "type": "mcq",
         "prompt": "When does Leo wake up early to bake?",
         "options": [
@@ -663,8 +671,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level1-4-q2",
         "number": 2,
-        "paragraphIndex": 0,
-        "linesHint": "lines 3-5",
+        "paragraphIndex": 1,
+        "linesHint": "Paragraph 2",
         "type": "copy",
         "prompt": "Copy the sentence that describes what Leo wears in the kitchen.",
         "correctIndex": 0,
@@ -675,8 +683,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level1-4-q3",
         "number": 3,
-        "paragraphIndex": 0,
-        "linesHint": "lines 4-6",
+        "paragraphIndex": 1,
+        "linesHint": "Paragraph 2",
         "type": "open",
         "prompt": "What are Leo and his grandmother baking today?",
         "correctIndex": 0,
@@ -692,8 +700,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level1-4-q4",
         "number": 4,
-        "paragraphIndex": 1,
-        "linesHint": "lines 8-10",
+        "paragraphIndex": 2,
+        "linesHint": "Paragraph 3",
         "type": "copy",
         "prompt": "Copy the sentence that tells how many balls of dough Leo places on the tray.",
         "correctIndex": 0,
@@ -704,8 +712,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level1-4-q5",
         "number": 5,
-        "paragraphIndex": 1,
-        "linesHint": "lines 7-11",
+        "paragraphIndex": 0,
+        "linesHint": "Paragraph 1",
         "type": "mcq",
         "prompt": "Who puts the tray into the hot oven?",
         "options": [
@@ -721,8 +729,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level1-4-q6",
         "number": 6,
-        "paragraphIndex": 2,
-        "linesHint": "lines 12-14",
+        "paragraphIndex": 3,
+        "linesHint": "Paragraph 4",
         "type": "open",
         "prompt": "How long does it take for the cookies to bake?",
         "correctIndex": 0,
@@ -738,8 +746,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level1-4-q7",
         "number": 7,
-        "paragraphIndex": 2,
-        "linesHint": "lines 13-16",
+        "paragraphIndex": 4,
+        "linesHint": "Paragraph 5",
         "type": "mcq",
         "prompt": "What does Leo serve with the warm cookies?",
         "options": [
@@ -755,7 +763,7 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level1-4-q8",
         "number": 8,
-        "paragraphIndex": 3,
+        "paragraphIndex": -1,
         "linesHint": "The entire text",
         "type": "mcq",
         "prompt": "What is this story mostly about?",
@@ -772,8 +780,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level1-4-q9",
         "number": 9,
-        "paragraphIndex": 1,
-        "linesHint": "Paragraph 2",
+        "paragraphIndex": 2,
+        "linesHint": "Paragraph 3",
         "type": "copy",
         "prompt": "Copy the first sentence of the second paragraph that introduces the new event.",
         "targetSentence": "In the kitchen, Leo mixes sugar, eggs, and brown flour in a big bowl.",
@@ -783,8 +791,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level1-4-q10",
         "number": 10,
-        "paragraphIndex": 3,
-        "linesHint": "General understanding",
+        "paragraphIndex": -1,
+        "linesHint": "The entire text",
         "type": "open",
         "prompt": "Based on the text, what is one important lesson or fact the reader learns from this passage?",
         "modelAnswer": "The reader learns about leo the little baker and why it is important.",
@@ -809,9 +817,11 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
     "levelLabel": "רמה 1 - קוראים מתחילים",
     "levelDescription": "Starting level English, for students who are beginner readers.",
     "paragraphs": [
-      "Gal and his family are on vacation in Eilat, a sunny city in the south of Israel. Today, they are visiting Dolphin Reef by the Red Sea. The sea water is clear and blue. Gal stands on the wooden floating bridge and looks into the water. Suddenly, three friendly dolphins swim near the bridge and leap high into the air.",
+      "Gal and his family are on vacation in Eilat, a sunny city in the south of Israel.  Today, they are visiting Dolphin Reef by the Red Sea.  The sea water is clear and blue.",
+      "Gal stands on the wooden floating bridge and looks into the water.  Suddenly, three friendly dolphins swim near the bridge and leap high into the air.",
       "A kind guide named Dana gives Gal a life jacket. She explains that the dolphins live freely in the sea and can swim anywhere they want. Gal sits quietly on the edge of the dock and dips his feet into the cool water. A dolphin named Nana swims close and touches Gal's hand with her nose. Gal laughs with joy.",
-      "In the afternoon, the visitors watch the dolphins play with a big green floating ball. Dana feeds the dolphins fresh fish from a bucket. Gal takes photos with his camera to show his classmates at school. At the end of the day, Gal buys a small dolphin souvenir in the gift shop and waves goodbye to Nana."
+      "In the afternoon, the visitors watch the dolphins play with a big green floating ball.  Dana feeds the dolphins fresh fish from a bucket.",
+      "Gal takes photos with his camera to show his classmates at school.  At the end of the day, Gal buys a small dolphin souvenir in the gift shop and waves goodbye to Nana."
     ],
     "vocabularyHints": [
       {
@@ -840,7 +850,7 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
         "id": "story-level1-5-q1",
         "number": 1,
         "paragraphIndex": 0,
-        "linesHint": "lines 1-3",
+        "linesHint": "Paragraph 1",
         "type": "mcq",
         "prompt": "Where are Gal and his family on vacation?",
         "options": [
@@ -857,7 +867,7 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
         "id": "story-level1-5-q2",
         "number": 2,
         "paragraphIndex": 0,
-        "linesHint": "lines 2-4",
+        "linesHint": "Paragraph 1",
         "type": "copy",
         "prompt": "Copy the sentence that describes the sea water.",
         "correctIndex": 0,
@@ -868,8 +878,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level1-5-q3",
         "number": 3,
-        "paragraphIndex": 0,
-        "linesHint": "lines 3-5",
+        "paragraphIndex": 1,
+        "linesHint": "Paragraph 2",
         "type": "open",
         "prompt": "How many dolphins swim near the bridge at first?",
         "correctIndex": 0,
@@ -885,8 +895,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level1-5-q4",
         "number": 4,
-        "paragraphIndex": 1,
-        "linesHint": "lines 6-9",
+        "paragraphIndex": 2,
+        "linesHint": "Paragraph 3",
         "type": "mcq",
         "prompt": "What does the guide Dana give to Gal?",
         "options": [
@@ -902,8 +912,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level1-5-q5",
         "number": 5,
-        "paragraphIndex": 1,
-        "linesHint": "lines 8-11",
+        "paragraphIndex": 2,
+        "linesHint": "Paragraph 3",
         "type": "copy",
         "prompt": "Copy the sentence that tells what the dolphin Nana does.",
         "correctIndex": 0,
@@ -914,8 +924,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level1-5-q6",
         "number": 6,
-        "paragraphIndex": 2,
-        "linesHint": "lines 12-14",
+        "paragraphIndex": 3,
+        "linesHint": "Paragraph 4",
         "type": "open",
         "prompt": "What does Dana feed the dolphins?",
         "correctIndex": 0,
@@ -930,8 +940,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level1-5-q7",
         "number": 7,
-        "paragraphIndex": 2,
-        "linesHint": "lines 13-16",
+        "paragraphIndex": 4,
+        "linesHint": "Paragraph 5",
         "type": "mcq",
         "prompt": "What does Gal buy before leaving?",
         "options": [
@@ -947,7 +957,7 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level1-5-q8",
         "number": 8,
-        "paragraphIndex": 3,
+        "paragraphIndex": -1,
         "linesHint": "The entire text",
         "type": "mcq",
         "prompt": "What is the main topic of this text?",
@@ -964,8 +974,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level1-5-q9",
         "number": 9,
-        "paragraphIndex": 1,
-        "linesHint": "Paragraph 2",
+        "paragraphIndex": 2,
+        "linesHint": "Paragraph 3",
         "type": "copy",
         "prompt": "Copy the first sentence of the second paragraph that introduces the new event.",
         "targetSentence": "A kind guide named Dana gives Gal a life jacket.",
@@ -975,8 +985,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level1-5-q10",
         "number": 10,
-        "paragraphIndex": 3,
-        "linesHint": "General understanding",
+        "paragraphIndex": -1,
+        "linesHint": "The entire text",
         "type": "open",
         "prompt": "Based on the text, what is one important lesson or fact the reader learns from this passage?",
         "modelAnswer": "The reader learns about a day at dolphin reef and why it is important.",
@@ -1001,9 +1011,11 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
     "levelLabel": "רמה 2 - רמה שוטפת",
     "levelDescription": "For native Hebrew speakers who are in a satisfactory level in English (late elementary equivalent).",
     "paragraphs": [
-      "Clara is an explorer who likes to find old things. Last year, she traveled to the Negev desert in Israel. The desert was hot and dry, but Clara loved her job. One sunny morning, she climbed a high hill. On a big rock, she saw a very old picture of a tree. She took out her camera and took a photograph of it. Clara knew that this picture was special.",
+      "Clara is an explorer who likes to find old things.  Last year, she traveled to the Negev desert in Israel.  The desert was hot and dry, but Clara loved her job.  One sunny morning, she climbed a high hill.",
+      "On a big rock, she saw a very old picture of a tree.  She took out her camera and took a photograph of it.  Clara knew that this picture was special.",
       "The picture had a secret message written on it in a strange language. Clara spent three weeks trying to understand the message. She read many old books in the library. Finally, she found out the meaning. The message was a map that showed how to find water under a big tree in the middle of the desert. Clara packed her bag and started her journey.",
-      "Clara walked to the tree for two days. The desert was quiet and she was very tired. When she arrived, she did not find gold, but she did find a special plant. Clara took some leaves to show to scientists in the city. Later, doctors used this plant to make new medicines for sick children. Clara was very happy with her discovery and wanted to return soon."
+      "Clara walked to the tree for two days.  The desert was quiet and she was very tired.  When she arrived, she did not find gold, but she did find a special plant.",
+      "Clara took some leaves to show to scientists in the city.  Later, doctors used this plant to make new medicines for sick children.  Clara was very happy with her discovery and wanted to return soon."
     ],
     "vocabularyHints": [
       {
@@ -1036,7 +1048,7 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
         "id": "story-level2-1-q1",
         "number": 1,
         "paragraphIndex": 0,
-        "linesHint": "lines 1-5",
+        "linesHint": "Paragraph 1",
         "type": "mcq",
         "prompt": "Where did Clara find the picture of the tree?",
         "options": [
@@ -1053,7 +1065,7 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
         "id": "story-level2-1-q2",
         "number": 2,
         "paragraphIndex": 0,
-        "linesHint": "lines 1-3",
+        "linesHint": "Paragraph 1",
         "type": "open",
         "prompt": "When did Clara travel to the Negev desert?",
         "correctIndex": 0,
@@ -1068,8 +1080,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level2-1-q3",
         "number": 3,
-        "paragraphIndex": 0,
-        "linesHint": "lines 4-5",
+        "paragraphIndex": 1,
+        "linesHint": "Paragraph 2",
         "type": "copy",
         "prompt": "Copy the sentence that shows Clara took a photo of the picture on the rock.",
         "correctIndex": 0,
@@ -1080,8 +1092,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level2-1-q4",
         "number": 4,
-        "paragraphIndex": 1,
-        "linesHint": "lines 6-10",
+        "paragraphIndex": 2,
+        "linesHint": "Paragraph 3",
         "type": "open",
         "prompt": "How long did it take Clara to understand the secret message?",
         "correctIndex": 0,
@@ -1097,8 +1109,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level2-1-q5",
         "number": 5,
-        "paragraphIndex": 1,
-        "linesHint": "lines 7-9",
+        "paragraphIndex": 2,
+        "linesHint": "Paragraph 3",
         "type": "mcq",
         "prompt": "Where did Clara read old books to understand the message?",
         "options": [
@@ -1114,8 +1126,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level2-1-q6",
         "number": 6,
-        "paragraphIndex": 2,
-        "linesHint": "lines 11-15",
+        "paragraphIndex": 3,
+        "linesHint": "Paragraph 4",
         "type": "copy",
         "prompt": "Copy the sentence that tells us what Clara found instead of gold.",
         "correctIndex": 0,
@@ -1126,8 +1138,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level2-1-q7",
         "number": 7,
-        "paragraphIndex": 2,
-        "linesHint": "lines 12-14",
+        "paragraphIndex": 4,
+        "linesHint": "Paragraph 5",
         "type": "mcq",
         "prompt": "Who used the special plant to make new medicines?",
         "options": [
@@ -1143,7 +1155,7 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level2-1-q8",
         "number": 8,
-        "paragraphIndex": 3,
+        "paragraphIndex": -1,
         "linesHint": "The entire text",
         "type": "mcq",
         "prompt": "What is this story about?",
@@ -1160,8 +1172,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level2-1-q9",
         "number": 9,
-        "paragraphIndex": 1,
-        "linesHint": "Paragraph 2",
+        "paragraphIndex": 2,
+        "linesHint": "Paragraph 3",
         "type": "copy",
         "prompt": "Copy the first sentence of the second paragraph that introduces the new event.",
         "targetSentence": "The picture had a secret message written on it in a strange language.",
@@ -1171,8 +1183,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level2-1-q10",
         "number": 10,
-        "paragraphIndex": 3,
-        "linesHint": "General understanding",
+        "paragraphIndex": -1,
+        "linesHint": "The entire text",
         "type": "open",
         "prompt": "Based on the text, what is one important lesson or fact the reader learns from this passage?",
         "modelAnswer": "The reader learns about the negev desert tree and why it is important.",
@@ -1197,9 +1209,11 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
     "levelLabel": "רמה 2 - רמה שוטפת",
     "levelDescription": "For native Hebrew speakers who are in a satisfactory level in English (late elementary equivalent).",
     "paragraphs": [
-      "Twelve-year-old Noam loved history and archaeology. During the Passover vacation, his family went on a hiking trip along the ancient paths of Caesarea National Park. The sun was warm, and a gentle breeze blew from the Mediterranean Sea. While walking near an ancient stone wall, Noam noticed a strange metallic shine beneath a pile of sand and dry leaves. He knelt down and carefully brushed away the dust with his fingers.",
+      "Twelve-year-old Noam loved history and archaeology.  During the Passover vacation, his family went on a hiking trip along the ancient paths of Caesarea National Park.  The sun was warm, and a gentle breeze blew from the Mediterranean Sea.",
+      "While walking near an ancient stone wall, Noam noticed a strange metallic shine beneath a pile of sand and dry leaves.  He knelt down and carefully brushed away the dust with his fingers.",
       "In the palm of his hand lay an ancient bronze coin covered in green patina. On one side, Noam could clearly see the profile of a Roman emperor wearing a laurel wreath. On the other side was an image of an ancient sailing ship. Excited by the discovery, Noam showed the artifact to the park rangers. The head archaeologist was called immediately to examine the rare find.",
-      "The archaeologist explained that the coin was nearly two thousand years old and had probably belonged to a Roman merchant sailing to Rome. Instead of keeping the coin, Noam decided to donate it to the national antiquities authority. A month later, the museum sent Noam an official certificate of appreciation and invited his entire class for a free guided tour. Noam was proud that his curiosity helped preserve a piece of ancient history."
+      "The archaeologist explained that the coin was nearly two thousand years old and had probably belonged to a Roman merchant sailing to Rome.  Instead of keeping the coin, Noam decided to donate it to the national antiquities authority.",
+      "A month later, the museum sent Noam an official certificate of appreciation and invited his entire class for a free guided tour.  Noam was proud that his curiosity helped preserve a piece of ancient history."
     ],
     "vocabularyHints": [
       {
@@ -1232,7 +1246,7 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
         "id": "story-level2-2-q1",
         "number": 1,
         "paragraphIndex": 0,
-        "linesHint": "lines 1-4",
+        "linesHint": "Paragraph 1",
         "type": "mcq",
         "prompt": "Where was Noam hiking with his family?",
         "options": [
@@ -1248,8 +1262,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level2-2-q2",
         "number": 2,
-        "paragraphIndex": 0,
-        "linesHint": "lines 4-7",
+        "paragraphIndex": 1,
+        "linesHint": "Paragraph 2",
         "type": "copy",
         "prompt": "Copy the sentence that tells what caught Noam's attention near the stone wall.",
         "correctIndex": 0,
@@ -1260,8 +1274,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level2-2-q3",
         "number": 3,
-        "paragraphIndex": 1,
-        "linesHint": "lines 7-10",
+        "paragraphIndex": 2,
+        "linesHint": "Paragraph 3",
         "type": "copy",
         "prompt": "Copy the sentence describing what was depicted on one side of the coin.",
         "correctIndex": 0,
@@ -1272,8 +1286,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level2-2-q4",
         "number": 4,
-        "paragraphIndex": 1,
-        "linesHint": "lines 9-12",
+        "paragraphIndex": 2,
+        "linesHint": "Paragraph 3",
         "type": "open",
         "prompt": "What image was on the other side of the coin?",
         "correctIndex": 0,
@@ -1289,8 +1303,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level2-2-q5",
         "number": 5,
-        "paragraphIndex": 2,
-        "linesHint": "lines 13-15",
+        "paragraphIndex": 3,
+        "linesHint": "Paragraph 4",
         "type": "mcq",
         "prompt": "How old was the coin according to the archaeologist?",
         "options": [
@@ -1306,8 +1320,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level2-2-q6",
         "number": 6,
-        "paragraphIndex": 2,
-        "linesHint": "lines 14-16",
+        "paragraphIndex": 3,
+        "linesHint": "Paragraph 4",
         "type": "open",
         "prompt": "What did Noam decide to do with the coin instead of keeping it?",
         "correctIndex": 0,
@@ -1324,8 +1338,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level2-2-q7",
         "number": 7,
-        "paragraphIndex": 2,
-        "linesHint": "lines 16-19",
+        "paragraphIndex": 4,
+        "linesHint": "Paragraph 5",
         "type": "mcq",
         "prompt": "What did the museum send to Noam a month later?",
         "options": [
@@ -1341,7 +1355,7 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level2-2-q8",
         "number": 8,
-        "paragraphIndex": 3,
+        "paragraphIndex": -1,
         "linesHint": "The entire text",
         "type": "mcq",
         "prompt": "What is the central theme of this story?",
@@ -1358,8 +1372,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level2-2-q9",
         "number": 9,
-        "paragraphIndex": 1,
-        "linesHint": "Paragraph 2",
+        "paragraphIndex": 2,
+        "linesHint": "Paragraph 3",
         "type": "copy",
         "prompt": "Copy the first sentence of the second paragraph that introduces the new event.",
         "targetSentence": "In the palm of his hand lay an ancient bronze coin covered in green patina.",
@@ -1369,8 +1383,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level2-2-q10",
         "number": 10,
-        "paragraphIndex": 3,
-        "linesHint": "General understanding",
+        "paragraphIndex": -1,
+        "linesHint": "The entire text",
         "type": "open",
         "prompt": "Based on the text, what is one important lesson or fact the reader learns from this passage?",
         "modelAnswer": "The reader learns about the mystery of the roman coin and why it is important.",
@@ -1395,9 +1409,11 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
     "levelLabel": "רמה 2 - רמה שוטפת",
     "levelDescription": "For native Hebrew speakers who are in a satisfactory level in English (late elementary equivalent).",
     "paragraphs": [
-      "In a quiet neighborhood in northern Israel, farmer Eli noticed something troubling in his citrus orchard. The orange and lemon trees were full of white blossoms, but there was almost complete silence in the grove. Usually, thousands of worker bees buzzed from flower to flower, collecting sweet nectar and carrying golden pollen. Without bees, the trees could not produce fruit, and Eli knew his harvest was in serious danger.",
+      "In a quiet neighborhood in northern Israel, farmer Eli noticed something troubling in his citrus orchard.  The orange and lemon trees were full of white blossoms, but there was almost complete silence in the grove.",
+      "Usually, thousands of worker bees buzzed from flower to flower, collecting sweet nectar and carrying golden pollen.  Without bees, the trees could not produce fruit, and Eli knew his harvest was in serious danger.",
       "Eli decided to contact Dr. Ronit, an entomologist from the agricultural research center. When Dr. Ronit visited the farm, she discovered that neighboring gardens had recently used strong chemical pesticides. These harmful chemicals had weakened the local bee colonies and caused them to abandon their hives. Together, Eli and Dr. Ronit designed a rescue plan to bring healthy bees back to the orchard without using dangerous sprays.",
-      "Over the next three weeks, Eli planted rows of wildflowers like lavender and rosemary along the orchard borders. Dr. Ronit installed two modern wooden beehives equipped with temperature sensors to monitor the queen bee. Within a month, the worker bees returned in large numbers. The citrus trees flourished, producing sweet oranges, and Eli even harvested pure honey that he shared with his supportive neighbors."
+      "Over the next three weeks, Eli planted rows of wildflowers like lavender and rosemary along the orchard borders.  Dr.  Ronit installed two modern wooden beehives equipped with temperature sensors to monitor the queen bee.",
+      "Within a month, the worker bees returned in large numbers.  The citrus trees flourished, producing sweet oranges, and Eli even harvested pure honey that he shared with his supportive neighbors."
     ],
     "vocabularyHints": [
       {
@@ -1426,7 +1442,7 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
         "id": "story-level2-3-q1",
         "number": 1,
         "paragraphIndex": 0,
-        "linesHint": "lines 1-4",
+        "linesHint": "Paragraph 1",
         "type": "mcq",
         "prompt": "What troubling sign did Eli notice in his citrus orchard?",
         "options": [
@@ -1442,8 +1458,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level2-3-q2",
         "number": 2,
-        "paragraphIndex": 0,
-        "linesHint": "lines 2-5",
+        "paragraphIndex": 1,
+        "linesHint": "Paragraph 2",
         "type": "copy",
         "prompt": "Copy the sentence describing what the bees usually do among the flowers.",
         "correctIndex": 0,
@@ -1454,8 +1470,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level2-3-q3",
         "number": 3,
-        "paragraphIndex": 1,
-        "linesHint": "lines 6-8",
+        "paragraphIndex": 2,
+        "linesHint": "Paragraph 3",
         "type": "open",
         "prompt": "Who did Eli contact for professional help?",
         "correctIndex": 0,
@@ -1471,8 +1487,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level2-3-q4",
         "number": 4,
-        "paragraphIndex": 1,
-        "linesHint": "lines 7-10",
+        "paragraphIndex": 2,
+        "linesHint": "Paragraph 3",
         "type": "copy",
         "prompt": "Copy the sentence that explains what the chemical pesticides did to the bee colonies.",
         "correctIndex": 0,
@@ -1483,8 +1499,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level2-3-q5",
         "number": 5,
-        "paragraphIndex": 2,
-        "linesHint": "lines 11-13",
+        "paragraphIndex": 3,
+        "linesHint": "Paragraph 4",
         "type": "open",
         "prompt": "What types of wildflowers did Eli plant along the orchard borders?",
         "correctIndex": 0,
@@ -1499,8 +1515,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level2-3-q6",
         "number": 6,
-        "paragraphIndex": 2,
-        "linesHint": "lines 12-14",
+        "paragraphIndex": 3,
+        "linesHint": "Paragraph 4",
         "type": "mcq",
         "prompt": "What were the new beehives equipped with to monitor the queen bee?",
         "options": [
@@ -1516,8 +1532,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level2-3-q7",
         "number": 7,
-        "paragraphIndex": 2,
-        "linesHint": "lines 14-17",
+        "paragraphIndex": 4,
+        "linesHint": "Paragraph 5",
         "type": "mcq",
         "prompt": "What extra product did Eli harvest and share with his neighbors?",
         "options": [
@@ -1533,7 +1549,7 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level2-3-q8",
         "number": 8,
-        "paragraphIndex": 3,
+        "paragraphIndex": -1,
         "linesHint": "The entire text",
         "type": "mcq",
         "prompt": "What is the primary message of this article?",
@@ -1550,8 +1566,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level2-3-q9",
         "number": 9,
-        "paragraphIndex": 1,
-        "linesHint": "Paragraph 2",
+        "paragraphIndex": 2,
+        "linesHint": "Paragraph 3",
         "type": "copy",
         "prompt": "Copy the first sentence of the second paragraph that introduces the new event.",
         "targetSentence": "Eli decided to contact Dr.",
@@ -1561,8 +1577,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level2-3-q10",
         "number": 10,
-        "paragraphIndex": 3,
-        "linesHint": "General understanding",
+        "paragraphIndex": -1,
+        "linesHint": "The entire text",
         "type": "open",
         "prompt": "Based on the text, what is one important lesson or fact the reader learns from this passage?",
         "modelAnswer": "The reader learns about the great honeybee rescue and why it is important.",
@@ -1587,9 +1603,11 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
     "levelLabel": "רמה 2 - רמה שוטפת",
     "levelDescription": "For native Hebrew speakers who are in a satisfactory level in English (late elementary equivalent).",
     "paragraphs": [
-      "High in the Swiss Alps, winter brings heavy snowstorms and freezing temperatures. On Mount Rosa, a specialized rescue team trains rescue dogs to locate skiers who get trapped under avalanches. Among the new recruits was Bruno, a two-year-old Saint Bernard with thick fur and exceptional hearing. Bruno's handler, Marc, spent months teaching him how to recognize human scent buried deep beneath layers of packed snow.",
+      "High in the Swiss Alps, winter brings heavy snowstorms and freezing temperatures.  On Mount Rosa, a specialized rescue team trains rescue dogs to locate skiers who get trapped under avalanches.",
+      "Among the new recruits was Bruno, a two-year-old Saint Bernard with thick fur and exceptional hearing.  Bruno's handler, Marc, spent months teaching him how to recognize human scent buried deep beneath layers of packed snow.",
       "One stormy Tuesday afternoon, the alarm sounded at the alpine rescue station. Two snowboarders had ventured off the marked ski trails and had been caught by a sudden snow slide. The helicopter could not fly due to dense fog, so Marc and Bruno set out on skis through the blizzard. When they reached the designated coordinates, Bruno immediately began sniffing the frozen ground, running back and forth against the howling wind.",
-      "Suddenly, Bruno stopped near a large snowdrift and began barking loudly while digging furiously with his paws. Marc quickly used his collapsible metal probe and detected movement two meters underground. Within minutes, the rescue team cleared the snow and pulled the two cold but uninjured snowboarders to safety. That evening at the cabin, Bruno received an extra portion of beef stew and was celebrated as a true alpine hero."
+      "Suddenly, Bruno stopped near a large snowdrift and began barking loudly while digging furiously with his paws.  Marc quickly used his collapsible metal probe and detected movement two meters underground.",
+      "Within minutes, the rescue team cleared the snow and pulled the two cold but uninjured snowboarders to safety.  That evening at the cabin, Bruno received an extra portion of beef stew and was celebrated as a true alpine hero."
     ],
     "vocabularyHints": [
       {
@@ -1618,7 +1636,7 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
         "id": "story-level2-4-q1",
         "number": 1,
         "paragraphIndex": 0,
-        "linesHint": "lines 1-3",
+        "linesHint": "Paragraph 1",
         "type": "mcq",
         "prompt": "What is the specialized rescue team on Mount Rosa trained to do?",
         "options": [
@@ -1634,8 +1652,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level2-4-q2",
         "number": 2,
-        "paragraphIndex": 0,
-        "linesHint": "lines 3-5",
+        "paragraphIndex": 1,
+        "linesHint": "Paragraph 2",
         "type": "copy",
         "prompt": "Copy the sentence that introduces Bruno and describes his physical traits.",
         "correctIndex": 0,
@@ -1646,8 +1664,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level2-4-q3",
         "number": 3,
-        "paragraphIndex": 0,
-        "linesHint": "lines 4-7",
+        "paragraphIndex": 1,
+        "linesHint": "Paragraph 2",
         "type": "open",
         "prompt": "What did Marc spend months teaching Bruno?",
         "correctIndex": 0,
@@ -1664,8 +1682,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level2-4-q4",
         "number": 4,
-        "paragraphIndex": 1,
-        "linesHint": "lines 8-11",
+        "paragraphIndex": 2,
+        "linesHint": "Paragraph 3",
         "type": "mcq",
         "prompt": "Why was the rescue helicopter unable to fly?",
         "options": [
@@ -1681,8 +1699,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level2-4-q5",
         "number": 5,
-        "paragraphIndex": 2,
-        "linesHint": "lines 13-15",
+        "paragraphIndex": 3,
+        "linesHint": "Paragraph 4",
         "type": "copy",
         "prompt": "Copy the sentence that shows Bruno found the location of the trapped snowboarders.",
         "correctIndex": 0,
@@ -1693,8 +1711,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level2-4-q6",
         "number": 6,
-        "paragraphIndex": 2,
-        "linesHint": "lines 14-17",
+        "paragraphIndex": 3,
+        "linesHint": "Paragraph 4",
         "type": "open",
         "prompt": "How deep underground were the two snowboarders detected?",
         "correctIndex": 0,
@@ -1710,8 +1728,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level2-4-q7",
         "number": 7,
-        "paragraphIndex": 2,
-        "linesHint": "lines 16-19",
+        "paragraphIndex": 3,
+        "linesHint": "Paragraph 4",
         "type": "mcq",
         "prompt": "How was Bruno rewarded back at the cabin?",
         "options": [
@@ -1727,7 +1745,7 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level2-4-q8",
         "number": 8,
-        "paragraphIndex": 3,
+        "paragraphIndex": -1,
         "linesHint": "The entire text",
         "type": "mcq",
         "prompt": "What is this story mostly about?",
@@ -1744,8 +1762,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level2-4-q9",
         "number": 9,
-        "paragraphIndex": 1,
-        "linesHint": "Paragraph 2",
+        "paragraphIndex": 2,
+        "linesHint": "Paragraph 3",
         "type": "copy",
         "prompt": "Copy the first sentence of the second paragraph that introduces the new event.",
         "targetSentence": "One stormy Tuesday afternoon, the alarm sounded at the alpine rescue station.",
@@ -1755,8 +1773,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level2-4-q10",
         "number": 10,
-        "paragraphIndex": 3,
-        "linesHint": "General understanding",
+        "paragraphIndex": -1,
+        "linesHint": "The entire text",
         "type": "open",
         "prompt": "Based on the text, what is one important lesson or fact the reader learns from this passage?",
         "modelAnswer": "The reader learns about the young mountain rescue dog and why it is important.",
@@ -1781,9 +1799,11 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
     "levelLabel": "רמה 2 - רמה שוטפת",
     "levelDescription": "For native Hebrew speakers who are in a satisfactory level in English (late elementary equivalent).",
     "paragraphs": [
-      "At Green Valley High School, a group of five ambitious students decided to enter the National Solar Car Competition. Their mission was to design and build a fully functional vehicle powered entirely by sunlight. Led by captain Tamar, the students spent four months in the school workshop after classes. They welded a lightweight aluminum frame and installed forty high-efficiency solar cells across the curved roof of the car.",
+      "At Green Valley High School, a group of five ambitious students decided to enter the National Solar Car Competition.  Their mission was to design and build a fully functional vehicle powered entirely by sunlight.",
+      "Led by captain Tamar, the students spent four months in the school workshop after classes.  They welded a lightweight aluminum frame and installed forty high-efficiency solar cells across the curved roof of the car.",
       "On the day of the race in the desert, temperatures exceeded thirty-five degrees Celsius. Twelve teams from different schools gathered at the starting line, each displaying innovative engineering designs. Tamar's car, named 'Sunfire', started in fourth position. The challenge was not just about speed, but also energy conservation. Tamar's teammate, Roy, sat inside the narrow cockpit, carefully managing the battery power while monitoring solar input on a digital dashboard.",
-      "As the race approached the final twenty kilometers, several competing vehicles suffered from overheating batteries and were forced to pull over. However, Sunfire's smart cooling system kept its electric motor running smoothly. In the final stretch, Sunfire overtook the leading car and crossed the finish line in first place. The students won a prestigious trophy and a scholarship to study renewable energy engineering at the university."
+      "As the race approached the final twenty kilometers, several competing vehicles suffered from overheating batteries and were forced to pull over.  However, Sunfire's smart cooling system kept its electric motor running smoothly.",
+      "In the final stretch, Sunfire overtook the leading car and crossed the finish line in first place.  The students won a prestigious trophy and a scholarship to study renewable energy engineering at the university."
     ],
     "vocabularyHints": [
       {
@@ -1812,7 +1832,7 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
         "id": "story-level2-5-q1",
         "number": 1,
         "paragraphIndex": 0,
-        "linesHint": "lines 1-3",
+        "linesHint": "Paragraph 1",
         "type": "copy",
         "prompt": "Copy the sentence that states the students' goal in building the vehicle.",
         "correctIndex": 0,
@@ -1823,8 +1843,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level2-5-q2",
         "number": 2,
-        "paragraphIndex": 0,
-        "linesHint": "lines 3-6",
+        "paragraphIndex": 1,
+        "linesHint": "Paragraph 2",
         "type": "open",
         "prompt": "How many solar cells did the students install on the car's roof?",
         "correctIndex": 0,
@@ -1840,8 +1860,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level2-5-q3",
         "number": 3,
-        "paragraphIndex": 1,
-        "linesHint": "lines 7-10",
+        "paragraphIndex": 2,
+        "linesHint": "Paragraph 3",
         "type": "copy",
         "prompt": "Copy the sentence that tells the name and starting position of Tamar's car.",
         "correctIndex": 0,
@@ -1852,8 +1872,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level2-5-q4",
         "number": 4,
-        "paragraphIndex": 1,
-        "linesHint": "lines 9-13",
+        "paragraphIndex": 2,
+        "linesHint": "Paragraph 3",
         "type": "open",
         "prompt": "What was Roy monitoring inside the cockpit?",
         "correctIndex": 0,
@@ -1869,8 +1889,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level2-5-q5",
         "number": 5,
-        "paragraphIndex": 2,
-        "linesHint": "lines 14-16",
+        "paragraphIndex": 3,
+        "linesHint": "Paragraph 4",
         "type": "mcq",
         "prompt": "Why were several competing vehicles forced to pull over near the end?",
         "options": [
@@ -1886,8 +1906,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level2-5-q6",
         "number": 6,
-        "paragraphIndex": 2,
-        "linesHint": "lines 15-18",
+        "paragraphIndex": 3,
+        "linesHint": "Paragraph 4",
         "type": "mcq",
         "prompt": "What kept Sunfire's motor running smoothly despite the desert heat?",
         "options": [
@@ -1903,8 +1923,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level2-5-q7",
         "number": 7,
-        "paragraphIndex": 2,
-        "linesHint": "lines 17-20",
+        "paragraphIndex": 4,
+        "linesHint": "Paragraph 5",
         "type": "open",
         "prompt": "What scholarship did the students win along with the trophy?",
         "correctIndex": 0,
@@ -1920,7 +1940,7 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level2-5-q8",
         "number": 8,
-        "paragraphIndex": 3,
+        "paragraphIndex": -1,
         "linesHint": "The entire text",
         "type": "mcq",
         "prompt": "What is the main topic of this passage?",
@@ -1937,8 +1957,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level2-5-q9",
         "number": 9,
-        "paragraphIndex": 1,
-        "linesHint": "Paragraph 2",
+        "paragraphIndex": 2,
+        "linesHint": "Paragraph 3",
         "type": "copy",
         "prompt": "Copy the first sentence of the second paragraph that introduces the new event.",
         "targetSentence": "On the day of the race in the desert, temperatures exceeded thirty-five degrees Celsius.",
@@ -1948,8 +1968,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level2-5-q10",
         "number": 10,
-        "paragraphIndex": 3,
-        "linesHint": "General understanding",
+        "paragraphIndex": -1,
+        "linesHint": "The entire text",
         "type": "open",
         "prompt": "Based on the text, what is one important lesson or fact the reader learns from this passage?",
         "modelAnswer": "The reader learns about the solar car challenge and why it is important.",
@@ -1974,9 +1994,11 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
     "levelLabel": "רמה 3 - מתקדמים ודוברי אנגלית",
     "levelDescription": "Challenging texts for fluent English speakers with rich vocabulary and deeper comprehension.",
     "paragraphs": [
-      "Whales are some of the largest creatures on Earth, but they are also famous for their incredible songs. In the deep ocean, blue whales and humpback whales sing complex melodies that can travel for hundreds of kilometers. These ocean sounds are not random noises; they are structured melodies with repeating patterns. Scientists believe that whales sing to communicate, find partners, and navigate through the dark waters. These musical compositions can last for hours, and entire pods of whales sometimes sing the exact same song together.",
+      "Whales are some of the largest creatures on Earth, but they are also famous for their incredible songs.  In the deep ocean, blue whales and humpback whales sing complex melodies that can travel for hundreds of kilometers.  These ocean sounds are not random noises; they are structured melodies with repeating patterns.",
+      "Scientists believe that whales sing to communicate, find partners, and navigate through the dark waters.  These musical compositions can last for hours, and entire pods of whales sometimes sing the exact same song together.",
       "Interestingly, each group of humpback whales has its own unique song. Over time, these songs change as the whales modify different parts of their melodies. If a humpback whale from a different region joins the group, the others might learn its song and combine it with their own. This shows that whales have a form of cultural learning, similar to how humans share music and languages. Researchers have recorded these vocal changes over decades, mapping how new songs spread across entire oceans from one population to another.",
-      "Today, ocean noise from large ships makes it difficult for whales to hear each other. This noise pollution disrupts their communication and forces them to change their singing patterns. In some areas, the noise is so loud that whales must sing louder or wait until the ships pass before they can communicate. Environmental groups are now working to create quieter sea zones to protect these intelligent animals. They want governments to establish ship speed limits and build quieter boat engines to restore peace to the underwater world."
+      "Today, ocean noise from large ships makes it difficult for whales to hear each other.  This noise pollution disrupts their communication and forces them to change their singing patterns.  In some areas, the noise is so loud that whales must sing louder or wait until the ships pass before they can communicate.",
+      "Environmental groups are now working to create quieter sea zones to protect these intelligent animals.  They want governments to establish ship speed limits and build quieter boat engines to restore peace to the underwater world."
     ],
     "vocabularyHints": [
       {
@@ -2009,7 +2031,7 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
         "id": "story-level3-1-q1",
         "number": 1,
         "paragraphIndex": 0,
-        "linesHint": "lines 1-6",
+        "linesHint": "Paragraph 1",
         "type": "mcq",
         "prompt": "According to paragraph 1, why do whales sing?",
         "options": [
@@ -2026,7 +2048,7 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
         "id": "story-level3-1-q2",
         "number": 2,
         "paragraphIndex": 0,
-        "linesHint": "lines 2-3",
+        "linesHint": "Paragraph 1",
         "type": "open",
         "prompt": "According to paragraph 1, how far can the whale songs travel?",
         "correctIndex": 0,
@@ -2044,7 +2066,7 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
         "id": "story-level3-1-q3",
         "number": 3,
         "paragraphIndex": 0,
-        "linesHint": "lines 3-4",
+        "linesHint": "Paragraph 1",
         "type": "copy",
         "prompt": "Copy the sentence that states that these songs are not random noises.",
         "correctIndex": 0,
@@ -2055,8 +2077,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level3-1-q4",
         "number": 4,
-        "paragraphIndex": 1,
-        "linesHint": "lines 7-12",
+        "paragraphIndex": 2,
+        "linesHint": "Paragraph 3",
         "type": "copy",
         "prompt": "Copy the sentence that lists what happens when a humpback whale from another region joins the group.",
         "correctIndex": 0,
@@ -2067,8 +2089,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level3-1-q5",
         "number": 5,
-        "paragraphIndex": 1,
-        "linesHint": "lines 9-11",
+        "paragraphIndex": 2,
+        "linesHint": "Paragraph 3",
         "type": "mcq",
         "prompt": "What does the whales' ability to learn songs from other regions demonstrate?",
         "options": [
@@ -2084,8 +2106,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level3-1-q6",
         "number": 6,
-        "paragraphIndex": 2,
-        "linesHint": "lines 13-18",
+        "paragraphIndex": 3,
+        "linesHint": "Paragraph 4",
         "type": "open",
         "prompt": "According to paragraph 3, how does noise from large ships affect the whales?",
         "correctIndex": 0,
@@ -2102,8 +2124,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level3-1-q7",
         "number": 7,
-        "paragraphIndex": 2,
-        "linesHint": "lines 15-18",
+        "paragraphIndex": 3,
+        "linesHint": "Paragraph 4",
         "type": "mcq",
         "prompt": "What solution do environmental groups suggest to protect the whales from ship noise?",
         "options": [
@@ -2119,7 +2141,7 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level3-1-q8",
         "number": 8,
-        "paragraphIndex": 3,
+        "paragraphIndex": -1,
         "linesHint": "The entire text",
         "type": "mcq",
         "prompt": "What is the main purpose of this article?",
@@ -2136,8 +2158,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level3-1-q9",
         "number": 9,
-        "paragraphIndex": 1,
-        "linesHint": "Paragraph 2",
+        "paragraphIndex": 2,
+        "linesHint": "Paragraph 3",
         "type": "copy",
         "prompt": "Copy the first sentence of the second paragraph that introduces the new event.",
         "targetSentence": "Interestingly, each group of humpback whales has its own unique song.",
@@ -2147,8 +2169,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level3-1-q10",
         "number": 10,
-        "paragraphIndex": 3,
-        "linesHint": "General understanding",
+        "paragraphIndex": -1,
+        "linesHint": "The entire text",
         "type": "open",
         "prompt": "Based on the text, what is one important lesson or fact the reader learns from this passage?",
         "modelAnswer": "The reader learns about the voice of the whales and why it is important.",
@@ -2173,9 +2195,11 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
     "levelLabel": "רמה 3 - מתקדמים ודוברי אנגלית",
     "levelDescription": "Challenging texts for fluent English speakers with rich vocabulary and deeper comprehension.",
     "paragraphs": [
-      "Coral reefs are often called the underwater rainforests of our planet because they support more than twenty-five percent of all marine species, despite occupying less than one percent of the ocean floor. These fragile marine ecosystems are formed by tiny organisms called coral polyps, which extract calcium carbonate from seawater to construct intricate limestone skeletons over thousands of years. From microscopic sea anemones to majestic sea turtles, countless marine creatures rely on these colorful structures for food, shelter, and breeding grounds.",
+      "Coral reefs are often called the underwater rainforests of our planet because they support more than twenty-five percent of all marine species, despite occupying less than one percent of the ocean floor.  These fragile marine ecosystems are formed by tiny organisms called coral polyps, which extract calcium carbonate from seawater to construct intricate limestone skeletons over thousands of years.",
+      "From microscopic sea anemones to majestic sea turtles, countless marine creatures rely on these colorful structures for food, shelter, and breeding grounds.",
       "In recent decades, rising seawater temperatures caused by global climate change have triggered widespread coral bleaching events worldwide. When water temperatures remain excessively high for extended periods, corals expel the microscopic algae living within their tissues, which provide them with essential nutrients and vibrant pigmentation. Without these vital algae, corals turn completely white, become vulnerable to lethal diseases, and eventually starve to death. Biologists warn that the destruction of coral reefs could devastate coastal fishing industries and eliminate natural storm barriers that protect shores from catastrophic erosion.",
-      "To combat this global environmental catastrophe, marine scientists are deploying cutting-edge biological technologies. In specialized marine laboratories, researchers are successfully breeding 'super corals'—strains genetically adapted to withstand higher thermal thresholds and increased ocean acidification. Simultaneously, autonomous underwater drones are planting these resilient coral fragments onto damaged natural reefs in the Caribbean and Australia. Although these scientific breakthroughs offer genuine hope, experts stress that long-term preservation ultimately depends on aggressive worldwide reductions in carbon emissions."
+      "To combat this global environmental catastrophe, marine scientists are deploying cutting-edge biological technologies.  In specialized marine laboratories, researchers are successfully breeding 'super corals'—strains genetically adapted to withstand higher thermal thresholds and increased ocean acidification.",
+      "Simultaneously, autonomous underwater drones are planting these resilient coral fragments onto damaged natural reefs in the Caribbean and Australia.  Although these scientific breakthroughs offer genuine hope, experts stress that long-term preservation ultimately depends on aggressive worldwide reductions in carbon emissions."
     ],
     "vocabularyHints": [
       {
@@ -2204,7 +2228,7 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
         "id": "story-level3-2-q1",
         "number": 1,
         "paragraphIndex": 0,
-        "linesHint": "lines 1-4",
+        "linesHint": "Paragraph 1",
         "type": "copy",
         "prompt": "Copy the sentence that explains why coral reefs are called the underwater rainforests of our planet.",
         "correctIndex": 0,
@@ -2216,7 +2240,7 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
         "id": "story-level3-2-q2",
         "number": 2,
         "paragraphIndex": 0,
-        "linesHint": "lines 2-5",
+        "linesHint": "Paragraph 1",
         "type": "open",
         "prompt": "What mineral do coral polyps extract from seawater to build their skeletons?",
         "correctIndex": 0,
@@ -2232,8 +2256,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level3-2-q3",
         "number": 3,
-        "paragraphIndex": 1,
-        "linesHint": "lines 6-9",
+        "paragraphIndex": 2,
+        "linesHint": "Paragraph 3",
         "type": "mcq",
         "prompt": "According to paragraph 2, what causes corals to expel their microscopic algae?",
         "options": [
@@ -2249,8 +2273,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level3-2-q4",
         "number": 4,
-        "paragraphIndex": 1,
-        "linesHint": "lines 8-11",
+        "paragraphIndex": 2,
+        "linesHint": "Paragraph 3",
         "type": "copy",
         "prompt": "Copy the sentence describing what happens to corals when they lose their algae.",
         "correctIndex": 0,
@@ -2261,8 +2285,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level3-2-q5",
         "number": 5,
-        "paragraphIndex": 1,
-        "linesHint": "lines 10-14",
+        "paragraphIndex": 2,
+        "linesHint": "Paragraph 3",
         "type": "open",
         "prompt": "Name one severe consequence of reef destruction mentioned at the end of paragraph 2.",
         "correctIndex": 0,
@@ -2280,8 +2304,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level3-2-q6",
         "number": 6,
-        "paragraphIndex": 2,
-        "linesHint": "lines 15-18",
+        "paragraphIndex": 3,
+        "linesHint": "Paragraph 4",
         "type": "mcq",
         "prompt": "What are 'super corals' developed in laboratories?",
         "options": [
@@ -2297,8 +2321,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level3-2-q7",
         "number": 7,
-        "paragraphIndex": 2,
-        "linesHint": "lines 18-22",
+        "paragraphIndex": 4,
+        "linesHint": "Paragraph 5",
         "type": "open",
         "prompt": "What do experts emphasize is ultimately required for the long-term survival of coral reefs?",
         "correctIndex": 0,
@@ -2315,7 +2339,7 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level3-2-q8",
         "number": 8,
-        "paragraphIndex": 3,
+        "paragraphIndex": -1,
         "linesHint": "The entire text",
         "type": "mcq",
         "prompt": "What is the primary theme of this passage?",
@@ -2332,8 +2356,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level3-2-q9",
         "number": 9,
-        "paragraphIndex": 1,
-        "linesHint": "Paragraph 2",
+        "paragraphIndex": 2,
+        "linesHint": "Paragraph 3",
         "type": "copy",
         "prompt": "Copy the first sentence of the second paragraph that introduces the new event.",
         "targetSentence": "In recent decades, rising seawater temperatures caused by global climate change have triggered widespread coral bleaching events worldwide.",
@@ -2343,8 +2367,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level3-2-q10",
         "number": 10,
-        "paragraphIndex": 3,
-        "linesHint": "General understanding",
+        "paragraphIndex": -1,
+        "linesHint": "The entire text",
         "type": "open",
         "prompt": "Based on the text, what is one important lesson or fact the reader learns from this passage?",
         "modelAnswer": "The reader learns about the secrets of the deep coral reefs and why it is important.",
@@ -2369,9 +2393,11 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
     "levelLabel": "רמה 3 - מתקדמים ודוברי אנגלית",
     "levelDescription": "Challenging texts for fluent English speakers with rich vocabulary and deeper comprehension.",
     "paragraphs": [
-      "For more than a thousand years, the mysterious hieroglyphic inscriptions covering the monumental tombs and temples of ancient Egypt remained completely unreadable to historians. The ancient writing system had vanished around the fourth century CE, taking centuries of pharaonic history, religious literature, and scientific knowledge with it into silence. Scholars across Europe attempted to decipher the elaborate animal and geometric symbols, but without a bilingual reference key, their translations were little more than speculative guesswork and romantic mythology.",
+      "For more than a thousand years, the mysterious hieroglyphic inscriptions covering the monumental tombs and temples of ancient Egypt remained completely unreadable to historians.  The ancient writing system had vanished around the fourth century CE, taking centuries of pharaonic history, religious literature, and scientific knowledge with it into silence.",
+      "Scholars across Europe attempted to decipher the elaborate animal and geometric symbols, but without a bilingual reference key, their translations were little more than speculative guesswork and romantic mythology.",
       "Everything changed in July 1799 during Napoleon Bonaparte's military expedition to Egypt. While rebuilding an old Ottoman fortification near the port town of Rashid—known to Europeans as Rosetta—French soldiers unearthed a massive slab of black granodiorite covered with dense carved text. The artifact, later known as the Rosetta Stone, featured an official decree issued in 196 BCE by King Ptolemy V. Crucially, the decree was inscribed in three distinct scripts: ancient Egyptian hieroglyphs for sacred texts, Demotic script for everyday administrative affairs, and ancient Greek, which scholars could easily read and comprehend.",
-      "The presence of identical content in three different scripts provided the linguistic bridge scholars desperately needed. In 1822, brilliant French linguist Jean-François Champollion made the crucial breakthrough by realizing that hieroglyphic signs were not purely symbolic pictures, but rather phonetic symbols representing spoken sounds and syllables. By comparing the Greek name 'Ptolemy' with the royal cartouche on the stone, Champollion cracked the ancient code. His monumental achievement unlocked thousands of years of recorded Egyptian civilization, revolutionizing the modern field of Egyptology forever."
+      "The presence of identical content in three different scripts provided the linguistic bridge scholars desperately needed.  In 1822, brilliant French linguist Jean-François Champollion made the crucial breakthrough by realizing that hieroglyphic signs were not purely symbolic pictures, but rather phonetic symbols representing spoken sounds and syllables.",
+      "By comparing the Greek name 'Ptolemy' with the royal cartouche on the stone, Champollion cracked the ancient code.  His monumental achievement unlocked thousands of years of recorded Egyptian civilization, revolutionizing the modern field of Egyptology forever."
     ],
     "vocabularyHints": [
       {
@@ -2400,7 +2426,7 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
         "id": "story-level3-3-q1",
         "number": 1,
         "paragraphIndex": 0,
-        "linesHint": "lines 1-4",
+        "linesHint": "Paragraph 1",
         "type": "copy",
         "prompt": "Copy the sentence that states when the ancient Egyptian writing system disappeared.",
         "correctIndex": 0,
@@ -2411,8 +2437,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level3-3-q2",
         "number": 2,
-        "paragraphIndex": 0,
-        "linesHint": "lines 3-6",
+        "paragraphIndex": 1,
+        "linesHint": "Paragraph 2",
         "type": "open",
         "prompt": "Why were early European attempts to translate hieroglyphs unsuccessful?",
         "correctIndex": 0,
@@ -2429,8 +2455,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level3-3-q3",
         "number": 3,
-        "paragraphIndex": 1,
-        "linesHint": "lines 7-10",
+        "paragraphIndex": 2,
+        "linesHint": "Paragraph 3",
         "type": "mcq",
         "prompt": "When and where was the Rosetta Stone unearthed?",
         "options": [
@@ -2446,8 +2472,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level3-3-q4",
         "number": 4,
-        "paragraphIndex": 1,
-        "linesHint": "lines 10-14",
+        "paragraphIndex": 2,
+        "linesHint": "Paragraph 3",
         "type": "open",
         "prompt": "Which of the three scripts on the Rosetta Stone could scholars already read fluently?",
         "correctIndex": 0,
@@ -2462,8 +2488,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level3-3-q5",
         "number": 5,
-        "paragraphIndex": 2,
-        "linesHint": "lines 15-18",
+        "paragraphIndex": 3,
+        "linesHint": "Paragraph 4",
         "type": "mcq",
         "prompt": "What fundamental insight did Jean-François Champollion have in 1822?",
         "options": [
@@ -2479,8 +2505,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level3-3-q6",
         "number": 6,
-        "paragraphIndex": 2,
-        "linesHint": "lines 17-20",
+        "paragraphIndex": 4,
+        "linesHint": "Paragraph 5",
         "type": "copy",
         "prompt": "Copy the sentence describing how Champollion cracked the ancient code using a Greek royal name.",
         "correctIndex": 0,
@@ -2491,8 +2517,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level3-3-q7",
         "number": 7,
-        "paragraphIndex": 2,
-        "linesHint": "lines 19-22",
+        "paragraphIndex": 4,
+        "linesHint": "Paragraph 5",
         "type": "open",
         "prompt": "What major academic field was revolutionized by the decipherment of the stone?",
         "correctIndex": 0,
@@ -2507,7 +2533,7 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level3-3-q8",
         "number": 8,
-        "paragraphIndex": 3,
+        "paragraphIndex": -1,
         "linesHint": "The entire text",
         "type": "mcq",
         "prompt": "What is the overarching subject of this historical article?",
@@ -2524,8 +2550,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level3-3-q9",
         "number": 9,
-        "paragraphIndex": 1,
-        "linesHint": "Paragraph 2",
+        "paragraphIndex": 2,
+        "linesHint": "Paragraph 3",
         "type": "copy",
         "prompt": "Copy the first sentence of the second paragraph that introduces the new event.",
         "targetSentence": "Everything changed in July 1799 during Napoleon Bonaparte's military expedition to Egypt.",
@@ -2535,8 +2561,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level3-3-q10",
         "number": 10,
-        "paragraphIndex": 3,
-        "linesHint": "General understanding",
+        "paragraphIndex": -1,
+        "linesHint": "The entire text",
         "type": "open",
         "prompt": "Based on the text, what is one important lesson or fact the reader learns from this passage?",
         "modelAnswer": "The reader learns about the rediscovery of the rosetta stone and why it is important.",
@@ -2561,9 +2587,11 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
     "levelLabel": "רמה 3 - מתקדמים ודוברי אנגלית",
     "levelDescription": "Challenging texts for fluent English speakers with rich vocabulary and deeper comprehension.",
     "paragraphs": [
-      "Throughout human history, artificial limbs were essentially passive mechanical tools, ranging from ancient wooden pegs to heavy metal hooks that offered minimal functional mobility. While these rudimentary devices helped individuals maintain balance or perform basic physical tasks, they lacked any connection to the human nervous system and could not convey sensory feedback. Consequently, amputees frequently felt disconnected from their artificial limbs, struggling with awkward coordination and severe physical exhaustion during routine daily activities.",
+      "Throughout human history, artificial limbs were essentially passive mechanical tools, ranging from ancient wooden pegs to heavy metal hooks that offered minimal functional mobility.  While these rudimentary devices helped individuals maintain balance or perform basic physical tasks, they lacked any connection to the human nervous system and could not convey sensory feedback.",
+      "Consequently, amputees frequently felt disconnected from their artificial limbs, struggling with awkward coordination and severe physical exhaustion during routine daily activities.",
       "In recent years, remarkable convergences between neural engineering, microelectronics, and artificial intelligence have dramatically transformed the landscape of prosthetic medicine. Modern bionic limbs utilize sophisticated myoelectric sensors implanted directly into residual muscle fibers to detect minute electrical impulses sent by the user's brain. Powerful microprocessors then decode these neural signals in real time, translating human thoughts into fluid, natural finger movements within milliseconds. Users can now grasp delicate objects like raw eggs or type smoothly on computer keyboards with astonishing dexterity.",
-      "The most revolutionary breakthrough in modern bionic research is targeted sensory reinnervation, which restores the fundamental sensation of physical touch. By embedding microscopic pressure sensors into synthetic fingertips and routing feedback signals back to remaining sensory nerves, scientists allow amputees to perceive surface textures, temperature variations, and pressure levels with their eyes closed. As neuro-prosthetic technology continues to advance rapidly, the distinction between biological human anatomy and artificial robotic augmentation is becoming increasingly indistinguishable, promising unprecedented quality of life for millions worldwide."
+      "The most revolutionary breakthrough in modern bionic research is targeted sensory reinnervation, which restores the fundamental sensation of physical touch.  By embedding microscopic pressure sensors into synthetic fingertips and routing feedback signals back to remaining sensory nerves, scientists allow amputees to perceive surface textures, temperature variations, and pressure levels with their eyes closed.",
+      "As neuro-prosthetic technology continues to advance rapidly, the distinction between biological human anatomy and artificial robotic augmentation is becoming increasingly indistinguishable, promising unprecedented quality of life for millions worldwide."
     ],
     "vocabularyHints": [
       {
@@ -2592,7 +2620,7 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
         "id": "story-level3-4-q1",
         "number": 1,
         "paragraphIndex": 0,
-        "linesHint": "lines 1-4",
+        "linesHint": "Paragraph 1",
         "type": "copy",
         "prompt": "Copy the sentence describing how artificial limbs were historically constructed.",
         "correctIndex": 0,
@@ -2604,7 +2632,7 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
         "id": "story-level3-4-q2",
         "number": 2,
         "paragraphIndex": 0,
-        "linesHint": "lines 3-6",
+        "linesHint": "Paragraph 1",
         "type": "open",
         "prompt": "What critical connection did early prosthetic devices completely lack?",
         "correctIndex": 0,
@@ -2620,8 +2648,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level3-4-q3",
         "number": 3,
-        "paragraphIndex": 1,
-        "linesHint": "lines 8-11",
+        "paragraphIndex": 2,
+        "linesHint": "Paragraph 3",
         "type": "mcq",
         "prompt": "What do modern myoelectric sensors detect?",
         "options": [
@@ -2637,8 +2665,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level3-4-q4",
         "number": 4,
-        "paragraphIndex": 1,
-        "linesHint": "lines 10-14",
+        "paragraphIndex": 2,
+        "linesHint": "Paragraph 3",
         "type": "open",
         "prompt": "Name one delicate action users can now perform with modern bionic hands.",
         "correctIndex": 0,
@@ -2656,8 +2684,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level3-4-q5",
         "number": 5,
-        "paragraphIndex": 2,
-        "linesHint": "lines 15-18",
+        "paragraphIndex": 3,
+        "linesHint": "Paragraph 4",
         "type": "copy",
         "prompt": "Copy the sentence that identifies the most revolutionary breakthrough in modern bionic research.",
         "correctIndex": 0,
@@ -2668,8 +2696,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level3-4-q6",
         "number": 6,
-        "paragraphIndex": 2,
-        "linesHint": "lines 17-20",
+        "paragraphIndex": 3,
+        "linesHint": "Paragraph 4",
         "type": "mcq",
         "prompt": "What can amputees perceive even with their eyes closed thanks to sensory feedback?",
         "options": [
@@ -2685,8 +2713,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level3-4-q7",
         "number": 7,
-        "paragraphIndex": 2,
-        "linesHint": "lines 19-23",
+        "paragraphIndex": 4,
+        "linesHint": "Paragraph 5",
         "type": "open",
         "prompt": "According to the final sentence, what two domains are becoming increasingly indistinguishable?",
         "correctIndex": 0,
@@ -2703,7 +2731,7 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level3-4-q8",
         "number": 8,
-        "paragraphIndex": 3,
+        "paragraphIndex": -1,
         "linesHint": "The entire text",
         "type": "mcq",
         "prompt": "What is the central focus of this scientific text?",
@@ -2720,8 +2748,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level3-4-q9",
         "number": 9,
-        "paragraphIndex": 1,
-        "linesHint": "Paragraph 2",
+        "paragraphIndex": 2,
+        "linesHint": "Paragraph 3",
         "type": "copy",
         "prompt": "Copy the first sentence of the second paragraph that introduces the new event.",
         "targetSentence": "In recent years, remarkable convergences between neural engineering, microelectronics, and artificial intelligence have dramatically transformed the landscape of prosthetic medicine.",
@@ -2731,8 +2759,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level3-4-q10",
         "number": 10,
-        "paragraphIndex": 3,
-        "linesHint": "General understanding",
+        "paragraphIndex": -1,
+        "linesHint": "The entire text",
         "type": "open",
         "prompt": "Based on the text, what is one important lesson or fact the reader learns from this passage?",
         "modelAnswer": "The reader learns about the revolution of bionic prosthetics and why it is important.",
@@ -2757,9 +2785,11 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
     "levelLabel": "רמה 3 - מתקדמים ודוברי אנגלית",
     "levelDescription": "Challenging texts for fluent English speakers with rich vocabulary and deeper comprehension.",
     "paragraphs": [
-      "Exploring the harsh, frozen surface of Mars represents one of humanity's most ambitious scientific endeavors. Located tens of millions of kilometers away from Earth, the Red Planet possesses an atmosphere composed primarily of carbon dioxide with less than one percent of Earth's atmospheric pressure. The extreme distance creates a communication delay of up to twenty minutes each way for radio transmissions. Because instantaneous remote control from NASA mission headquarters is physically impossible, Martian robotic explorers must rely heavily on advanced artificial intelligence and autonomous navigation systems to survive.",
+      "Exploring the harsh, frozen surface of Mars represents one of humanity's most ambitious scientific endeavors.  Located tens of millions of kilometers away from Earth, the Red Planet possesses an atmosphere composed primarily of carbon dioxide with less than one percent of Earth's atmospheric pressure.",
+      "The extreme distance creates a communication delay of up to twenty minutes each way for radio transmissions.  Because instantaneous remote control from NASA mission headquarters is physically impossible, Martian robotic explorers must rely heavily on advanced artificial intelligence and autonomous navigation systems to survive.",
       "NASA's Perseverance rover exemplifies this new generation of autonomous planetary explorers. Equipped with nineteen high-resolution cameras, an intricate robotic arm, and sophisticated laser spectrometers, the rover traverses treacherous rocky terrain without direct human guidance. Perseverance's onboard supercomputers continuously analyze surrounding topography, identify hazardous obstacles, and calculate optimal driving paths independently. Furthermore, the rover carried Ingenuity, a tiny robotic helicopter that achieved the historic milestone of powered, controlled flight in the extremely thin atmosphere of another planet.",
-      "The primary scientific objective of the Mars mission is astrobiology: searching for definitive biosignatures that might prove microscopic microbial life once existed in ancient Martian lakes. Perseverance has been systematically drilling rock cores in Jezero Crater, an ancient river delta that held liquid water billions of years ago. These hermetically sealed geological samples are placed inside titanium tubes and deposited on the planet's surface. Future international missions are currently being engineered to retrieve these precious Martian samples and return them safely to Earth for exhaustive laboratory analysis."
+      "The primary scientific objective of the Mars mission is astrobiology: searching for definitive biosignatures that might prove microscopic microbial life once existed in ancient Martian lakes.  Perseverance has been systematically drilling rock cores in Jezero Crater, an ancient river delta that held liquid water billions of years ago.",
+      "These hermetically sealed geological samples are placed inside titanium tubes and deposited on the planet's surface.  Future international missions are currently being engineered to retrieve these precious Martian samples and return them safely to Earth for exhaustive laboratory analysis."
     ],
     "vocabularyHints": [
       {
@@ -2787,8 +2817,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level3-5-q1",
         "number": 1,
-        "paragraphIndex": 0,
-        "linesHint": "lines 1-5",
+        "paragraphIndex": 1,
+        "linesHint": "Paragraph 2",
         "type": "open",
         "prompt": "How long can the one-way communication delay between Earth and Mars be?",
         "correctIndex": 0,
@@ -2804,8 +2834,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level3-5-q2",
         "number": 2,
-        "paragraphIndex": 0,
-        "linesHint": "lines 4-7",
+        "paragraphIndex": 1,
+        "linesHint": "Paragraph 2",
         "type": "copy",
         "prompt": "Copy the sentence that explains why Martian robotic explorers must rely on artificial intelligence.",
         "correctIndex": 0,
@@ -2816,8 +2846,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level3-5-q3",
         "number": 3,
-        "paragraphIndex": 1,
-        "linesHint": "lines 8-11",
+        "paragraphIndex": 2,
+        "linesHint": "Paragraph 3",
         "type": "mcq",
         "prompt": "How many high-resolution cameras is the Perseverance rover equipped with?",
         "options": [
@@ -2833,8 +2863,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level3-5-q4",
         "number": 4,
-        "paragraphIndex": 1,
-        "linesHint": "lines 11-14",
+        "paragraphIndex": 2,
+        "linesHint": "Paragraph 3",
         "type": "open",
         "prompt": "What historic aviation milestone did the Ingenuity helicopter achieve?",
         "correctIndex": 0,
@@ -2851,8 +2881,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level3-5-q5",
         "number": 5,
-        "paragraphIndex": 2,
-        "linesHint": "lines 15-18",
+        "paragraphIndex": 3,
+        "linesHint": "Paragraph 4",
         "type": "mcq",
         "prompt": "What is the primary scientific objective of the Perseverance mission?",
         "options": [
@@ -2868,8 +2898,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level3-5-q6",
         "number": 6,
-        "paragraphIndex": 2,
-        "linesHint": "lines 16-19",
+        "paragraphIndex": 3,
+        "linesHint": "Paragraph 4",
         "type": "copy",
         "prompt": "Copy the sentence that describes where Perseverance has been drilling rock cores.",
         "correctIndex": 0,
@@ -2880,8 +2910,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level3-5-q7",
         "number": 7,
-        "paragraphIndex": 2,
-        "linesHint": "lines 18-22",
+        "paragraphIndex": 4,
+        "linesHint": "Paragraph 5",
         "type": "open",
         "prompt": "What are future international missions being engineered to do with the rock samples?",
         "correctIndex": 0,
@@ -2898,7 +2928,7 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level3-5-q8",
         "number": 8,
-        "paragraphIndex": 3,
+        "paragraphIndex": -1,
         "linesHint": "The entire text",
         "type": "mcq",
         "prompt": "What is the main subject of this scientific passage?",
@@ -2915,8 +2945,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level3-5-q9",
         "number": 9,
-        "paragraphIndex": 1,
-        "linesHint": "Paragraph 2",
+        "paragraphIndex": 2,
+        "linesHint": "Paragraph 3",
         "type": "copy",
         "prompt": "Copy the first sentence of the second paragraph that introduces the new event.",
         "targetSentence": "NASA's Perseverance rover exemplifies this new generation of autonomous planetary explorers.",
@@ -2926,8 +2956,8 @@ export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
       {
         "id": "story-level3-5-q10",
         "number": 10,
-        "paragraphIndex": 3,
-        "linesHint": "General understanding",
+        "paragraphIndex": -1,
+        "linesHint": "The entire text",
         "type": "open",
         "prompt": "Based on the text, what is one important lesson or fact the reader learns from this passage?",
         "modelAnswer": "The reader learns about autonomous exploration of mars and why it is important.",

@@ -864,7 +864,9 @@ export default function UnseenPracticePage() {
                   {currentStory.paragraphs.map((para, pIdx) => {
                     const isHighlighted =
                       activeQuestion &&
-                      (activeQuestion.paragraphIndex === pIdx || activeQuestion.paragraphIndex === 3);
+                      (activeQuestion.paragraphIndex === pIdx ||
+                        activeQuestion.paragraphIndex === -1 ||
+                        activeQuestion.paragraphIndex >= currentStory.paragraphs.length);
 
                     const textSizeClass =
                       fontSize === "sm"

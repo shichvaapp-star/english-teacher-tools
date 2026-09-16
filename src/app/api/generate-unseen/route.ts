@@ -57,9 +57,11 @@ Return ONLY a raw JSON object matching this schema:
   "levelLabel": "${selectedLevel === "Level 1" ? "רמה 1 - קוראים מתחילים" : selectedLevel === "Level 2" ? "רמה 2 - רמה שוטפת" : "רמה 3 - מתקדמים ודוברי אנגלית"}",
   "levelDescription": "${selectedLevel === "Level 1" ? "Starting level English, for students who are beginner readers." : selectedLevel === "Level 2" ? "For native Hebrew speakers who are in a satisfactory level in English." : "Challenging texts for fluent English speakers with rich vocabulary."}",
   "paragraphs": [
-    "Paragraph 1 (approx. 70-90 words)",
-    "Paragraph 2 (approx. 70-90 words)",
-    "Paragraph 3 (approx. 70-90 words)"
+    "Paragraph 1 (approx. 50-70 words: setting/introduction)",
+    "Paragraph 2 (approx. 50-70 words: key event or discovery)",
+    "Paragraph 3 (approx. 50-70 words: challenge, mystery or development)",
+    "Paragraph 4 (approx. 50-70 words: turning point or action)",
+    "Paragraph 5 (approx. 50-70 words: conclusion, outcome or future reflection)"
   ],
   "vocabularyHints": [
     { "word": "word1", "translation": "Hebrew translation" },
@@ -70,10 +72,12 @@ Return ONLY a raw JSON object matching this schema:
   ],
   "questions": [
     // EXACTLY 10 questions numbered 1 to 10:
-    // Q1-Q3 for paragraph 1 (mix of mcq and open)
-    // Q4-Q6 for paragraph 2 (mix of mcq and copy)
-    // Q7-Q9 for paragraph 3 (mix of mcq and open)
-    // Q10 global main idea or inference question (mcq)
+    // Q1-Q2 for Paragraph 1 (paragraphIndex: 0, linesHint: "Paragraph 1")
+    // Q3-Q4 for Paragraph 2 (paragraphIndex: 1, linesHint: "Paragraph 2")
+    // Q5-Q6 for Paragraph 3 (paragraphIndex: 2, linesHint: "Paragraph 3")
+    // Q7-Q8 for Paragraph 4 (paragraphIndex: 3, linesHint: "Paragraph 4")
+    // Q9 for Paragraph 5 (paragraphIndex: 4, linesHint: "Paragraph 5")
+    // Q10 global main idea or inference question (paragraphIndex: -1, linesHint: "The entire text")
     {
       "id": "q1",
       "number": 1,
@@ -85,18 +89,19 @@ Return ONLY a raw JSON object matching this schema:
       "correctIndex": 0,
       "explanationHebrew": "הסבר בעברית",
       "points": 10
-    },
-    // ... all 10 questions must be provided
+    }
   ],
   "totalPoints": 100
 }
 
 CRITICAL RULES:
-1. Return EXACTLY 10 questions in the questions array, numbered 1 to 10.
-2. Every question must have points: 10, totalPoints must be 100.
-3. Every question must have an explanationHebrew in natural, encouraging Hebrew.
-4. For copy questions, targetSentence must exist verbatim in the text.
-5. Return ONLY valid JSON, no markdown backticks.`;
+1. The text MUST have 4 to 5 distinct paragraphs (NEVER fewer than 4 paragraphs).
+2. Return EXACTLY 10 questions in the questions array, numbered 1 to 10.
+3. Questions must distribute across paragraphs (Q1-Q2: Para 1, Q3-Q4: Para 2, Q5-Q6: Para 3, Q7-Q8: Para 4, Q9: Para 5 or 4, Q10: General/Entire text).
+4. Every question must have points: 10, totalPoints must be 100.
+5. Every question must have an explanationHebrew in natural, encouraging Hebrew.
+6. For copy questions, targetSentence must exist verbatim in the text.
+7. Return ONLY valid JSON, no markdown backticks.`;
 
     const requestBody = {
       contents: [{ parts: [{ text: systemPrompt }] }],
