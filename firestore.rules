@@ -1,0 +1,32 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Teachers collection: public read for student teacher selection, write restricted to the teacher
+    match /teachers/{teacherId} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.uid == teacherId;
+    }
+
+    // Students collection: read/write within class or by the student/teacher
+    match /students/{studentId} {
+      allow read, write: if true;
+    }
+
+    // Assignments: read by all students, write by teachers
+    match /assignments/{assignmentId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // Submissions: students submit, teachers grade
+    match /submissions/{submissionId} {
+      allow read, write: if true;
+    }
+
+    // Unseen library: cached reading texts
+    match /unseens/{unseenId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+  }
+}
