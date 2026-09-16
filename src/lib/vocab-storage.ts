@@ -7,7 +7,7 @@ export interface VocabItem {
   hebrew: string;
   partOfSpeech: "noun" | "verb" | "adjective" | "adverb" | "phrase";
   example?: string;
-  level?: "Easy" | "Medium" | "Hard" | "Saved from Unseen";
+  level?: "Easy" | "Medium" | "Hard" | "Saved from Unseen" | "Personal Word";
   mastered?: boolean;
   addedAt: string;
 }
@@ -61,9 +61,17 @@ export function loadSavedWords(userId?: string): VocabItem[] {
 }
 
 export function saveWordToBuilder(
-  word: { english: string; hebrew: string; partOfSpeech?: string; example?: string },
+  word: {
+    english: string;
+    hebrew: string;
+    partOfSpeech?: string;
+    example?: string;
+    level?: "Easy" | "Medium" | "Hard" | "Saved from Unseen" | "Personal Word";
+  },
   userId?: string
 ): { added: boolean; item: VocabItem } {
+  const chosenLevel = word.level || "Saved from Unseen";
+
   if (typeof window === "undefined") {
     const pos = (word.partOfSpeech === "verb" || word.partOfSpeech === "adjective" || word.partOfSpeech === "adverb" || word.partOfSpeech === "phrase")
       ? word.partOfSpeech
@@ -75,7 +83,7 @@ export function saveWordToBuilder(
       hebrew: word.hebrew.trim(),
       partOfSpeech: pos,
       example: word.example || "",
-      level: "Saved from Unseen",
+      level: chosenLevel,
       mastered: false,
       addedAt: new Date().toISOString(),
     };
@@ -102,7 +110,7 @@ export function saveWordToBuilder(
     hebrew: word.hebrew.trim(),
     partOfSpeech: pos,
     example: word.example || "",
-    level: "Saved from Unseen",
+    level: chosenLevel,
     mastered: false,
     addedAt: new Date().toISOString(),
   };

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -10,6 +10,8 @@ import {
   MIDDLE_SCHOOL_MEDIUM,
   MIDDLE_SCHOOL_HARD,
   loadSavedWords,
+  saveWordToBuilder,
+  removeWordFromBuilder,
   VocabItem,
 } from "@/lib/vocab-storage";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
@@ -28,6 +30,12 @@ import {
   ChevronRight,
   Printer,
   BookMarked,
+  Plus,
+  Trash2,
+  X,
+  AlertCircle,
+  Sparkles,
+  Check,
 } from "lucide-react";
 
 // Pure deterministic shuffle helper
@@ -42,12 +50,30 @@ function deterministicShuffle<T extends { id: string }>(items: T[], seed: number
 export default function VocabularyPage() {
   const { user } = useAuth();
 
-  // Load words saved from reading unseens
-  const [savedUnseenWords] = useState<VocabItem[]>(() => loadSavedWords(user?.id));
+  // Load words saved from reading unseens & manual inputs
+  const [savedUnseenWords, setSavedUnseenWords] = useState<VocabItem[]>(() =>
+    loadSavedWords(user?.id)
+  );
 
-  const [activeCategory, setActiveCategory] = useState<"saved" | "grade7" | "grade8" | "grade9">("grade7");
+  // Sync saved words whenever active user changes
+  useEffect(() => {
+    setSavedUnseenWords(loadSavedWords(user?.id));
+  }, [user?.id]);
+
+  const [activeCategory, setActiveCategory] = useState<"saved" | "grade7" | "grade8" | "grade9">(
+    "saved"
+  );
   const [studyMode, setStudyMode] = useState<"flashcards" | "match" | "quiz" | "bank">("flashcards");
   const [searchQuery, setSearchQuery] = useState("");
+
+  // Manual Word Input Modal state
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newWordEng, setNewWordEng] = useState("");
+  const [newWordHeb, setNewWordHeb] = useState("");
+  const [newWordSentence, setNewWordSentence] = useState("");
+  const [newWordPos, setNewWordPos] = useState<"noun" | "verb" | "adjective" | "adverb" | "phrase">("noun");
+  const [formError, setFormError] = useState<string | null>(null);
+  const [successToast, setSuccessToast] = useState<string | null>(null);
 
   // Flashcards state
   const [cardIndex, setCardIndex] = useState(0);
@@ -69,7 +95,7 @@ export default function VocabularyPage() {
   // Active word list based on category
   const activePool = useMemo(() => {
     if (activeCategory === "saved") {
-      return savedUnseenWords.length > 0 ? savedUnseenWords : MIDDLE_SCHOOL_EASY;
+      return savedUnseenWords;
     }
     if (activeCategory === "grade7") return MIDDLE_SCHOOL_EASY;
     if (activeCategory === "grade8") return MIDDLE_SCHOOL_MEDIUM;
@@ -87,7 +113,84 @@ export default function VocabularyPage() {
     );
   }, [activePool, searchQuery]);
 
-  const currentCard = filteredWords[cardIndex % (filteredWords.length || 1)] || activePool[0];
+  const currentCard = filteredWords[cardIndex % (filteredWords.length || 1)] || null;
+
+  // Real-time check if English word appears in the example sentence
+  const isWordInSentence = useMemo(() => {
+    const cleanWord = newWordEng.trim().toLowerCase();
+    const cleanSentence = newWordSentence.trim().toLowerCase();
+    if (!cleanWord || !cleanSentence) return false;
+    return cleanSentence.includes(cleanWord);
+  }, [newWordEng, newWordSentence]);
+
+  // Handle saving manually entered word
+  const handleSaveCustomWord = (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleanEng = newWordEng.trim().toLowerCase();
+    const cleanHeb = newWordHeb.trim();
+    const cleanSent = newWordSentence.trim();
+
+    if (!cleanEng) {
+      setFormError("אנא הזינו את המילה באנגלית.");
+      return;
+    }
+
+    if (!/^[a-zA-Z\s\-']+$/.test(cleanEng)) {
+      setFormError("המילה באנגלית צריכה להכיל אותיות באנגלית בלבד.");
+      return;
+    }
+
+    if (!cleanHeb) {
+      setFormError("אנא הזינו תרגום לעברית.");
+      return;
+    }
+
+    if (!cleanSent) {
+      setFormError("חובה להציב את המילה בתוך משפט לדוגמה באנגלית.");
+      return;
+    }
+
+    if (!cleanSent.toLowerCase().includes(cleanEng)) {
+      setFormError(`המשפט חייב להכיל את המילה באנגלית: "${cleanEng}".`);
+      return;
+    }
+
+    const res = saveWordToBuilder(
+      {
+        english: cleanEng,
+        hebrew: cleanHeb,
+        example: cleanSent,
+        partOfSpeech: newWordPos,
+        level: "Personal Word",
+      },
+      user?.id
+    );
+
+    if (!res.added) {
+      setFormError("המילה כבר קיימת באוצר המילים שלך!");
+      return;
+    }
+
+    const updated = loadSavedWords(user?.id);
+    setSavedUnseenWords(updated);
+    setActiveCategory("saved");
+    setShowAddModal(false);
+    setNewWordEng("");
+    setNewWordHeb("");
+    setNewWordSentence("");
+    setFormError(null);
+    setSuccessToast(`✓ המילה "${cleanEng}" נוספה בהצלחה לאוצר המילים האישי שלך!`);
+    setTimeout(() => setSuccessToast(null), 4500);
+  };
+
+  // Remove word from personal collection
+  const handleDeleteWord = (wordId: string, englishWord: string) => {
+    if (confirm(`האם למחוק את המילה "${englishWord}" מאוצר המילים האישי שלך?`)) {
+      removeWordFromBuilder(wordId, user?.id);
+      const updated = loadSavedWords(user?.id);
+      setSavedUnseenWords(updated);
+    }
+  };
 
   // Speech pronunciation
   const handleSpeak = (text: string) => {
@@ -101,11 +204,13 @@ export default function VocabularyPage() {
 
   // Flashcard controls
   const handleNextCard = () => {
+    if (filteredWords.length === 0) return;
     setIsFlipped(false);
     setCardIndex((prev) => (prev + 1) % filteredWords.length);
   };
 
   const handlePrevCard = () => {
+    if (filteredWords.length === 0) return;
     setIsFlipped(false);
     setCardIndex((prev) => (prev - 1 + filteredWords.length) % filteredWords.length);
   };
@@ -157,16 +262,20 @@ export default function VocabularyPage() {
     }
   };
 
-  // Quiz logic
-  const currentQuizWord = filteredWords[quizIndex % (filteredWords.length || 1)] || activePool[0];
+  // Quiz Pool & Options
+  const currentQuizWord = filteredWords[quizIndex % (filteredWords.length || 1)] || null;
+
   const quizOptions = useMemo(() => {
     if (!currentQuizWord) return [];
-    const pool = activePool.filter((w) => w.id !== currentQuizWord.id).slice(0, 3);
-    return deterministicShuffle([currentQuizWord, ...pool], quizIndex * 7);
-  }, [currentQuizWord, activePool, quizIndex]);
+    const pool = activePool.length >= 4 ? activePool : MIDDLE_SCHOOL_EASY;
+    const others = pool.filter((w) => w.id !== currentQuizWord.id);
+    const shuffledOthers = deterministicShuffle(others, (quizIndex + 1) * 7).slice(0, 3);
+    const combined = [...shuffledOthers, currentQuizWord];
+    return deterministicShuffle(combined, (quizIndex + 1) * 11);
+  }, [activePool, currentQuizWord, quizIndex]);
 
   const handleQuizAnswer = (hebrewChoice: string) => {
-    if (selectedQuizOption) return;
+    if (!currentQuizWord) return;
     setSelectedQuizOption(hebrewChoice);
     if (hebrewChoice === currentQuizWord.hebrew) {
       setQuizScore((s) => s + 10);
@@ -196,6 +305,20 @@ export default function VocabularyPage() {
           </div>
 
           <div className="flex items-center gap-3">
+            {/* Quick Add Word Button in Navbar */}
+            <Button
+              onClick={() => {
+                setShowAddModal(true);
+                setFormError(null);
+              }}
+              size="sm"
+              className="h-8 text-xs font-bold gap-1.5 cursor-pointer bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs"
+              dir="rtl"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              <span>הוספת מילה חדשה</span>
+            </Button>
+
             <ThemeToggle />
             <div className="h-4 w-[1px] bg-border" />
             <UserNav />
@@ -205,7 +328,26 @@ export default function VocabularyPage() {
 
       {/* Main Container */}
       <main className="flex-1 container mx-auto px-4 sm:px-8 py-6 sm:py-8 space-y-6 print:p-0 print:m-0">
-        {/* Category Picker (Middle School Grades + Saved from Unseen) */}
+        {/* Success Toast Banner */}
+        {successToast && (
+          <div
+            className="p-3.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-800 dark:text-emerald-200 text-xs font-bold flex items-center justify-between animate-in fade-in"
+            dir="rtl"
+          >
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+              <span>{successToast}</span>
+            </div>
+            <button
+              onClick={() => setSuccessToast(null)}
+              className="text-muted-foreground hover:text-foreground p-1 cursor-pointer"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        )}
+
+        {/* Category Picker & Actions Toolbar */}
         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border/50 pb-4 print:hidden">
           <div className="flex flex-wrap items-center gap-2" dir="rtl">
             <span className="text-xs font-semibold text-muted-foreground ml-1">מאגר מילים:</span>
@@ -220,7 +362,7 @@ export default function VocabularyPage() {
               }}
             >
               <BookMarked className="h-3.5 w-3.5" />
-              <span>המילים שלי מהאנסין ({savedUnseenWords.length})</span>
+              <span>אוצר המילים שלי ({savedUnseenWords.length})</span>
             </Button>
 
             <Button
@@ -260,20 +402,39 @@ export default function VocabularyPage() {
             </Button>
           </div>
 
-          <div className="relative w-48 sm:w-60">
-            <Search className="h-3.5 w-3.5 absolute left-2.5 top-2.5 text-muted-foreground" />
-            <Input
-              placeholder="חיפוש מילה או תרגום..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="h-8 pl-8 text-xs"
-            />
+          <div className="flex items-center gap-2">
+            <div className="relative w-48 sm:w-60">
+              <Search className="h-3.5 w-3.5 absolute left-2.5 top-2.5 text-muted-foreground" />
+              <Input
+                placeholder="חיפוש מילה או תרגום..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="h-8 pl-8 text-xs"
+              />
+            </div>
+
+            <Button
+              onClick={() => {
+                setShowAddModal(true);
+                setFormError(null);
+              }}
+              variant="outline"
+              size="sm"
+              className="h-8 text-xs font-bold gap-1 cursor-pointer border-emerald-500/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/10"
+              dir="rtl"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              <span>הוסף מילה</span>
+            </Button>
           </div>
         </div>
 
         {/* Study Mode Tabs */}
         <div className="flex items-center justify-between gap-4 print:hidden">
-          <Tabs value={studyMode} onValueChange={(v) => setStudyMode(v as "flashcards" | "match" | "quiz" | "bank")}>
+          <Tabs
+            value={studyMode}
+            onValueChange={(v) => setStudyMode(v as "flashcards" | "match" | "quiz" | "bank")}
+          >
             <TabsList className="grid grid-cols-4 w-full max-w-md">
               <TabsTrigger value="flashcards" className="text-xs">
                 1. כרטיסיות
@@ -295,22 +456,60 @@ export default function VocabularyPage() {
           </span>
         </div>
 
+        {/* EMPTY STATE (When category has no words) */}
+        {filteredWords.length === 0 && (
+          <div className="max-w-md mx-auto py-12 text-center space-y-4" dir="rtl">
+            <div className="p-4 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 w-16 h-16 mx-auto flex items-center justify-center">
+              <BookMarked className="h-8 w-8" />
+            </div>
+            <div className="space-y-1.5">
+              <h3 className="text-lg font-bold text-foreground">
+                {activeCategory === "saved"
+                  ? "עדיין לא הוספת מילים לאוצר המילים שלך"
+                  : "לא נמצאו מילים התואמות לחיפוש"}
+              </h3>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                {activeCategory === "saved"
+                  ? "תוכל להזין מילים חדשות ידנית בעצמך (עם מילה, תרגום ומשפט לדוגמה) או ללחוץ על מילים בזמן קריאת אנסין כדי לשמור אותן כאן."
+                  : "נסו לחפש מילה אחרת או נקו את שורת החיפוש."}
+              </p>
+            </div>
+
+            {activeCategory === "saved" && (
+              <Button
+                onClick={() => {
+                  setShowAddModal(true);
+                  setFormError(null);
+                }}
+                className="gap-1.5 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer"
+              >
+                <Plus className="h-4 w-4" />
+                <span>הוסף את המילה הראשונה שלך עכשיו</span>
+              </Button>
+            )}
+          </div>
+        )}
+
         {/* MODE 1: FLASHCARDS */}
-        {studyMode === "flashcards" && currentCard && (
+        {studyMode === "flashcards" && currentCard && filteredWords.length > 0 && (
           <div className="max-w-lg mx-auto space-y-6 pt-4">
             <div className="flex items-center justify-between text-xs text-muted-foreground">
               <span>
-                כרטיס {cardIndex + 1} מתוך {filteredWords.length}
+                כרטיס {(cardIndex % filteredWords.length) + 1} מתוך {filteredWords.length}
               </span>
               <Badge variant="outline" className="text-[11px]">
-                {currentCard.level || "חטיבת ביניים"}
+                {currentCard.level === "Personal Word"
+                  ? "מילה אישית שהזנת"
+                  : currentCard.level === "Saved from Unseen"
+                  ? "נשמר מהאנסין"
+                  : currentCard.level || "חטיבת ביניים"}
               </Badge>
             </div>
 
             {/* Flip Card */}
             <div
               onClick={() => setIsFlipped(!isFlipped)}
-              className="min-h-[250px] w-full rounded-2xl border-2 border-primary/20 bg-card p-6 flex flex-col items-center justify-between cursor-pointer shadow-md hover:border-primary/40 transition-all select-none text-center"
+              className="min-h-[260px] w-full rounded-2xl border-2 border-primary/20 bg-card p-6 flex flex-col items-center justify-between cursor-pointer shadow-md hover:border-primary/40 transition-all select-none text-center"
             >
               <div className="w-full flex items-center justify-between text-xs text-muted-foreground">
                 <span className="text-[11px]">לחצו בכל מקום בכרטיס כדי להפוך ↺</span>
@@ -333,7 +532,7 @@ export default function VocabularyPage() {
                     {currentCard.english}
                   </h2>
                   {currentCard.example && (
-                    <p className="text-xs sm:text-sm text-muted-foreground italic max-w-sm mx-auto">
+                    <p className="text-xs sm:text-sm text-muted-foreground italic max-w-sm mx-auto font-sans" dir="ltr">
                       &quot;{currentCard.example}&quot;
                     </p>
                   )}
@@ -397,7 +596,7 @@ export default function VocabularyPage() {
         )}
 
         {/* MODE 2: SPEED MATCH */}
-        {studyMode === "match" && (
+        {studyMode === "match" && filteredWords.length > 0 && (
           <div className="max-w-2xl mx-auto space-y-6 pt-4">
             <div className="flex items-center justify-between">
               <div>
@@ -411,7 +610,7 @@ export default function VocabularyPage() {
               </Badge>
             </div>
 
-            {matchedPairs.size === matchPool.length ? (
+            {matchedPairs.size === matchPool.length && matchPool.length > 0 ? (
               <div className="p-8 text-center rounded-2xl border border-emerald-500/30 bg-emerald-500/10 space-y-3">
                 <CheckCircle2 className="h-10 w-10 text-emerald-600 dark:text-emerald-400 mx-auto" />
                 <h4 className="text-xl font-bold">כל הכבוד! התאמתם את כל המילים!</h4>
@@ -432,27 +631,31 @@ export default function VocabularyPage() {
               <div className="grid grid-cols-2 gap-4">
                 {/* English Column */}
                 <div className="space-y-2">
-                  <span className="text-xs font-semibold text-muted-foreground block">באנגלית</span>
-                  {matchPool.map((w) => {
-                    const isMatched = matchedPairs.has(w.id);
-                    const isSelected = selectedEng === w.id;
+                  <span className="text-xs font-semibold text-muted-foreground block text-left">
+                    באנגלית (English)
+                  </span>
+                  {matchPool.map((item) => {
+                    const isMatched = matchedPairs.has(item.id);
+                    const isSelected = selectedEng === item.id;
+
+                    let btnClass = "border-border bg-card hover:border-primary/50 text-foreground";
+                    if (isMatched) btnClass = "border-emerald-500/40 bg-emerald-500/10 text-emerald-600 opacity-50";
+                    else if (isSelected) {
+                      btnClass = matchError
+                        ? "border-destructive bg-destructive/10 text-destructive"
+                        : "border-primary bg-primary/10 text-primary font-bold";
+                    }
+
                     return (
                       <button
-                        key={w.id}
+                        key={item.id}
                         type="button"
                         disabled={isMatched}
-                        onClick={() => handleMatchClickEng(w.id)}
-                        className={`w-full p-3 rounded-xl border text-sm font-semibold transition-all text-left flex items-center justify-between cursor-pointer ${
-                          isMatched
-                            ? "border-emerald-500/30 bg-emerald-500/10 opacity-50 line-through"
-                            : isSelected && matchError
-                            ? "border-destructive bg-destructive/15 text-destructive"
-                            : isSelected
-                            ? "border-primary bg-primary/10 ring-2 ring-primary/30"
-                            : "border-border hover:bg-muted/60"
-                        }`}
+                        onClick={() => handleMatchClickEng(item.id)}
+                        className={`w-full p-3 rounded-xl border text-sm font-semibold transition-all text-left cursor-pointer flex items-center justify-between ${btnClass}`}
                       >
-                        <span>{w.english}</span>
+                        <span>{item.english}</span>
+                        {isMatched && <CheckCircle2 className="h-4 w-4" />}
                       </button>
                     );
                   })}
@@ -460,27 +663,31 @@ export default function VocabularyPage() {
 
                 {/* Hebrew Column */}
                 <div className="space-y-2" dir="rtl">
-                  <span className="text-xs font-semibold text-muted-foreground block text-right">בעברית</span>
-                  {shuffledHebrew.map((w) => {
-                    const isMatched = matchedPairs.has(w.id);
-                    const isSelected = selectedHeb === w.id;
+                  <span className="text-xs font-semibold text-muted-foreground block text-right">
+                    בעברית (תרגום)
+                  </span>
+                  {shuffledHebrew.map((item) => {
+                    const isMatched = matchedPairs.has(item.id);
+                    const isSelected = selectedHeb === item.id;
+
+                    let btnClass = "border-border bg-card hover:border-primary/50 text-foreground";
+                    if (isMatched) btnClass = "border-emerald-500/40 bg-emerald-500/10 text-emerald-600 opacity-50";
+                    else if (isSelected) {
+                      btnClass = matchError
+                        ? "border-destructive bg-destructive/10 text-destructive"
+                        : "border-primary bg-primary/10 text-primary font-bold";
+                    }
+
                     return (
                       <button
-                        key={w.id}
+                        key={item.id}
                         type="button"
                         disabled={isMatched}
-                        onClick={() => handleMatchClickHeb(w.id)}
-                        className={`w-full p-3 rounded-xl border text-sm font-bold transition-all text-right cursor-pointer ${
-                          isMatched
-                            ? "border-emerald-500/30 bg-emerald-500/10 opacity-50 line-through"
-                            : isSelected && matchError
-                            ? "border-destructive bg-destructive/15 text-destructive"
-                            : isSelected
-                            ? "border-primary bg-primary/10 ring-2 ring-primary/30"
-                            : "border-border hover:bg-muted/60"
-                        }`}
+                        onClick={() => handleMatchClickHeb(item.id)}
+                        className={`w-full p-3 rounded-xl border text-sm font-semibold transition-all text-right cursor-pointer flex items-center justify-between ${btnClass}`}
                       >
-                        <span>{w.hebrew}</span>
+                        <span>{item.hebrew}</span>
+                        {isMatched && <CheckCircle2 className="h-4 w-4" />}
                       </button>
                     );
                   })}
@@ -491,12 +698,12 @@ export default function VocabularyPage() {
         )}
 
         {/* MODE 3: QUIZ */}
-        {studyMode === "quiz" && currentQuizWord && (
+        {studyMode === "quiz" && currentQuizWord && filteredWords.length > 0 && (
           <div className="max-w-lg mx-auto space-y-6 pt-4">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-base font-bold">בחן את עצמך (Quiz)</h3>
-                <p className="text-xs text-muted-foreground">מהו התרגום הנכון למילה הבאה?</p>
+                <span className="text-xs text-muted-foreground">שאלה {quizIndex + 1}:</span>
+                <h3 className="text-base font-bold">מה התרגום הנכון של המילה?</h3>
               </div>
               <Badge variant="secondary">ניקוד: {quizScore} נק׳</Badge>
             </div>
@@ -508,7 +715,7 @@ export default function VocabularyPage() {
                   {currentQuizWord.english}
                 </CardTitle>
                 {currentQuizWord.example && (
-                  <CardDescription className="text-xs italic">
+                  <CardDescription className="text-xs italic font-sans" dir="ltr">
                     &quot;{currentQuizWord.example}&quot;
                   </CardDescription>
                 )}
@@ -569,53 +776,93 @@ export default function VocabularyPage() {
         )}
 
         {/* MODE 4: WORD BANK TABLE */}
-        {studyMode === "bank" && (
+        {studyMode === "bank" && filteredWords.length > 0 && (
           <div className="space-y-4 pt-2">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <h3 className="text-base font-bold">מילון המילים למאגר זה</h3>
+                <h3 className="text-base font-bold">
+                  {activeCategory === "saved" ? "מילון אוצר המילים האישי שלי" : "מילון המילים למאגר זה"}
+                </h3>
                 <p className="text-xs text-muted-foreground">
                   סה״כ {filteredWords.length} מילים להרחבת אוצר המילים.
                 </p>
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => window.print()}
-                className="gap-1.5 text-xs cursor-pointer print:hidden"
-              >
-                <Printer className="h-3.5 w-3.5" />
-                <span>הדפסת דף עבודה</span>
-              </Button>
+              <div className="flex items-center gap-2 print:hidden">
+                <Button
+                  onClick={() => {
+                    setShowAddModal(true);
+                    setFormError(null);
+                  }}
+                  size="sm"
+                  className="gap-1 text-xs cursor-pointer bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
+                  dir="rtl"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  <span>הוסף מילה חדשה</span>
+                </Button>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => window.print()}
+                  className="gap-1.5 text-xs cursor-pointer"
+                >
+                  <Printer className="h-3.5 w-3.5" />
+                  <span>הדפסת דף עבודה</span>
+                </Button>
+              </div>
             </div>
 
-            <div className="rounded-xl border border-border overflow-hidden bg-card">
+            <div className="rounded-xl border border-border overflow-hidden bg-card shadow-xs">
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
                   <tr className="border-b border-border bg-muted/40 font-semibold text-muted-foreground">
-                    <th className="p-3 w-1/3">באנגלית (English)</th>
-                    <th className="p-3 w-1/3 text-right">בעברית (תרגום)</th>
-                    <th className="p-3 w-1/3">משפט לדוגמה</th>
+                    <th className="p-3 w-1/4">באנגלית (English)</th>
+                    <th className="p-3 w-1/4 text-right">בעברית (תרגום)</th>
+                    <th className="p-3 w-2/5">משפט לדוגמה (Sentence)</th>
+                    <th className="p-3 w-20 text-center print:hidden">פעולות</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/60">
                   {filteredWords.map((w) => (
                     <tr key={w.id} className="hover:bg-muted/20 transition-colors">
-                      <td className="p-3 font-bold text-foreground flex items-center gap-2">
-                        <span>{w.english}</span>
-                        <button
-                          type="button"
-                          onClick={() => handleSpeak(w.english)}
-                          className="text-muted-foreground hover:text-foreground cursor-pointer print:hidden"
-                        >
-                          <Volume2 className="h-3.5 w-3.5" />
-                        </button>
+                      <td className="p-3 font-bold text-foreground">
+                        <div className="flex items-center gap-2">
+                          <span>{w.english}</span>
+                          <button
+                            type="button"
+                            onClick={() => handleSpeak(w.english)}
+                            className="text-muted-foreground hover:text-foreground cursor-pointer print:hidden"
+                            title="האזנה להגייה"
+                          >
+                            <Volume2 className="h-3.5 w-3.5" />
+                          </button>
+                          {w.level === "Personal Word" && (
+                            <Badge variant="outline" className="text-[9px] px-1 py-0 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 hidden sm:inline">
+                              הזנה ידנית
+                            </Badge>
+                          )}
+                        </div>
                       </td>
                       <td className="p-3 font-bold text-primary text-right" dir="rtl">
                         {w.hebrew}
                       </td>
-                      <td className="p-3 text-muted-foreground italic">
+                      <td className="p-3 text-muted-foreground italic font-sans" dir="ltr">
                         {w.example ? `"${w.example}"` : "—"}
+                      </td>
+                      <td className="p-3 text-center print:hidden">
+                        {activeCategory === "saved" ? (
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteWord(w.id, w.english)}
+                            className="p-1.5 text-muted-foreground hover:text-destructive transition-colors cursor-pointer rounded-md hover:bg-destructive/10"
+                            title="מחק מילה מאוצר המילים שלי"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        ) : (
+                          <span className="text-muted-foreground/50 text-[10px]">—</span>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -625,6 +872,174 @@ export default function VocabularyPage() {
           </div>
         )}
       </main>
+
+      {/* Manual Word Input Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in">
+          <div
+            className="w-full max-w-lg bg-card border border-border rounded-2xl p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto"
+            dir="rtl"
+          >
+            <div className="flex items-center justify-between border-b border-border pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+                  <Plus className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="font-black text-lg text-foreground">
+                    הוספת מילה חדשה לאוצר המילים
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    הזינו את המילה באנגלית, תרגומה לעברית, והציבו אותה בתוך משפט לדוגמה.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setShowAddModal(false);
+                  setFormError(null);
+                }}
+                className="p-1 rounded-md text-muted-foreground hover:text-foreground cursor-pointer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {formError && (
+              <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/30 text-destructive text-xs flex items-center gap-2">
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                <span>{formError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleSaveCustomWord} className="space-y-4 text-xs">
+              {/* Field 1: English Word */}
+              <div className="space-y-1.5">
+                <label className="font-bold text-foreground block">
+                  1. המילה באנגלית (English Word) <span className="text-destructive">*</span>
+                </label>
+                <Input
+                  placeholder="למשל: discover או curious"
+                  value={newWordEng}
+                  onChange={(e) => {
+                    setNewWordEng(e.target.value);
+                    setFormError(null);
+                  }}
+                  dir="ltr"
+                  className="h-10 text-sm font-sans"
+                  autoFocus
+                />
+              </div>
+
+              {/* Field 2: Hebrew Translation */}
+              <div className="space-y-1.5">
+                <label className="font-bold text-foreground block">
+                  2. תרגום המילה לעברית <span className="text-destructive">*</span>
+                </label>
+                <Input
+                  placeholder="למשל: לגלות או סקרן"
+                  value={newWordHeb}
+                  onChange={(e) => {
+                    setNewWordHeb(e.target.value);
+                    setFormError(null);
+                  }}
+                  dir="rtl"
+                  className="h-10 text-sm"
+                />
+              </div>
+
+              {/* Field 3: Part of Speech */}
+              <div className="space-y-1.5">
+                <label className="font-bold text-foreground block">
+                  3. חלק דיבר (Part of Speech)
+                </label>
+                <select
+                  value={newWordPos}
+                  onChange={(e) =>
+                    setNewWordPos(
+                      e.target.value as "noun" | "verb" | "adjective" | "adverb" | "phrase"
+                    )
+                  }
+                  className="w-full h-10 rounded-lg border border-input bg-background px-3 text-xs cursor-pointer shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                >
+                  <option value="noun">שם עצם (Noun)</option>
+                  <option value="verb">פועל (Verb)</option>
+                  <option value="adjective">שם תואר (Adjective)</option>
+                  <option value="adverb">תואר הפועל (Adverb)</option>
+                  <option value="phrase">ביטוי / צירוף מילים (Phrase)</option>
+                </select>
+              </div>
+
+              {/* Field 4: Example Sentence containing the word */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="font-bold text-foreground block">
+                    4. הצבת המילה בתוך משפט באנגלית (Example Sentence) <span className="text-destructive">*</span>
+                  </label>
+                  {newWordEng.trim() && (
+                    <span className="text-[10px] text-muted-foreground font-sans" dir="ltr">
+                      Must include: <strong>{newWordEng.trim()}</strong>
+                    </span>
+                  )}
+                </div>
+                <textarea
+                  rows={3}
+                  placeholder={`למשל: We wanted to ${newWordEng.trim() || "discover"} new places during the trip.`}
+                  value={newWordSentence}
+                  onChange={(e) => {
+                    setNewWordSentence(e.target.value);
+                    setFormError(null);
+                  }}
+                  dir="ltr"
+                  className="w-full rounded-xl border border-input bg-background p-3 text-sm font-sans shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                />
+
+                {/* Real-time sentence inclusion indicator */}
+                {newWordSentence.trim() && newWordEng.trim() && (
+                  <div className="pt-0.5">
+                    {isWordInSentence ? (
+                      <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-semibold text-[11px]">
+                        <CheckCircle2 className="h-3.5 w-3.5" />
+                        <span>מעולה! המילה &quot;{newWordEng.trim()}&quot; מופיעה כנדרש בתוך המשפט.</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400 font-medium text-[11px]">
+                        <AlertCircle className="h-3.5 w-3.5" />
+                        <span>שימו לב: המשפט חייב להכיל את המילה באנגלית (&quot;{newWordEng.trim()}&quot;).</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div className="border-t border-border pt-4 flex items-center justify-between gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setShowAddModal(false);
+                    setFormError(null);
+                  }}
+                  className="cursor-pointer text-xs"
+                >
+                  ביטול
+                </Button>
+
+                <Button
+                  type="submit"
+                  size="sm"
+                  disabled={!newWordEng.trim() || !newWordHeb.trim() || !newWordSentence.trim() || !isWordInSentence}
+                  className="cursor-pointer text-xs gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-xs"
+                >
+                  <Check className="h-4 w-4" />
+                  <span>שמור מילה לאוצר המילים</span>
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
