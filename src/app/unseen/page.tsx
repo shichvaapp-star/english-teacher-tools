@@ -30,11 +30,16 @@ import {
   Target,
   FileCheck,
   Send,
+  Sliders,
+  ArrowRight,
 } from "lucide-react";
 
 export default function UnseenPracticePage() {
   const { user } = useAuth();
   const [stories, setStories] = useState<MSUnseenStory[]>(MIDDLE_SCHOOL_UNSEENS);
+
+  // App Stage: "settings" (select level, mode, and story) vs. "exercise" (active reading & questions)
+  const [stage, setStage] = useState<"settings" | "exercise">("settings");
 
   // Level Selection (No grade references)
   const [selectedLevel, setSelectedLevel] = useState<"Level 1" | "Level 2" | "Level 3">("Level 2");
@@ -383,18 +388,32 @@ export default function UnseenPracticePage() {
       <header className="sticky top-0 z-40 border-b border-border/60 bg-background/95 backdrop-blur print:hidden">
         <div className="container mx-auto flex h-16 items-center justify-between px-4 sm:px-8">
           <div className="flex items-center gap-3">
-            <Link
-              href="/"
-              className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground p-1.5 rounded-lg border border-border/60 hover:bg-muted/40 transition-colors"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              <span>Back</span>
-            </Link>
+            {stage === "exercise" ? (
+              <button
+                type="button"
+                onClick={() => setStage("settings")}
+                className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground p-1.5 px-2.5 rounded-lg border border-border/60 hover:bg-muted/40 transition cursor-pointer"
+              >
+                <Sliders className="h-3.5 w-3.5" />
+                <span>שנה הגדרות</span>
+              </button>
+            ) : (
+              <Link
+                href="/"
+                className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground p-1.5 rounded-lg border border-border/60 hover:bg-muted/40 transition-colors"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                <span>Home</span>
+              </Link>
+            )}
+
             <div className="flex items-center gap-2">
               <span className="text-xl">🔍</span>
               <div>
                 <h1 className="text-sm font-semibold tracking-tight">בלשי האנסין</h1>
-                <p className="text-[10px] text-muted-foreground">קריאה אינטראקטיבית • 10 שאלות לתרגול</p>
+                <p className="text-[10px] text-muted-foreground">
+                  {stage === "settings" ? "שלב 1: בחירת הגדרות וקטע קריאה" : `${currentStory.title} • 10 שאלות`}
+                </p>
               </div>
             </div>
           </div>
@@ -420,41 +439,52 @@ export default function UnseenPracticePage() {
         </div>
       </header>
 
-      {/* Main Container */}
-      <main className="container mx-auto flex-1 px-4 sm:px-8 py-6 space-y-6 max-w-6xl">
-        {/* Level Selector & Mode Selector Bar */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 print:hidden">
-          {/* Level Selector (9 Cols) */}
-          <div className="lg:col-span-8 bg-card border border-border/60 rounded-xl p-3.5 shadow-xs">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                <Target className="h-3.5 w-3.5 text-primary" />
-                <span>Select Reading Level (בחר רמת קריאה)</span>
+      {/* =========================================================================
+          STAGE 1: SETTINGS / SETUP VIEW
+          ========================================================================= */}
+      {stage === "settings" && (
+        <main className="container mx-auto flex-1 px-4 sm:px-8 py-8 max-w-4xl space-y-6">
+          <div className="text-center space-y-1.5 mb-2">
+            <Badge variant="outline" className="text-xs px-2.5 py-0.5 border-primary/30 text-primary">
+              שלב 1 מתוך 2: הגדרות פעילות
+            </Badge>
+            <h2 className="text-2xl font-bold tracking-tight text-foreground">בחר את הגדרות האנסין שלך</h2>
+            <p className="text-xs text-muted-foreground max-w-lg mx-auto">
+              בחר את רמת הקושי, את אופן התרגול (אימון או הגשה לציון), ובחר קטע קריאה מוכן או צור קטע עם AI.
+            </p>
+          </div>
+
+          {/* Setting 1: Level Selection */}
+          <div className="bg-card border border-border/60 rounded-xl p-4 shadow-xs space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold uppercase tracking-wider text-foreground flex items-center gap-1.5">
+                <Target className="h-4 w-4 text-primary" />
+                <span>1. בחר רמת קריאה (Reading Level)</span>
               </span>
-              <span className="text-[11px] text-muted-foreground">10 שאלות לכל קטע קריאה</span>
+              <span className="text-[11px] text-muted-foreground">ללא תלות בשכבת גיל</span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
               {[
                 {
                   id: "Level 1" as const,
                   title: "רמה 1",
                   sub: "קוראים מתחילים",
-                  desc: "Starting level English for beginner readers",
+                  desc: "Starting level English for beginner readers. Short, clear sentences and high-frequency vocabulary.",
                   badgeColor: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
                 },
                 {
                   id: "Level 2" as const,
                   title: "רמה 2",
                   sub: "רמה שוטפת",
-                  desc: "Satisfactory English, late elementary level",
+                  desc: "Satisfactory English, equivalent to late elementary native reading. Good descriptive language.",
                   badgeColor: "bg-blue-500/10 text-blue-600 border-blue-500/20",
                 },
                 {
                   id: "Level 3" as const,
                   title: "רמה 3",
                   sub: "מתקדמים ודוברי אנגלית",
-                  desc: "Challenging texts for fluent English speakers",
+                  desc: "Challenging texts for fluent English speakers. Complex sentence structures and rich vocabulary.",
                   badgeColor: "bg-purple-500/10 text-purple-600 border-purple-500/20",
                 },
               ].map((lvl) => {
@@ -464,646 +494,747 @@ export default function UnseenPracticePage() {
                     key={lvl.id}
                     type="button"
                     onClick={() => handleLevelSelect(lvl.id)}
-                    className={`p-3 rounded-lg border text-right transition cursor-pointer ${
+                    className={`p-3.5 rounded-xl border text-right transition cursor-pointer flex flex-col justify-between gap-2 ${
                       isSelected
-                        ? "border-primary bg-primary/5 shadow-xs ring-1 ring-primary/20"
-                        : "border-border/60 hover:bg-muted/40"
+                        ? "border-primary bg-primary/5 shadow-xs ring-2 ring-primary/30"
+                        : "border-border/60 hover:bg-muted/40 hover:border-border"
                     }`}
                   >
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs font-bold text-foreground">{lvl.title}</span>
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded border ${lvl.badgeColor}`}>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-bold text-foreground">{lvl.title}</span>
+                      <span className={`text-[10px] px-2 py-0.5 rounded border ${lvl.badgeColor}`}>
                         {lvl.sub}
                       </span>
                     </div>
-                    <p className="text-[11px] text-muted-foreground line-clamp-2 leading-relaxed">{lvl.desc}</p>
+                    <p className="text-[11px] text-muted-foreground leading-relaxed">{lvl.desc}</p>
                   </button>
                 );
               })}
             </div>
           </div>
 
-          {/* Mode Selector (4 Cols) */}
-          <div className="lg:col-span-4 bg-card border border-border/60 rounded-xl p-3.5 shadow-xs flex flex-col justify-between">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                <FileCheck className="h-3.5 w-3.5 text-primary" />
-                <span>Mode (מצב פעילות)</span>
+          {/* Setting 2: Practice Mode vs. Graded Mode */}
+          <div className="bg-card border border-border/60 rounded-xl p-4 shadow-xs space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold uppercase tracking-wider text-foreground flex items-center gap-1.5">
+                <FileCheck className="h-4 w-4 text-primary" />
+                <span>2. בחר מצב פעילות (Practice vs. Exam)</span>
               </span>
             </div>
 
-            <div className="grid grid-cols-2 gap-2 h-full">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <button
                 type="button"
-                onClick={() => {
-                  setMode("practice");
-                  setIsSubmitted(false);
-                }}
-                className={`p-2.5 rounded-lg border text-center transition cursor-pointer flex flex-col items-center justify-center gap-1 ${
+                onClick={() => setMode("practice")}
+                className={`p-4 rounded-xl border text-right transition cursor-pointer flex items-start gap-3 ${
                   mode === "practice"
-                    ? "border-primary bg-primary/5 shadow-xs ring-1 ring-primary/20 text-primary"
-                    : "border-border/60 hover:bg-muted/40 text-muted-foreground"
+                    ? "border-primary bg-primary/5 shadow-xs ring-2 ring-primary/30"
+                    : "border-border/60 hover:bg-muted/40"
                 }`}
               >
-                <Target className="h-4 w-4" />
-                <span className="text-xs font-bold text-foreground">אימון חופשי</span>
-                <span className="text-[10px] text-muted-foreground">בדיקה מיידית ורמזים</span>
+                <div className="p-2.5 rounded-lg bg-primary/10 text-primary shrink-0 mt-0.5">
+                  <Target className="h-5 w-5" />
+                </div>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <h4 className="text-sm font-bold text-foreground">אימון ותרגול חופשי (Practice Mode)</h4>
+                    {mode === "practice" && (
+                      <span className="text-[10px] px-1.5 py-0.2 bg-primary text-primary-foreground rounded-full font-bold">
+                        נבחר
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    בדיקת תשובות מיידית תוך כדי פתרון (&ldquo;בדוק תשובה&rdquo;), רמזים, אפשרות לנסות שוב, והסבר מפורט בעברית לכל שאלה.
+                  </p>
+                </div>
               </button>
 
               <button
                 type="button"
-                onClick={() => {
-                  setMode("graded");
-                  setCheckedQuestions({});
-                }}
-                className={`p-2.5 rounded-lg border text-center transition cursor-pointer flex flex-col items-center justify-center gap-1 ${
+                onClick={() => setMode("graded")}
+                className={`p-4 rounded-xl border text-right transition cursor-pointer flex items-start gap-3 ${
                   mode === "graded"
-                    ? "border-primary bg-primary/5 shadow-xs ring-1 ring-primary/20 text-primary"
-                    : "border-border/60 hover:bg-muted/40 text-muted-foreground"
+                    ? "border-primary bg-primary/5 shadow-xs ring-2 ring-primary/30"
+                    : "border-border/60 hover:bg-muted/40"
                 }`}
               >
-                <Award className="h-4 w-4" />
-                <span className="text-xs font-bold text-foreground">הגשה לציון</span>
-                <span className="text-[10px] text-muted-foreground">מבחן ללא תשובות ביניים</span>
+                <div className="p-2.5 rounded-lg bg-emerald-500/10 text-emerald-600 shrink-0 mt-0.5">
+                  <Award className="h-5 w-5" />
+                </div>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <h4 className="text-sm font-bold text-foreground">הגשה לציון (Graded Exam Mode)</h4>
+                    {mode === "graded" && (
+                      <span className="text-[10px] px-1.5 py-0.2 bg-emerald-600 text-white rounded-full font-bold">
+                        נבחר
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    סימולציית מבחן אמיתית: עונים על כל 10 השאלות ללא חשיפת תשובות ביניים, ובסיום מגישים לקבלת ציון מתוך 100 עם דוח משוב מלא.
+                  </p>
+                </div>
               </button>
             </div>
           </div>
-        </div>
 
-        {/* Story Selection / AI Generator Tabs */}
-        <div className="bg-card border border-border/60 rounded-xl p-4 shadow-xs print:hidden space-y-3">
-          <div className="flex items-center justify-between border-b border-border/50 pb-2.5">
+          {/* Setting 3: Choose Story or Generate with AI */}
+          <div className="bg-card border border-border/60 rounded-xl p-4 shadow-xs space-y-3">
+            <div className="flex items-center justify-between border-b border-border/50 pb-2.5">
+              <span className="text-xs font-bold uppercase tracking-wider text-foreground flex items-center gap-1.5">
+                <BookMarked className="h-4 w-4 text-primary" />
+                <span>3. בחר קטע קריאה או צור עם AI</span>
+              </span>
+
+              <div className="flex items-center gap-1 bg-muted p-0.5 rounded-lg">
+                <button
+                  type="button"
+                  onClick={() => setStorySourceTab("library")}
+                  className={`px-3 py-1 rounded-md text-xs font-medium transition cursor-pointer ${
+                    storySourceTab === "library"
+                      ? "bg-card text-foreground shadow-xs font-bold"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  ספרייה מוכנה ({levelStories.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStorySourceTab("ai_generator")}
+                  className={`px-3 py-1 rounded-md text-xs font-medium transition cursor-pointer flex items-center gap-1 ${
+                    storySourceTab === "ai_generator"
+                      ? "bg-card text-foreground shadow-xs font-bold"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <Sparkles className="h-3 w-3 text-amber-500" />
+                  <span>יצירה עם AI</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Library Stories Grid */}
+            {storySourceTab === "library" && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2 pt-1">
+                {levelStories.map((story, idx) => {
+                  const isSelected = story.id === currentStory.id;
+                  return (
+                    <button
+                      key={story.id}
+                      type="button"
+                      onClick={() => handleStorySelect(story.id)}
+                      className={`p-3 rounded-xl border text-left transition cursor-pointer flex flex-col justify-between h-24 ${
+                        isSelected
+                          ? "border-primary bg-primary/10 shadow-xs ring-2 ring-primary/30"
+                          : "border-border/60 hover:border-primary/40 hover:bg-muted/30"
+                      }`}
+                    >
+                      <div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] text-muted-foreground">טקסט {idx + 1}</span>
+                          {isSelected && (
+                            <span className="h-2 w-2 rounded-full bg-primary" />
+                          )}
+                        </div>
+                        <h4 className="text-xs font-bold text-foreground truncate mt-0.5">{story.title}</h4>
+                      </div>
+                      <span className="text-[11px] text-muted-foreground truncate text-right rtl">
+                        {story.hebrewTitle}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* AI Generator Tab */}
+            {storySourceTab === "ai_generator" && (
+              <div className="space-y-3 pt-1">
+                <div className="flex flex-col sm:flex-row items-center gap-2">
+                  <Input
+                    type="text"
+                    placeholder="כתוב נושא שמעניין אותך (למשל: מיינקראפט, כדורגל, חלל, רובוטים...)"
+                    value={aiTopicInput}
+                    onChange={(e) => setAiTopicInput(e.target.value)}
+                    className="text-xs h-9.5 text-right rtl"
+                    disabled={isGeneratingAi}
+                  />
+                  <Button
+                    onClick={() => handleGenerateAiStory()}
+                    disabled={isGeneratingAi || !aiTopicInput.trim()}
+                    size="sm"
+                    className="w-full sm:w-auto shrink-0 gap-1.5 cursor-pointer text-xs h-9.5 px-4"
+                  >
+                    <Sparkles className="h-3.5 w-3.5" />
+                    <span>{isGeneratingAi ? "יוצר אנסין עם AI..." : "צור קטע קריאה עם 10 שאלות"}</span>
+                  </Button>
+                </div>
+
+                {/* Quick Chips */}
+                <div>
+                  <p className="text-[11px] text-muted-foreground mb-1.5">או בחר נושא מומלץ בלחיצה אחת:</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {SUGGESTED_TOPICS.map((t) => (
+                      <button
+                        key={t.label}
+                        type="button"
+                        disabled={isGeneratingAi}
+                        onClick={() => {
+                          setAiTopicInput(t.value);
+                          handleGenerateAiStory(t.value);
+                        }}
+                        className="text-xs px-2.5 py-1 rounded-full border border-border/80 bg-muted/40 hover:bg-primary/10 hover:border-primary/40 transition cursor-pointer"
+                      >
+                        {t.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {aiNotice && (
+                  <div className="p-2.5 rounded-lg bg-primary/10 text-primary text-xs flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 shrink-0" />
+                    <span>{aiNotice}</span>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Bottom Action Bar: Ready to Start */}
+          <div className="bg-card border-2 border-primary/20 rounded-2xl p-4 shadow-md flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="text-right rtl space-y-0.5">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-bold text-foreground">מוכן לקריאה:</span>
+                <span className="text-sm font-bold text-primary">{currentStory.title}</span>
+                <span className="text-xs text-muted-foreground">({currentStory.hebrewTitle})</span>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {selectedLevel} &bull; 10 שאלות &bull; {mode === "practice" ? "אימון חופשי עם רמזים" : "הגשה לציון (מבחן)"}
+              </p>
+            </div>
+
+            <Button
+              size="lg"
+              onClick={() => setStage("exercise")}
+              className="w-full sm:w-auto cursor-pointer gap-2 text-sm font-bold px-8 shadow-md"
+            >
+              <span>התחל קריאה ותרגול</span>
+              <ArrowRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </main>
+      )}
+
+      {/* =========================================================================
+          STAGE 2: ACTIVE READING & EXERCISE VIEW
+          ========================================================================= */}
+      {stage === "exercise" && (
+        <main className="container mx-auto flex-1 px-4 sm:px-8 py-6 space-y-6 max-w-6xl animate-in fade-in-0">
+          {/* Active Context Ribbon */}
+          <div className="flex items-center justify-between bg-card border border-border/60 rounded-xl p-3 shadow-xs print:hidden">
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={() => setStorySourceTab("library")}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition cursor-pointer flex items-center gap-1.5 ${
-                  storySourceTab === "library"
-                    ? "bg-primary text-primary-foreground shadow-xs"
-                    : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                }`}
+                onClick={() => setStage("settings")}
+                className="text-xs font-semibold text-primary hover:underline flex items-center gap-1 cursor-pointer"
               >
-                <BookMarked className="h-3.5 w-3.5" />
-                <span>ספריית קטעים ({levelStories.length})</span>
+                <Sliders className="h-3.5 w-3.5" />
+                <span>שנה הגדרות / בחר קטע אחר</span>
               </button>
-
-              <button
-                type="button"
-                onClick={() => setStorySourceTab("ai_generator")}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition cursor-pointer flex items-center gap-1.5 ${
-                  storySourceTab === "ai_generator"
-                    ? "bg-primary text-primary-foreground shadow-xs"
-                    : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                }`}
-              >
-                <Sparkles className="h-3.5 w-3.5 text-amber-400" />
-                <span>יצירה אישית עם AI</span>
-              </button>
+              <span className="text-muted-foreground">&bull;</span>
+              <span className="text-xs text-muted-foreground font-medium">{selectedLevel}</span>
+              <span className="text-muted-foreground">&bull;</span>
+              <Badge variant={mode === "practice" ? "secondary" : "default"} className="text-[10px]">
+                {mode === "practice" ? "אימון חופשי" : "מצב מבחן להגשה"}
+              </Badge>
             </div>
 
-            <span className="text-xs text-muted-foreground hidden sm:inline">
-              נושא נבחר: <strong>{currentStory.title}</strong>
-            </span>
-          </div>
-
-          {/* Library Tab Content */}
-          {storySourceTab === "library" && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2 pt-1">
-              {levelStories.map((story, idx) => {
-                const isSelected = story.id === currentStory.id;
-                return (
-                  <button
-                    key={story.id}
-                    type="button"
-                    onClick={() => handleStorySelect(story.id)}
-                    className={`p-2.5 rounded-lg border text-left transition cursor-pointer flex flex-col justify-between h-20 ${
-                      isSelected
-                        ? "border-primary bg-primary/10 shadow-xs"
-                        : "border-border/60 hover:border-primary/40 hover:bg-muted/30"
-                    }`}
-                  >
-                    <div>
-                      <span className="text-[10px] text-muted-foreground">טקסט {idx + 1}</span>
-                      <h4 className="text-xs font-semibold text-foreground truncate">{story.title}</h4>
-                    </div>
-                    <span className="text-[11px] text-muted-foreground truncate text-right rtl">
-                      {story.hebrewTitle}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          )}
-
-          {/* AI Generator Tab Content */}
-          {storySourceTab === "ai_generator" && (
-            <div className="space-y-3 pt-1">
-              <div className="flex flex-col sm:flex-row items-center gap-2">
-                <Input
-                  type="text"
-                  placeholder="כתוב נושא או תחום עניין (למשל: מיינקראפט, כדורגל, גורי כלבים, חלל...)"
-                  value={aiTopicInput}
-                  onChange={(e) => setAiTopicInput(e.target.value)}
-                  className="text-xs h-9 text-right rtl"
-                  disabled={isGeneratingAi}
-                />
-                <Button
-                  onClick={() => handleGenerateAiStory()}
-                  disabled={isGeneratingAi || !aiTopicInput.trim()}
-                  size="sm"
-                  className="w-full sm:w-auto shrink-0 gap-1.5 cursor-pointer text-xs"
-                >
-                  <Sparkles className="h-3.5 w-3.5" />
-                  <span>{isGeneratingAi ? "יוצר אנסין מותאם..." : "צור קטע קריאה עם AI"}</span>
-                </Button>
-              </div>
-
-              {/* Quick Suggestion Chips */}
-              <div>
-                <p className="text-[11px] text-muted-foreground mb-1.5">או בחר מתוך נושאים פופולריים:</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {SUGGESTED_TOPICS.map((t) => (
-                    <button
-                      key={t.label}
-                      type="button"
-                      disabled={isGeneratingAi}
-                      onClick={() => {
-                        setAiTopicInput(t.value);
-                        handleGenerateAiStory(t.value);
-                      }}
-                      className="text-xs px-2.5 py-1 rounded-full border border-border/80 bg-muted/40 hover:bg-primary/10 hover:border-primary/40 transition cursor-pointer"
-                    >
-                      {t.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {aiNotice && (
-                <div className="p-2.5 rounded-lg bg-primary/10 text-primary text-xs flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4 shrink-0" />
-                  <span>{aiNotice}</span>
-                </div>
+            <div className="text-xs text-muted-foreground">
+              {mode === "graded" ? (
+                <span className="font-semibold text-primary">{answeredCount} מתוך 10 שאלות נענו</span>
+              ) : (
+                <span>שאלה פעילה: {activeQuestionIndex + 1} מתוך 10</span>
               )}
             </div>
-          )}
-        </div>
-
-        {/* Main Work Area: Reading Passage (Left) + Questions Panel (Right) */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* Reading Passage Column (7 Cols) */}
-          <div className="lg:col-span-7 space-y-4">
-            <Card className="border-border/60 shadow-xs">
-              <CardHeader className="border-b border-border/50 pb-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="text-xs">
-                      {currentStory.level}
-                    </Badge>
-                    <Badge variant="secondary" className="text-xs">
-                      10 Questions • 100 Pts
-                    </Badge>
-                    {mode === "graded" && (
-                      <Badge variant="destructive" className="text-[10px] animate-pulse">
-                        Exam Mode
-                      </Badge>
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-1.5 print:hidden">
-                    {/* Font Scaling */}
-                    <div className="flex items-center border border-border rounded-md text-xs overflow-hidden">
-                      <button
-                        onClick={() => setFontSize("sm")}
-                        className={`px-2 py-1 ${fontSize === "sm" ? "bg-accent font-bold" : "hover:bg-muted"}`}
-                      >
-                        A-
-                      </button>
-                      <button
-                        onClick={() => setFontSize("base")}
-                        className={`px-2 py-1 ${fontSize === "base" ? "bg-accent font-bold" : "hover:bg-muted"}`}
-                      >
-                        A
-                      </button>
-                      <button
-                        onClick={() => setFontSize("lg")}
-                        className={`px-2 py-1 ${fontSize === "lg" ? "bg-accent font-bold" : "hover:bg-muted"}`}
-                      >
-                        A+
-                      </button>
-                    </div>
-
-                    {/* Speech TTS */}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleSpeak(currentStory.paragraphs.join(" "))}
-                      className="cursor-pointer gap-1 text-xs"
-                      title="Listen to story"
-                    >
-                      <Volume2 className="h-3.5 w-3.5 text-primary" />
-                      <span className="hidden sm:inline">Listen</span>
-                    </Button>
-
-                    {/* Print Booklet */}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => window.print()}
-                      className="cursor-pointer gap-1 text-xs"
-                      title="Print exam booklet"
-                    >
-                      <Printer className="h-3.5 w-3.5" />
-                      <span className="hidden sm:inline">Print</span>
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="mt-2">
-                  <CardTitle className="text-xl font-bold tracking-tight">{currentStory.title}</CardTitle>
-                  <p className="text-sm text-muted-foreground mt-0.5">{currentStory.hebrewTitle}</p>
-                </div>
-
-                <div className="p-2 rounded-lg bg-muted/40 text-[11px] text-muted-foreground flex items-center gap-2 mt-2 print:hidden">
-                  <Info className="h-3.5 w-3.5 text-primary shrink-0" />
-                  <span>
-                    💡 <strong>טיפ בלשים:</strong> לחץ על <strong>כל מילה</strong> בטקסט כדי לראות תרגום מיידי ולהוסיף לפנקס המילים האישי שלך!
-                  </span>
-                </div>
-              </CardHeader>
-
-              {/* Story Paragraphs */}
-              <CardContent className="pt-4 space-y-4">
-                {currentStory.paragraphs.map((para, pIdx) => {
-                  const isHighlighted =
-                    activeQuestion &&
-                    (activeQuestion.paragraphIndex === pIdx || activeQuestion.paragraphIndex === 3);
-
-                  const textSizeClass =
-                    fontSize === "sm" ? "text-sm leading-relaxed" : fontSize === "lg" ? "text-lg leading-loose" : "text-base leading-relaxed";
-
-                  // Split paragraph into interactive clickable words
-                  const tokens = para.split(/(\s+)/);
-
-                  return (
-                    <div
-                      key={pIdx}
-                      className={`relative p-3.5 rounded-xl border transition-colors ${
-                        isHighlighted
-                          ? "border-primary/40 bg-primary/5 shadow-xs"
-                          : "border-border/30 hover:border-border/60"
-                      }`}
-                    >
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-                          Paragraph [{pIdx + 1}]
-                        </span>
-
-                        {activeQuestion?.type === "copy" && (
-                          <span className="text-[10px] text-primary flex items-center gap-1 print:hidden">
-                            <Copy className="h-3 w-3" />
-                            <span>לחץ על משפט כדי להעתיק לתשובה</span>
-                          </span>
-                        )}
-                      </div>
-
-                      <p className={`${textSizeClass} text-foreground/90 font-sans tracking-wide`}>
-                        {tokens.map((token, tIdx) => {
-                          const isSpace = /^\s+$/.test(token);
-                          if (isSpace) return <span key={tIdx}>{token}</span>;
-
-                          return (
-                            <span
-                              key={tIdx}
-                              onClick={() => handleWordClick(token)}
-                              className="cursor-pointer hover:bg-primary/20 hover:text-primary rounded px-0.5 transition-colors underline decoration-dotted decoration-muted-foreground/30 hover:decoration-primary"
-                              title={`Click to translate "${token}"`}
-                            >
-                              {token}
-                            </span>
-                          );
-                        })}
-                      </p>
-                    </div>
-                  );
-                })}
-
-                {/* Vocabulary Hints footer */}
-                {currentStory.vocabularyHints && currentStory.vocabularyHints.length > 0 && (
-                  <div className="mt-4 pt-3 border-t border-border/50">
-                    <p className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1.5">
-                      <BookMarked className="h-3.5 w-3.5 text-primary" />
-                      <span>Vocabulary Helpers (אוצר מילים בטקסט):</span>
-                    </p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {currentStory.vocabularyHints.map((hint, hIdx) => (
-                        <button
-                          key={hIdx}
-                          type="button"
-                          onClick={() => handleWordClick(hint.word)}
-                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-secondary text-secondary-foreground text-xs hover:bg-primary/10 hover:text-primary transition cursor-pointer"
-                        >
-                          <span className="font-medium">{hint.word}</span>
-                          <span className="text-muted-foreground">&bull;</span>
-                          <span>{hint.translation}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
           </div>
 
-          {/* 10 Questions Column (5 Cols) */}
-          <div className="lg:col-span-5 space-y-4 print:hidden">
-            {/* Question Tabs Header (1 to 10) */}
-            <div className="bg-card border border-border/60 rounded-xl p-3 shadow-xs">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                  <HelpCircle className="h-3.5 w-3.5 text-primary" />
-                  <span>Questions ({currentStory.questions.length})</span>
-                </span>
-                <span className="text-xs text-muted-foreground">
-                  {mode === "graded" ? `${answeredCount}/10 נענו` : `שאלה ${activeQuestionIndex + 1} מתוך 10`}
-                </span>
-              </div>
-
-              {/* 10 Question Pills */}
-              <div className="grid grid-cols-10 gap-1">
-                {currentStory.questions.map((q, idx) => {
-                  const isActive = idx === activeQuestionIndex;
-                  const isAnswered = userAnswers[q.id] !== undefined && userAnswers[q.id] !== "";
-
-                  let pillColor = "border-border/60 bg-muted/30 text-muted-foreground";
-                  if (isActive) {
-                    pillColor = "border-primary bg-primary text-primary-foreground font-bold shadow-xs";
-                  } else if (isAnswered) {
-                    pillColor = "border-emerald-500/40 bg-emerald-500/10 text-emerald-600 font-semibold";
-                  }
-
-                  return (
-                    <button
-                      key={q.id}
-                      type="button"
-                      onClick={() => setActiveQuestionIndex(idx)}
-                      className={`h-8 rounded-md border text-xs flex items-center justify-center transition cursor-pointer relative ${pillColor}`}
-                    >
-                      <span>{idx + 1}</span>
-                      {isAnswered && !isActive && (
-                        <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-emerald-500" />
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Active Question Card */}
-            {activeQuestion && (
+          {/* Reading Passage (Left) + 10 Questions (Right) */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            {/* Reading Passage Column (7 Cols) */}
+            <div className="lg:col-span-7 space-y-4">
               <Card className="border-border/60 shadow-xs">
-                <CardHeader className="pb-3 border-b border-border/50">
+                <CardHeader className="border-b border-border/50 pb-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <Badge variant="default" className="text-xs">
-                        שאלה {activeQuestion.number}
+                      <Badge variant="outline" className="text-xs">
+                        {currentStory.level}
                       </Badge>
-                      <Badge variant="outline" className="text-[10px]">
-                        {activeQuestion.type === "mcq"
-                          ? "בחירה מרובה"
-                          : activeQuestion.type === "copy"
-                          ? "העתקת משפט"
-                          : "הבנה פתוחה"}
+                      <Badge variant="secondary" className="text-xs">
+                        10 Questions • 100 Pts
                       </Badge>
+                      {mode === "graded" && (
+                        <Badge variant="destructive" className="text-[10px] animate-pulse">
+                          Exam Mode
+                        </Badge>
+                      )}
                     </div>
-                    <span className="text-xs font-semibold text-primary">{activeQuestion.points} נקודות</span>
+
+                    <div className="flex items-center gap-1.5 print:hidden">
+                      {/* Font Scaling */}
+                      <div className="flex items-center border border-border rounded-md text-xs overflow-hidden">
+                        <button
+                          onClick={() => setFontSize("sm")}
+                          className={`px-2 py-1 ${fontSize === "sm" ? "bg-accent font-bold" : "hover:bg-muted"}`}
+                        >
+                          A-
+                        </button>
+                        <button
+                          onClick={() => setFontSize("base")}
+                          className={`px-2 py-1 ${fontSize === "base" ? "bg-accent font-bold" : "hover:bg-muted"}`}
+                        >
+                          A
+                        </button>
+                        <button
+                          onClick={() => setFontSize("lg")}
+                          className={`px-2 py-1 ${fontSize === "lg" ? "bg-accent font-bold" : "hover:bg-muted"}`}
+                        >
+                          A+
+                        </button>
+                      </div>
+
+                      {/* Speech TTS */}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleSpeak(currentStory.paragraphs.join(" "))}
+                        className="cursor-pointer gap-1 text-xs"
+                        title="Listen to story"
+                      >
+                        <Volume2 className="h-3.5 w-3.5 text-primary" />
+                        <span className="hidden sm:inline">Listen</span>
+                      </Button>
+
+                      {/* Print Booklet */}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => window.print()}
+                        className="cursor-pointer gap-1 text-xs"
+                        title="Print exam booklet"
+                      >
+                        <Printer className="h-3.5 w-3.5" />
+                        <span className="hidden sm:inline">Print</span>
+                      </Button>
+                    </div>
                   </div>
 
-                  {activeQuestion.linesHint && (
-                    <p className="text-[11px] text-muted-foreground mt-1 flex items-center gap-1">
-                      <Search className="h-3 w-3 text-primary" />
-                      <span>מיקום בטקסט: {activeQuestion.linesHint}</span>
-                    </p>
-                  )}
+                  <div className="mt-2">
+                    <CardTitle className="text-xl font-bold tracking-tight">{currentStory.title}</CardTitle>
+                    <p className="text-sm text-muted-foreground mt-0.5">{currentStory.hebrewTitle}</p>
+                  </div>
 
-                  <h3 className="text-sm font-semibold text-foreground mt-2 leading-relaxed">
-                    {activeQuestion.prompt}
-                  </h3>
+                  <div className="p-2 rounded-lg bg-muted/40 text-[11px] text-muted-foreground flex items-center gap-2 mt-2 print:hidden">
+                    <Info className="h-3.5 w-3.5 text-primary shrink-0" />
+                    <span>
+                      💡 <strong>טיפ בלשים:</strong> לחץ על <strong>כל מילה</strong> בטקסט כדי לראות תרגום מיידי ולהוסיף לפנקס המילים האישי שלך!
+                    </span>
+                  </div>
                 </CardHeader>
 
-                <CardContent className="pt-4 space-y-3">
-                  {/* Multiple Choice Question */}
-                  {activeQuestion.type === "mcq" && activeQuestion.options && (
-                    <div className="space-y-2">
-                      {activeQuestion.options.map((option, optIdx) => {
-                        const isSelected = userAnswers[activeQuestion.id] === optIdx;
-                        const isChecked = checkedQuestions[activeQuestion.id];
-                        const isCorrectOption = optIdx === activeQuestion.correctIndex;
+                {/* Story Paragraphs */}
+                <CardContent className="pt-4 space-y-4">
+                  {currentStory.paragraphs.map((para, pIdx) => {
+                    const isHighlighted =
+                      activeQuestion &&
+                      (activeQuestion.paragraphIndex === pIdx || activeQuestion.paragraphIndex === 3);
 
-                        let optStyle = "border-border/60 hover:bg-muted/40 hover:border-border";
-                        if (mode === "practice" && isChecked) {
-                          if (isCorrectOption) {
-                            optStyle = "border-emerald-500 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 font-semibold";
-                          } else if (isSelected && !isCorrectOption) {
-                            optStyle = "border-destructive bg-destructive/10 text-destructive font-medium";
-                          }
-                        } else if (isSelected) {
-                          optStyle = "border-primary bg-primary/10 text-foreground font-semibold shadow-xs";
-                        }
+                    const textSizeClass =
+                      fontSize === "sm"
+                        ? "text-sm leading-relaxed"
+                        : fontSize === "lg"
+                        ? "text-lg leading-loose"
+                        : "text-base leading-relaxed";
 
-                        return (
-                          <button
-                            key={optIdx}
-                            type="button"
-                            onClick={() => {
-                              setUserAnswers((prev) => ({ ...prev, [activeQuestion.id]: optIdx }));
-                              setCheckedQuestions((prev) => ({ ...prev, [activeQuestion.id]: false }));
-                            }}
-                            className={`w-full p-3 rounded-lg border text-left text-xs transition cursor-pointer flex items-start gap-2.5 ${optStyle}`}
-                          >
-                            <span className="h-5 w-5 rounded-full border border-current flex items-center justify-center shrink-0 text-[10px] font-bold mt-0.5">
-                              {String.fromCharCode(65 + optIdx)}
+                    // Split paragraph into interactive clickable words
+                    const tokens = para.split(/(\s+)/);
+
+                    return (
+                      <div
+                        key={pIdx}
+                        className={`relative p-3.5 rounded-xl border transition-colors ${
+                          isHighlighted
+                            ? "border-primary/40 bg-primary/5 shadow-xs"
+                            : "border-border/30 hover:border-border/60"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
+                            Paragraph [{pIdx + 1}]
+                          </span>
+
+                          {activeQuestion?.type === "copy" && (
+                            <span className="text-[10px] text-primary flex items-center gap-1 print:hidden">
+                              <Copy className="h-3 w-3" />
+                              <span>לחץ על &ldquo;הדבק משפט&rdquo; בשאלה להעתקה</span>
                             </span>
-                            <span className="flex-1 leading-relaxed">{option}</span>
-                            {mode === "practice" && isChecked && isCorrectOption && (
-                              <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
-                            )}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
+                          )}
+                        </div>
 
-                  {/* Copy Sentence Question */}
-                  {activeQuestion.type === "copy" && (
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <label className="text-xs text-muted-foreground block">
-                          הקלד את המשפט המדויק מהפסקה, או העתק אותו ישירות:
-                        </label>
-                        {activeQuestion.targetSentence && (
-                          <Button
-                            type="button"
-                            variant="secondary"
-                            size="sm"
-                            onClick={() => handleCopySentence(activeQuestion.targetSentence || "")}
-                            className="h-6 text-[11px] gap-1 cursor-pointer"
-                          >
-                            <Copy className="h-3 w-3" />
-                            <span>הדבק משפט</span>
-                          </Button>
-                        )}
-                      </div>
-                      <textarea
-                        rows={3}
-                        placeholder="Type the exact sentence from the story..."
-                        value={(userAnswers[activeQuestion.id] as string) || ""}
-                        onChange={(e) =>
-                          setUserAnswers((prev) => ({ ...prev, [activeQuestion.id]: e.target.value }))
-                        }
-                        className="w-full rounded-md border border-input bg-background p-2.5 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring font-mono"
-                      />
-                    </div>
-                  )}
+                        <p className={`${textSizeClass} text-foreground/90 font-sans tracking-wide`}>
+                          {tokens.map((token, tIdx) => {
+                            const isSpace = /^\s+$/.test(token);
+                            if (isSpace) return <span key={tIdx}>{token}</span>;
 
-                  {/* Open Ended Question */}
-                  {activeQuestion.type === "open" && (
-                    <div className="space-y-2">
-                      <label className="text-xs text-muted-foreground block">
-                        ענה באנגלית על פי המידע בטקסט:
-                      </label>
-                      <textarea
-                        rows={3}
-                        placeholder="Write your answer in English..."
-                        value={(userAnswers[activeQuestion.id] as string) || ""}
-                        onChange={(e) =>
-                          setUserAnswers((prev) => ({ ...prev, [activeQuestion.id]: e.target.value }))
-                        }
-                        className="w-full rounded-md border border-input bg-background p-2.5 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                      />
-                    </div>
-                  )}
-
-                  {/* Practice Mode Feedback Box */}
-                  {mode === "practice" && checkedQuestions[activeQuestion.id] && (
-                    <div className="p-3 rounded-lg bg-muted/60 border border-border/80 text-xs space-y-1.5 animate-in fade-in-0">
-                      <div className="flex items-center gap-1.5 font-bold">
-                        {activeQuestion.type === "mcq" && userAnswers[activeQuestion.id] === activeQuestion.correctIndex ? (
-                          <span className="text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                            <CheckCircle2 className="h-4 w-4" /> תשובה נכונה! כל הכבוד! (+10 נקודות)
-                          </span>
-                        ) : (
-                          <span className="text-amber-600 dark:text-amber-400 flex items-center gap-1">
-                            <Info className="h-4 w-4" /> הסבר לתשובה:
-                          </span>
-                        )}
-                      </div>
-
-                      {activeQuestion.targetSentence && (
-                        <p className="text-muted-foreground font-mono text-[11px]">
-                          משפט היעד: <strong>&ldquo;{activeQuestion.targetSentence}&rdquo;</strong>
+                            return (
+                              <span
+                                key={tIdx}
+                                onClick={() => handleWordClick(token)}
+                                className="cursor-pointer hover:bg-primary/20 hover:text-primary rounded px-0.5 transition-colors underline decoration-dotted decoration-muted-foreground/30 hover:decoration-primary"
+                                title={`Click to translate "${token}"`}
+                              >
+                                {token}
+                              </span>
+                            );
+                          })}
                         </p>
-                      )}
+                      </div>
+                    );
+                  })}
 
-                      {activeQuestion.modelAnswer && (
-                        <p className="text-muted-foreground text-[11px]">
-                          תשובה לדוגמה: <strong>&ldquo;{activeQuestion.modelAnswer}&rdquo;</strong>
-                        </p>
-                      )}
-
-                      <p className="text-foreground/90 text-[11px] leading-relaxed text-right rtl">
-                        {activeQuestion.explanationHebrew}
+                  {/* Vocabulary Hints footer */}
+                  {currentStory.vocabularyHints && currentStory.vocabularyHints.length > 0 && (
+                    <div className="mt-4 pt-3 border-t border-border/50">
+                      <p className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1.5">
+                        <BookMarked className="h-3.5 w-3.5 text-primary" />
+                        <span>Vocabulary Helpers (אוצר מילים בטקסט):</span>
                       </p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {currentStory.vocabularyHints.map((hint, hIdx) => (
+                          <button
+                            key={hIdx}
+                            type="button"
+                            onClick={() => handleWordClick(hint.word)}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-secondary text-secondary-foreground text-xs hover:bg-primary/10 hover:text-primary transition cursor-pointer"
+                          >
+                            <span className="font-medium">{hint.word}</span>
+                            <span className="text-muted-foreground">&bull;</span>
+                            <span>{hint.translation}</span>
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   )}
                 </CardContent>
+              </Card>
+            </div>
 
-                <CardFooter className="pt-2 border-t border-border/50 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
+            {/* 10 Questions Column (5 Cols) */}
+            <div className="lg:col-span-5 space-y-4 print:hidden">
+              {/* Question Tabs Header (1 to 10) */}
+              <div className="bg-card border border-border/60 rounded-xl p-3 shadow-xs">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                    <HelpCircle className="h-3.5 w-3.5 text-primary" />
+                    <span>Questions ({currentStory.questions.length})</span>
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    {mode === "graded" ? `${answeredCount}/10 נענו` : `שאלה ${activeQuestionIndex + 1} מתוך 10`}
+                  </span>
+                </div>
+
+                {/* 10 Question Pills */}
+                <div className="grid grid-cols-10 gap-1">
+                  {currentStory.questions.map((q, idx) => {
+                    const isActive = idx === activeQuestionIndex;
+                    const isAnswered = userAnswers[q.id] !== undefined && userAnswers[q.id] !== "";
+
+                    let pillColor = "border-border/60 bg-muted/30 text-muted-foreground";
+                    if (isActive) {
+                      pillColor = "border-primary bg-primary text-primary-foreground font-bold shadow-xs";
+                    } else if (isAnswered) {
+                      pillColor = "border-emerald-500/40 bg-emerald-500/10 text-emerald-600 font-semibold";
+                    }
+
+                    return (
+                      <button
+                        key={q.id}
+                        type="button"
+                        onClick={() => setActiveQuestionIndex(idx)}
+                        className={`h-8 rounded-md border text-xs flex items-center justify-center transition cursor-pointer relative ${pillColor}`}
+                      >
+                        <span>{idx + 1}</span>
+                        {isAnswered && !isActive && (
+                          <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-emerald-500" />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Active Question Card */}
+              {activeQuestion && (
+                <Card className="border-border/60 shadow-xs">
+                  <CardHeader className="pb-3 border-b border-border/50">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="default" className="text-xs">
+                          שאלה {activeQuestion.number}
+                        </Badge>
+                        <Badge variant="outline" className="text-[10px]">
+                          {activeQuestion.type === "mcq"
+                            ? "בחירה מרובה"
+                            : activeQuestion.type === "copy"
+                            ? "העתקת משפט"
+                            : "הבנה פתוחה"}
+                        </Badge>
+                      </div>
+                      <span className="text-xs font-semibold text-primary">{activeQuestion.points} נקודות</span>
+                    </div>
+
+                    {activeQuestion.linesHint && (
+                      <p className="text-[11px] text-muted-foreground mt-1 flex items-center gap-1">
+                        <Search className="h-3 w-3 text-primary" />
+                        <span>מיקום בטקסט: {activeQuestion.linesHint}</span>
+                      </p>
+                    )}
+
+                    <h3 className="text-sm font-semibold text-foreground mt-2 leading-relaxed">
+                      {activeQuestion.prompt}
+                    </h3>
+                  </CardHeader>
+
+                  <CardContent className="pt-4 space-y-3">
+                    {/* Multiple Choice Question */}
+                    {activeQuestion.type === "mcq" && activeQuestion.options && (
+                      <div className="space-y-2">
+                        {activeQuestion.options.map((option, optIdx) => {
+                          const isSelected = userAnswers[activeQuestion.id] === optIdx;
+                          const isChecked = checkedQuestions[activeQuestion.id];
+                          const isCorrectOption = optIdx === activeQuestion.correctIndex;
+
+                          let optStyle = "border-border/60 hover:bg-muted/40 hover:border-border";
+                          if (mode === "practice" && isChecked) {
+                            if (isCorrectOption) {
+                              optStyle = "border-emerald-500 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 font-semibold";
+                            } else if (isSelected && !isCorrectOption) {
+                              optStyle = "border-destructive bg-destructive/10 text-destructive font-medium";
+                            }
+                          } else if (isSelected) {
+                            optStyle = "border-primary bg-primary/10 text-foreground font-semibold shadow-xs";
+                          }
+
+                          return (
+                            <button
+                              key={optIdx}
+                              type="button"
+                              onClick={() => {
+                                setUserAnswers((prev) => ({ ...prev, [activeQuestion.id]: optIdx }));
+                                setCheckedQuestions((prev) => ({ ...prev, [activeQuestion.id]: false }));
+                              }}
+                              className={`w-full p-3 rounded-lg border text-left text-xs transition cursor-pointer flex items-start gap-2.5 ${optStyle}`}
+                            >
+                              <span className="h-5 w-5 rounded-full border border-current flex items-center justify-center shrink-0 text-[10px] font-bold mt-0.5">
+                                {String.fromCharCode(65 + optIdx)}
+                              </span>
+                              <span className="flex-1 leading-relaxed">{option}</span>
+                              {mode === "practice" && isChecked && isCorrectOption && (
+                                <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {/* Copy Sentence Question */}
+                    {activeQuestion.type === "copy" && (
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <label className="text-xs text-muted-foreground block">
+                            הקלד את המשפט המדויק מהפסקה, או העתק אותו ישירות:
+                          </label>
+                          {activeQuestion.targetSentence && (
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              size="sm"
+                              onClick={() => handleCopySentence(activeQuestion.targetSentence || "")}
+                              className="h-6 text-[11px] gap-1 cursor-pointer"
+                            >
+                              <Copy className="h-3 w-3" />
+                              <span>הדבק משפט</span>
+                            </Button>
+                          )}
+                        </div>
+                        <textarea
+                          rows={3}
+                          placeholder="Type the exact sentence from the story..."
+                          value={(userAnswers[activeQuestion.id] as string) || ""}
+                          onChange={(e) =>
+                            setUserAnswers((prev) => ({ ...prev, [activeQuestion.id]: e.target.value }))
+                          }
+                          className="w-full rounded-md border border-input bg-background p-2.5 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring font-mono"
+                        />
+                      </div>
+                    )}
+
+                    {/* Open Ended Question */}
+                    {activeQuestion.type === "open" && (
+                      <div className="space-y-2">
+                        <label className="text-xs text-muted-foreground block">
+                          ענה באנגלית על פי המידע בטקסט:
+                        </label>
+                        <textarea
+                          rows={3}
+                          placeholder="Write your answer in English..."
+                          value={(userAnswers[activeQuestion.id] as string) || ""}
+                          onChange={(e) =>
+                            setUserAnswers((prev) => ({ ...prev, [activeQuestion.id]: e.target.value }))
+                          }
+                          className="w-full rounded-md border border-input bg-background p-2.5 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                        />
+                      </div>
+                    )}
+
+                    {/* Practice Mode Feedback Box */}
+                    {mode === "practice" && checkedQuestions[activeQuestion.id] && (
+                      <div className="p-3 rounded-lg bg-muted/60 border border-border/80 text-xs space-y-1.5 animate-in fade-in-0">
+                        <div className="flex items-center gap-1.5 font-bold">
+                          {activeQuestion.type === "mcq" && userAnswers[activeQuestion.id] === activeQuestion.correctIndex ? (
+                            <span className="text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                              <CheckCircle2 className="h-4 w-4" /> תשובה נכונה! כל הכבוד! (+10 נקודות)
+                            </span>
+                          ) : (
+                            <span className="text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                              <Info className="h-4 w-4" /> הסבר לתשובה:
+                            </span>
+                          )}
+                        </div>
+
+                        {activeQuestion.targetSentence && (
+                          <p className="text-muted-foreground font-mono text-[11px]">
+                            משפט היעד: <strong>&ldquo;{activeQuestion.targetSentence}&rdquo;</strong>
+                          </p>
+                        )}
+
+                        {activeQuestion.modelAnswer && (
+                          <p className="text-muted-foreground text-[11px]">
+                            תשובה לדוגמה: <strong>&ldquo;{activeQuestion.modelAnswer}&rdquo;</strong>
+                          </p>
+                        )}
+
+                        <p className="text-foreground/90 text-[11px] leading-relaxed text-right rtl">
+                          {activeQuestion.explanationHebrew}
+                        </p>
+                      </div>
+                    )}
+                  </CardContent>
+
+                  <CardFooter className="pt-2 border-t border-border/50 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={activeQuestionIndex === 0}
+                        onClick={() => setActiveQuestionIndex((prev) => Math.max(0, prev - 1))}
+                        className="cursor-pointer text-xs"
+                      >
+                        שאלה קודמת
+                      </Button>
+
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={activeQuestionIndex === currentStory.questions.length - 1}
+                        onClick={() =>
+                          setActiveQuestionIndex((prev) => Math.min(currentStory.questions.length - 1, prev + 1))
+                        }
+                        className="cursor-pointer text-xs"
+                      >
+                        שאלה הבאה
+                      </Button>
+                    </div>
+
+                    {mode === "practice" ? (
+                      <Button
+                        variant="default"
+                        size="sm"
+                        onClick={() => handleCheckPracticeAnswer(activeQuestion.id)}
+                        className="cursor-pointer gap-1.5 text-xs"
+                      >
+                        <Check className="h-3.5 w-3.5" />
+                        <span>בדוק תשובה</span>
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="default"
+                        size="sm"
+                        onClick={() => setShowSubmitModal(true)}
+                        className="cursor-pointer gap-1.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+                      >
+                        <Send className="h-3.5 w-3.5" />
+                        <span>הגש מבחן ({answeredCount}/10)</span>
+                      </Button>
+                    )}
+                  </CardFooter>
+                </Card>
+              )}
+
+              {/* Graded Mode Summary Card */}
+              {mode === "graded" && isSubmitted && gradedScore !== null && (
+                <Card className="border-emerald-500/40 bg-emerald-500/5 shadow-md animate-in fade-in-0">
+                  <CardHeader className="pb-2 text-center">
+                    <span className="text-3xl">🏆</span>
+                    <CardTitle className="text-lg text-emerald-700 dark:text-emerald-300">
+                      ציון המבחן שלך: {gradedScore} / 100
+                    </CardTitle>
+                    <p className="text-xs text-muted-foreground">
+                      {gradedScore >= 90
+                        ? "מצוין! הפגנת שליטה יוצאת מן הכלל בטקסט!"
+                        : gradedScore >= 70
+                        ? "עבודה יפה מאוד! כל הכבוד על המאמץ!"
+                        : "המשך לתרגל, כל אנסין משפר את אוצר המילים שלך!"}
+                    </p>
+                  </CardHeader>
+                  <CardContent className="pt-2 text-center flex items-center justify-center gap-2">
                     <Button
                       variant="outline"
                       size="sm"
-                      disabled={activeQuestionIndex === 0}
-                      onClick={() => setActiveQuestionIndex((prev) => Math.max(0, prev - 1))}
-                      className="cursor-pointer text-xs"
+                      onClick={() => {
+                        setIsSubmitted(false);
+                        setGradedScore(null);
+                        setUserAnswers({});
+                      }}
+                      className="cursor-pointer text-xs gap-1.5"
                     >
-                      שאלה קודמת
+                      <RotateCcw className="h-3.5 w-3.5" />
+                      <span>התחל מבחן מחדש</span>
                     </Button>
 
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={activeQuestionIndex === currentStory.questions.length - 1}
-                      onClick={() =>
-                        setActiveQuestionIndex((prev) => Math.min(currentStory.questions.length - 1, prev + 1))
-                      }
-                      className="cursor-pointer text-xs"
-                    >
-                      שאלה הבאה
-                    </Button>
-                  </div>
-
-                  {mode === "practice" ? (
                     <Button
                       variant="default"
                       size="sm"
-                      onClick={() => handleCheckPracticeAnswer(activeQuestion.id)}
-                      className="cursor-pointer gap-1.5 text-xs"
+                      onClick={() => {
+                        setIsSubmitted(false);
+                        setGradedScore(null);
+                        setUserAnswers({});
+                        setStage("settings");
+                      }}
+                      className="cursor-pointer text-xs gap-1.5"
                     >
-                      <Check className="h-3.5 w-3.5" />
-                      <span>בדוק תשובה</span>
+                      <Sliders className="h-3.5 w-3.5" />
+                      <span>בחר קטע קריאה נוסף</span>
                     </Button>
-                  ) : (
-                    <Button
-                      variant="default"
-                      size="sm"
-                      onClick={() => setShowSubmitModal(true)}
-                      className="cursor-pointer gap-1.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
-                    >
-                      <Send className="h-3.5 w-3.5" />
-                      <span>הגש מבחן ({answeredCount}/10)</span>
-                    </Button>
-                  )}
-                </CardFooter>
-              </Card>
-            )}
-
-            {/* Graded Mode Summary Card */}
-            {mode === "graded" && isSubmitted && gradedScore !== null && (
-              <Card className="border-emerald-500/40 bg-emerald-500/5 shadow-md animate-in fade-in-0">
-                <CardHeader className="pb-2 text-center">
-                  <span className="text-3xl">🏆</span>
-                  <CardTitle className="text-lg text-emerald-700 dark:text-emerald-300">
-                    ציון המבחן שלך: {gradedScore} / 100
-                  </CardTitle>
-                  <p className="text-xs text-muted-foreground">
-                    {gradedScore >= 90
-                      ? "מצוין! הפגנת שליטה יוצאת מן הכלל בטקסט!"
-                      : gradedScore >= 70
-                      ? "עבודה יפה מאוד! כל הכבוד על המאמץ!"
-                      : "המשך לתרגל, כל אנסין משפר את אוצר המילים שלך!"}
-                  </p>
-                </CardHeader>
-                <CardContent className="pt-2 text-center">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setIsSubmitted(false);
-                      setGradedScore(null);
-                      setUserAnswers({});
-                    }}
-                    className="cursor-pointer text-xs gap-1.5"
-                  >
-                    <RotateCcw className="h-3.5 w-3.5" />
-                    <span>התחל מבחן מחדש</span>
-                  </Button>
-                </CardContent>
-              </Card>
-            )}
+                  </CardContent>
+                </Card>
+              )}
+            </div>
           </div>
-        </div>
-      </main>
+        </main>
+      )}
 
       {/* Instant Translation Toast / Popup */}
       {clickedWord && (
