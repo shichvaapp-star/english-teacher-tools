@@ -131,12 +131,12 @@
 
 @media print {
   @page {
-    margin: 12mm 15mm 12mm 15mm;
+    margin: 12mm 14mm 12mm 14mm;
     size: A4 portrait;
   }
   body {
     background: #ffffff !important;
-    color: #000000 !important;
+    color: #1e293b !important;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
