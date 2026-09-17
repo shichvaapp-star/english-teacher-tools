@@ -38,6 +38,8 @@ import {
   BookOpen,
   Key,
   AlertCircle,
+  UserCheck,
+  Edit3,
 } from "lucide-react";
 
 const LOCAL_SUBMISSIONS_KEY = "ett_writing_submissions";
@@ -129,7 +131,15 @@ export default function UnseenPracticePage() {
   const [showReviewAnswers, setShowReviewAnswers] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Pre-fill student info if logged in
+  const [isChangingTeacher, setIsChangingTeacher] = useState(false);
+
+  // Resolved selected teacher
+  const selectedTeacher =
+    teachers.find((t) => t.id === selectedTeacherId) ||
+    teachers.find((t) => t.id === user?.teacherId) ||
+    teachers[0];
+
+  // Pre-fill student info and associated teacher if logged in
   useEffect(() => {
     if (user) {
       if (user.name) setStudentNameInput(user.name);
@@ -140,15 +150,24 @@ export default function UnseenPracticePage() {
       }
       if (user.teacherId) {
         setSelectedTeacherId(user.teacherId);
+      } else if (user.teacherName && teachers.length > 0) {
+        const found = teachers.find(
+          (t) => t.name === user.teacherName || t.id === user.teacherId
+        );
+        if (found) setSelectedTeacherId(found.id);
       }
     }
-  }, [user]);
+  }, [user, teachers]);
 
   useEffect(() => {
     if (!selectedTeacherId && teachers.length > 0) {
-      setSelectedTeacherId(teachers[0].id);
+      if (user?.teacherId && teachers.some((t) => t.id === user.teacherId)) {
+        setSelectedTeacherId(user.teacherId);
+      } else {
+        setSelectedTeacherId(teachers[0].id);
+      }
     }
-  }, [teachers, selectedTeacherId]);
+  }, [teachers, selectedTeacherId, user]);
 
   // Word Click & Translation Popup
   const [clickedWord, setClickedWord] = useState<{
@@ -1504,7 +1523,13 @@ export default function UnseenPracticePage() {
                       <Button
                         variant="default"
                         size="sm"
-                        onClick={() => setShowSubmitModal(true)}
+                        onClick={() => {
+                          setIsChangingTeacher(false);
+                          if (user?.teacherId) {
+                            setSelectedTeacherId(user.teacherId);
+                          }
+                          setShowSubmitModal(true);
+                        }}
                         className="cursor-pointer gap-1.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
                       >
                         <Send className="h-3.5 w-3.5" />
@@ -1814,15 +1839,15 @@ export default function UnseenPracticePage() {
       {showSubmitModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in-0 print:hidden">
           <div className="bg-card border border-border rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4" dir="rtl">
-            <div className="flex items-center gap-2.5 text-primary border-b border-border/50 pb-3">
-              <Award className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
-              <div>
-                <h3 className="font-black text-lg text-foreground">הגשת מבחן אנסין לבדיקה וציון</h3>
-                <p className="text-xs text-muted-foreground">{currentStory.hebrewTitle} &bull; {currentStory.title}</p>
+              <div className="flex items-center gap-2.5 text-primary border-b border-border/50 pb-3">
+                <Award className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
+                <div>
+                  <h3 className="font-black text-lg text-foreground">הגשת מבחן אנסין לבדיקה וציון</h3>
+                  <p className="text-xs text-muted-foreground">{currentStory.hebrewTitle} &bull; {currentStory.title}</p>
+                </div>
               </div>
-            </div>
 
-            <div className="p-3 rounded-xl bg-muted/40 border border-border/50 space-y-1 text-xs">
+              <div className="p-3 rounded-xl bg-muted/40 border border-border/50 space-y-1 text-xs">
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">מענה על שאלות:</span>
                 <span className={`font-bold ${answeredCount === 10 ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"}`}>
@@ -1864,18 +1889,66 @@ export default function UnseenPracticePage() {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-foreground">מורה בודק/ת:</label>
-                  <select
-                    value={selectedTeacherId}
-                    onChange={(e) => setSelectedTeacherId(e.target.value)}
-                    className="w-full h-9 rounded-md border border-input bg-background px-2.5 py-1 text-xs shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring cursor-pointer"
-                  >
-                    {teachers.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.name} ({t.teacherCode})
-                      </option>
-                    ))}
-                  </select>
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-semibold text-foreground">מורה בודק/ת:</label>
+                    {selectedTeacher && !isChangingTeacher && (
+                      <button
+                        type="button"
+                        onClick={() => setIsChangingTeacher(true)}
+                        className="text-[11px] text-primary hover:underline flex items-center gap-1 cursor-pointer font-medium"
+                      >
+                        <Edit3 className="h-3 w-3" />
+                        <span>החלף מורה</span>
+                      </button>
+                    )}
+                    {isChangingTeacher && (
+                      <button
+                        type="button"
+                        onClick={() => setIsChangingTeacher(false)}
+                        className="text-[11px] text-muted-foreground hover:underline cursor-pointer"
+                      >
+                        ביטול
+                      </button>
+                    )}
+                  </div>
+
+                  {!isChangingTeacher && selectedTeacher ? (
+                    <div className="h-9 px-2.5 rounded-md border border-primary/30 bg-primary/5 flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <UserCheck className="h-3.5 w-3.5 text-primary shrink-0" />
+                        <span className="font-bold text-foreground truncate">
+                          {selectedTeacher.name}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground shrink-0">
+                          ({selectedTeacher.teacherCode})
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setIsChangingTeacher(true)}
+                        className="text-[10px] px-1.5 py-0.5 rounded bg-background border border-border text-foreground hover:bg-muted font-medium transition cursor-pointer shrink-0"
+                        title="החלף מורה"
+                      >
+                        החלף
+                      </button>
+                    </div>
+                  ) : (
+                    <select
+                      value={selectedTeacherId}
+                      onChange={(e) => {
+                        setSelectedTeacherId(e.target.value);
+                        setIsChangingTeacher(false);
+                      }}
+                      className="w-full h-9 rounded-md border border-input bg-background px-2.5 py-1 text-xs shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring cursor-pointer"
+                      autoFocus={isChangingTeacher}
+                    >
+                      {teachers.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.name} ({t.teacherCode})
+                        </option>
+                      ))}
+                    </select>
+                  )}
                 </div>
               </div>
 
