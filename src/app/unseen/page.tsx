@@ -8,9 +8,10 @@ import { UserNav } from "@/components/auth/user-nav";
 import { db } from "@/lib/firebase";
 import { collection, addDoc } from "firebase/firestore";
 import { SubmissionItem, SubmissionQuestionBreakdown } from "@/types/submission";
-import { MIDDLE_SCHOOL_UNSEENS, MSUnseenStory, MSUnseenQuestion } from "@/data/unseen-middle-school";
+import { MIDDLE_SCHOOL_UNSEENS, MSUnseenStory, MSUnseenQuestion, randomizeQuestionsOptions } from "@/data/unseen-middle-school";
 import { lookupBuiltInTranslation } from "@/data/built-in-dictionary";
 import { saveWordToBuilder, VocabItem, loadSavedWords } from "@/lib/vocab-storage";
+import { Confetti } from "@/components/confetti";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -60,6 +61,16 @@ export default function UnseenPracticePage() {
         setStage("exercise");
       }
     }
+  }, []);
+
+  // Ensure library stories have their multiple-choice options randomized
+  React.useEffect(() => {
+    setStories((prev) =>
+      prev.map((s) => ({
+        ...s,
+        questions: randomizeQuestionsOptions(s.questions),
+      }))
+    );
   }, []);
 
   // Level Selection (No grade references)
@@ -130,6 +141,11 @@ export default function UnseenPracticePage() {
   const [copiedReceipt, setCopiedReceipt] = useState(false);
   const [showReviewAnswers, setShowReviewAnswers] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Practice Completion Celebration State
+  const [showPracticeConfetti, setShowPracticeConfetti] = useState(false);
+  const [showPracticeCompleteModal, setShowPracticeCompleteModal] = useState(false);
+  const [hasCelebratedPractice, setHasCelebratedPractice] = useState(false);
 
   const [isChangingTeacher, setIsChangingTeacher] = useState(false);
 
@@ -202,12 +218,21 @@ export default function UnseenPracticePage() {
     setSelectedLevel(lvl);
     const matching = stories.filter((s) => s.level === lvl);
     if (matching.length > 0) {
-      setSelectedStoryId(matching[0].id);
+      const chosenId = matching[0].id;
+      setSelectedStoryId(chosenId);
       setActiveQuestionIndex(0);
       setUserAnswers({});
       setCheckedQuestions({});
       setIsSubmitted(false);
       setGradedScore(null);
+      setHasCelebratedPractice(false);
+      setShowPracticeCompleteModal(false);
+      setShowPracticeConfetti(false);
+      setStories((prev) =>
+        prev.map((s) =>
+          s.id === chosenId ? { ...s, questions: randomizeQuestionsOptions(s.questions) } : s
+        )
+      );
     }
   };
 
@@ -219,6 +244,32 @@ export default function UnseenPracticePage() {
     setCheckedQuestions({});
     setIsSubmitted(false);
     setGradedScore(null);
+    setHasCelebratedPractice(false);
+    setShowPracticeCompleteModal(false);
+    setShowPracticeConfetti(false);
+    setStories((prev) =>
+      prev.map((s) => (s.id === id ? { ...s, questions: randomizeQuestionsOptions(s.questions) } : s))
+    );
+  };
+
+  // Start Exercise with freshly randomized options
+  const handleStartExercise = () => {
+    setUserAnswers({});
+    setCheckedQuestions({});
+    setIsSubmitted(false);
+    setGradedScore(null);
+    setHasCelebratedPractice(false);
+    setShowPracticeCompleteModal(false);
+    setShowPracticeConfetti(false);
+    setActiveQuestionIndex(0);
+    setStories((prev) =>
+      prev.map((s) =>
+        s.id === currentStory.id
+          ? { ...s, questions: randomizeQuestionsOptions(s.questions) }
+          : s
+      )
+    );
+    setStage("exercise");
   };
 
   // Generate with AI
@@ -247,7 +298,10 @@ export default function UnseenPracticePage() {
       const data = await res.json();
 
       if (res.ok && data.success && data.story) {
-        const newStory: MSUnseenStory = data.story;
+        const newStory: MSUnseenStory = {
+          ...data.story,
+          questions: randomizeQuestionsOptions(data.story.questions),
+        };
         setStories((prev) => [newStory, ...prev.filter((s) => s.id !== newStory.id)]);
         setSelectedStoryId(newStory.id);
         setActiveQuestionIndex(0);
@@ -255,6 +309,9 @@ export default function UnseenPracticePage() {
         setCheckedQuestions({});
         setIsSubmitted(false);
         setGradedScore(null);
+        setHasCelebratedPractice(false);
+        setShowPracticeCompleteModal(false);
+        setShowPracticeConfetti(false);
 
         setAiNoticeType("success");
         const modelNote = data.modelUsed ? ` (מודל: ${data.modelUsed})` : "";
@@ -568,6 +625,31 @@ export default function UnseenPracticePage() {
   const answeredCount = Object.keys(userAnswers).filter(
     (k) => userAnswers[k] !== undefined && userAnswers[k] !== ""
   ).length;
+
+  // Practice mode completion & evaluation
+  const isAllPracticeAnswered =
+    mode === "practice" &&
+    currentStory.questions.length > 0 &&
+    currentStory.questions.every((q) => userAnswers[q.id] !== undefined && userAnswers[q.id] !== "");
+
+  const correctMcqCount = currentStory.questions.filter(
+    (q) => q.type === "mcq" && userAnswers[q.id] === q.correctIndex
+  ).length;
+  const totalMcqs = currentStory.questions.filter((q) => q.type === "mcq").length;
+
+  // Auto-trigger celebration when completing all questions in practice mode
+  useEffect(() => {
+    if (mode === "practice" && stage === "exercise" && currentStory.questions.length > 0) {
+      const allDone = currentStory.questions.every(
+        (q) => userAnswers[q.id] !== undefined && userAnswers[q.id] !== ""
+      );
+      if (allDone && !hasCelebratedPractice) {
+        setShowPracticeConfetti(true);
+        setShowPracticeCompleteModal(true);
+        setHasCelebratedPractice(true);
+      }
+    }
+  }, [userAnswers, mode, stage, currentStory.questions, hasCelebratedPractice]);
 
   return (
     <div className="flex flex-col min-h-screen bg-background text-foreground print:bg-white print:text-black overflow-x-hidden">
@@ -959,7 +1041,7 @@ export default function UnseenPracticePage() {
                       </div>
                       <Button
                         size="sm"
-                        onClick={() => setStage("exercise")}
+                        onClick={handleStartExercise}
                         className="cursor-pointer gap-1.5 font-bold shadow-xs text-xs h-8 px-4"
                       >
                         <span>התחל קריאה ותרגול עכשיו</span>
@@ -1007,7 +1089,7 @@ export default function UnseenPracticePage() {
               </Button>
               <Button
                 size="lg"
-                onClick={() => setStage("exercise")}
+                onClick={handleStartExercise}
                 className="w-full sm:w-auto cursor-pointer gap-2 text-sm font-bold px-8 shadow-md"
               >
                 <span>התחל קריאה ותרגול</span>
@@ -1325,6 +1407,37 @@ export default function UnseenPracticePage() {
                 </div>
               </div>
 
+              {/* Practice Completed Celebration Banner */}
+              {mode === "practice" && isAllPracticeAnswered && (
+                <div className="p-3 sm:p-3.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-800 dark:text-emerald-200 flex items-center justify-between gap-3 animate-in fade-in-0 shadow-xs">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <span className="text-xl sm:text-2xl shrink-0">🎉</span>
+                    <div className="min-w-0">
+                      <h4 className="text-xs sm:text-sm font-bold flex items-center gap-1.5">
+                        <span>Well Done! כל הכבוד!</span>
+                        <Badge className="bg-emerald-600 text-white text-[10px] py-0 px-1.5 font-bold">הושלם</Badge>
+                      </h4>
+                      <p className="text-[11px] text-emerald-700/90 dark:text-emerald-300/90 truncate">
+                        סיימת את כל {currentStory.questions.length} השאלות בתרגול.
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setShowPracticeConfetti(true);
+                      setShowPracticeCompleteModal(true);
+                    }}
+                    className="h-7 text-[11px] font-bold border-emerald-500/40 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 shrink-0 cursor-pointer"
+                  >
+                    <Sparkles className="h-3 w-3 text-amber-500 mr-1" />
+                    <span>צפה בסיכום</span>
+                  </Button>
+                </div>
+              )}
+
               {/* Active Question Card */}
               {activeQuestion && (
                 <Card className="border-border/60 shadow-xs">
@@ -1631,8 +1744,17 @@ export default function UnseenPracticePage() {
                         setIsSubmitted(false);
                         setGradedScore(null);
                         setUserAnswers({});
+                        setCheckedQuestions({});
                         setSubmissionRecord(null);
                         setShowReviewAnswers(false);
+                        setActiveQuestionIndex(0);
+                        setStories((prev) =>
+                          prev.map((s) =>
+                            s.id === currentStory.id
+                              ? { ...s, questions: randomizeQuestionsOptions(s.questions) }
+                              : s
+                          )
+                        );
                       }}
                       className="cursor-pointer text-xs gap-1.5"
                     >
@@ -2249,6 +2371,105 @@ export default function UnseenPracticePage() {
           </div>
         </div>
       )}
+
+      {/* Practice Mode Completion Modal */}
+      {showPracticeCompleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in-0 print:hidden">
+          <div className="bg-card border-2 border-emerald-500/40 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-5 text-center" dir="rtl">
+            <div className="flex justify-end -mt-2 -mr-2">
+              <button
+                type="button"
+                onClick={() => setShowPracticeCompleteModal(false)}
+                className="text-muted-foreground hover:text-foreground cursor-pointer p-1 rounded-lg hover:bg-muted"
+                aria-label="סגור"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              <div className="mx-auto w-14 h-14 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-3xl shadow-xs">
+                🎉
+              </div>
+              <h3 className="text-xl sm:text-2xl font-black tracking-tight text-foreground">
+                Well Done! כל הכבוד!
+              </h3>
+              <p className="text-xs sm:text-sm text-muted-foreground">
+                סיימת את כל {currentStory.questions.length} השאלות בתרגול קטע הקריאה &ldquo;{currentStory.title}&rdquo;!
+              </p>
+            </div>
+
+            {/* Practice summary card */}
+            <div className="bg-muted/40 border border-border/80 rounded-xl p-3.5 space-y-2.5 text-right">
+              <div className="flex items-center justify-between text-xs font-semibold">
+                <span className="text-muted-foreground">שאלות שהושלמו:</span>
+                <span className="text-foreground font-bold">{currentStory.questions.length} מתוך {currentStory.questions.length}</span>
+              </div>
+              {totalMcqs > 0 && (
+                <div className="flex items-center justify-between text-xs font-semibold">
+                  <span className="text-muted-foreground">תשובות נכונות (רב-ברירה):</span>
+                  <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/30 font-bold text-xs">
+                    {correctMcqCount} מתוך {totalMcqs} נכונות
+                  </Badge>
+                </div>
+              )}
+              <div className="pt-2 border-t border-border/60 text-[11px] text-muted-foreground leading-relaxed">
+                💡 תרגול מעולה! תוכל כעת לסקור את התשובות וההסברים בעברית, לתרגל קטע נוסף, או להתחיל מחדש.
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowPracticeCompleteModal(false)}
+                className="cursor-pointer text-xs font-semibold h-9"
+              >
+                <span>סקור תשובות</span>
+              </Button>
+              <Button
+                variant="default"
+                size="sm"
+                onClick={() => {
+                  setShowPracticeCompleteModal(false);
+                  setShowPracticeConfetti(false);
+                  setHasCelebratedPractice(false);
+                  setUserAnswers({});
+                  setCheckedQuestions({});
+                  setActiveQuestionIndex(0);
+                  setStories((prev) =>
+                    prev.map((s) =>
+                      s.id === currentStory.id
+                        ? { ...s, questions: randomizeQuestionsOptions(s.questions) }
+                        : s
+                    )
+                  );
+                }}
+                className="cursor-pointer text-xs font-bold gap-1.5 h-9"
+              >
+                <RotateCcw className="h-3.5 w-3.5" />
+                <span>התחל תרגול מחדש</span>
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  setShowPracticeCompleteModal(false);
+                  setShowPracticeConfetti(false);
+                  setStage("settings");
+                }}
+                className="cursor-pointer text-xs font-semibold h-9 col-span-1 sm:col-span-2"
+              >
+                <Sliders className="h-3.5 w-3.5 mr-1" />
+                <span>בחר קטע קריאה נוסף</span>
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confetti Animation */}
+      <Confetti active={showPracticeConfetti} onComplete={() => setShowPracticeConfetti(false)} />
 
       {/* =========================================================================
           DEDICATED PROFESSIONAL PRINT EXAM BOOKLET

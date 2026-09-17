@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { MIDDLE_SCHOOL_UNSEENS, MSUnseenStory, MSUnseenQuestion } from "@/data/unseen-middle-school";
+import { MIDDLE_SCHOOL_UNSEENS, MSUnseenStory, MSUnseenQuestion, randomizeQuestionsOptions } from "@/data/unseen-middle-school";
 
 // Clean and extract JSON from markdown wrappers or raw text
 function extractJsonFromText(raw: string): any {
@@ -93,6 +93,9 @@ function validateAndFormatStory(
     });
   }
 
+  // Shuffle and balance multiple choice option locations across A, B, C, D
+  const balancedQuestions = randomizeQuestionsOptions(formattedQuestions);
+
   const defaultTitles: Record<string, { en: string; he: string }> = {
     "Level 1": { en: "A Great New Adventure", he: "הרפתקה חדשה ומעניינת" },
     "Level 2": { en: "The Curious Journey", he: "המסע המרתק" },
@@ -124,7 +127,7 @@ function validateAndFormatStory(
         : "Challenging texts for fluent English speakers with rich vocabulary.",
     paragraphs,
     vocabularyHints,
-    questions: formattedQuestions,
+    questions: balancedQuestions,
     totalPoints: 100,
   };
 }
@@ -150,9 +153,13 @@ export async function POST(request: Request) {
       if (allowFallback) {
         const candidates = MIDDLE_SCHOOL_UNSEENS.filter((s) => s.level === selectedLevel);
         const chosen = candidates[Math.floor(Math.random() * candidates.length)] || MIDDLE_SCHOOL_UNSEENS[0];
+        const storyWithRandomizedMcqs: MSUnseenStory = {
+          ...chosen,
+          questions: randomizeQuestionsOptions(chosen.questions),
+        };
         return NextResponse.json({
           success: true,
-          story: chosen,
+          story: storyWithRandomizedMcqs,
           isFallback: true,
           reason: "missing_api_keys",
           message: "No AI API key found. Loaded a matching story from the library.",
@@ -198,6 +205,7 @@ Output Requirements:
   - Q9 tests Paragraph 5 (or 4 if 4 paragraphs total)
   - Q10 tests the entire passage (global theme / main message)
 - Distractor Quality: Each question must have 4 options. The 3 wrong distractors must be plausible but unambiguously incorrect based strictly on the text.
+- Randomize Answer Positions: The correct answer MUST be randomly and evenly distributed among all four options (A=0, B=1, C=2, D=3) across the 10 questions. DO NOT place the correct answer at option A (index 0) for every question! Distribute answers roughly equally across indices 0, 1, 2, and 3.
 - Hebrew Explanations: Every question must have an encouraging, natural Hebrew explanation ('explanationHebrew') explaining why the correct answer is right.
 - Vocabulary Hints: 4-6 key words with their accurate Hebrew translations.
 
@@ -221,8 +229,8 @@ Return ONLY a valid, raw JSON object matching this schema (NO MARKDOWN FENCES, N
       "paragraphIndex": 0,
       "linesHint": "Paragraph 1",
       "prompt": "Clear question testing paragraph 1?",
-      "options": ["Correct option", "Plausible distractor 1", "Plausible distractor 2", "Plausible distractor 3"],
-      "correctIndex": 0,
+      "options": ["Plausible distractor 1", "Correct option", "Plausible distractor 2", "Plausible distractor 3"],
+      "correctIndex": 1,
       "explanationHebrew": "הסבר ברור בעברית מדוע תשובה זו נכונה לפי הפסקה הראשונה."
     }
   ]
@@ -395,9 +403,13 @@ Return ONLY a valid, raw JSON object matching this schema (NO MARKDOWN FENCES, N
     if (allowFallback) {
       const candidates = MIDDLE_SCHOOL_UNSEENS.filter((s) => s.level === selectedLevel);
       const chosen = candidates[Math.floor(Math.random() * candidates.length)] || MIDDLE_SCHOOL_UNSEENS[0];
+      const storyWithRandomizedMcqs: MSUnseenStory = {
+        ...chosen,
+        questions: randomizeQuestionsOptions(chosen.questions),
+      };
       return NextResponse.json({
         success: true,
-        story: chosen,
+        story: storyWithRandomizedMcqs,
         isFallback: true,
         message: "שירותי ה-AI עמוסים כרגע. נטען סיפור מתאים מהספרייה המוכנה.",
       });
