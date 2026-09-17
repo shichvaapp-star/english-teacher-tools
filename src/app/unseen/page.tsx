@@ -2148,6 +2148,11 @@ export default function UnseenPracticePage() {
                   <span className="font-semibold text-foreground">כלול דף פתרונות ומחוון למורה בסוף הדפים</span>
                 </label>
               </div>
+
+              {/* Print Tip */}
+              <div className="p-2.5 rounded-lg bg-muted/50 border border-border/40 text-[11px] text-muted-foreground">
+                <span className="font-semibold text-foreground">💡 טיפ להדפסה מושלמת:</span> בחלון ההדפסה של הדפדפן, ודא שהשוליים (Margins) מוגדרים כ-<strong>ברירת מחדל (Default)</strong> כדי שכל העמודים ישמרו על שוליים אחידים.
+              </div>
             </div>
 
             <div className="flex items-center justify-end gap-2 pt-3 border-t border-border/50">
