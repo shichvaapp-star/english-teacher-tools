@@ -129,12 +129,13 @@
   }
 }
 
+@page {
+  /* Standard Microsoft Word style margins (20mm / 0.8 in) applied to EVERY physical page by the print engine */
+  size: A4 portrait;
+  margin: 20mm;
+}
+
 @media print {
-  @page {
-    /* Standard Microsoft Word style margins (20mm / 0.8 in) applied to EVERY physical page by the print engine */
-    margin: 20mm !important;
-    size: A4 portrait;
-  }
   html, body {
     background: #ffffff !important;
     color: #1e293b !important;
@@ -145,10 +146,11 @@
     width: 100% !important;
   }
   .print-page-sheet {
-    box-sizing: border-box !important;
+    display: block !important;
     width: 100% !important;
     margin: 0 !important;
     padding: 0 !important;
+    box-sizing: border-box !important;
   }
   .print-avoid-break {
     break-inside: avoid !important;

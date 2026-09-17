@@ -2297,13 +2297,13 @@ export default function UnseenPracticePage() {
                 </p>
               </div>
 
-              <div className="space-y-4 text-xs">
+              <div className="space-y-3 text-xs">
                 {currentStory.questions.map((q, qIdx) => {
                   const letters = ["A", "B", "C", "D"];
                   return (
-                    <div key={q.id || qIdx} className="print-avoid-break border-b border-slate-100 pb-3 space-y-1.5">
+                    <div key={q.id || qIdx} className="print-avoid-break border-b border-slate-100 pb-2.5 space-y-1.5">
                       <div className="flex justify-between items-start gap-2">
-                        <div className="font-bold text-slate-900 text-[12.5px] leading-snug">
+                        <div className="font-bold text-slate-900 text-[12px] leading-snug">
                           <span className="text-slate-500 mr-1">{qIdx + 1}.</span>
                           <span>{q.prompt}</span>
                           {q.linesHint && (
@@ -2317,7 +2317,7 @@ export default function UnseenPracticePage() {
 
                       {/* MCQ Options with friendly pill bubbles */}
                       {q.options && q.options.length > 0 && (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5 pt-1 pl-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 pt-0.5 pl-4">
                           {q.options.map((opt, oIdx) => (
                             <div key={oIdx} className="flex items-start gap-2 text-[11.5px] leading-snug text-slate-800">
                               <span className="w-4 h-4 rounded-full border border-slate-400 text-slate-700 font-bold text-[10px] flex items-center justify-center shrink-0 mt-0.5">
@@ -2331,7 +2331,7 @@ export default function UnseenPracticePage() {
 
                       {/* Ruled lines for open/copy type questions if any */}
                       {q.type !== "mcq" && (
-                        <div className="pt-2 pl-4 space-y-2">
+                        <div className="pt-1.5 pl-4 space-y-2">
                           <div className="border-b border-dotted border-slate-400 h-4 w-full" />
                           <div className="border-b border-dotted border-slate-400 h-4 w-full" />
                         </div>
