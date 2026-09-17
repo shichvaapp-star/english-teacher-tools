@@ -15,6 +15,71 @@ function extractJsonFromText(raw: string): any {
   return JSON.parse(cleaned);
 }
 
+// Helper to guarantee at least 4 open/copy questions per text
+function ensureMinimumOpenQuestions(
+  questions: MSUnseenQuestion[],
+  paragraphs: string[]
+): MSUnseenQuestion[] {
+  let openOrCopyCount = questions.filter((q) => q.type === "open" || q.type === "copy").length;
+  if (openOrCopyCount >= 4) return questions;
+
+  // Question indices suitable for open/copy (e.g. Q2, Q4, Q6, Q8, Q9)
+  const candidateIndices = [1, 3, 5, 7, 8];
+
+  return questions.map((q, idx) => {
+    if (openOrCopyCount >= 4 || q.type !== "mcq" || !candidateIndices.includes(idx)) {
+      return q;
+    }
+
+    const pIdx =
+      q.paragraphIndex >= 0 && q.paragraphIndex < paragraphs.length
+        ? q.paragraphIndex
+        : Math.min(Math.floor(idx / 2), paragraphs.length - 1);
+
+    const pText = paragraphs[pIdx] || paragraphs[0] || "";
+    const rawSentences = pText.match(/[^.!?]+[.!?]+/g) || [pText];
+    const sentences = rawSentences.map((s) => s.trim()).filter((s) => s.length > 15);
+
+    // Alternate between copy and open
+    const shouldBeCopy = openOrCopyCount % 2 === 0;
+
+    if (shouldBeCopy && sentences.length > 0) {
+      const targetSentence = sentences[Math.min(1, sentences.length - 1)] || sentences[0];
+      openOrCopyCount++;
+      const { options: _o, correctIndex: _ci, ...rest } = q;
+      return {
+        ...rest,
+        type: "copy" as const,
+        prompt: `Copy the sentence from paragraph ${pIdx + 1} that describes the main detail in this part.`,
+        targetSentence,
+        explanationHebrew: `המשפט הנכון מהפסקה הוא: "${targetSentence}".`,
+      };
+    } else {
+      const correctOption =
+        q.options && typeof q.correctIndex === "number" && q.options[q.correctIndex]
+          ? q.options[q.correctIndex]
+          : sentences[0] || "Key information from the passage.";
+
+      const keywords = correctOption
+        .split(/\s+/)
+        .map((w) => w.toLowerCase().replace(/[^a-z0-9]/g, ""))
+        .filter((w) => w.length > 3)
+        .slice(0, 4);
+
+      openOrCopyCount++;
+      const { options: _o, correctIndex: _ci, ...rest } = q;
+      return {
+        ...rest,
+        type: "open" as const,
+        prompt: q.prompt.replace(/\?$/, "") + " (answer in your own words in English)?",
+        modelAnswer: correctOption,
+        keywords: keywords.length > 0 ? keywords : ["important", "text"],
+        explanationHebrew: q.explanationHebrew || `התשובה מבוססת על המידע בפסקה: ${correctOption}.`,
+      };
+    }
+  });
+}
+
 function validateAndFormatStory(
   rawObj: any,
   selectedLevel: "Level 1" | "Level 2" | "Level 3"
@@ -30,7 +95,7 @@ function validateAndFormatStory(
   const rawQuestions: any[] = Array.isArray(rawObj.questions) ? rawObj.questions : [];
   if (rawQuestions.length < 5) return null;
 
-  // Format exactly 10 questions
+  // Format exactly 10 questions supporting mcq, open, and copy
   const formattedQuestions: MSUnseenQuestion[] = rawQuestions.slice(0, 10).map((q, idx) => {
     const qNum = idx + 1;
     const pIdx =
@@ -48,6 +113,59 @@ function validateAndFormatStory(
         ? Math.min(4, paragraphs.length - 1)
         : -1;
 
+    const linesHint = pIdx === -1 ? "The entire text" : `Paragraph ${pIdx + 1}`;
+    const explanationHebrew = String(q.explanationHebrew || "התשובה נשענת על פרטי הפסקה.").trim();
+    const prompt = String(q.prompt || `Question ${qNum}`).trim();
+
+    // Detect question type
+    let qType: "mcq" | "open" | "copy" = "mcq";
+    if (q.type === "copy" || typeof q.targetSentence === "string") {
+      qType = "copy";
+    } else if (q.type === "open" || typeof q.modelAnswer === "string" || Array.isArray(q.keywords)) {
+      qType = "open";
+    }
+
+    if (qType === "copy") {
+      let targetSentence = String(q.targetSentence || "").trim();
+      if (!targetSentence && pIdx >= 0 && paragraphs[pIdx]) {
+        const sentences = paragraphs[pIdx].match(/[^.!?]+[.!?]+/g) || [paragraphs[pIdx]];
+        targetSentence = (sentences[0] || paragraphs[pIdx]).trim();
+      }
+      return {
+        id: `ai-q${qNum}-${Date.now()}-${idx}`,
+        number: qNum,
+        paragraphIndex: pIdx,
+        linesHint,
+        type: "copy" as const,
+        prompt,
+        targetSentence,
+        explanationHebrew,
+        points: 10,
+      };
+    }
+
+    if (qType === "open") {
+      const modelAnswer = String(q.modelAnswer || "A complete answer based on the paragraph.").trim();
+      const rawKeywords = Array.isArray(q.keywords) ? q.keywords : [];
+      const keywords = rawKeywords
+        .map((k: any) => String(k || "").trim().toLowerCase())
+        .filter((k: string) => k.length > 2);
+
+      return {
+        id: `ai-q${qNum}-${Date.now()}-${idx}`,
+        number: qNum,
+        paragraphIndex: pIdx,
+        linesHint,
+        type: "open" as const,
+        prompt,
+        modelAnswer,
+        keywords: keywords.length > 0 ? keywords : ["important", "information"],
+        explanationHebrew,
+        points: 10,
+      };
+    }
+
+    // MCQ
     const rawOptions = Array.isArray(q.options) && q.options.length >= 2 ? q.options : ["True", "False", "Not mentioned", "None"];
     const options = rawOptions.slice(0, 4).map((opt: any) => String(opt || "").trim());
     while (options.length < 4) {
@@ -58,15 +176,15 @@ function validateAndFormatStory(
       typeof q.correctIndex === "number" && q.correctIndex >= 0 && q.correctIndex < options.length ? q.correctIndex : 0;
 
     return {
-      id: `ai-q${qNum}-${Date.now()}`,
+      id: `ai-q${qNum}-${Date.now()}-${idx}`,
       number: qNum,
       paragraphIndex: pIdx,
-      linesHint: pIdx === -1 ? "The entire text" : `Paragraph ${pIdx + 1}`,
-      type: "mcq",
-      prompt: String(q.prompt || `Question ${qNum}`).trim(),
+      linesHint,
+      type: "mcq" as const,
+      prompt,
       options,
       correctIndex,
-      explanationHebrew: String(q.explanationHebrew || "התשובה הנכונה נשענת על פרטי הפסקה.").trim(),
+      explanationHebrew,
       points: 10,
     };
   });
@@ -74,27 +192,67 @@ function validateAndFormatStory(
   // Ensure exactly 10 questions if we had fewer than 10
   while (formattedQuestions.length < 10) {
     const qNum = formattedQuestions.length + 1;
-    formattedQuestions.push({
-      id: `ai-q${qNum}-${Date.now()}`,
-      number: qNum,
-      paragraphIndex: -1,
-      linesHint: "The entire text",
-      type: "mcq",
-      prompt: "What is the main message of the passage?",
-      options: [
-        "It teaches an inspiring lesson about learning and perseverance.",
-        "It explains why history should be forgotten.",
-        "It describes why everyday science is not important.",
-        "It proves that modern technology has no benefits.",
-      ],
-      correctIndex: 0,
-      explanationHebrew: "הקטע כולו מעביר מסר מעורר השראה ומלמד.",
-      points: 10,
-    });
+    const pIdx = Math.min(Math.floor((qNum - 1) / 2), paragraphs.length - 1);
+    const pText = paragraphs[pIdx] || paragraphs[0] || "";
+    const rawSentences = pText.match(/[^.!?]+[.!?]+/g) || [pText];
+    const sentences = rawSentences.map((s) => s.trim()).filter((s) => s.length > 15);
+
+    const currentOpenCount = formattedQuestions.filter((q) => q.type === "open" || q.type === "copy").length;
+
+    if (currentOpenCount < 4) {
+      if (currentOpenCount % 2 === 0 && sentences.length > 0) {
+        const targetSentence = sentences[0];
+        formattedQuestions.push({
+          id: `ai-q${qNum}-${Date.now()}-${qNum}`,
+          number: qNum,
+          paragraphIndex: pIdx,
+          linesHint: `Paragraph ${pIdx + 1}`,
+          type: "copy",
+          prompt: `Copy the sentence from paragraph ${pIdx + 1} that gives important details.`,
+          targetSentence,
+          explanationHebrew: `המשפט הנכון הוא: "${targetSentence}".`,
+          points: 10,
+        });
+      } else {
+        formattedQuestions.push({
+          id: `ai-q${qNum}-${Date.now()}-${qNum}`,
+          number: qNum,
+          paragraphIndex: pIdx,
+          linesHint: `Paragraph ${pIdx + 1}`,
+          type: "open",
+          prompt: `What is an important detail learned in paragraph ${pIdx + 1}?`,
+          modelAnswer: sentences[0] || "Key information from the paragraph.",
+          keywords: (sentences[0] || "").split(/\s+/).map((w) => w.toLowerCase().replace(/[^a-z0-9]/g, "")).filter((w) => w.length > 3).slice(0, 3),
+          explanationHebrew: "התשובה מבוססת על המידע בפסקה.",
+          points: 10,
+        });
+      }
+    } else {
+      formattedQuestions.push({
+        id: `ai-q${qNum}-${Date.now()}-${qNum}`,
+        number: qNum,
+        paragraphIndex: -1,
+        linesHint: "The entire text",
+        type: "mcq",
+        prompt: "What is the main message of the passage?",
+        options: [
+          "It teaches an inspiring lesson about learning and perseverance.",
+          "It explains why history should be forgotten.",
+          "It describes why everyday science is not important.",
+          "It proves that modern technology has no benefits.",
+        ],
+        correctIndex: 0,
+        explanationHebrew: "הקטע כולו מעביר מסר מעורר השראה ומלמד.",
+        points: 10,
+      });
+    }
   }
 
+  // Guarantee that at least 4 questions are open or copy
+  const questionsWithMinimumOpen = ensureMinimumOpenQuestions(formattedQuestions, paragraphs);
+
   // Shuffle and balance multiple choice option locations across A, B, C, D
-  const balancedQuestions = randomizeQuestionsOptions(formattedQuestions);
+  const balancedQuestions = randomizeQuestionsOptions(questionsWithMinimumOpen);
 
   const defaultTitles: Record<string, { en: string; he: string }> = {
     "Level 1": { en: "A Great New Adventure", he: "הרפתקה חדשה ומעניינת" },
@@ -188,8 +346,8 @@ export async function POST(request: Request) {
         "Level 3 (Fluent / Advanced English, CEFR B2): Sophisticated syntax, rich expressive vocabulary, subtle themes, and analytical inference questions suitable for fluent and native-level students.";
     }
 
-    const systemPrompt = `You are a master English curriculum designer and test writer.
-Generate a complete, high-quality reading comprehension (Unseen) activity with EXACTLY 10 multiple-choice questions.
+    const systemPrompt = `You are a master English curriculum designer and test writer for middle school and high school (Israeli Bagrut standard).
+Generate a complete, high-quality reading comprehension (Unseen) activity with EXACTLY 10 questions.
 
 Pedagogical Parameters:
 - Target Level: ${selectedLevel} (${levelPrompt})
@@ -197,16 +355,31 @@ Pedagogical Parameters:
 
 Output Requirements:
 - Paragraphs: EXACTLY 4 or 5 paragraphs (50 to 75 words each).
-- Questions: EXACTLY 10 multiple-choice questions (numbered 1 to 10).
+- Questions: EXACTLY 10 questions (numbered 1 to 10).
   - Q1-Q2 test Paragraph 1
   - Q3-Q4 test Paragraph 2
   - Q5-Q6 test Paragraph 3
   - Q7-Q8 test Paragraph 4
   - Q9 tests Paragraph 5 (or 4 if 4 paragraphs total)
   - Q10 tests the entire passage (global theme / main message)
-- Distractor Quality: Each question must have 4 options. The 3 wrong distractors must be plausible but unambiguously incorrect based strictly on the text.
-- Randomize Answer Positions: The correct answer MUST be randomly and evenly distributed among all four options (A=0, B=1, C=2, D=3) across the 10 questions. DO NOT place the correct answer at option A (index 0) for every question! Distribute answers roughly equally across indices 0, 1, 2, and 3.
-- Hebrew Explanations: Every question must have an encouraging, natural Hebrew explanation ('explanationHebrew') explaining why the correct answer is right.
+
+MANDATORY QUESTION TYPE MIX (CRITICAL REQUIREMENT - AT LEAST 4 OPEN/COPY QUESTIONS):
+Every passage MUST contain a pedagogically balanced mix of question types, with AT LEAST 4 open-ended questions:
+1. Multiple Choice ('type': 'mcq') - 5 to 6 questions total:
+   - Must have 4 options with realistic plausible distractors.
+   - 'correctIndex': integer (0 to 3), evenly distributed across A, B, C, D (do NOT make A the answer for all!).
+2. Sentence Copying ('type': 'copy') - AT LEAST 2 questions (e.g. Q2, Q6):
+   - Student must copy an exact sentence directly from the designated paragraph.
+   - 'prompt': e.g. "Copy the sentence from paragraph 1 that proves..."
+   - 'targetSentence': The exact, verbatim sentence directly from the paragraph.
+3. Open-Ended Comprehension ('type': 'open') - AT LEAST 2 questions (e.g. Q4, Q8):
+   - Student writes a free-form answer in English based on the text.
+   - 'prompt': e.g. "Why did the character decide to...?", "Explain two reasons according to paragraph 2."
+   - 'modelAnswer': A clear, complete sample model answer in English.
+   - 'keywords': An array of 2 to 4 essential keywords expected in the student's answer for automated checking.
+TOTAL: Exactly or at least 4 questions out of the 10 MUST be 'copy' or 'open' questions!
+
+- Hebrew Explanations: Every question must have an encouraging, natural Hebrew explanation ('explanationHebrew') explaining why the answer is right.
 - Vocabulary Hints: 4-6 key words with their accurate Hebrew translations.
 
 Return ONLY a valid, raw JSON object matching this schema (NO MARKDOWN FENCES, NO COMMENTARY):
@@ -228,10 +401,40 @@ Return ONLY a valid, raw JSON object matching this schema (NO MARKDOWN FENCES, N
       "number": 1,
       "paragraphIndex": 0,
       "linesHint": "Paragraph 1",
-      "prompt": "Clear question testing paragraph 1?",
+      "type": "mcq",
+      "prompt": "What does the text say about...?",
       "options": ["Plausible distractor 1", "Correct option", "Plausible distractor 2", "Plausible distractor 3"],
       "correctIndex": 1,
       "explanationHebrew": "הסבר ברור בעברית מדוע תשובה זו נכונה לפי הפסקה הראשונה."
+    },
+    {
+      "number": 2,
+      "paragraphIndex": 0,
+      "linesHint": "Paragraph 1",
+      "type": "copy",
+      "prompt": "Copy the sentence from paragraph 1 that shows...",
+      "targetSentence": "Exact verbatim sentence from paragraph 1.",
+      "explanationHebrew": "המשפט הנכון מפסקה 1 שמראה זאת הוא..."
+    },
+    {
+      "number": 3,
+      "paragraphIndex": 1,
+      "linesHint": "Paragraph 2",
+      "type": "mcq",
+      "prompt": "According to paragraph 2, why...?",
+      "options": ["Correct option", "Plausible distractor 1", "Plausible distractor 2", "Plausible distractor 3"],
+      "correctIndex": 0,
+      "explanationHebrew": "הסבר בעברית לפי פסקה 2."
+    },
+    {
+      "number": 4,
+      "paragraphIndex": 1,
+      "linesHint": "Paragraph 2",
+      "type": "open",
+      "prompt": "Explain why this discovery was important.",
+      "modelAnswer": "Because it helped scientists understand ancient history.",
+      "keywords": ["helped", "scientists", "understand", "history"],
+      "explanationHebrew": "התשובה מבוססת על כך שהתגלית עזרה למדענים להבין את ההיסטוריה העתיקה."
     }
   ]
 }`;

@@ -636,6 +636,7 @@ export default function UnseenPracticePage() {
     (q) => q.type === "mcq" && userAnswers[q.id] === q.correctIndex
   ).length;
   const totalMcqs = currentStory.questions.filter((q) => q.type === "mcq").length;
+  const totalOpenOrCopy = currentStory.questions.filter((q) => q.type === "copy" || q.type === "open").length;
 
   // Auto-trigger celebration when completing all questions in practice mode
   useEffect(() => {
@@ -2413,6 +2414,14 @@ export default function UnseenPracticePage() {
                   </Badge>
                 </div>
               )}
+              {totalOpenOrCopy > 0 && (
+                <div className="flex items-center justify-between text-xs font-semibold">
+                  <span className="text-muted-foreground">שאלות פתוחות / ציטוט שהוזנו:</span>
+                  <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/30 font-bold text-xs">
+                    {totalOpenOrCopy} שאלות נבדקו
+                  </Badge>
+                </div>
+              )}
               <div className="pt-2 border-t border-border/60 text-[11px] text-muted-foreground leading-relaxed">
                 💡 תרגול מעולה! תוכל כעת לסקור את התשובות וההסברים בעברית, לתרגל קטע נוסף, או להתחיל מחדש.
               </div>
@@ -2749,7 +2758,6 @@ export default function UnseenPracticePage() {
                 {currentStory.questions.map((q, qIdx) => {
                   const letters = ["A", "B", "C", "D"];
                   const correctLetter = letters[q.correctIndex || 0] || "A";
-                  const correctText = q.options ? q.options[q.correctIndex || 0] : "";
 
                   return (
                     <div key={qIdx} className="print-avoid-break p-2 rounded-lg border border-slate-200 bg-slate-50/50 space-y-1">
@@ -2757,13 +2765,41 @@ export default function UnseenPracticePage() {
                         <span>
                           Question {qIdx + 1} ({q.linesHint || `Paragraph ${q.paragraphIndex + 1}`}):
                         </span>
-                        <span className="bg-slate-800 text-white px-2 py-0.5 rounded text-[10px]">
-                          Correct: ({correctLetter})
-                        </span>
+                        {q.type === "mcq" ? (
+                          <span className="bg-slate-800 text-white px-2 py-0.5 rounded text-[10px]">
+                            Correct: ({correctLetter})
+                          </span>
+                        ) : q.type === "copy" ? (
+                          <span className="bg-amber-700 text-white px-2 py-0.5 rounded text-[10px]">
+                            Sentence Quote (ציטוט משפט)
+                          </span>
+                        ) : (
+                          <span className="bg-blue-700 text-white px-2 py-0.5 rounded text-[10px]">
+                            Open / Free typing (תשובה פתוחה)
+                          </span>
+                        )}
                       </div>
-                      <p className="text-slate-800 text-xs font-medium pl-2">
-                        &rarr; {correctText}
-                      </p>
+
+                      {q.type === "mcq" ? (
+                        <p className="text-slate-800 text-xs font-medium pl-2">
+                          &rarr; {q.options ? q.options[q.correctIndex || 0] : ""}
+                        </p>
+                      ) : q.type === "copy" ? (
+                        <div className="text-slate-800 text-xs font-medium pl-2 space-y-0.5">
+                          <p>&ldquo;{q.targetSentence || ""}&rdquo;</p>
+                        </div>
+                      ) : (
+                        <div className="text-slate-800 text-xs font-medium pl-2 space-y-0.5">
+                          <p className="font-semibold text-slate-900">דוגמת תשובה (Model Answer):</p>
+                          <p className="italic text-slate-700">&ldquo;{q.modelAnswer || ""}&rdquo;</p>
+                          {q.keywords && q.keywords.length > 0 && (
+                            <p className="text-[11px] text-slate-500">
+                              מילות מפתח נדרשות: {q.keywords.join(", ")}
+                            </p>
+                          )}
+                        </div>
+                      )}
+
                       {q.explanationHebrew && (
                         <p className="text-slate-600 text-[11px] rtl text-right border-t border-slate-200 pt-1 mt-1">
                           <strong>הסבר פדגוגי בעברית:</strong> {q.explanationHebrew}
