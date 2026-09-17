@@ -99,7 +99,7 @@ export default function UnseenPracticePage() {
   const [printIncludeHeader, setPrintIncludeHeader] = useState(true);
   const [printIncludeVocab, setPrintIncludeVocab] = useState(true);
   const [printIncludeAnswers, setPrintIncludeAnswers] = useState(false);
-  const [printSeparatePages, setPrintSeparatePages] = useState(false);
+  const [printSeparatePages, setPrintSeparatePages] = useState(true);
 
   const handlePrintNow = () => {
     setShowPrintModal(false);
@@ -2243,7 +2243,7 @@ export default function UnseenPracticePage() {
             </div>
 
             {/* Paragraphs with friendly circular badges & comfortable line height */}
-            <div className="space-y-3 text-[13px] leading-[1.65] text-slate-800 text-justify">
+            <div className="space-y-4 text-[13.5px] leading-[1.7] text-slate-800 text-justify">
               {currentStory.paragraphs.map((para, idx) => (
                 <div key={idx} className="print-avoid-break flex items-start gap-2.5">
                   <span className="w-5 h-5 rounded-full bg-slate-100 border border-slate-300 text-slate-700 font-bold text-[11px] flex items-center justify-center shrink-0 mt-0.5">
@@ -2256,11 +2256,11 @@ export default function UnseenPracticePage() {
 
             {/* Vocabulary Helpers (Clean 2 or 3-column pill grid) */}
             {printIncludeVocab && currentStory.vocabularyHints && currentStory.vocabularyHints.length > 0 && (
-              <div className="mt-4 p-2.5 rounded-lg border border-slate-200 bg-slate-50/60 print-avoid-break">
+              <div className="mt-5 p-3 rounded-lg border border-slate-200 bg-slate-50/60 print-avoid-break">
                 <div className="text-[10px] font-bold uppercase tracking-wider text-slate-600 mb-1.5">
                   Useful Words &middot; מילים שימושיות:
                 </div>
-                <div className="grid grid-cols-3 sm:grid-cols-4 gap-x-3 gap-y-1 text-xs">
+                <div className="grid grid-cols-3 sm:grid-cols-4 gap-x-3 gap-y-1.5 text-xs">
                   {currentStory.vocabularyHints.map((h, i) => (
                     <div key={i} className="flex items-baseline justify-between text-[11px] border-b border-dotted border-slate-200 pb-0.5">
                       <span className="font-semibold text-slate-800">{h.word}</span>
@@ -2273,13 +2273,15 @@ export default function UnseenPracticePage() {
           </section>
         )}
 
-        {/* Optional Page break before Questions (only if teacher toggled separate pages) */}
-        {printScope === "full" && printSeparatePages && <div className="print-break-before" />}
+        {/* Dedicated Page Break separating Text Page from Questions Pages */}
+        {printScope === "full" && printSeparatePages && (
+          <div className="print-break-before" style={{ breakBefore: "page", pageBreakBefore: "always" }} />
+        )}
 
         {/* PART II: Questions */}
         {(printScope === "full" || printScope === "questions_only") && (
-          <section className="space-y-3 pt-2">
-            <div className="border-b border-slate-300 pb-2 mb-3">
+          <section className="space-y-3 pt-1">
+            <div className="border-b border-slate-300 pb-2 mb-3.5">
               <div className="flex justify-between items-center">
                 <h2 className="text-sm font-extrabold uppercase tracking-wider text-slate-900">
                   Part II: Questions (100 Points)
@@ -2291,7 +2293,7 @@ export default function UnseenPracticePage() {
               </p>
             </div>
 
-            <div className="space-y-3.5 text-xs">
+            <div className="space-y-4 text-xs">
               {currentStory.questions.map((q, qIdx) => {
                 const letters = ["A", "B", "C", "D"];
                 return (
