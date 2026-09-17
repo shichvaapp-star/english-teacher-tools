@@ -74,8 +74,8 @@ export default function UnseenPracticePage() {
   const currentStory: MSUnseenStory =
     stories.find((s) => s.id === selectedStoryId) || levelStories[0] || MIDDLE_SCHOOL_UNSEENS[0];
 
-  // Story selector tabs: "library" vs "ai_generator"
-  const [storySourceTab, setStorySourceTab] = useState<"library" | "ai_generator">("library");
+  // Story selector tabs: "library" vs "ai_generator" (default to AI Generator)
+  const [storySourceTab, setStorySourceTab] = useState<"library" | "ai_generator">("ai_generator");
 
   // AI Story Generation State
   const [aiTopicInput, setAiTopicInput] = useState("");
@@ -768,17 +768,6 @@ export default function UnseenPracticePage() {
               <div className="flex items-center gap-1 bg-muted p-0.5 rounded-lg">
                 <button
                   type="button"
-                  onClick={() => setStorySourceTab("library")}
-                  className={`px-3 py-1 rounded-md text-xs font-medium transition cursor-pointer ${
-                    storySourceTab === "library"
-                      ? "bg-card text-foreground shadow-xs font-bold"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  ספרייה מוכנה ({levelStories.length})
-                </button>
-                <button
-                  type="button"
                   onClick={() => setStorySourceTab("ai_generator")}
                   className={`px-3 py-1 rounded-md text-xs font-medium transition cursor-pointer flex items-center gap-1 ${
                     storySourceTab === "ai_generator"
@@ -788,6 +777,17 @@ export default function UnseenPracticePage() {
                 >
                   <Sparkles className="h-3 w-3 text-amber-500" />
                   <span>יצירה עם AI</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStorySourceTab("library")}
+                  className={`px-3 py-1 rounded-md text-xs font-medium transition cursor-pointer ${
+                    storySourceTab === "library"
+                      ? "bg-card text-foreground shadow-xs font-bold"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  ספרייה מוכנה ({levelStories.length})
                 </button>
               </div>
             </div>
