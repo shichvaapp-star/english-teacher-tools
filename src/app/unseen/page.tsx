@@ -36,6 +36,8 @@ import {
   Sliders,
   ArrowRight,
   BookOpen,
+  Key,
+  AlertCircle,
 } from "lucide-react";
 
 const LOCAL_SUBMISSIONS_KEY = "ett_writing_submissions";
@@ -79,6 +81,17 @@ export default function UnseenPracticePage() {
   const [aiTopicInput, setAiTopicInput] = useState("");
   const [isGeneratingAi, setIsGeneratingAi] = useState(false);
   const [aiNotice, setAiNotice] = useState<string | null>(null);
+  const [aiNoticeType, setAiNoticeType] = useState<"success" | "error" | "info">("info");
+  const [showAiSettingsModal, setShowAiSettingsModal] = useState(false);
+  const [customGroqKey, setCustomGroqKey] = useState("");
+  const [customGeminiKey, setCustomGeminiKey] = useState("");
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setCustomGroqKey(localStorage.getItem("ett_groq_api_key") || "");
+      setCustomGeminiKey(localStorage.getItem("ett_gemini_api_key") || "");
+    }
+  }, []);
 
   // Active Question in 10-Question navigation
   const [activeQuestionIndex, setActiveQuestionIndex] = useState(0);
@@ -183,34 +196,42 @@ export default function UnseenPracticePage() {
     setAiNotice(null);
 
     try {
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (typeof window !== "undefined") {
+        const groq = localStorage.getItem("ett_groq_api_key");
+        const gemini = localStorage.getItem("ett_gemini_api_key");
+        if (groq) headers["x-groq-api-key"] = groq;
+        if (gemini) headers["x-gemini-api-key"] = gemini;
+      }
+
       const res = await fetch("/api/generate-unseen", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({ level: selectedLevel, topic: topicToUse }),
       });
 
-      if (res.ok) {
-        const data = await res.json();
-        if (data.success && data.story) {
-          const newStory: MSUnseenStory = data.story;
-          setStories((prev) => [newStory, ...prev.filter((s) => s.id !== newStory.id)]);
-          setSelectedStoryId(newStory.id);
-          setActiveQuestionIndex(0);
-          setUserAnswers({});
-          setCheckedQuestions({});
-          setIsSubmitted(false);
-          setGradedScore(null);
+      const data = await res.json();
 
-          if (data.isFallback) {
-            setAiNotice(data.message || "Loaded an exciting matching story from our curated library!");
-          } else {
-            setAiNotice("✨ Your customized AI story has been created!");
-          }
-          setStorySourceTab("library");
-        }
+      if (res.ok && data.success && data.story) {
+        const newStory: MSUnseenStory = data.story;
+        setStories((prev) => [newStory, ...prev.filter((s) => s.id !== newStory.id)]);
+        setSelectedStoryId(newStory.id);
+        setActiveQuestionIndex(0);
+        setUserAnswers({});
+        setCheckedQuestions({});
+        setIsSubmitted(false);
+        setGradedScore(null);
+
+        setAiNoticeType("success");
+        const modelNote = data.modelUsed ? ` (מודל: ${data.modelUsed})` : "";
+        setAiNotice(`✨ קטע הקריאה "${newStory.title}" נוצר בהצלחה עם 10 שאלות${modelNote}! ניתן להתחיל בתרגול.`);
+      } else {
+        setAiNoticeType("error");
+        setAiNotice(data?.message || "לא ניתן היה ליצור קטע קריאה כרגע. אנא נסה שוב או בדוק את מפתחות ה-AI בהגדרות.");
       }
     } catch {
-      setAiNotice("Could not connect to AI service. Please choose from our library below.");
+      setAiNoticeType("error");
+      setAiNotice("שגיאה בתקשורת עם שרת ה-AI. אנא נסה שוב בעוד מספר שניות.");
     } finally {
       setIsGeneratingAi(false);
     }
@@ -294,9 +315,17 @@ export default function UnseenPracticePage() {
 
     // 4. Call server translation route
     try {
+      const transHeaders: Record<string, string> = { "Content-Type": "application/json" };
+      if (typeof window !== "undefined") {
+        const groq = localStorage.getItem("ett_groq_api_key");
+        const gemini = localStorage.getItem("ett_gemini_api_key");
+        if (groq) transHeaders["x-groq-api-key"] = groq;
+        if (gemini) transHeaders["x-gemini-api-key"] = gemini;
+      }
+
       const res = await fetch("/api/translate-word", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: transHeaders,
         body: JSON.stringify({ word: clean }),
       });
 
@@ -766,7 +795,16 @@ export default function UnseenPracticePage() {
                     >
                       <div>
                         <div className="flex items-center justify-between">
-                          <span className="text-[10px] text-muted-foreground">טקסט {idx + 1}</span>
+                          <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                            {story.id.startsWith("ai-story") ? (
+                              <>
+                                <Sparkles className="h-2.5 w-2.5 text-amber-500" />
+                                <span className="font-bold text-amber-600 dark:text-amber-400">AI</span>
+                              </>
+                            ) : (
+                              `טקסט ${idx + 1}`
+                            )}
+                          </span>
                           {isSelected && (
                             <span className="h-2 w-2 rounded-full bg-primary" />
                           )}
@@ -788,21 +826,34 @@ export default function UnseenPracticePage() {
                 <div className="flex flex-col sm:flex-row items-center gap-2">
                   <Input
                     type="text"
-                    placeholder="כתוב נושא שמעניין אותך (למשל: מיינקראפט, כדורגל, חלל, רובוטים...)"
+                    placeholder="כתוב נושא שמעניין אותך (למשל: מיינקראפט, כדורגל, חלל, פירמידות...)"
                     value={aiTopicInput}
                     onChange={(e) => setAiTopicInput(e.target.value)}
                     className="text-xs h-9.5 text-right rtl"
                     disabled={isGeneratingAi}
                   />
-                  <Button
-                    onClick={() => handleGenerateAiStory()}
-                    disabled={isGeneratingAi || !aiTopicInput.trim()}
-                    size="sm"
-                    className="w-full sm:w-auto shrink-0 gap-1.5 cursor-pointer text-xs h-9.5 px-4"
-                  >
-                    <Sparkles className="h-3.5 w-3.5" />
-                    <span>{isGeneratingAi ? "יוצר אנסין עם AI..." : "צור קטע קריאה עם 10 שאלות"}</span>
-                  </Button>
+                  <div className="flex items-center gap-1.5 w-full sm:w-auto">
+                    <Button
+                      onClick={() => handleGenerateAiStory()}
+                      disabled={isGeneratingAi || !aiTopicInput.trim()}
+                      size="sm"
+                      className="flex-1 sm:flex-none shrink-0 gap-1.5 cursor-pointer text-xs h-9.5 px-4 font-bold shadow-xs"
+                    >
+                      <Sparkles className="h-3.5 w-3.5" />
+                      <span>{isGeneratingAi ? "יוצר אנסין (10 שאלות)..." : "צור קטע קריאה עם 10 שאלות"}</span>
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowAiSettingsModal(true)}
+                      className="h-9.5 px-2.5 cursor-pointer shrink-0 gap-1 text-xs"
+                      title="הגדרת מפתחות AI"
+                    >
+                      <Key className="h-3.5 w-3.5 text-primary" />
+                      <span className="hidden sm:inline text-[11px]">מפתחות</span>
+                    </Button>
+                  </div>
                 </div>
 
                 {/* Quick Chips */}
@@ -826,10 +877,70 @@ export default function UnseenPracticePage() {
                   </div>
                 </div>
 
+                {/* AI Notice Banner */}
                 {aiNotice && (
-                  <div className="p-2.5 rounded-lg bg-primary/10 text-primary text-xs flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4 shrink-0" />
-                    <span>{aiNotice}</span>
+                  <div
+                    className={`p-3 rounded-xl text-xs flex items-start gap-2.5 ${
+                      aiNoticeType === "success"
+                        ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20"
+                        : "bg-amber-500/10 text-amber-800 dark:text-amber-200 border border-amber-500/30"
+                    }`}
+                  >
+                    {aiNoticeType === "success" ? (
+                      <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400 mt-0.5" />
+                    ) : (
+                      <AlertCircle className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
+                    )}
+                    <div className="flex-1 text-right rtl leading-relaxed">
+                      <span>{aiNotice}</span>
+                      {aiNoticeType === "error" && (
+                        <div className="mt-1.5 flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setShowAiSettingsModal(true)}
+                            className="h-7 text-[11px] px-2.5 cursor-pointer gap-1"
+                          >
+                            <Key className="h-3 w-3" />
+                            <span>פתח הגדרות מפתחות AI</span>
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Generated AI Story Preview Card */}
+                {currentStory.id.startsWith("ai-story") && (
+                  <div className="p-4 rounded-xl border-2 border-primary/30 bg-primary/5 space-y-3 mt-2 text-right rtl animate-in fade-in-0">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5">
+                        <Badge className="bg-primary/20 text-primary border-primary/30 flex items-center gap-1 text-[11px] font-bold">
+                          <Sparkles className="h-3 w-3 text-amber-500" />
+                          <span>קטע שנוצר כעת עם AI</span>
+                        </Badge>
+                        <Badge variant="outline" className="text-[11px]">
+                          {currentStory.level} &bull; 10 שאלות &bull; 100 נקודות
+                        </Badge>
+                      </div>
+                      <Button
+                        size="sm"
+                        onClick={() => setStage("exercise")}
+                        className="cursor-pointer gap-1.5 font-bold shadow-xs text-xs h-8 px-4"
+                      >
+                        <span>התחל קריאה ותרגול עכשיו</span>
+                        <ArrowRight className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+
+                    <div className="space-y-0.5">
+                      <h3 className="text-sm sm:text-base font-bold text-foreground ltr text-left">{currentStory.title}</h3>
+                      <p className="text-xs text-muted-foreground font-medium">{currentStory.hebrewTitle}</p>
+                    </div>
+
+                    <p className="text-xs text-muted-foreground line-clamp-2 ltr text-left leading-relaxed">
+                      {currentStory.paragraphs[0]}
+                    </p>
                   </div>
                 )}
               </div>
@@ -1772,6 +1883,117 @@ export default function UnseenPracticePage() {
               >
                 <Send className="h-3.5 w-3.5" />
                 <span>{isSubmitting ? "שולח הגשה..." : "שלח למורה וחשב ציון"}</span>
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* AI Key Settings Modal */}
+      {showAiSettingsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in-0">
+          <div className="bg-card border border-border rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4" dir="rtl">
+            <div className="flex items-center justify-between border-b border-border/50 pb-3">
+              <div className="flex items-center gap-2 text-primary">
+                <Key className="h-5 w-5" />
+                <h3 className="font-bold text-base text-foreground">הגדרת מפתחות AI ליצירת אנסין</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAiSettingsModal(false)}
+                className="text-muted-foreground hover:text-foreground cursor-pointer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              מערכת האנסין משתמשת במודלי AI מתקדמים (Groq 120B ו-Google Gemini).
+              המפתחות שהוגדרו בשרת פעילים אוטומטית. ניתן לעדכן או להזין מפתחות אישיים שנשמרים בדפדפן שלך:
+            </p>
+
+            <div className="space-y-3">
+              {/* Groq Key */}
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-foreground">Groq API Key (Llama 3.3 / 120B):</label>
+                  <a
+                    href="https://console.groq.com/keys"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[11px] text-primary hover:underline"
+                  >
+                    קבלת מפתח חינם &larr;
+                  </a>
+                </div>
+                <Input
+                  type="password"
+                  placeholder="gsk_..."
+                  value={customGroqKey}
+                  onChange={(e) => setCustomGroqKey(e.target.value)}
+                  className="h-9 text-xs font-mono ltr text-left"
+                />
+              </div>
+
+              {/* Gemini Key */}
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-foreground">Google AI Studio (Gemini):</label>
+                  <a
+                    href="https://aistudio.google.com/app/apikey"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[11px] text-primary hover:underline"
+                  >
+                    קבלת מפתח חינם &larr;
+                  </a>
+                </div>
+                <Input
+                  type="password"
+                  placeholder="AIzaSy..."
+                  value={customGeminiKey}
+                  onChange={(e) => setCustomGeminiKey(e.target.value)}
+                  className="h-9 text-xs font-mono ltr text-left"
+                />
+              </div>
+            </div>
+
+            <div className="p-2.5 rounded-lg bg-muted/50 border border-border/50 text-[11px] text-muted-foreground space-y-1">
+              <div className="flex items-center gap-1.5 font-bold text-foreground">
+                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                <span>מנגנון מפל אוטומטי (Cascade)</span>
+              </div>
+              <p>
+                אם מודל אחד עמוס או מגיע למגבלת קצב, המערכת תעבור באופן אוטומטי ושקוף למודל הבא ללא הפרעה.
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-border/50">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowAiSettingsModal(false)}
+                className="cursor-pointer text-xs"
+              >
+                ביטול
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => {
+                  if (typeof window !== "undefined") {
+                    if (customGroqKey.trim()) localStorage.setItem("ett_groq_api_key", customGroqKey.trim());
+                    else localStorage.removeItem("ett_groq_api_key");
+
+                    if (customGeminiKey.trim()) localStorage.setItem("ett_gemini_api_key", customGeminiKey.trim());
+                    else localStorage.removeItem("ett_gemini_api_key");
+                  }
+                  setShowAiSettingsModal(false);
+                  setAiNoticeType("success");
+                  setAiNotice("המפתחות נשמרו בהצלחה!");
+                }}
+                className="cursor-pointer text-xs font-bold shadow-xs"
+              >
+                שמור הגדרות
               </Button>
             </div>
           </div>

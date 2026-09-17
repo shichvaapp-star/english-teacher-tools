@@ -91,26 +91,9 @@ export async function POST(request: Request) {
       });
     }
 
-    const apiKey = process.env.GEMINI_API_KEY;
+    const groqApiKey = request.headers.get("x-groq-api-key") || process.env.GROQ_API_KEY;
+    const geminiApiKey = request.headers.get("x-gemini-api-key") || process.env.GEMINI_API_KEY;
 
-    // 3. If Gemini API key is missing or empty, use MyMemory & fallback
-    if (!apiKey) {
-      const fallbackHebrew = await translateWithFreeFallback(cleanWord);
-      if (fallbackHebrew) {
-        const fallbackResult: TranslationResult = {
-          english: cleanWord,
-          hebrew: fallbackHebrew,
-          partOfSpeech: "noun",
-          example: `The word "${cleanWord}" appeared in the reading text.`,
-        };
-        serverTranslationCache.set(cleanWord, fallbackResult);
-        return NextResponse.json({ success: true, data: fallbackResult, source: "mymemory" });
-      }
-
-      return NextResponse.json({ success: false, reason: "translation_unavailable" }, { status: 500 });
-    }
-
-    // 4. Translate using Gemini Flash
     const systemPrompt = `You are an expert English-Hebrew translator and English middle-school teacher. Translate the given English word into natural Hebrew.
 Return ONLY a raw JSON object matching this schema:
 {
@@ -120,88 +103,86 @@ Return ONLY a raw JSON object matching this schema:
   "example": "A short, simple example sentence in English showing the word in context."
 }`;
 
-    const requestBody = {
-      contents: [{ parts: [{ text: systemPrompt }] }],
-      generationConfig: {
-        responseMimeType: "application/json",
-        temperature: 0.2,
-      },
-    };
-
-    const modelsToTry = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"];
-    let response: Response | null = null;
-
-    for (const model of modelsToTry) {
+    // 1. Try Groq (Fastest, ~200ms)
+    if (groqApiKey) {
       try {
-        const res = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(requestBody),
+        const groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${groqApiKey}`,
+          },
+          body: JSON.stringify({
+            model: "openai/gpt-oss-120b",
+            messages: [{ role: "user", content: systemPrompt }],
+            response_format: { type: "json_object" },
+            temperature: 0.2,
+          }),
+        });
+
+        if (groqRes.ok) {
+          const data = await groqRes.json();
+          const content = data.choices?.[0]?.message?.content;
+          if (content) {
+            const parsed: TranslationResult = JSON.parse(content);
+            serverTranslationCache.set(cleanWord, parsed);
+            return NextResponse.json({ success: true, data: parsed, source: "groq" });
           }
-        );
-
-        if (res.ok) {
-          response = res;
-          break;
         }
-      } catch {
-        // try next model
+      } catch (err) {
+        console.warn("Groq translation failed, falling back to Gemini/MyMemory:", err);
       }
     }
 
-    if (!response || !response.ok) {
-      const fallbackHebrew = await translateWithFreeFallback(cleanWord);
-      if (fallbackHebrew) {
-        const fallbackResult: TranslationResult = {
-          english: cleanWord,
-          hebrew: fallbackHebrew,
-          partOfSpeech: "noun",
-          example: `The word "${cleanWord}" appeared in the reading text.`,
-        };
-        serverTranslationCache.set(cleanWord, fallbackResult);
-        return NextResponse.json({ success: true, data: fallbackResult, fallback: true });
-      }
+    // 2. Try Gemini Flash
+    if (geminiApiKey) {
+      const modelsToTry = ["gemini-3.5-flash", "gemini-3.5-flash-lite", "gemini-3.1-flash-lite"];
+      for (const model of modelsToTry) {
+        try {
+          const res = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiApiKey}`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                contents: [{ parts: [{ text: systemPrompt }] }],
+                generationConfig: {
+                  responseMimeType: "application/json",
+                  temperature: 0.2,
+                },
+              }),
+            }
+          );
 
-      return NextResponse.json({ success: false, reason: "api_error" }, { status: 502 });
+          if (res.ok) {
+            const data = await res.json();
+            const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (text) {
+              const parsed: TranslationResult = JSON.parse(text);
+              serverTranslationCache.set(cleanWord, parsed);
+              return NextResponse.json({ success: true, data: parsed, source: "gemini" });
+            }
+          }
+        } catch {
+          // try next model
+        }
+      }
     }
 
-    const data = await response.json();
-    const generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!generatedText) {
-      const fallbackHebrew = await translateWithFreeFallback(cleanWord);
-      if (fallbackHebrew) {
-        const fallbackResult: TranslationResult = {
-          english: cleanWord,
-          hebrew: fallbackHebrew,
-          partOfSpeech: "noun",
-          example: `The word "${cleanWord}" appeared in the reading text.`,
-        };
-        serverTranslationCache.set(cleanWord, fallbackResult);
-        return NextResponse.json({ success: true, data: fallbackResult, fallback: true });
-      }
-      return NextResponse.json({ success: false, reason: "empty_response" }, { status: 502 });
+    // 3. Fallback to free dictionary/MyMemory
+    const fallbackHebrew = await translateWithFreeFallback(cleanWord);
+    if (fallbackHebrew) {
+      const fallbackResult: TranslationResult = {
+        english: cleanWord,
+        hebrew: fallbackHebrew,
+        partOfSpeech: "noun",
+        example: `The word "${cleanWord}" appeared in the reading text.`,
+      };
+      serverTranslationCache.set(cleanWord, fallbackResult);
+      return NextResponse.json({ success: true, data: fallbackResult, fallback: true });
     }
 
-    try {
-      const parsed: TranslationResult = JSON.parse(generatedText);
-      serverTranslationCache.set(cleanWord, parsed);
-      return NextResponse.json({ success: true, data: parsed });
-    } catch {
-      const fallbackHebrew = await translateWithFreeFallback(cleanWord);
-      if (fallbackHebrew) {
-        const fallbackResult: TranslationResult = {
-          english: cleanWord,
-          hebrew: fallbackHebrew,
-          partOfSpeech: "noun",
-          example: `The word "${cleanWord}" appeared in the reading text.`,
-        };
-        serverTranslationCache.set(cleanWord, fallbackResult);
-        return NextResponse.json({ success: true, data: fallbackResult, fallback: true });
-      }
-      return NextResponse.json({ success: false, reason: "parse_error" }, { status: 500 });
-    }
+    return NextResponse.json({ success: false, reason: "translation_unavailable" }, { status: 500 });
   } catch (error) {
     console.error("Translate route error:", error);
     return NextResponse.json({ success: false, reason: "server_error" }, { status: 500 });
