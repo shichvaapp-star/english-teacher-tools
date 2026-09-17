@@ -2183,6 +2183,35 @@ export default function UnseenPracticePage() {
           Structured into dedicated .print-page-sheet sections with standard 20mm Word margins
           ========================================================================= */}
       <div className="hidden print:block w-full bg-white text-slate-900 font-sans text-left ltr antialiased">
+        <style dangerouslySetInnerHTML={{ __html: `
+          @page {
+            size: A4 portrait;
+            margin: 20mm 20mm 20mm 20mm !important;
+          }
+          @media print {
+            html, body {
+              background: #ffffff !important;
+              color: #1e293b !important;
+              margin: 0 !important;
+              padding: 0 !important;
+            }
+            .print-page-sheet {
+              display: block !important;
+              width: 100% !important;
+              margin: 0 !important;
+              padding: 0 !important;
+              box-sizing: border-box !important;
+            }
+            .print-break-before {
+              break-before: page !important;
+              page-break-before: always !important;
+            }
+            .print-avoid-break {
+              break-inside: avoid !important;
+              page-break-inside: avoid !important;
+            }
+          }
+        `}} />
         {/* SHEET 1: Reading Passage Page */}
         {(printScope === "full" || printScope === "text_only") && (
           <div className="print-page-sheet">
