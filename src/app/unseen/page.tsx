@@ -2310,14 +2310,14 @@ export default function UnseenPracticePage() {
           </div>
         )}
 
-        {/* SHEET 2: Questions Pages */}
+        {/* SHEET 2: Questions Page 1 (Questions 1 - 5) */}
         {(printScope === "full" || printScope === "questions_only") && (
           <div className={`print-page-sheet ${printScope === "full" && printSeparatePages ? "print-break-before" : ""}`}>
-            <section className="space-y-3 pt-1">
+            <section className="space-y-3.5 pt-1">
               <div className="border-b border-slate-300 pb-2 mb-3.5">
                 <div className="flex justify-between items-center">
                   <h2 className="text-sm font-extrabold uppercase tracking-wider text-slate-900">
-                    Part II: Questions (100 Points)
+                    Part II: Questions (Questions 1 &ndash; 5)
                   </h2>
                   <span className="text-xs text-slate-600 font-medium">10 questions &bull; 10 points each</span>
                 </div>
@@ -2326,13 +2326,14 @@ export default function UnseenPracticePage() {
                 </p>
               </div>
 
-              <div className="space-y-3 text-xs">
-                {currentStory.questions.map((q, qIdx) => {
+              <div className="space-y-4 text-xs">
+                {currentStory.questions.slice(0, 5).map((q, idx) => {
+                  const qIdx = idx;
                   const letters = ["A", "B", "C", "D"];
                   return (
-                    <div key={q.id || qIdx} className="print-avoid-break border-b border-slate-100 pb-2.5 space-y-1.5">
+                    <div key={q.id || qIdx} className="print-avoid-break border-b border-slate-100 pb-3 space-y-2">
                       <div className="flex justify-between items-start gap-2">
-                        <div className="font-bold text-slate-900 text-[12px] leading-snug">
+                        <div className="font-bold text-slate-900 text-[12.5px] leading-snug">
                           <span className="text-slate-500 mr-1">{qIdx + 1}.</span>
                           <span>{q.prompt}</span>
                           {q.linesHint && (
@@ -2346,7 +2347,7 @@ export default function UnseenPracticePage() {
 
                       {/* MCQ Options with friendly pill bubbles */}
                       {q.options && q.options.length > 0 && (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 pt-0.5 pl-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5 pt-1 pl-4">
                           {q.options.map((opt, oIdx) => (
                             <div key={oIdx} className="flex items-start gap-2 text-[11.5px] leading-snug text-slate-800">
                               <span className="w-4 h-4 rounded-full border border-slate-400 text-slate-700 font-bold text-[10px] flex items-center justify-center shrink-0 mt-0.5">
@@ -2360,7 +2361,71 @@ export default function UnseenPracticePage() {
 
                       {/* Ruled lines for open/copy type questions if any */}
                       {q.type !== "mcq" && (
-                        <div className="pt-1.5 pl-4 space-y-2">
+                        <div className="pt-2 pl-4 space-y-2.5">
+                          <div className="border-b border-dotted border-slate-400 h-4 w-full" />
+                          <div className="border-b border-dotted border-slate-400 h-4 w-full" />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          </div>
+        )}
+
+        {/* SHEET 3: Questions Page 2 (Questions 6 - 10) */}
+        {(printScope === "full" || printScope === "questions_only") && currentStory.questions.length > 5 && (
+          <div className="print-page-sheet print-break-before">
+            <section className="space-y-3.5 pt-1">
+              <div className="border-b border-slate-300 pb-2 mb-3.5">
+                <div className="flex justify-between items-center">
+                  <h2 className="text-sm font-extrabold uppercase tracking-wider text-slate-900">
+                    Part II: Questions Continued (Questions 6 &ndash; {currentStory.questions.length})
+                  </h2>
+                  <span className="text-xs text-slate-600 font-medium">Continued from previous page</span>
+                </div>
+                <p className="text-[11px] text-slate-500 italic mt-0.5">
+                  Answer all questions according to the passage. Circle the letter of the correct answer for multiple-choice questions.
+                </p>
+              </div>
+
+              <div className="space-y-4 text-xs">
+                {currentStory.questions.slice(5).map((q, idx) => {
+                  const qIdx = idx + 5;
+                  const letters = ["A", "B", "C", "D"];
+                  return (
+                    <div key={q.id || qIdx} className="print-avoid-break border-b border-slate-100 pb-3 space-y-2">
+                      <div className="flex justify-between items-start gap-2">
+                        <div className="font-bold text-slate-900 text-[12.5px] leading-snug">
+                          <span className="text-slate-500 mr-1">{qIdx + 1}.</span>
+                          <span>{q.prompt}</span>
+                          {q.linesHint && (
+                            <span className="text-slate-500 font-normal text-xs ml-1.5 italic">({q.linesHint})</span>
+                          )}
+                        </div>
+                        <span className="text-[10px] font-bold text-slate-600 shrink-0 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
+                          {q.points || 10} pts
+                        </span>
+                      </div>
+
+                      {/* MCQ Options with friendly pill bubbles */}
+                      {q.options && q.options.length > 0 && (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5 pt-1 pl-4">
+                          {q.options.map((opt, oIdx) => (
+                            <div key={oIdx} className="flex items-start gap-2 text-[11.5px] leading-snug text-slate-800">
+                              <span className="w-4 h-4 rounded-full border border-slate-400 text-slate-700 font-bold text-[10px] flex items-center justify-center shrink-0 mt-0.5">
+                                {letters[oIdx]}
+                              </span>
+                              <span className="flex-1">{opt}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Ruled lines for open/copy type questions if any */}
+                      {q.type !== "mcq" && (
+                        <div className="pt-2 pl-4 space-y-2.5">
                           <div className="border-b border-dotted border-slate-400 h-4 w-full" />
                           <div className="border-b border-dotted border-slate-400 h-4 w-full" />
                         </div>
