@@ -16,6 +16,7 @@ import {
   WritingTask,
   TaskCategory,
 } from "@/data/writing-tasks";
+import type { WritingEvaluationResult } from "@/app/api/evaluate-writing/route";
 import {
   PenTool,
   ArrowLeft,
@@ -83,12 +84,7 @@ export default function WritingPracticePage() {
 
   // AI Feedback state
   const [isEvaluating, setIsEvaluating] = useState(false);
-  const [feedback, setFeedback] = useState<{
-    score: number;
-    encouragement: string;
-    strengths: string[];
-    tips: string[];
-  } | null>(null);
+  const [feedback, setFeedback] = useState<WritingEvaluationResult | null>(null);
 
   // Submit to teacher form state
   const [studentName, setStudentName] = useState("");
@@ -174,75 +170,52 @@ export default function WritingPracticePage() {
     }, 450);
   };
 
-  // Run AI evaluation
-  const handleEvaluate = () => {
-    if (wordCount < 10) {
-      alert("אנא כתבו לפחות משפט או שניים באנגלית (10 מילים ומעלה) לפני בדיקת החיבור.");
+  // Run AI evaluation via real API
+  const handleEvaluate = async () => {
+    if (wordCount < 5) {
+      alert("אנא כתבו לפחות כמה מילים באנגלית לפני בדיקת החיבור.");
       return;
     }
 
     setIsEvaluating(true);
 
-    setTimeout(() => {
-      const lower = essayText.toLowerCase();
-      const strengths: string[] = [];
-      const tips: string[] = [];
+    try {
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
 
-      // Check task fulfillment
-      if (wordCount >= currentTask.minWords) {
-        strengths.push(`אורך מעולה! כתבת ${wordCount} מילים, בדיוק בטווח המבוקש לחטיבת הביניים (${currentTask.targetWords}).`);
-      } else {
-        tips.push(`החיבור קצר מעט (${wordCount} מילים). מומלץ להוסיף עוד משפט או שניים להשלמת יעד המילים (${currentTask.targetWords}).`);
+      if (typeof window !== "undefined") {
+        const groq = localStorage.getItem("ett_groq_api_key");
+        const gemini = localStorage.getItem("ett_gemini_api_key");
+        if (groq) headers["x-groq-api-key"] = groq;
+        if (gemini) headers["x-gemini-api-key"] = gemini;
       }
 
-      // Check connectors
-      if (
-        lower.includes("in addition") ||
-        lower.includes("first") ||
-        lower.includes("however") ||
-        lower.includes("because") ||
-        lower.includes("for example") ||
-        lower.includes("therefore")
-      ) {
-        strengths.push("שימוש נכון ומעשיר במילות קישור שמחברות את המשפטים לרצף קריא והגיוני!");
-      } else {
-        tips.push("נסו לשלב מילת קישור אחת לפחות (כגון 'In addition', 'Because' או 'For example') להעשרת הטיעונים.");
-      }
-
-      // Check capitalization of 'I'
-      if (/\bi\b/.test(essayText)) {
-        tips.push("שימו לב: את מילת הגוף 'I' (אני) כותבים תמיד באות גדולה (Capital I) באנגלית!");
-      } else {
-        strengths.push("הקפדה יפה על אותיות גדולות בתחילת משפטים ובמילת הגוף 'I'.");
-      }
-
-      // Check category specific guidance
-      if (currentTask.category === "letter") {
-        if (lower.includes("dear") || lower.includes("hi ")) {
-          strengths.push("פתיחת מכתב מדויקת ומנומסת ('Dear' / 'Hi')!");
-        } else {
-          tips.push("במכתב מומלץ לפתוח בפנייה ישירה: 'Dear [Name],' או 'Hi [Name],'.");
-        }
-      } else if (currentTask.category === "opinion") {
-        if (lower.includes("in my opinion") || lower.includes("i believe") || lower.includes("in conclusion")) {
-          strengths.push("מבנה פסקת דעה מצוין הכולל הבעת עמדה מנומקת!");
-        } else {
-          tips.push("בפסקת דעה כדאי לפתוח בהצהרה: 'In my opinion,...' ולסיים ב: 'In conclusion,...'.");
-        }
-      }
-
-      // Encouraging friendly score
-      const calcScore = Math.min(100, Math.max(75, 80 + (isWordCountGood ? 10 : 0) + strengths.length * 3));
-
-      setFeedback({
-        score: calcScore,
-        encouragement: "עבודה נהדרת! המשך/י כך — תרגול כתיבה רציף הוא הדרך המהירה להגיע לשליטה באנגלית!",
-        strengths,
-        tips,
+      const res = await fetch("/api/evaluate-writing", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          essayText: essayText.trim(),
+          taskTitle: currentTask.title,
+          prompt: currentTask.prompt,
+          category: currentTask.category,
+          minWords: currentTask.minWords,
+          maxWords: currentTask.maxWords,
+        }),
       });
 
+      const data = await res.json();
+      if (data.success && data.evaluation) {
+        setFeedback(data.evaluation);
+      } else {
+        alert(data.error || "אירעה שגיאה בבדיקת החיבור. אנא נסו שוב.");
+      }
+    } catch (err) {
+      console.error("Evaluation error:", err);
+      alert("לא ניתן היה להתחבר לשירות בדיקת החיבור. אנא בדקו את החיבור לאינטרנט ונסו שוב.");
+    } finally {
       setIsEvaluating(false);
-    }, 850);
+    }
   };
 
   // Submit essay to teacher
@@ -750,17 +723,117 @@ export default function WritingPracticePage() {
                   >
                     <div className="flex items-center justify-between border-b border-border pb-3">
                       <div>
-                        <span className="text-xs text-muted-foreground block font-semibold">משוב מורה AI:</span>
-                        <h4 className="text-lg font-black text-foreground">{feedback.encouragement}</h4>
+                        <span className="text-xs text-muted-foreground block font-semibold">משוב מורה AI (מחוון משרד החינוך):</span>
+                        <h4 className="text-base sm:text-lg font-black text-foreground">{feedback.encouragement}</h4>
                       </div>
-                      <Badge variant="default" className="text-sm px-3 py-1 font-bold">
+                      <Badge
+                        variant="default"
+                        className={`text-sm px-3 py-1 font-bold ${
+                          feedback.score >= 80
+                            ? "bg-emerald-600 text-white"
+                            : feedback.score >= 60
+                            ? "bg-amber-600 text-white"
+                            : "bg-red-600 text-white"
+                        }`}
+                      >
                         ציון משוער: {feedback.score}
                       </Badge>
                     </div>
 
+                    {/* Spam / Repetition Alert */}
+                    {feedback.isSpamOrGibberish && (
+                      <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-700 dark:text-red-400 text-xs space-y-1">
+                        <div className="flex items-center gap-1.5 font-bold">
+                          <AlertCircle className="h-4 w-4 shrink-0" />
+                          <span>זוהתה בעיה באמינות הטקסט: חזרתיות קיצונית או היעדר משפטים תקינים</span>
+                        </div>
+                        <p className="text-[11px] leading-relaxed">
+                          החיבור לא נבדק כחיבור מלא מכיוון שנמצאו חזרות מרובות על מילים או מחרוזות ללא מבנה משפט שלם. כתבו משפטים שלמים באנגלית לקבלת ציון מלא.
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Rubric Breakdown */}
+                    {feedback.rubric && (
+                      <div className="space-y-2 pt-1">
+                        <span className="font-bold text-foreground text-xs block">חלוקת הניקוד לפי מחוון משרד החינוך:</span>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                          <div className="p-2.5 rounded-xl border border-border/80 bg-muted/30 space-y-1">
+                            <div className="flex justify-between items-center text-muted-foreground font-medium text-[11px]">
+                              <span>תוכן ומבנה</span>
+                              <span className="font-bold text-foreground">{feedback.rubric.contentAndOrganization.score}/{feedback.rubric.contentAndOrganization.max}</span>
+                            </div>
+                            <p className="text-[10px] text-muted-foreground line-clamp-2">
+                              {feedback.rubric.contentAndOrganization.commentHebrew}
+                            </p>
+                          </div>
+
+                          <div className="p-2.5 rounded-xl border border-border/80 bg-muted/30 space-y-1">
+                            <div className="flex justify-between items-center text-muted-foreground font-medium text-[11px]">
+                              <span>אוצר מילים</span>
+                              <span className="font-bold text-foreground">{feedback.rubric.vocabulary.score}/{feedback.rubric.vocabulary.max}</span>
+                            </div>
+                            <p className="text-[10px] text-muted-foreground line-clamp-2">
+                              {feedback.rubric.vocabulary.commentHebrew}
+                            </p>
+                          </div>
+
+                          <div className="p-2.5 rounded-xl border border-border/80 bg-muted/30 space-y-1">
+                            <div className="flex justify-between items-center text-muted-foreground font-medium text-[11px]">
+                              <span>שפה ותחביר</span>
+                              <span className="font-bold text-foreground">{feedback.rubric.languageAndGrammar.score}/{feedback.rubric.languageAndGrammar.max}</span>
+                            </div>
+                            <p className="text-[10px] text-muted-foreground line-clamp-2">
+                              {feedback.rubric.languageAndGrammar.commentHebrew}
+                            </p>
+                          </div>
+
+                          <div className="p-2.5 rounded-xl border border-border/80 bg-muted/30 space-y-1">
+                            <div className="flex justify-between items-center text-muted-foreground font-medium text-[11px]">
+                              <span>איות ופיסוק</span>
+                              <span className="font-bold text-foreground">{feedback.rubric.mechanicsAndSpelling.score}/{feedback.rubric.mechanicsAndSpelling.max}</span>
+                            </div>
+                            <p className="text-[10px] text-muted-foreground line-clamp-2">
+                              {feedback.rubric.mechanicsAndSpelling.commentHebrew}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Sentence / Grammar Corrections */}
+                    {feedback.corrections && feedback.corrections.length > 0 && (
+                      <div className="space-y-2 pt-1 border-t border-border/60">
+                        <span className="font-bold text-purple-600 dark:text-purple-400 text-xs flex items-center gap-1.5">
+                          <Sparkles className="h-3.5 w-3.5" />
+                          <span>תיקוני ניסוח ודקדוק מומלצים:</span>
+                        </span>
+                        <div className="space-y-2">
+                          {feedback.corrections.map((corr, idx) => (
+                            <div key={idx} className="p-2.5 rounded-lg border border-purple-500/20 bg-purple-500/5 text-xs space-y-1">
+                              <div className="flex flex-col sm:flex-row sm:items-center gap-1 font-mono text-[11px] ltr text-left">
+                                <span className="line-through text-red-500 bg-red-500/10 px-1.5 py-0.5 rounded">
+                                  {corr.original}
+                                </span>
+                                <span className="text-muted-foreground hidden sm:inline">&rarr;</span>
+                                <span className="text-emerald-600 dark:text-emerald-400 font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded">
+                                  {corr.suggestion}
+                                </span>
+                              </div>
+                              {corr.explanationHebrew && (
+                                <p className="text-muted-foreground text-[11px] rtl text-right">
+                                  {corr.explanationHebrew}
+                                </p>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
                     {/* Strengths */}
                     {feedback.strengths.length > 0 && (
-                      <div className="space-y-1.5 text-xs">
+                      <div className="space-y-1.5 text-xs pt-1 border-t border-border/60">
                         <span className="font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
                           <CheckCircle2 className="h-4 w-4 shrink-0" />
                           <span>נקודות חוזק בחיבור שלך:</span>
@@ -775,7 +848,7 @@ export default function WritingPracticePage() {
 
                     {/* Tips */}
                     {feedback.tips.length > 0 && (
-                      <div className="space-y-1.5 text-xs pt-1">
+                      <div className="space-y-1.5 text-xs pt-1 border-t border-border/60">
                         <span className="font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
                           <Lightbulb className="h-4 w-4 shrink-0" />
                           <span>הצעות לשיפור לפעם הבאה:</span>
