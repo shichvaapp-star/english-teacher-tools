@@ -131,8 +131,8 @@
 
 @media print {
   @page {
-    /* Standard document margins (approx 20mm / 0.8 in, standard Word doc style) */
-    margin: 20mm 20mm 20mm 20mm;
+    /* Use 0 margin on the printer page so CSS controls the physical margins identically across Chrome/Safari/Edge/PDF */
+    margin: 0;
     size: A4 portrait;
   }
   html, body {
@@ -142,6 +142,14 @@
     print-color-adjust: exact;
     margin: 0 !important;
     padding: 0 !important;
+    width: 100% !important;
+  }
+  .print-page-sheet {
+    box-sizing: border-box !important;
+    padding: 20mm 20mm 15mm 20mm !important;
+    width: 100% !important;
+    max-width: 210mm !important;
+    margin: 0 auto !important;
   }
   .print-avoid-break {
     break-inside: avoid !important;
