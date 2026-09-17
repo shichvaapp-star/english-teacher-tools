@@ -93,6 +93,20 @@ export default function UnseenPracticePage() {
     }
   }, []);
 
+  // Print Exam Booklet Options
+  const [showPrintModal, setShowPrintModal] = useState(false);
+  const [printScope, setPrintScope] = useState<"full" | "text_only" | "questions_only">("full");
+  const [printIncludeHeader, setPrintIncludeHeader] = useState(true);
+  const [printIncludeVocab, setPrintIncludeVocab] = useState(true);
+  const [printIncludeAnswers, setPrintIncludeAnswers] = useState(false);
+
+  const handlePrintNow = () => {
+    setShowPrintModal(false);
+    setTimeout(() => {
+      window.print();
+    }, 180);
+  };
+
   // Active Question in 10-Question navigation
   const [activeQuestionIndex, setActiveQuestionIndex] = useState(0);
   const activeQuestion: MSUnseenQuestion = currentStory.questions[activeQuestionIndex] || currentStory.questions[0];
@@ -606,7 +620,7 @@ export default function UnseenPracticePage() {
           STAGE 1: SETTINGS / SETUP VIEW
           ========================================================================= */}
       {stage === "settings" && (
-        <main className="container mx-auto flex-1 px-4 sm:px-8 py-8 max-w-4xl space-y-6">
+        <main className="container mx-auto flex-1 px-4 sm:px-8 py-8 max-w-4xl space-y-6 print:hidden">
           <div className="text-center space-y-1.5 mb-2">
             <Badge variant="outline" className="text-xs px-2.5 py-0.5 border-primary/30 text-primary">
               שלב 1 מתוך 2: הגדרות פעילות
@@ -960,20 +974,32 @@ export default function UnseenPracticePage() {
               </p>
             </div>
 
-            <Button
-              size="lg"
-              onClick={() => setStage("exercise")}
-              className="w-full sm:w-auto cursor-pointer gap-2 text-sm font-bold px-8 shadow-md"
-            >
-              <span>התחל קריאה ותרגול</span>
-              <ArrowRight className="h-4 w-4" />
-            </Button>
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <Button
+                variant="outline"
+                size="lg"
+                onClick={() => setShowPrintModal(true)}
+                className="w-full sm:w-auto cursor-pointer gap-2 text-xs font-bold px-4 border-border/80"
+                title="הדפס דף עבודה או מבחן מלא"
+              >
+                <Printer className="h-4 w-4 text-primary" />
+                <span>הדפסת מבחן / דף עבודה</span>
+              </Button>
+              <Button
+                size="lg"
+                onClick={() => setStage("exercise")}
+                className="w-full sm:w-auto cursor-pointer gap-2 text-sm font-bold px-8 shadow-md"
+              >
+                <span>התחל קריאה ותרגול</span>
+                <ArrowRight className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         </main>
       )}
 
       {stage === "exercise" && (
-        <main className="container mx-auto flex-1 px-3 sm:px-8 py-4 sm:py-6 space-y-4 sm:space-y-6 max-w-6xl animate-in fade-in-0">
+        <main className="container mx-auto flex-1 px-3 sm:px-8 py-4 sm:py-6 space-y-4 sm:space-y-6 max-w-6xl animate-in fade-in-0 print:hidden">
           {/* Active Context Ribbon */}
           <div className="flex items-center justify-between bg-card border border-border/60 rounded-xl p-2.5 sm:p-3 shadow-xs print:hidden gap-2">
             <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
@@ -1095,11 +1121,11 @@ export default function UnseenPracticePage() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => window.print()}
+                        onClick={() => setShowPrintModal(true)}
                         className="cursor-pointer gap-1 text-xs"
                         title="Print exam booklet"
                       >
-                        <Printer className="h-3.5 w-3.5" />
+                        <Printer className="h-3.5 w-3.5 text-primary" />
                         <span className="hidden sm:inline">Print</span>
                       </Button>
                     </div>
@@ -1891,7 +1917,7 @@ export default function UnseenPracticePage() {
 
       {/* AI Key Settings Modal */}
       {showAiSettingsModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in-0">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in-0 print:hidden">
           <div className="bg-card border border-border rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4" dir="rtl">
             <div className="flex items-center justify-between border-b border-border/50 pb-3">
               <div className="flex items-center gap-2 text-primary">
@@ -1999,6 +2025,324 @@ export default function UnseenPracticePage() {
           </div>
         </div>
       )}
+
+      {/* =========================================================================
+          PRINT EXAM BOOKLET MODAL (OPTIONS DIALOG)
+          ========================================================================= */}
+      {showPrintModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in-0 print:hidden">
+          <div className="bg-card border border-border rounded-2xl p-6 max-w-lg w-full shadow-2xl space-y-4" dir="rtl">
+            <div className="flex items-center justify-between border-b border-border/50 pb-3">
+              <div className="flex items-center gap-2 text-primary">
+                <Printer className="h-5 w-5" />
+                <div>
+                  <h3 className="font-bold text-base text-foreground">הדפסת מבחן / דף עבודה</h3>
+                  <p className="text-xs text-muted-foreground">{currentStory.title} &bull; {currentStory.hebrewTitle}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowPrintModal(false)}
+                className="text-muted-foreground hover:text-foreground cursor-pointer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {/* Scope Selection */}
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-foreground">מה ברצונך להדפיס?</label>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPrintScope("full")}
+                  className={`p-3 rounded-xl border text-right transition cursor-pointer flex flex-col justify-between ${
+                    printScope === "full"
+                      ? "border-primary bg-primary/10 shadow-xs ring-2 ring-primary/30"
+                      : "border-border/60 hover:bg-muted/40"
+                  }`}
+                >
+                  <div className="flex items-center justify-between w-full mb-1">
+                    <span className="text-xs font-bold text-foreground">מבחן מלא</span>
+                    <span className="text-[10px] bg-primary/20 text-primary px-1.5 py-0.5 rounded font-bold">מומלץ</span>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground leading-tight">
+                    קטע קריאה + 10 שאלות מלאות
+                  </p>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setPrintScope("text_only")}
+                  className={`p-3 rounded-xl border text-right transition cursor-pointer flex flex-col justify-between ${
+                    printScope === "text_only"
+                      ? "border-primary bg-primary/10 shadow-xs ring-2 ring-primary/30"
+                      : "border-border/60 hover:bg-muted/40"
+                  }`}
+                >
+                  <span className="text-xs font-bold text-foreground mb-1">קטע קריאה בלבד</span>
+                  <p className="text-[11px] text-muted-foreground leading-tight">
+                    הטקסט והפסקאות ללא שאלות
+                  </p>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setPrintScope("questions_only")}
+                  className={`p-3 rounded-xl border text-right transition cursor-pointer flex flex-col justify-between ${
+                    printScope === "questions_only"
+                      ? "border-primary bg-primary/10 shadow-xs ring-2 ring-primary/30"
+                      : "border-border/60 hover:bg-muted/40"
+                  }`}
+                >
+                  <span className="text-xs font-bold text-foreground mb-1">שאלות בלבד</span>
+                  <p className="text-[11px] text-muted-foreground leading-tight">
+                    10 שאלות לתרגול או מבחן
+                  </p>
+                </button>
+              </div>
+            </div>
+
+            {/* Print Options */}
+            <div className="space-y-2 pt-2 border-t border-border/40">
+              <label className="text-xs font-bold text-foreground">התאמות דף הבחינה:</label>
+              <div className="space-y-2 text-xs">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={printIncludeHeader}
+                    onChange={(e) => setPrintIncludeHeader(e.target.checked)}
+                    className="rounded border-border text-primary focus:ring-primary h-4 w-4 cursor-pointer"
+                  />
+                  <span>כלול כותרת מבחן רשמית (שורת שם תלמיד, כיתה, תאריך וציון)</span>
+                </label>
+
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={printIncludeVocab}
+                    onChange={(e) => setPrintIncludeVocab(e.target.checked)}
+                    className="rounded border-border text-primary focus:ring-primary h-4 w-4 cursor-pointer"
+                  />
+                  <span>כלול תיבת עזר אוצר מילים (Vocabulary Helpers)</span>
+                </label>
+
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={printIncludeAnswers}
+                    onChange={(e) => setPrintIncludeAnswers(e.target.checked)}
+                    className="rounded border-border text-primary focus:ring-primary h-4 w-4 cursor-pointer"
+                  />
+                  <span className="font-semibold text-foreground">כלול דף פתרונות ומחוון למורה בסוף הדפים</span>
+                </label>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-border/50">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowPrintModal(false)}
+                className="cursor-pointer text-xs"
+              >
+                ביטול
+              </Button>
+              <Button
+                size="sm"
+                onClick={handlePrintNow}
+                className="cursor-pointer text-xs font-bold shadow-xs gap-1.5 bg-primary text-primary-foreground px-5"
+              >
+                <Printer className="h-3.5 w-3.5" />
+                <span>הדפס עכשיו / שמור כ-PDF</span>
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================================
+          DEDICATED PROFESSIONAL PRINT EXAM BOOKLET
+          Visible ONLY during window.print() (hidden on screen)
+          ========================================================================= */}
+      <div className="hidden print:block w-full max-w-4xl mx-auto bg-white text-black p-0 print:p-0 font-sans text-left ltr">
+        {/* Student Exam Header */}
+        {printIncludeHeader && (
+          <div className="border-2 border-black rounded-lg p-3.5 mb-5 print-avoid-break text-xs">
+            <div className="flex justify-between items-center border-b border-black pb-2 mb-2 font-bold uppercase tracking-wider text-[11px]">
+              <span>English Department &bull; Reading Comprehension (Unseen)</span>
+              <span>{currentStory.level} &bull; 100 Points</span>
+            </div>
+            <div className="grid grid-cols-3 gap-y-2.5 text-xs pt-1">
+              <div>
+                <span className="font-semibold">Student Name:</span> ______________________
+              </div>
+              <div>
+                <span className="font-semibold">Class:</span> ____________
+              </div>
+              <div>
+                <span className="font-semibold">Date:</span> ____________
+              </div>
+              <div>
+                <span className="font-semibold">Teacher:</span> ______________________
+              </div>
+              <div className="col-span-2 text-right rtl">
+                <span className="font-bold ltr inline-block text-[13px]">
+                  Final Score: &nbsp; [ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; / 100 ]
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* PART I: Reading Passage */}
+        {(printScope === "full" || printScope === "text_only") && (
+          <section className="space-y-4 mb-6">
+            {/* Passage Header */}
+            <div className="border-b-2 border-black pb-2 mb-3 text-center">
+              <h1 className="text-xl font-black uppercase tracking-wider text-black">{currentStory.title}</h1>
+              {currentStory.hebrewTitle && (
+                <p className="text-sm font-medium text-gray-700 rtl text-center mt-0.5">({currentStory.hebrewTitle})</p>
+              )}
+            </div>
+
+            <div className="text-[11px] font-bold uppercase tracking-wider text-gray-800 mb-2">
+              Part I: Read the passage below and answer the questions that follow.
+            </div>
+
+            {/* Paragraphs with clean typography, no dotted underlines, and break-inside-avoid */}
+            <div className="space-y-3.5 text-[13px] leading-relaxed text-justify">
+              {currentStory.paragraphs.map((para, idx) => (
+                <div key={idx} className="print-avoid-break flex items-start gap-2">
+                  <span className="font-bold text-black shrink-0 text-[11px] uppercase tracking-wider pt-0.5">
+                    [{idx + 1}]
+                  </span>
+                  <p className="text-black font-normal leading-relaxed m-0 flex-1">{para}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Vocabulary Hints Box */}
+            {printIncludeVocab && currentStory.vocabularyHints && currentStory.vocabularyHints.length > 0 && (
+              <div className="mt-4 pt-2.5 border-t border-gray-400 print-avoid-break text-[11px]">
+                <span className="font-bold text-black mr-2">Vocabulary Helpers:</span>
+                <span className="text-gray-800">
+                  {currentStory.vocabularyHints.map((h, i) => (
+                    <span key={i} className="inline-block mr-3">
+                      <strong>{h.word}</strong> = <span className="rtl">{h.translation}</span>
+                    </span>
+                  ))}
+                </span>
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* Page break before Questions if full exam */}
+        {printScope === "full" && <div className="print-break-before" />}
+
+        {/* PART II: Questions */}
+        {(printScope === "full" || printScope === "questions_only") && (
+          <section className="space-y-4 pt-1">
+            <div className="border-b-2 border-black pb-2 mb-4">
+              <div className="flex justify-between items-center">
+                <h2 className="text-base font-black uppercase tracking-wider text-black">
+                  Part II: Questions (100 Points)
+                </h2>
+                <span className="text-xs font-semibold text-gray-700">10 questions &bull; 10 points each</span>
+              </div>
+              <p className="text-xs text-gray-700 italic mt-0.5">
+                Answer all questions according to the passage. Circle the letter of the correct answer for each question.
+              </p>
+            </div>
+
+            <div className="space-y-4 text-xs">
+              {currentStory.questions.map((q, qIdx) => {
+                const letters = ["a", "b", "c", "d"];
+                return (
+                  <div key={q.id || qIdx} className="print-avoid-break border-b border-gray-200 pb-3.5 space-y-1.5">
+                    <div className="flex justify-between items-start gap-2">
+                      <div className="font-bold text-black text-[13px] leading-snug">
+                        <span>{qIdx + 1}. </span>
+                        <span>{q.prompt}</span>
+                        {q.linesHint && (
+                          <span className="text-gray-600 font-normal text-xs ml-1.5">({q.linesHint})</span>
+                        )}
+                      </div>
+                      <span className="text-[11px] font-bold text-gray-700 shrink-0 uppercase tracking-wider">
+                        [{q.points || 10} pts]
+                      </span>
+                    </div>
+
+                    {/* Options */}
+                    {q.options && q.options.length > 0 && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5 pt-1 pl-4">
+                        {q.options.map((opt, oIdx) => (
+                          <div key={oIdx} className="flex items-start gap-2 text-[12px] leading-tight text-gray-900">
+                            <span className="font-bold inline-block w-5 text-gray-700">({letters[oIdx]})</span>
+                            <span className="flex-1">{opt}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Ruled lines for open/copy type questions if any */}
+                    {q.type !== "mcq" && (
+                      <div className="pt-2 pl-4 space-y-2">
+                        <div className="border-b border-gray-400 h-4 w-full" />
+                        <div className="border-b border-gray-400 h-4 w-full" />
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
+        {/* Optional Teacher Answer Key Sheet */}
+        {printIncludeAnswers && (
+          <section className="print-break-before space-y-4 pt-3">
+            <div className="border-b-2 border-black pb-2 text-center">
+              <h2 className="text-lg font-black uppercase tracking-wider text-black">
+                Teacher Answer Key & Explanations (מחוון למורה)
+              </h2>
+              <p className="text-xs text-gray-700">
+                {currentStory.title} &bull; {currentStory.level} &bull; Total Points: 100
+              </p>
+            </div>
+
+            <div className="space-y-2.5 text-xs">
+              {currentStory.questions.map((q, qIdx) => {
+                const letters = ["a", "b", "c", "d"];
+                const correctLetter = letters[q.correctIndex || 0] || "a";
+                const correctText = q.options ? q.options[q.correctIndex || 0] : "";
+
+                return (
+                  <div key={qIdx} className="print-avoid-break p-2.5 rounded border border-gray-300 bg-gray-50 space-y-1">
+                    <div className="flex justify-between items-center font-bold text-black text-xs">
+                      <span>
+                        Question {qIdx + 1} ({q.linesHint || `Paragraph ${q.paragraphIndex + 1}`}):
+                      </span>
+                      <span className="bg-black text-white px-2 py-0.5 rounded text-[11px]">
+                        Correct Answer: ({correctLetter})
+                      </span>
+                    </div>
+                    <p className="text-gray-900 text-xs font-medium pl-2">
+                      &rarr; {correctText}
+                    </p>
+                    {q.explanationHebrew && (
+                      <p className="text-gray-700 text-[11px] rtl text-right border-t border-gray-200 pt-1 mt-1">
+                        <strong>הסבר פדגוגי בעברית:</strong> {q.explanationHebrew}
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
+      </div>
     </div>
   );
 }
