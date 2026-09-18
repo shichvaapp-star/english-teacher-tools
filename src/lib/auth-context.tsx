@@ -16,6 +16,8 @@ import {
   getDocs,
   query,
   where,
+  deleteDoc,
+  updateDoc,
 } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 
@@ -33,11 +35,17 @@ interface AuthContextType {
   }) => Promise<{ success: boolean; error?: string }>;
   loginStudent: (data: { teacherId: string; studentName: string; pin: string }) => Promise<{ success: boolean; error?: string }>;
   getStudentsByTeacher: (teacherId: string) => Promise<StudentProfile[]>;
+  addStudentByTeacher: (data: {
+    studentName: string;
+    classGrade: string;
+    classNumber: number;
+    pin: string;
+  }) => Promise<{ success: boolean; student?: StudentProfile; error?: string }>;
+  updateStudent: (studentId: string, updates: Partial<StudentProfile>) => Promise<{ success: boolean; error?: string }>;
+  deleteStudent: (studentId: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
   isLoading: boolean;
 }
-
-const DEFAULT_TEACHERS: TeacherProfile[] = [];
 
 const isMockTeacher = (t: Partial<TeacherProfile>): boolean => {
   if (!t) return true;
@@ -554,6 +562,129 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return students;
   };
 
+  const addStudentByTeacher = async (data: {
+    studentName: string;
+    classGrade: string;
+    classNumber: number;
+    pin: string;
+  }): Promise<{ success: boolean; student?: StudentProfile; error?: string }> => {
+    if (!user || user.role !== "teacher") {
+      return { success: false, error: "Only teachers can add students to their roster." };
+    }
+
+    const trimmedName = data.studentName.trim();
+    const cleanPin = data.pin.trim();
+
+    const englishNameRegex = /^[A-Za-z\s'-]+$/;
+    if (!trimmedName || !englishNameRegex.test(trimmedName)) {
+      return {
+        success: false,
+        error: "Please enter the student's full name in English letters only (A-Z).",
+      };
+    }
+    if (cleanPin.length < 4) {
+      return { success: false, error: "PIN must be at least 4 digits." };
+    }
+
+    const fullClass = `${data.classGrade}׳${data.classNumber}`;
+    const studentId = `student-${Date.now()}`;
+    const newStudent: StudentProfile = {
+      id: studentId,
+      name: trimmedName,
+      pin: cleanPin,
+      teacherId: user.id,
+      teacherName: user.name,
+      classGrade: data.classGrade,
+      classNumber: data.classNumber,
+      fullClass: fullClass,
+      createdAt: new Date().toISOString(),
+    };
+
+    // 1. Save to Firestore
+    if (db) {
+      try {
+        await setDoc(doc(db, "students", studentId), newStudent);
+      } catch (dbErr) {
+        console.warn("Firestore save student error:", dbErr);
+      }
+    }
+
+    // 2. Save to local storage
+    try {
+      const storedStudentsRaw = localStorage.getItem(STORAGE_KEYS.STUDENTS);
+      const studentsList: StudentProfile[] = storedStudentsRaw ? JSON.parse(storedStudentsRaw) : [];
+      studentsList.push(newStudent);
+      localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(studentsList));
+    } catch {
+      // Ignore
+    }
+
+    return { success: true, student: newStudent };
+  };
+
+  const updateStudent = async (
+    studentId: string,
+    updates: Partial<StudentProfile>
+  ): Promise<{ success: boolean; error?: string }> => {
+    if (!studentId) {
+      return { success: false, error: "Missing student ID." };
+    }
+
+    // 1. Update in Firestore
+    if (db) {
+      try {
+        await updateDoc(doc(db, "students", studentId), updates);
+      } catch (dbErr) {
+        console.warn("Firestore update student error:", dbErr);
+      }
+    }
+
+    // 2. Update in localStorage
+    try {
+      const storedStudentsRaw = localStorage.getItem(STORAGE_KEYS.STUDENTS);
+      if (storedStudentsRaw) {
+        const studentsList: StudentProfile[] = storedStudentsRaw ? JSON.parse(storedStudentsRaw) : [];
+        const updatedList = studentsList.map((s) =>
+          s.id === studentId ? { ...s, ...updates } : s
+        );
+        localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(updatedList));
+      }
+    } catch {
+      // Ignore
+    }
+
+    return { success: true };
+  };
+
+  const deleteStudent = async (studentId: string): Promise<{ success: boolean; error?: string }> => {
+    if (!studentId) {
+      return { success: false, error: "Missing student ID." };
+    }
+
+    // 1. Delete from Firestore
+    if (db) {
+      try {
+        await deleteDoc(doc(db, "students", studentId));
+      } catch (dbErr) {
+        console.warn("Firestore delete student error:", dbErr);
+      }
+    }
+
+    // 2. Delete from localStorage
+    try {
+      const storedStudentsRaw = localStorage.getItem(STORAGE_KEYS.STUDENTS);
+      if (storedStudentsRaw) {
+        const studentsList: StudentProfile[] = storedStudentsRaw ? JSON.parse(storedStudentsRaw) : [];
+        const updatedList = studentsList.filter((s) => s.id !== studentId);
+        localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(updatedList));
+      }
+    } catch {
+      // Ignore
+    }
+
+    return { success: true };
+  };
+
   const logout = () => {
     setUser(null);
     try {
@@ -576,6 +707,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         registerStudent,
         loginStudent,
         getStudentsByTeacher,
+        addStudentByTeacher,
+        updateStudent,
+        deleteStudent,
         logout,
         isLoading,
       }}

@@ -63,9 +63,10 @@ export function StudentLoginModal({ open, onOpenChange }: StudentLoginModalProps
     if (!effectiveTeacherId || !open) return;
 
     let isMounted = true;
-    setIsLoadingStudents(true);
-    getStudentsByTeacher(effectiveTeacherId)
-      .then((students) => {
+    async function loadStudents() {
+      setIsLoadingStudents(true);
+      try {
+        const students = await getStudentsByTeacher(effectiveTeacherId);
         if (isMounted) {
           setTeacherStudents(students);
           if (students.length > 0 && !loginStudentName) {
@@ -73,13 +74,14 @@ export function StudentLoginModal({ open, onOpenChange }: StudentLoginModalProps
             setIsManualName(false);
           }
         }
-      })
-      .catch((err) => {
+      } catch (err) {
         console.warn("Could not fetch students for teacher:", err);
-      })
-      .finally(() => {
+      } finally {
         if (isMounted) setIsLoadingStudents(false);
-      });
+      }
+    }
+
+    loadStudents();
 
     return () => {
       isMounted = false;
