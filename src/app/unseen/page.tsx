@@ -87,8 +87,8 @@ export default function UnseenPracticePage() {
   const currentStory: MSUnseenStory =
     stories.find((s) => s.id === selectedStoryId) || levelStories[0] || MIDDLE_SCHOOL_UNSEENS[0];
 
-  // Story selector tabs: "library" vs "ai_generator" (default to AI Generator)
-  const [storySourceTab, setStorySourceTab] = useState<"library" | "ai_generator">("ai_generator");
+  // Story selector tabs: "library" vs "ai_generator" (default to Library)
+  const [storySourceTab, setStorySourceTab] = useState<"library" | "ai_generator">("library");
 
   // AI Story Generation State
   const [aiTopicInput, setAiTopicInput] = useState("");
@@ -691,6 +691,16 @@ export default function UnseenPracticePage() {
           </div>
 
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            {stage === "settings" && (
+              <Button
+                size="sm"
+                onClick={handleStartExercise}
+                className="cursor-pointer gap-1.5 font-bold shadow-xs text-xs h-8 px-3 bg-primary text-primary-foreground hover:bg-primary/90"
+              >
+                <span>התחל תרגול</span>
+                <ArrowRight className="h-3.5 w-3.5" />
+              </Button>
+            )}
             <Button
               variant="outline"
               size="sm"
@@ -723,28 +733,45 @@ export default function UnseenPracticePage() {
           STAGE 1: SETTINGS / SETUP VIEW
           ========================================================================= */}
       {stage === "settings" && (
-        <main className="container mx-auto flex-1 px-4 sm:px-8 py-8 max-w-4xl space-y-6 print:hidden">
-          <div className="text-center space-y-1.5 mb-2">
-            <Badge variant="outline" className="text-xs px-2.5 py-0.5 border-primary/30 text-primary">
-              שלב 1 מתוך 2: הגדרות פעילות
-            </Badge>
-            <h2 className="text-2xl font-bold tracking-tight text-foreground">בחר את הגדרות האנסין שלך</h2>
-            <p className="text-xs text-muted-foreground max-w-lg mx-auto">
-              בחר את רמת הקושי, את אופן התרגול (אימון או הגשה לציון), ובחר קטע קריאה מוכן או צור קטע עם AI.
-            </p>
+        <main className="container mx-auto flex-1 px-3 sm:px-8 py-4 sm:py-8 max-w-4xl space-y-4 sm:space-y-6 print:hidden">
+          {/* Settings Hero Card with Immediate Start Button */}
+          <div className="bg-card border-2 border-primary/20 rounded-2xl p-4 sm:p-6 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-right" dir="rtl">
+            <div className="space-y-1 w-full sm:w-auto">
+              <div className="flex items-center justify-center sm:justify-start gap-2">
+                <Badge variant="outline" className="text-xs px-2.5 py-0.5 border-primary/30 text-primary font-bold">
+                  הגדרות תרגול
+                </Badge>
+                <span className="text-xs text-muted-foreground hidden sm:inline">&bull; קטע נבחר: {currentStory.title}</span>
+              </div>
+              <h2 className="text-xl sm:text-2xl font-black tracking-tight text-foreground">
+                מוכנים להתחיל לקרוא ולתרגל?
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                בחרו רמה וקטע קריאה, ולחצו להתחלה מיידית של התרגול (10 שאלות).
+              </p>
+            </div>
+
+            <Button
+              size="lg"
+              onClick={handleStartExercise}
+              className="w-full sm:w-auto cursor-pointer gap-2 text-sm font-black px-6 shadow-md h-11 bg-primary text-primary-foreground hover:bg-primary/90 shrink-0"
+            >
+              <span>התחל קריאה ותרגול</span>
+              <ArrowRight className="h-4 w-4" />
+            </Button>
           </div>
 
           {/* Setting 1: Level Selection */}
-          <div className="bg-card border border-border/60 rounded-xl p-4 shadow-xs space-y-3">
+          <div className="bg-card border border-border/60 rounded-xl p-3.5 sm:p-4 shadow-xs space-y-2.5 sm:space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold uppercase tracking-wider text-foreground flex items-center gap-1.5">
                 <Target className="h-4 w-4 text-primary" />
-                <span>1. בחר רמת קריאה (Reading Level)</span>
+                <span>1. רמת קריאה (Reading Level)</span>
               </span>
-              <span className="text-[11px] text-muted-foreground">ללא תלות בשכבת גיל</span>
+              <span className="text-[11px] text-muted-foreground hidden sm:inline">ללא תלות בשכבת גיל</span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-2.5">
               {[
                 {
                   id: "Level 1" as const,
@@ -774,19 +801,19 @@ export default function UnseenPracticePage() {
                     key={lvl.id}
                     type="button"
                     onClick={() => handleLevelSelect(lvl.id)}
-                    className={`p-3.5 rounded-xl border text-right transition cursor-pointer flex flex-col justify-between gap-2 ${
+                    className={`p-3 sm:p-3.5 rounded-xl border text-right transition cursor-pointer flex flex-col justify-between gap-1.5 sm:gap-2 ${
                       isSelected
                         ? "border-primary bg-primary/5 shadow-xs ring-2 ring-primary/30"
                         : "border-border/60 hover:bg-muted/40 hover:border-border"
                     }`}
                   >
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between w-full">
                       <span className="text-sm font-bold text-foreground">{lvl.title}</span>
                       <span className={`text-[10px] px-2 py-0.5 rounded border ${lvl.badgeColor}`}>
                         {lvl.sub}
                       </span>
                     </div>
-                    <p className="text-[11px] text-muted-foreground leading-relaxed">{lvl.desc}</p>
+                    <p className="text-[11px] text-muted-foreground leading-relaxed hidden md:block">{lvl.desc}</p>
                   </button>
                 );
               })}
@@ -794,37 +821,40 @@ export default function UnseenPracticePage() {
           </div>
 
           {/* Setting 2: Practice Mode vs. Graded Mode */}
-          <div className="bg-card border border-border/60 rounded-xl p-4 shadow-xs space-y-3">
+          <div className="bg-card border border-border/60 rounded-xl p-3.5 sm:p-4 shadow-xs space-y-2.5 sm:space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold uppercase tracking-wider text-foreground flex items-center gap-1.5">
                 <FileCheck className="h-4 w-4 text-primary" />
-                <span>2. בחר מצב פעילות (Practice vs. Exam)</span>
+                <span>2. מצב פעילות (Practice vs. Exam)</span>
               </span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
               <button
                 type="button"
                 onClick={() => setMode("practice")}
-                className={`p-4 rounded-xl border text-right transition cursor-pointer flex items-start gap-3 ${
+                className={`p-3 sm:p-4 rounded-xl border text-right transition cursor-pointer flex items-start gap-3 ${
                   mode === "practice"
                     ? "border-primary bg-primary/5 shadow-xs ring-2 ring-primary/30"
                     : "border-border/60 hover:bg-muted/40"
                 }`}
               >
-                <div className="p-2.5 rounded-lg bg-primary/10 text-primary shrink-0 mt-0.5">
-                  <Target className="h-5 w-5" />
+                <div className="p-2 sm:p-2.5 rounded-lg bg-primary/10 text-primary shrink-0 mt-0.5">
+                  <Target className="h-4 w-4 sm:h-5 sm:w-5" />
                 </div>
-                <div className="space-y-1">
+                <div className="space-y-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <h4 className="text-sm font-bold text-foreground">אימון ותרגול חופשי (Practice Mode)</h4>
+                    <h4 className="text-sm font-bold text-foreground">אימון חופשי (Practice Mode)</h4>
                     {mode === "practice" && (
                       <span className="text-[10px] px-1.5 py-0.2 bg-primary text-primary-foreground rounded-full font-bold">
                         נבחר
                       </span>
                     )}
                   </div>
-                  <p className="text-xs text-muted-foreground leading-relaxed">
+                  <span className="text-xs text-muted-foreground block md:hidden">
+                    בדיקת תשובות מיידית, רמזים והסברים בעברית.
+                  </span>
+                  <p className="text-xs text-muted-foreground leading-relaxed hidden md:block">
                     בדיקת תשובות מיידית תוך כדי פתרון (&ldquo;בדוק תשובה&rdquo;), רמזים, אפשרות לנסות שוב, והסבר מפורט בעברית לכל שאלה.
                   </p>
                 </div>
@@ -833,25 +863,28 @@ export default function UnseenPracticePage() {
               <button
                 type="button"
                 onClick={() => setMode("graded")}
-                className={`p-4 rounded-xl border text-right transition cursor-pointer flex items-start gap-3 ${
+                className={`p-3 sm:p-4 rounded-xl border text-right transition cursor-pointer flex items-start gap-3 ${
                   mode === "graded"
                     ? "border-primary bg-primary/5 shadow-xs ring-2 ring-primary/30"
                     : "border-border/60 hover:bg-muted/40"
                 }`}
               >
-                <div className="p-2.5 rounded-lg bg-emerald-500/10 text-emerald-600 shrink-0 mt-0.5">
-                  <Award className="h-5 w-5" />
+                <div className="p-2 sm:p-2.5 rounded-lg bg-emerald-500/10 text-emerald-600 shrink-0 mt-0.5">
+                  <Award className="h-4 w-4 sm:h-5 sm:w-5" />
                 </div>
-                <div className="space-y-1">
+                <div className="space-y-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <h4 className="text-sm font-bold text-foreground">הגשה לציון (Graded Exam Mode)</h4>
+                    <h4 className="text-sm font-bold text-foreground">מבחן לציון (Graded Exam)</h4>
                     {mode === "graded" && (
                       <span className="text-[10px] px-1.5 py-0.2 bg-emerald-600 text-white rounded-full font-bold">
                         נבחר
                       </span>
                     )}
                   </div>
-                  <p className="text-xs text-muted-foreground leading-relaxed">
+                  <span className="text-xs text-muted-foreground block md:hidden">
+                    עונים על 10 השאלות ומגישים לקבלת ציון מתוך 100.
+                  </span>
+                  <p className="text-xs text-muted-foreground leading-relaxed hidden md:block">
                     סימולציית מבחן אמיתית: עונים על כל 10 השאלות ללא חשיפת תשובות ביניים, ובסיום מגישים לקבלת ציון מתוך 100 עם דוח משוב מלא.
                   </p>
                 </div>
@@ -1064,25 +1097,25 @@ export default function UnseenPracticePage() {
             )}
           </div>
 
-          {/* Bottom Action Bar: Ready to Start */}
-          <div className="bg-card border-2 border-primary/20 rounded-2xl p-4 shadow-md flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="text-right rtl space-y-0.5">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-bold text-foreground">מוכן לקריאה:</span>
-                <span className="text-sm font-bold text-primary">{currentStory.title}</span>
-                <span className="text-xs text-muted-foreground">({currentStory.hebrewTitle})</span>
+          {/* Bottom Action Bar: Sticky on Mobile so it is NEVER lost */}
+          <div className="sticky bottom-0 z-30 -mx-3 sm:mx-0 p-3 sm:p-4 bg-background/95 backdrop-blur-md border-t-2 sm:border sm:rounded-2xl border-primary/30 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div className="text-right rtl space-y-0.5 w-full sm:w-auto flex sm:flex-col justify-between items-center sm:items-start">
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <span className="text-xs sm:text-sm font-bold text-foreground">קטע:</span>
+                <span className="text-xs sm:text-sm font-bold text-primary truncate max-w-[150px] sm:max-w-none">{currentStory.title}</span>
+                <span className="text-[11px] sm:text-xs text-muted-foreground truncate hidden sm:inline">({currentStory.hebrewTitle})</span>
               </div>
-              <p className="text-xs text-muted-foreground">
-                {selectedLevel} &bull; 10 שאלות &bull; {mode === "practice" ? "אימון חופשי עם רמזים" : "הגשה לציון (מבחן)"}
+              <p className="text-[11px] sm:text-xs text-muted-foreground">
+                {selectedLevel} &bull; 10 שאלות &bull; {mode === "practice" ? "אימון עם רמזים" : "הגשה לציון"}
               </p>
             </div>
 
             <div className="flex items-center gap-2 w-full sm:w-auto">
               <Button
                 variant="outline"
-                size="lg"
+                size="default"
                 onClick={() => setShowPrintModal(true)}
-                className="w-full sm:w-auto cursor-pointer gap-2 text-xs font-bold px-4 border-border/80"
+                className="hidden sm:inline-flex cursor-pointer gap-2 text-xs font-bold px-4 border-border/80"
                 title="הדפס דף עבודה או מבחן מלא"
               >
                 <Printer className="h-4 w-4 text-primary" />
@@ -1091,7 +1124,7 @@ export default function UnseenPracticePage() {
               <Button
                 size="lg"
                 onClick={handleStartExercise}
-                className="w-full sm:w-auto cursor-pointer gap-2 text-sm font-bold px-8 shadow-md"
+                className="flex-1 sm:flex-none cursor-pointer gap-2 text-sm font-black h-11 sm:h-12 px-6 sm:px-8 shadow-md bg-primary text-primary-foreground hover:bg-primary/90"
               >
                 <span>התחל קריאה ותרגול</span>
                 <ArrowRight className="h-4 w-4" />

@@ -81,6 +81,7 @@ export default function WritingPracticePage() {
   // Writing text & copy status
   const [essayText, setEssayText] = useState("");
   const [copied, setCopied] = useState(false);
+  const [disableAutocorrect, setDisableAutocorrect] = useState(true);
 
   // AI Feedback state
   const [isEvaluating, setIsEvaluating] = useState(false);
@@ -679,15 +680,34 @@ export default function WritingPracticePage() {
                 )}
               </div>
 
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleCopy}
-                className="h-7 text-xs gap-1 cursor-pointer"
-              >
-                {copied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
-                <span>{copied ? "הועתק" : "העתק טקסט"}</span>
-              </Button>
+              <div className="flex items-center gap-1.5">
+                <Button
+                  type="button"
+                  variant={disableAutocorrect ? "secondary" : "outline"}
+                  size="sm"
+                  onClick={() => setDisableAutocorrect((prev) => !prev)}
+                  className={`h-7 text-xs gap-1 cursor-pointer ${
+                    disableAutocorrect
+                      ? "border-emerald-500/40 text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 font-bold"
+                      : "text-muted-foreground"
+                  }`}
+                  title="נטרול או הפעלת תיקון אוטומטי ובדיקת איות במקלדת הנייד"
+                >
+                  <span className="text-[11px]">
+                    {disableAutocorrect ? "✓ מקלדת: ללא תיקון שגיאות" : "מקלדת: תיקון אוטומטי פעיל"}
+                  </span>
+                </Button>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleCopy}
+                  className="h-7 text-xs gap-1 cursor-pointer"
+                >
+                  {copied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
+                  <span>{copied ? "הועתק" : "העתק טקסט"}</span>
+                </Button>
+              </div>
             </div>
 
             {/* Writing Textarea */}
@@ -700,6 +720,10 @@ export default function WritingPracticePage() {
                 setSubmissionSuccess(null);
               }}
               dir="ltr"
+              autoCorrect={disableAutocorrect ? "off" : "on"}
+              autoCapitalize={disableAutocorrect ? "none" : "sentences"}
+              spellCheck={!disableAutocorrect}
+              autoComplete={disableAutocorrect ? "off" : "on"}
               className="w-full rounded-xl border border-input bg-card p-4 text-sm md:text-base leading-relaxed font-sans shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             />
 

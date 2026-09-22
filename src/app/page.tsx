@@ -172,55 +172,55 @@ export default function Home() {
       {/* Top Navbar */}
       <header className="sticky top-0 z-40 border-b border-border/50 bg-background/90 backdrop-blur-md">
         <div className="container mx-auto flex h-16 items-center justify-between px-3 sm:px-8 gap-2">
-          <Link href="/" className="flex items-center gap-2.5 sm:gap-3 group min-w-0">
+          <Link href="/" className="flex items-center gap-2 sm:gap-3 group min-w-0 shrink-0">
             <div className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-xs shrink-0 transition-transform group-hover:scale-105">
               <GraduationCap className="h-4 w-4 sm:h-5 sm:w-5" />
             </div>
             <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="font-extrabold tracking-tight text-foreground text-base sm:text-xl truncate">
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <span className="font-extrabold tracking-tight text-foreground text-sm sm:text-xl truncate">
                   English Practice
                 </span>
                 <span className="text-[11px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium hidden sm:inline-block">
                   חטיבת ביניים
                 </span>
               </div>
-              <span className="text-[10px] sm:text-xs text-muted-foreground font-medium block truncate" dir="rtl">
+              <span className="text-[10px] sm:text-xs text-muted-foreground font-medium hidden sm:block truncate" dir="rtl">
                 חטיבת ביניים בן גוריון &bull; Ben Gurion Middle School
               </span>
             </div>
           </Link>
 
-          <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+          <div className="flex items-center gap-1 sm:gap-2.5 shrink-0">
             {user?.role === "teacher" && (
               <Link
                 href="/teacher/dashboard"
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-purple-500/30 bg-purple-500/10 hover:bg-purple-500/20 text-xs font-bold text-purple-700 dark:text-purple-300 transition shadow-2xs"
+                className="inline-flex items-center gap-1 p-2 sm:px-2.5 sm:py-1.5 rounded-lg border border-purple-500/30 bg-purple-500/10 hover:bg-purple-500/20 text-xs font-bold text-purple-700 dark:text-purple-300 transition shadow-2xs"
                 dir="rtl"
                 title="לוח בקרת מורה"
               >
                 <LayoutDashboard className="h-3.5 w-3.5 text-purple-600 dark:text-purple-400" />
-                <span className="hidden sm:inline">לוח בקרת מורה</span>
-                <span className="sm:hidden">לוח מורה</span>
+                <span className="hidden md:inline">לוח בקרת מורה</span>
+                <span className="hidden sm:inline md:hidden">לוח מורה</span>
               </Link>
             )}
 
             {user?.role === "student" && (
               <Link
                 href="/student"
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-xs font-bold text-emerald-700 dark:text-emerald-300 transition shadow-2xs"
+                className="inline-flex items-center gap-1 p-2 sm:px-2.5 sm:py-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-xs font-bold text-emerald-700 dark:text-emerald-300 transition shadow-2xs"
                 dir="rtl"
                 title="העבודות והציונים שלי"
               >
                 <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-                <span className="hidden sm:inline">ההגשות והציונים שלי</span>
-                <span className="sm:hidden">ההגשות שלי</span>
+                <span className="hidden md:inline">ההגשות והציונים שלי</span>
+                <span className="hidden sm:inline md:hidden">ההגשות שלי</span>
               </Link>
             )}
 
             <Link
               href="/guide"
-              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border/70 hover:border-primary/40 bg-card hover:bg-accent/60 text-xs font-medium text-foreground transition shadow-2xs"
+              className="inline-flex items-center gap-1.5 p-2 sm:px-2.5 sm:py-1.5 rounded-lg border border-border/70 hover:border-primary/40 bg-card hover:bg-accent/60 text-xs font-medium text-foreground transition shadow-2xs"
               title="Teacher Guide"
             >
               <BookOpen className="h-3.5 w-3.5 text-primary" />
@@ -439,7 +439,7 @@ export default function Home() {
         )}
 
         {/* 3 Core Cards with Clean English Header & Hebrew RTL body */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 max-w-6xl mx-auto">
           {sections.map((sec) => {
             const Icon = sec.icon;
             return (
@@ -447,32 +447,32 @@ export default function Home() {
                 key={sec.englishTitle}
                 className={`flex flex-col justify-between border border-border/70 hover:shadow-lg transition-all duration-200 bg-card ${sec.borderColor}`}
               >
-                <CardHeader className="pb-3 text-right" dir="rtl">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className={`p-2.5 rounded-xl ${sec.bgColor} ${sec.color}`}>
-                      <Icon className="h-6 w-6" />
+                <CardHeader className="p-4 sm:p-6 pb-2 md:pb-3 text-right" dir="rtl">
+                  <div className="flex items-center justify-between mb-2 md:mb-3">
+                    <div className={`p-2 md:p-2.5 rounded-xl ${sec.bgColor} ${sec.color}`}>
+                      <Icon className="h-5 w-5 md:h-6 md:w-6" />
                     </div>
-                    <Badge variant={sec.badgeVariant} className="text-xs font-semibold">
+                    <Badge variant={sec.badgeVariant} className="text-[11px] md:text-xs font-semibold">
                       {sec.badge}
                     </Badge>
                   </div>
 
                   {/* Header Style: Large title in English, smaller Hebrew translation below */}
                   <div>
-                    <h3 className="text-xl sm:text-2xl font-black text-foreground font-sans tracking-tight text-left" dir="ltr">
+                    <h3 className="text-lg sm:text-xl md:text-2xl font-black text-foreground font-sans tracking-tight text-left" dir="ltr">
                       {sec.englishTitle}
                     </h3>
-                    <p className="text-xs font-bold text-primary mt-1 text-right" dir="rtl">
+                    <p className="text-xs font-bold text-primary mt-0.5 md:mt-1 text-right" dir="rtl">
                       {sec.hebrewTitle}
                     </p>
                   </div>
 
-                  <p className="text-xs leading-relaxed text-muted-foreground pt-2 text-right" dir="rtl">
+                  <p className="text-xs leading-relaxed text-muted-foreground pt-1.5 md:pt-2 text-right line-clamp-2 md:line-clamp-none" dir="rtl">
                     {sec.description}
                   </p>
                 </CardHeader>
 
-                <CardContent className="flex-1" dir="rtl">
+                <CardContent className="flex-1 p-4 pt-0 sm:p-6 sm:pt-0 hidden md:block" dir="rtl">
                   <div className="border-t border-border/50 pt-3.5 space-y-2.5 text-right">
                     {sec.highlights.map((h, i) => (
                       <div key={i} className="flex items-start gap-2.5 text-xs text-foreground/85">
@@ -483,7 +483,7 @@ export default function Home() {
                   </div>
                 </CardContent>
 
-                <CardFooter className="pt-3 border-t border-border/40" dir="rtl">
+                <CardFooter className="p-4 sm:p-6 pt-2 md:pt-3 border-t border-border/40" dir="rtl">
                   <Link
                     href={sec.href}
                     className={buttonVariants({

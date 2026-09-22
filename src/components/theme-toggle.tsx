@@ -27,19 +27,19 @@ export function ThemeToggle() {
     <Button
       variant="outline"
       size="sm"
-      className="flex items-center gap-2 cursor-pointer"
+      className="flex items-center gap-2 cursor-pointer h-8 sm:h-9 px-2 sm:px-3"
       onClick={() => setTheme(isDark ? "light" : "dark")}
       title={isDark ? "Switch to Comfort Reading Mode (Light)" : "Switch to Dark Mode"}
     >
       {isDark ? (
         <>
-          <Sun className="h-4 w-4 text-amber-400" />
-          <span className="text-xs font-medium">Comfort Mode</span>
+          <Sun className="h-4 w-4 text-amber-400 shrink-0" />
+          <span className="text-xs font-medium hidden md:inline">Comfort Mode</span>
         </>
       ) : (
         <>
-          <Moon className="h-4 w-4 text-slate-700" />
-          <span className="text-xs font-medium">Dark Mode</span>
+          <Moon className="h-4 w-4 text-slate-700 dark:text-slate-300 shrink-0" />
+          <span className="text-xs font-medium hidden md:inline">Dark Mode</span>
         </>
       )}
     </Button>
