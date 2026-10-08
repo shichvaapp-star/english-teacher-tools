@@ -22,6 +22,7 @@ import {
 import { lookupBuiltInTranslation } from "@/data/built-in-dictionary";
 import { loadSavedWords, saveWordToBuilder, VocabItem } from "@/lib/vocab-storage";
 import type { WritingEvaluationResult } from "@/app/api/evaluate-writing/route";
+import type { ScaffoldingResult } from "@/app/api/scaffold-writing/route";
 import {
   PenTool,
   ArrowLeft,
@@ -50,6 +51,8 @@ import {
   Plus,
   Sliders,
   Award,
+  LifeBuoy,
+  Loader2,
 } from "lucide-react";
 
 interface SubmissionRecord {
@@ -155,6 +158,14 @@ export default function WritingPracticePage() {
   // Helpers toggle states in writing view
   const [showDictionary, setShowDictionary] = useState(false);
   const [showHint, setShowHint] = useState(false);
+  const [showScaffold, setShowScaffold] = useState(false);
+
+  // Scaffolding ("קשה לי") Assistant state
+  const [scaffoldInput, setScaffoldInput] = useState("");
+  const [isScaffolding, setIsScaffolding] = useState(false);
+  const [scaffoldResult, setScaffoldResult] = useState<ScaffoldingResult | null>(null);
+  const [scaffoldError, setScaffoldError] = useState<string | null>(null);
+  const [scaffoldInserted, setScaffoldInserted] = useState(false);
 
   // Inline Dictionary
   const [dictQuery, setDictQuery] = useState("");
@@ -450,6 +461,58 @@ export default function WritingPracticePage() {
     } finally {
       setIsEvaluating(false);
     }
+  };
+
+  // Sentence Scaffolding ("קשה לי") Handlers
+  const handleScaffoldSubmit = async () => {
+    if (!scaffoldInput.trim()) return;
+    setIsScaffolding(true);
+    setScaffoldError(null);
+
+    try {
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (typeof window !== "undefined") {
+        const groq = localStorage.getItem("ett_groq_api_key");
+        const gemini = localStorage.getItem("ett_gemini_api_key");
+        const openai = localStorage.getItem("ett_openai_api_key");
+        if (groq) headers["x-groq-api-key"] = groq;
+        if (gemini) headers["x-gemini-api-key"] = gemini;
+        if (openai) headers["x-openai-api-key"] = openai;
+      }
+
+      const res = await fetch("/api/scaffold-writing", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          hebrewText: scaffoldInput.trim(),
+          level: selectedLevel,
+          taskTitle: currentTask.title,
+          currentEssay: essayText,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success && data.scaffolding) {
+        setScaffoldResult(data.scaffolding);
+      } else {
+        setScaffoldError(data.error || "לא הצלחנו לייצר שלד למשפט כרגע. אנא נסו שוב.");
+      }
+    } catch (err) {
+      console.error("Scaffold error:", err);
+      setScaffoldError("אירעה שגיאה בחיבור לעוזר ה-AI. אנא בדקו את החיבור ונסו שוב.");
+    } finally {
+      setIsScaffolding(false);
+    }
+  };
+
+  const handleInsertScaffoldedSentence = (sentence: string) => {
+    setEssayText((prev) => {
+      const trimmed = prev.trim();
+      if (!trimmed) return sentence;
+      return `${trimmed} ${sentence}`;
+    });
+    setScaffoldInserted(true);
+    setTimeout(() => setScaffoldInserted(false), 2500);
   };
 
   // Submit essay to teacher
@@ -1154,6 +1217,22 @@ export default function WritingPracticePage() {
                       </span>
                     )}
                   </Button>
+
+                  <Button
+                    type="button"
+                    variant={showScaffold ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setShowScaffold((prev) => !prev)}
+                    className={`h-7 text-xs gap-1 cursor-pointer font-bold transition-all ${
+                      showScaffold
+                        ? "bg-amber-600 hover:bg-amber-700 text-white shadow-xs"
+                        : "border-amber-500/50 text-amber-700 dark:text-amber-400 bg-amber-500/10 hover:bg-amber-500/20"
+                    }`}
+                    title="קשה לי? בוא נבנה משפט יחד מעברית לאנגלית"
+                  >
+                    <LifeBuoy className="h-3.5 w-3.5" />
+                    <span>קשה לי</span>
+                  </Button>
                 </div>
               </div>
 
@@ -1313,6 +1392,22 @@ export default function WritingPracticePage() {
               <div className="flex items-center gap-2 mr-auto" dir="ltr">
                 <Button
                   type="button"
+                  variant={showScaffold ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setShowScaffold((prev) => !prev)}
+                  className={`h-7 text-xs gap-1.5 cursor-pointer font-bold transition-all ${
+                    showScaffold
+                      ? "bg-amber-600 hover:bg-amber-700 text-white shadow-xs"
+                      : "border-amber-500/50 text-amber-700 dark:text-amber-400 bg-amber-500/10 hover:bg-amber-500/20"
+                  }`}
+                  title="קשה לי? בוא נבנה משפט צעד אחר צעד מעברית לאנגלית"
+                >
+                  <LifeBuoy className="h-3.5 w-3.5" />
+                  <span>קשה לי</span>
+                </Button>
+
+                <Button
+                  type="button"
                   variant="outline"
                   size="sm"
                   onClick={() => handleSpeak(essayText)}
@@ -1368,6 +1463,218 @@ export default function WritingPracticePage() {
                 </div>
               </div>
             </div>
+
+            {/* SCAFFOLDING ASSISTANT CARD ("קשה לי") */}
+            {showScaffold && (
+              <div
+                className="rounded-2xl border-2 border-amber-500/40 bg-card p-4 sm:p-5 shadow-sm space-y-4 animate-in fade-in"
+                dir="rtl"
+              >
+                {/* Header */}
+                <div className="flex items-center justify-between border-b border-border/70 pb-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="p-2 rounded-xl bg-amber-500/15 text-amber-600 dark:text-amber-400 shrink-0">
+                      <LifeBuoy className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-bold text-sm sm:text-base text-foreground">
+                          עוזר אישי: בונים משפט צעד אחר צעד
+                        </h3>
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] border-amber-500/40 text-amber-700 dark:text-amber-400 font-semibold"
+                        >
+                          מעברית לאנגלית
+                        </Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        תקועים? כתבו בעברית את הרעיון שתרצו להביע, והעוזר יפרק אותו לאבני בניין באנגלית עם טיפים לתחביר נכון.
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowScaffold(false)}
+                    className="h-7 w-7 p-0 cursor-pointer text-muted-foreground hover:text-foreground shrink-0"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+
+                {/* Input Field */}
+                <div className="space-y-2">
+                  <div className="flex gap-2">
+                    <Input
+                      type="text"
+                      value={scaffoldInput}
+                      onChange={(e) => setScaffoldInput(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && handleScaffoldSubmit()}
+                      placeholder="כתבו כאן את המשפט בעברית (למשל: אני חושב שבתי ספר צריכים לאפשר לתלמידים לבחור...)"
+                      className="text-sm bg-background h-10"
+                      dir="rtl"
+                    />
+                    <Button
+                      type="button"
+                      onClick={handleScaffoldSubmit}
+                      disabled={isScaffolding || !scaffoldInput.trim()}
+                      className="h-10 px-4 text-xs font-bold gap-1.5 cursor-pointer bg-amber-600 hover:bg-amber-700 text-white shrink-0"
+                    >
+                      {isScaffolding ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          <span>בונה...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="h-4 w-4" />
+                          <span>פרק ובנה משפט</span>
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                  {scaffoldError && (
+                    <div className="text-xs text-destructive flex items-center gap-1.5 pt-1">
+                      <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                      <span>{scaffoldError}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Scaffolding Results */}
+                {scaffoldResult && (
+                  <div className="space-y-4 pt-1 animate-in fade-in">
+                    {/* 1. Grammatical Chunks */}
+                    <div className="space-y-2">
+                      <span className="text-xs font-bold text-foreground">
+                        שלב 1: אבני הבניין של המשפט (חלקי דיבר):
+                      </span>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2.5">
+                        {scaffoldResult.chunks.map((chunk, idx) => (
+                          <div
+                            key={idx}
+                            className="p-3 rounded-xl border border-border/80 bg-muted/40 space-y-1 text-right"
+                          >
+                            <div className="text-[11px] text-muted-foreground font-medium">
+                              {chunk.hebrew}
+                            </div>
+                            <div className="font-bold text-sm text-primary ltr text-left">
+                              {chunk.english}
+                            </div>
+                            {chunk.tip && (
+                              <div className="text-[10px] text-muted-foreground flex items-start gap-1 pt-0.5">
+                                <span className="text-amber-600 dark:text-amber-400 shrink-0">💡</span>
+                                <span className="leading-tight">{chunk.tip}</span>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* 2. Assembled English Sentence */}
+                    <div className="p-3.5 sm:p-4 rounded-xl border border-primary/30 bg-primary/5 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-primary">
+                          שלב 2: המשפט השלם באנגלית:
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleSpeak(scaffoldResult.fullSentence)}
+                            disabled={isPlayingAudio}
+                            className="h-7 text-xs px-2 gap-1 cursor-pointer"
+                            title="הקרא את המשפט באנגלית"
+                          >
+                            <Volume2 className="h-3.5 w-3.5 text-primary" />
+                            <span>הקשב</span>
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={() => handleInsertScaffoldedSentence(scaffoldResult.fullSentence)}
+                            className="h-7 text-xs px-3 gap-1 cursor-pointer bg-primary text-primary-foreground hover:bg-primary/90 font-bold"
+                          >
+                            {scaffoldInserted ? (
+                              <>
+                                <Check className="h-3.5 w-3.5" />
+                                <span>התווסף!</span>
+                              </>
+                            ) : (
+                              <>
+                                <Plus className="h-3.5 w-3.5" />
+                                <span>הוסף לחיבור</span>
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+
+                      <div className="text-base sm:text-lg font-bold text-foreground ltr text-left p-2.5 rounded-lg bg-card border border-border/80 shadow-2xs select-all">
+                        {scaffoldResult.fullSentence}
+                      </div>
+
+                      {scaffoldResult.alternativeSentence && (
+                        <div className="text-xs text-muted-foreground flex flex-col sm:flex-row sm:items-center justify-between gap-1 pt-1.5 border-t border-border/50">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <span className="font-semibold text-foreground shrink-0">דרך נוספת:</span>
+                            <span className="ltr text-left font-medium text-foreground/90 truncate">
+                              {scaffoldResult.alternativeSentence}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleInsertScaffoldedSentence(scaffoldResult.alternativeSentence!)}
+                            className="text-[11px] text-primary hover:underline font-bold cursor-pointer shrink-0 self-end sm:self-auto"
+                          >
+                            הוסף זו במקום
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* 3. Golden Rule / Summary Tip */}
+                    {scaffoldResult.hebrewSummaryTip && (
+                      <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/25 text-xs text-amber-800 dark:text-amber-300 flex items-start gap-2">
+                        <span className="shrink-0 text-base">📌</span>
+                        <span>
+                          <strong>כלל זהב:</strong> {scaffoldResult.hebrewSummaryTip}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Footer Actions */}
+                    <div className="flex items-center justify-between pt-1">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setScaffoldInput("");
+                          setScaffoldResult(null);
+                        }}
+                        className="h-7 text-xs px-2.5 cursor-pointer"
+                      >
+                        משפט חדש
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setShowScaffold(false)}
+                        className="h-7 text-xs px-2 text-muted-foreground hover:text-foreground cursor-pointer"
+                      >
+                        סגור עוזר
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* SINGLE CLEAN TEXTAREA */}
             <textarea
