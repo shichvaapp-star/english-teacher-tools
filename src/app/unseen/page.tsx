@@ -1578,6 +1578,9 @@ export default function UnseenPracticePage() {
                           onChange={(e) =>
                             setUserAnswers((prev) => ({ ...prev, [activeQuestion.id]: e.target.value }))
                           }
+                          spellCheck={false}
+                          autoCorrect="off"
+                          autoComplete="off"
                           className="w-full rounded-md border border-input bg-background p-2.5 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring font-mono"
                         />
                       </div>
@@ -1596,6 +1599,9 @@ export default function UnseenPracticePage() {
                           onChange={(e) =>
                             setUserAnswers((prev) => ({ ...prev, [activeQuestion.id]: e.target.value }))
                           }
+                          spellCheck={false}
+                          autoCorrect="off"
+                          autoComplete="off"
                           className="w-full rounded-md border border-input bg-background p-2.5 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                         />
                       </div>

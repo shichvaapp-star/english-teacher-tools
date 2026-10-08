@@ -1380,8 +1380,12 @@ export default function WritingPracticePage() {
               }}
               dir="ltr"
               autoCorrect="off"
-              autoCapitalize="sentences"
-              spellCheck={true}
+              autoCapitalize="off"
+              autoComplete="off"
+              spellCheck={false}
+              data-gramm="false"
+              data-gramm_editor="false"
+              data-enable-grammarly="false"
               className={`w-full rounded-2xl border border-input bg-card p-4 leading-relaxed font-sans shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
                 fontSize === "sm" ? "text-sm" : fontSize === "lg" ? "text-lg" : "text-base"
               }`}
