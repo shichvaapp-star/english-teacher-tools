@@ -64,10 +64,16 @@ PEDAGOGICAL TASK:
 2. For each part, provide:
    - "hebrew": the Hebrew sub-phrase (e.g. "אני הרבה יותר אוהב")
    - "english": the English equivalent (e.g. "I like ... much more")
-   - "explanation": a helpful, friendly Hebrew pedagogical tip explaining why this English phrasing or grammar is used (e.g., "באנגלית משתמשים ב-like much more או prefer להבעת העדפה").
+   - "explanation": a helpful, friendly, natural Hebrew tip explaining why this English phrasing or grammar is used.
 3. Assemble the complete, natural, grammatically correct English sentence in "fullSentence" with proper capitalization and punctuation.
 4. Provide an optional alternative way to say it in "alternativeSentence".
-5. Provide a memorable takeaway tip for Israeli students in "goldenRule" (e.g., "באנגלית תמיד חוזרים על כינוי הגוף (I) לפני הפועל בכל חלק של המשפט!").
+5. Provide a memorable takeaway tip for Israeli students in "goldenRule".
+
+CRITICAL READABILITY RULES (NO MIXED FORMULAS):
+- Write "explanation" and "goldenRule" in clear, simple, conversational Hebrew for students.
+- DO NOT use complex grammar formulas or symbol-heavy code (NEVER write things like "that-clause: that + subject (you) + verb (help)").
+- When mentioning an English word, keep it short and in simple quotes (e.g. משתמשים במילה "love").
+- Keep explanations concise (1-2 short sentences) so they read naturally from right to left without punctuation confusion.
 
 RETURN STRICT RAW JSON ONLY in this format:
 {

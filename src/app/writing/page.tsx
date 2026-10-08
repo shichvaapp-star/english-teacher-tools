@@ -78,6 +78,28 @@ interface SubmissionRecord {
 
 const LOCAL_SUBMISSIONS_KEY = "ett_writing_submissions";
 
+// BiDi Isolation Helper: isolates English words and terms inside Hebrew text to prevent punctuation and sentence order scramble
+function renderBiDiText(text: string) {
+  if (!text) return null;
+  // Match English words/phrases, including quotes or symbols around them
+  const tokens = text.split(/(["'״׳]?[a-zA-Z0-9_\-+/():]+(?:\s+[a-zA-Z0-9_\-+/():]+)*["'״׳]?)/g);
+
+  return tokens.map((token, i) => {
+    if (/[a-zA-Z]/.test(token)) {
+      return (
+        <bdi
+          key={i}
+          dir="ltr"
+          className="inline-block font-bold text-foreground bg-muted/60 border border-border/40 px-1.5 py-0.5 rounded mx-1 text-[11px] align-baseline select-all"
+        >
+          {token}
+        </bdi>
+      );
+    }
+    return <span key={i}>{token}</span>;
+  });
+}
+
 export default function WritingPracticePage() {
   const { user, teachers } = useAuth();
 
@@ -1621,24 +1643,34 @@ export default function WritingPracticePage() {
                         {scaffoldResult.chunks.map((chunk, idx) => (
                           <div
                             key={idx}
-                            className="p-3 rounded-xl border border-border/70 bg-muted/25 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-right"
+                            className="p-3.5 rounded-xl border border-border/70 bg-card/90 space-y-2 text-right shadow-2xs"
+                            dir="rtl"
                           >
-                            <div className="flex items-center gap-2">
-                              <span className="flex items-center justify-center w-5 h-5 rounded-full bg-primary/10 text-primary text-[11px] font-black shrink-0">
+                            {/* Line 1: Clear Translation Mapping */}
+                            <div className="flex items-center gap-2.5 flex-wrap">
+                              <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary/15 text-primary text-xs font-black shrink-0">
                                 {idx + 1}
                               </span>
-                              <span className="text-xs font-bold text-foreground">
+                              <span className="text-sm font-bold text-foreground">
                                 {chunk.hebrew}
                               </span>
-                              <ArrowLeft className="h-3 w-3 text-muted-foreground shrink-0" />
-                              <span className="text-sm font-black text-primary ltr text-left">
-                                {chunk.english}
+                              <ArrowLeft className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                              <span className="text-base font-black text-primary ltr">
+                                <bdi dir="ltr">{chunk.english}</bdi>
                               </span>
                             </div>
+
+                            {/* Line 2: Dedicated Full-Width Pedagogical Tip */}
                             {chunk.explanation && (
-                              <div className="text-xs text-muted-foreground flex items-center gap-1.5 bg-background/80 px-2.5 py-1 rounded-lg border border-border/50">
-                                <span className="text-amber-500 shrink-0">💡</span>
-                                <span>{chunk.explanation}</span>
+                              <div
+                                className="p-2.5 rounded-lg bg-muted/40 border border-border/50 text-xs leading-relaxed text-foreground/90 flex items-start gap-2 text-right"
+                                dir="rtl"
+                              >
+                                <span className="text-amber-500 shrink-0 text-sm mt-0.5">💡</span>
+                                <div className="text-right leading-relaxed min-w-0 flex-1">
+                                  <strong className="text-foreground ml-1">הסבר:</strong>
+                                  {renderBiDiText(chunk.explanation)}
+                                </div>
                               </div>
                             )}
                           </div>
@@ -1716,11 +1748,12 @@ export default function WritingPracticePage() {
 
                     {/* Section 4: Golden Rule */}
                     {scaffoldResult.goldenRule && (
-                      <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-900 dark:text-amber-200 flex items-start gap-2">
-                        <span className="shrink-0 text-base">📌</span>
-                        <span className="leading-relaxed">
-                          <strong>כלל זהב של המורה:</strong> {scaffoldResult.goldenRule}
-                        </span>
+                      <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-900 dark:text-amber-200 flex items-start gap-2" dir="rtl">
+                        <span className="shrink-0 text-base mt-0.5">📌</span>
+                        <div className="leading-relaxed text-right min-w-0 flex-1">
+                          <strong className="ml-1">כלל זהב של המורה:</strong>
+                          {renderBiDiText(scaffoldResult.goldenRule)}
+                        </div>
                       </div>
                     )}
 
