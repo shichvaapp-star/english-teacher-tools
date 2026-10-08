@@ -1479,7 +1479,7 @@ export default function WritingPracticePage() {
                     <div>
                       <div className="flex items-center gap-2">
                         <h3 className="font-bold text-sm sm:text-base text-foreground">
-                          עוזר אישי: בונים משפט צעד אחר צעד
+                          עוזר כתיבה אישי: איך לנסח משפט באנגלית
                         </h3>
                         <Badge
                           variant="outline"
@@ -1489,7 +1489,7 @@ export default function WritingPracticePage() {
                         </Badge>
                       </div>
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        תקועים? כתבו בעברית את הרעיון שתרצו להביע, והעוזר יפרק אותו לאבני בניין באנגלית עם טיפים לתחביר נכון.
+                        תקועים? כתבו מה שרציתם לומר בעברית, ונראה לכם איך להרכיב את המשפט באנגלית שלב אחר שלב.
                       </p>
                     </div>
                   </div>
@@ -1505,14 +1505,14 @@ export default function WritingPracticePage() {
                 </div>
 
                 {/* Input Field */}
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   <div className="flex gap-2">
                     <Input
                       type="text"
                       value={scaffoldInput}
                       onChange={(e) => setScaffoldInput(e.target.value)}
                       onKeyDown={(e) => e.key === "Enter" && handleScaffoldSubmit()}
-                      placeholder="כתבו כאן את המשפט בעברית (למשל: אני חושב שבתי ספר צריכים לאפשר לתלמידים לבחור...)"
+                      placeholder="לדוגמה: אני מעדיף גלידה כי אני אוהב מתוק..."
                       className="text-sm bg-background h-10"
                       dir="rtl"
                     />
@@ -1525,16 +1525,19 @@ export default function WritingPracticePage() {
                       {isScaffolding ? (
                         <>
                           <Loader2 className="h-4 w-4 animate-spin" />
-                          <span>בונה...</span>
+                          <span>בונה משפט...</span>
                         </>
                       ) : (
                         <>
                           <Sparkles className="h-4 w-4" />
-                          <span>פרק ובנה משפט</span>
+                          <span>בנה לי משפט ✨</span>
                         </>
                       )}
                     </Button>
                   </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    המלצה: התמקדו במשפט או רעיון אחד בכל פעם כדי להבין היטב את המבנה.
+                  </p>
                   {scaffoldError && (
                     <div className="text-xs text-destructive flex items-center gap-1.5 pt-1">
                       <AlertCircle className="h-3.5 w-3.5 shrink-0" />
@@ -1546,39 +1549,11 @@ export default function WritingPracticePage() {
                 {/* Scaffolding Results */}
                 {scaffoldResult && (
                   <div className="space-y-4 pt-1 animate-in fade-in">
-                    {/* 1. Grammatical Chunks */}
-                    <div className="space-y-2">
-                      <span className="text-xs font-bold text-foreground">
-                        שלב 1: אבני הבניין של המשפט (חלקי דיבר):
-                      </span>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2.5">
-                        {scaffoldResult.chunks.map((chunk, idx) => (
-                          <div
-                            key={idx}
-                            className="p-3 rounded-xl border border-border/80 bg-muted/40 space-y-1 text-right"
-                          >
-                            <div className="text-[11px] text-muted-foreground font-medium">
-                              {chunk.hebrew}
-                            </div>
-                            <div className="font-bold text-sm text-primary ltr text-left">
-                              {chunk.english}
-                            </div>
-                            {chunk.tip && (
-                              <div className="text-[10px] text-muted-foreground flex items-start gap-1 pt-0.5">
-                                <span className="text-amber-600 dark:text-amber-400 shrink-0">💡</span>
-                                <span className="leading-tight">{chunk.tip}</span>
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* 2. Assembled English Sentence */}
-                    <div className="p-3.5 sm:p-4 rounded-xl border border-primary/30 bg-primary/5 space-y-3">
+                    {/* Section 1: Assembled English Sentence */}
+                    <div className="p-4 rounded-xl border-2 border-primary/30 bg-primary/5 space-y-3">
                       <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-primary">
-                          שלב 2: המשפט השלם באנגלית:
+                        <span className="text-xs font-bold text-primary flex items-center gap-1">
+                          <span>✨ המשפט המוכן באנגלית:</span>
                         </span>
                         <div className="flex items-center gap-1.5">
                           <Button
@@ -1602,7 +1577,7 @@ export default function WritingPracticePage() {
                             {scaffoldInserted ? (
                               <>
                                 <Check className="h-3.5 w-3.5" />
-                                <span>התווסף!</span>
+                                <span>התווסף לחיבור!</span>
                               </>
                             ) : (
                               <>
@@ -1614,16 +1589,16 @@ export default function WritingPracticePage() {
                         </div>
                       </div>
 
-                      <div className="text-base sm:text-lg font-bold text-foreground ltr text-left p-2.5 rounded-lg bg-card border border-border/80 shadow-2xs select-all">
+                      <div className="text-base sm:text-lg font-bold text-foreground ltr text-left p-3 rounded-lg bg-card border border-border/80 shadow-2xs select-all">
                         {scaffoldResult.fullSentence}
                       </div>
 
                       {scaffoldResult.alternativeSentence && (
-                        <div className="text-xs text-muted-foreground flex flex-col sm:flex-row sm:items-center justify-between gap-1 pt-1.5 border-t border-border/50">
+                        <div className="text-xs text-muted-foreground flex flex-col sm:flex-row sm:items-center justify-between gap-1 pt-1 border-t border-border/50">
                           <div className="flex items-center gap-1.5 min-w-0">
                             <span className="font-semibold text-foreground shrink-0">דרך נוספת:</span>
                             <span className="ltr text-left font-medium text-foreground/90 truncate">
-                              {scaffoldResult.alternativeSentence}
+                              &quot;{scaffoldResult.alternativeSentence}&quot;
                             </span>
                           </div>
                           <button
@@ -1637,12 +1612,114 @@ export default function WritingPracticePage() {
                       )}
                     </div>
 
-                    {/* 3. Golden Rule / Summary Tip */}
-                    {scaffoldResult.hebrewSummaryTip && (
-                      <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/25 text-xs text-amber-800 dark:text-amber-300 flex items-start gap-2">
+                    {/* Section 2: Step-by-Step Breakdown */}
+                    <div className="space-y-2">
+                      <span className="text-xs font-bold text-foreground">
+                        איך בנינו את המשפט? (פירוק צעד אחר צעד):
+                      </span>
+                      <div className="space-y-2">
+                        {scaffoldResult.chunks.map((chunk, idx) => (
+                          <div
+                            key={idx}
+                            className="p-3 rounded-xl border border-border/70 bg-muted/25 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-right"
+                          >
+                            <div className="flex items-center gap-2">
+                              <span className="flex items-center justify-center w-5 h-5 rounded-full bg-primary/10 text-primary text-[11px] font-black shrink-0">
+                                {idx + 1}
+                              </span>
+                              <span className="text-xs font-bold text-foreground">
+                                {chunk.hebrew}
+                              </span>
+                              <ArrowLeft className="h-3 w-3 text-muted-foreground shrink-0" />
+                              <span className="text-sm font-black text-primary ltr text-left">
+                                {chunk.english}
+                              </span>
+                            </div>
+                            {chunk.explanation && (
+                              <div className="text-xs text-muted-foreground flex items-center gap-1.5 bg-background/80 px-2.5 py-1 rounded-lg border border-border/50">
+                                <span className="text-amber-500 shrink-0">💡</span>
+                                <span>{chunk.explanation}</span>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Section 3: Built-In Inline Dictionary */}
+                    <div className="p-3 rounded-xl bg-card border border-border/80 space-y-2">
+                      <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                        <Search className="h-3.5 w-3.5 text-primary" />
+                        <span>מילון מהיר מובנה: רוצים לבדוק או להחליף מילה בודדת?</span>
+                      </span>
+                      <div className="flex gap-2">
+                        <Input
+                          type="text"
+                          value={dictQuery}
+                          onChange={(e) => setDictQuery(e.target.value)}
+                          onKeyDown={(e) => e.key === "Enter" && handleDictionarySearch()}
+                          placeholder="הקלידו מילה בעברית או באנגלית (למשל: גלידה או sweet)..."
+                          className="h-8 text-xs bg-background"
+                          dir="rtl"
+                        />
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={handleDictionarySearch}
+                          disabled={isSearchingDict || !dictQuery.trim()}
+                          className="h-8 text-xs px-3 cursor-pointer shrink-0"
+                        >
+                          {isSearchingDict ? "מחפש..." : "תרגם מילה"}
+                        </Button>
+                      </div>
+                      {dictResult && (
+                        <div className="flex items-center justify-between text-xs pt-1 border-t border-border/50">
+                          <div>
+                            <span className="font-bold text-foreground ltr">{dictResult.english}</span>
+                            <span className="text-muted-foreground mr-1">({dictResult.hebrew})</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => {
+                                saveWordToBuilder(
+                                  {
+                                    english: dictResult.english,
+                                    hebrew: dictResult.hebrew,
+                                    level: "Personal Word",
+                                  },
+                                  user?.id
+                                );
+                                setSavedWords(loadSavedWords(user?.id));
+                              }}
+                              className="h-6 text-[11px] gap-1 cursor-pointer text-muted-foreground hover:text-foreground"
+                            >
+                              <BookMarked className="h-3 w-3 text-primary" />
+                              <span>שמור לפנקס</span>
+                            </Button>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleInsertText(dictResult.english)}
+                              className="h-6 text-[11px] gap-1 cursor-pointer text-primary"
+                            >
+                              <Plus className="h-3 w-3" />
+                              <span>הוסף לחיבור</span>
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Section 4: Golden Rule */}
+                    {scaffoldResult.goldenRule && (
+                      <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-900 dark:text-amber-200 flex items-start gap-2">
                         <span className="shrink-0 text-base">📌</span>
-                        <span>
-                          <strong>כלל זהב:</strong> {scaffoldResult.hebrewSummaryTip}
+                        <span className="leading-relaxed">
+                          <strong>כלל זהב של המורה:</strong> {scaffoldResult.goldenRule}
                         </span>
                       </div>
                     )}

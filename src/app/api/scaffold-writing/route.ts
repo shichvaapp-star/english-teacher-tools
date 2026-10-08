@@ -3,15 +3,14 @@ import { NextResponse } from "next/server";
 export interface SentenceChunk {
   hebrew: string;
   english: string;
-  tip?: string;
-  role?: "subject" | "verb" | "object" | "connector" | "time_place" | "other";
+  explanation: string;
 }
 
 export interface ScaffoldingResult {
   fullSentence: string;
-  chunks: SentenceChunk[];
-  hebrewSummaryTip: string;
   alternativeSentence?: string;
+  chunks: SentenceChunk[];
+  goldenRule: string;
 }
 
 function extractJsonFromText(raw: string): any {
@@ -34,7 +33,7 @@ export async function POST(request: Request) {
 
     if (!hebrewText || typeof hebrewText !== "string" || !hebrewText.trim()) {
       return NextResponse.json(
-        { success: false, error: "Missing Hebrew text to scaffold." },
+        { success: false, error: "אנא הקלידו משפט בעברית לפירוק ובנייה באנגלית." },
         { status: 400 }
       );
     }
@@ -44,73 +43,59 @@ export async function POST(request: Request) {
     const geminiApiKey = request.headers.get("x-gemini-api-key") || process.env.GEMINI_API_KEY;
     const openaiApiKey = request.headers.get("x-openai-api-key") || process.env.OPENAI_API_KEY;
 
-    // Calibrate instructions according to Ministry of Education CEFR bands
-    let levelDirectives = "";
+    let levelPrompt = "";
     if (currentLevel === "Level 1") {
-      levelDirectives = `
-- TARGET AUDIENCE: Level 1 (Elementary / Israeli 6th-7th grade, basic beginner).
-- Keep English vocabulary simple (Core Band I: e.g. like, want, go, have, because, friend, school).
-- Build short, clear S-V-O sentences (3-7 words max).
-- Emphasize fundamental English rules: always capitalize "I", every sentence starts with a capital letter and ends with a period.`;
+      levelPrompt = `Target audience: Israeli Elementary / Early Beginner (Level 1). Keep vocabulary simple (Core Band I), short S-V-O sentences, emphasize capitalization ("I", first letter).`;
     } else if (currentLevel === "Level 3") {
-      levelDirectives = `
-- TARGET AUDIENCE: Level 3 (Israeli High School 5-points Bagrut prep, CEFR B1-B2).
-- Use rich Band II/III vocabulary, sophisticated transition words (Furthermore, Consequently, In addition), and varied sentence structures (complex/compound).`;
+      levelPrompt = `Target audience: Israeli High School 5-points Bagrut (Level 3). Use rich Band II/III vocabulary and connectors.`;
     } else {
-      levelDirectives = `
-- TARGET AUDIENCE: Level 2 (Israeli Middle School 8th-9th grade, CEFR A2-B1).
-- Use accessible Band I and Band II vocabulary.
-- Reinforce correct connectors (because, so, but, also, in my opinion) and correct word order (Subject + Verb + Object).`;
+      levelPrompt = `Target audience: Israeli Middle School (Level 2). Use natural Band I/II vocabulary, clear connectors (because, so, but), correct S-V-O word order.`;
     }
 
-    const promptText = `You are an expert Israeli English teacher helping a student construct an English sentence step-by-step from their thought in Hebrew.
+    const promptText = `You are an expert Israeli English teacher helping an Israeli student construct an English sentence step-by-step from their thought in Hebrew.
 
-STUDENT'S HEBREW THOUGHT: "${hebrewText.trim()}"
-WRITING ASSIGNMENT TOPIC: "${taskTitle || "General Topic"}"
-STUDENT LEVEL: ${currentLevel}
-${currentEssay ? `CONTEXT ALREADY WRITTEN: "${currentEssay.slice(-200)}"` : ""}
-
-${levelDirectives}
+STUDENT HEBREW THOUGHT: "${hebrewText.trim()}"
+WRITING TOPIC: "${taskTitle || "General"}"
+LEVEL: ${currentLevel}
+${levelPrompt}
 
 PEDAGOGICAL TASK:
-1. Break the Hebrew thought into 2 to 4 logical grammatical building blocks (Subject, Verb/Auxiliary, Object/Complement, Connector/Details).
-2. Translate each block into natural English appropriate for ${currentLevel}.
-3. Provide a brief, friendly, encouraging Hebrew tip for each block highlighting key Israeli learner challenges (e.g., "באנגלית תמיד שמים נושא לפני הפועל", "שים לב ש-I תמיד באות גדולה", "פועל עזר לפני פועל ראשי").
-4. Formulate the complete, grammatically perfect English sentence with correct capitalization and punctuation.
-5. Provide a one-sentence Hebrew pedagogical summary rule (hebrewSummaryTip).
-6. Optionally provide one alternative natural formulation (alternativeSentence).
+1. Break the Hebrew thought into 2 to 4 consecutive chronological parts of the sentence.
+2. For each part, provide:
+   - "hebrew": the Hebrew sub-phrase (e.g. "אני הרבה יותר אוהב")
+   - "english": the English equivalent (e.g. "I like ... much more")
+   - "explanation": a helpful, friendly Hebrew pedagogical tip explaining why this English phrasing or grammar is used (e.g., "באנגלית משתמשים ב-like much more או prefer להבעת העדפה").
+3. Assemble the complete, natural, grammatically correct English sentence in "fullSentence" with proper capitalization and punctuation.
+4. Provide an optional alternative way to say it in "alternativeSentence".
+5. Provide a memorable takeaway tip for Israeli students in "goldenRule" (e.g., "באנגלית תמיד חוזרים על כינוי הגוף (I) לפני הפועל בכל חלק של המשפט!").
 
 RETURN STRICT RAW JSON ONLY in this format:
 {
-  "fullSentence": "In my opinion, students should read books every day.",
+  "fullSentence": "I like ice cream much more because I love sweet things.",
+  "alternativeSentence": "I prefer ice cream because I have a sweet tooth.",
   "chunks": [
     {
-      "hebrew": "לדעתי,",
-      "english": "In my opinion,",
-      "tip": "ביטוי מעולה לפתיחת משפט דעה",
-      "role": "connector"
+      "hebrew": "אני הרבה יותר אוהב",
+      "english": "I like ... much more",
+      "explanation": "באנגלית: like ... much more או prefer מביעים העדפה חזקה"
     },
     {
-      "hebrew": "תלמידים צריכים",
-      "english": "students should",
-      "tip": "באנגלית: הנושא לפני פועל העזר should",
-      "role": "subject"
+      "hebrew": "גלידה",
+      "english": "ice cream",
+      "explanation": "שם עצם (ללא the כשמדברים על גלידה באופן כללי)"
     },
     {
-      "hebrew": "לקרוא ספרים",
-      "english": "read books",
-      "tip": "אחרי should הפועל מגיע בצורת מקור נקייה (Base form)",
-      "role": "verb"
+      "hebrew": "כי",
+      "english": "because",
+      "explanation": "מילת קישור מעולה שמחברת בין שני חלקי המשפט"
     },
     {
-      "hebrew": "כל יום.",
-      "english": "every day.",
-      "tip": "תיאור זמן בסיום המשפט + נקודה",
-      "role": "time_place"
+      "hebrew": "אני אוהב מתוק",
+      "english": "I love sweet things",
+      "explanation": "מתוק כמשהו כללי מתרגמים ל-sweet things או sweets"
     }
   ],
-  "hebrewSummaryTip": "זכרו שבאנגלית המבנה הוא תמיד: נושא + פועל + תיאור (SVO).",
-  "alternativeSentence": "I believe that children ought to read every day."
+  "goldenRule": "זכרו שבאנגלית כל חלק של המשפט חייב להכיל נושא ופועל (Subject + Verb)!"
 }`;
 
     const cascadePlan: Array<{
@@ -144,10 +129,10 @@ RETURN STRICT RAW JSON ONLY in this format:
         },
       });
 
-      // Groq llama-3.3-70b-versatile
+      // Groq backup: qwen/qwen3.8-27b
       cascadePlan.push({
         provider: "groq",
-        model: "llama-3.3-70b-versatile",
+        model: "qwen/qwen3.8-27b",
         execute: async () => {
           const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
             method: "POST",
@@ -156,22 +141,46 @@ RETURN STRICT RAW JSON ONLY in this format:
               Authorization: `Bearer ${groqApiKey}`,
             },
             body: JSON.stringify({
-              model: "llama-3.3-70b-versatile",
+              model: "qwen/qwen3.8-27b",
               messages: [{ role: "user", content: promptText }],
               response_format: { type: "json_object" },
               temperature: 0.2,
             }),
           });
-          if (!res.ok) throw new Error(`Groq 70b status ${res.status}: ${await res.text()}`);
+          if (!res.ok) throw new Error(`Groq qwen status ${res.status}: ${await res.text()}`);
+          const data = await res.json();
+          return data.choices?.[0]?.message?.content || "";
+        },
+      });
+
+      // Groq fast backup: openai/gpt-oss-20b
+      cascadePlan.push({
+        provider: "groq",
+        model: "openai/gpt-oss-20b",
+        execute: async () => {
+          const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${groqApiKey}`,
+            },
+            body: JSON.stringify({
+              model: "openai/gpt-oss-20b",
+              messages: [{ role: "user", content: promptText }],
+              response_format: { type: "json_object" },
+              temperature: 0.2,
+            }),
+          });
+          if (!res.ok) throw new Error(`Groq 20b status ${res.status}: ${await res.text()}`);
           const data = await res.json();
           return data.choices?.[0]?.message?.content || "";
         },
       });
     }
 
-    // 2. Google Gemini: gemini-2.5-flash / gemini-2.0-flash / gemini-1.5-flash
+    // 2. Google Gemini fallback
     if (geminiApiKey) {
-      for (const gemModel of ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]) {
+      for (const gemModel of ["gemini-2.0-flash", "gemini-1.5-flash"]) {
         cascadePlan.push({
           provider: "gemini",
           model: gemModel,
@@ -198,33 +207,7 @@ RETURN STRICT RAW JSON ONLY in this format:
       }
     }
 
-    // 3. Groq qwen fast backup
-    if (groqApiKey) {
-      cascadePlan.push({
-        provider: "groq",
-        model: "qwen/qwen3.8-27b",
-        execute: async () => {
-          const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${groqApiKey}`,
-            },
-            body: JSON.stringify({
-              model: "qwen/qwen3.8-27b",
-              messages: [{ role: "user", content: promptText }],
-              response_format: { type: "json_object" },
-              temperature: 0.2,
-            }),
-          });
-          if (!res.ok) throw new Error(`Groq qwen status ${res.status}: ${await res.text()}`);
-          const data = await res.json();
-          return data.choices?.[0]?.message?.content || "";
-        },
-      });
-    }
-
-    // 4. OpenAI backup
+    // 3. OpenAI fallback
     if (openaiApiKey) {
       cascadePlan.push({
         provider: "openai",
@@ -258,7 +241,7 @@ RETURN STRICT RAW JSON ONLY in this format:
         const rawOutput = await step.execute();
         if (rawOutput) {
           const parsed = extractJsonFromText(rawOutput) as ScaffoldingResult;
-          if (parsed && parsed.fullSentence && Array.isArray(parsed.chunks)) {
+          if (parsed && parsed.fullSentence && Array.isArray(parsed.chunks) && parsed.chunks.length > 0) {
             result = parsed;
             successfulProvider = `${step.provider}:${step.model}`;
             break;
@@ -270,29 +253,13 @@ RETURN STRICT RAW JSON ONLY in this format:
     }
 
     if (!result) {
-      // Deterministic fallback if all AI providers are exhausted
-      return NextResponse.json({
-        success: true,
-        scaffolding: {
-          fullSentence: `I want to say that ${hebrewText.trim()}.`,
-          chunks: [
-            {
-              hebrew: "אני רוצה לומר ש...",
-              english: "I want to say that",
-              tip: "פתיח פשוט וברור",
-              role: "connector",
-            },
-            {
-              hebrew: hebrewText.trim(),
-              english: `[${hebrewText.trim()}]`,
-              tip: "נסו לתרגם את המילים העיקריות בעזרת המילון המובנה",
-              role: "object",
-            },
-          ],
-          hebrewSummaryTip: "כדי לנסח משפט באנגלית, התחילו בנושא (Subject), הוסיפו פועל (Verb), והשלימו את הרעיון.",
+      return NextResponse.json(
+        {
+          success: false,
+          error: "לא הצלחנו להתחבר כרגע לעוזר ה-AI. אנא נסו שוב בעוד מספר שניות.",
         },
-        source: "fallback",
-      });
+        { status: 503 }
+      );
     }
 
     return NextResponse.json({
