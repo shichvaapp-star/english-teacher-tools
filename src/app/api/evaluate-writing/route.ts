@@ -4,25 +4,52 @@ export interface RubricCategoryScore {
   score: number; // 0 to max
   max: number;
   commentHebrew: string;
+  bandLevelObserved?: string; // e.g. "Band I", "Band II", "Band III"
+}
+
+export interface WritingCorrection {
+  original: string;
+  suggestion: string;
+  explanationHebrew: string;
+  category?: "grammar" | "vocabulary" | "spelling" | "punctuation" | "hebrew_interference";
+}
+
+export interface VocabularyUpgrade {
+  original: string;
+  enriched: string;
+  explanationHebrew: string;
 }
 
 export interface WritingEvaluationResult {
   score: number; // 0 to 100
   encouragement: string;
+  teacherNote?: string; // Personal paragraph in Hebrew from the teacher
   isSpamOrGibberish: boolean;
   strengths: string[];
   tips: string[];
   rubric: {
-    contentAndOrganization: RubricCategoryScore; // 30%
-    vocabulary: RubricCategoryScore; // 25%
-    languageAndGrammar: RubricCategoryScore; // 25%
-    mechanicsAndSpelling: RubricCategoryScore; // 20%
+    contentAndOrganization: RubricCategoryScore; // max 35%
+    vocabulary: RubricCategoryScore; // max 25%
+    languageAndGrammar: RubricCategoryScore; // max 25%
+    mechanicsAndSpelling: RubricCategoryScore; // max 15%
   };
-  corrections?: Array<{
-    original: string;
-    suggestion: string;
-    explanationHebrew: string;
-  }>;
+  corrections?: WritingCorrection[];
+  vocabularyUpgrades?: VocabularyUpgrade[];
+  hebrewInterferenceNotes?: string[];
+}
+
+// Clean and extract JSON from markdown wrappers or raw text
+function extractJsonFromText(raw: string): any {
+  let cleaned = raw.trim();
+  if (cleaned.startsWith("```")) {
+    cleaned = cleaned.replace(/^```(?:json)?\s*\n?/, "").replace(/\n?```\s*$/, "");
+  }
+  const firstBrace = cleaned.indexOf("{");
+  const lastBrace = cleaned.lastIndexOf("}");
+  if (firstBrace !== -1 && lastBrace !== -1) {
+    cleaned = cleaned.slice(firstBrace, lastBrace + 1);
+  }
+  return JSON.parse(cleaned);
 }
 
 // Quick deterministic anti-spam & gibberish detector
@@ -39,6 +66,7 @@ function detectObviousSpam(text: string, minWords: number, level: string = "Leve
     return {
       score: level === "Level 1" ? 30 : 10,
       encouragement: level === "Level 1" ? "כתבת מעט מאוד. נסו לכתוב עוד 1-2 מילים כדי לקבל משוב!" : "החיבור קצרצר ביותר (פחות מ-5 מילים). יש לכתוב פסקה שלמה באנגלית.",
+      teacherNote: "החיבור שהוגש קצר מכדי שנוכל להעריך אותו לפי מחוון משרד החינוך. נסו להשתמש במשפטי הפתיחה ובבנק המילים כדי לכתוב לפחות מספר משפטים שלמים.",
       isSpamOrGibberish: true,
       strengths: [],
       tips: [
@@ -46,10 +74,10 @@ function detectObviousSpam(text: string, minWords: number, level: string = "Leve
         `יעד המילים למשימה זו הוא לפחות ${minWords} מילים.`,
       ],
       rubric: {
-        contentAndOrganization: { score: 2, max: 30, commentHebrew: "החיבור קצר מדי ולא מפתח רעיון." },
+        contentAndOrganization: { score: 2, max: 35, commentHebrew: "החיבור קצר מדי ולא מפתח רעיון." },
         vocabulary: { score: 3, max: 25, commentHebrew: "אוצר מילים לא מספק." },
         languageAndGrammar: { score: 3, max: 25, commentHebrew: "אין משפטים שלמים לבדיקה." },
-        mechanicsAndSpelling: { score: 2, max: 20, commentHebrew: "קצר מדי להערכה." },
+        mechanicsAndSpelling: { score: 2, max: 15, commentHebrew: "קצר מדי להערכה." },
       },
     };
   }
@@ -66,12 +94,13 @@ function detectObviousSpam(text: string, minWords: number, level: string = "Leve
   const maxFreq = Math.max(...Object.values(frequencies));
   const maxFreqRatio = maxFreq / cleanWords.length;
 
-  // If a single word makes up > 35% of all words, or unique ratio is under 30% for a text with > 15 words
+  // If a single word makes up > 45% of all words, or unique ratio is under 30% for a text with > 15 words
   if (cleanWords.length >= 15 && (maxFreqRatio > 0.45 || (level !== "Level 1" && uniqueRatio < 0.3))) {
     const mostRepeatedWord = Object.entries(frequencies).find(([, count]) => count === maxFreq)?.[0] || "מילה";
     return {
       score: 15,
       encouragement: "זוהתה חזרתיות קיצונית על אותן מילים ללא משפטים בעלי משמעות.",
+      teacherNote: `שלום! שמנו לב שהמילה "${mostRepeatedWord}" חוזרת שוב ושוב. כתיבה באנגלית דורשת פיתוח רעיונות מגוונים בעזרת מילות קישור ופעלים שונים. נסו שוב ונשמח לבדוק!`,
       isSpamOrGibberish: true,
       strengths: [],
       tips: [
@@ -82,7 +111,7 @@ function detectObviousSpam(text: string, minWords: number, level: string = "Leve
       rubric: {
         contentAndOrganization: {
           score: 3,
-          max: 30,
+          max: 35,
           commentHebrew: "הטקסט מכיל רצף מילים חוזרות ללא תוכן או מבנה הגיוני.",
         },
         vocabulary: {
@@ -97,7 +126,7 @@ function detectObviousSpam(text: string, minWords: number, level: string = "Leve
         },
         mechanicsAndSpelling: {
           score: 4,
-          max: 20,
+          max: 15,
           commentHebrew: "סימני פיסוק או מילים משוכפלות ללא פיסוק משפטים תקין.",
         },
       },
@@ -110,6 +139,7 @@ function detectObviousSpam(text: string, minWords: number, level: string = "Leve
     return {
       score: 10,
       encouragement: "הטקסט שהוזן אינו מכיל מילים תקינות באנגלית.",
+      teacherNote: "לא הצלחנו לזהות מילים באנגלית בחיבור שלך. הקפידו להקליד מילים אמיתיות באנגלית ובמידת הצורך היעזרו במילון המובנה ובבנק המילים.",
       isSpamOrGibberish: true,
       strengths: [],
       tips: [
@@ -117,10 +147,10 @@ function detectObviousSpam(text: string, minWords: number, level: string = "Leve
         "השתמשו במילון המובנה במידת הצורך למציאת מילים מתאימות.",
       ],
       rubric: {
-        contentAndOrganization: { score: 2, max: 30, commentHebrew: "אין תוכן בעל משמעות." },
+        contentAndOrganization: { score: 2, max: 35, commentHebrew: "אין תוכן בעל משמעות." },
         vocabulary: { score: 2, max: 25, commentHebrew: "מילים בלתי מזוהות או סימנים." },
         languageAndGrammar: { score: 3, max: 25, commentHebrew: "אין משפטים תקינים." },
-        mechanicsAndSpelling: { score: 3, max: 20, commentHebrew: "רצפי תווים ללא משמעות." },
+        mechanicsAndSpelling: { score: 3, max: 15, commentHebrew: "רצפי תווים ללא משמעות." },
       },
     };
   }
@@ -157,15 +187,16 @@ export async function POST(request: Request) {
       });
     }
 
-    // Get API Keys
+    // Get API Keys: Prefer request headers (client storage) or server env variables
     const groqApiKey = request.headers.get("x-groq-api-key") || process.env.GROQ_API_KEY;
     const geminiApiKey = request.headers.get("x-gemini-api-key") || process.env.GEMINI_API_KEY;
+    const openaiApiKey = request.headers.get("x-openai-api-key") || process.env.OPENAI_API_KEY;
 
     // Strict pedagogical system prompt calibrated by student level
     let levelPedagogyGuidance = "";
     if (currentLevel === "Level 1") {
       levelPedagogyGuidance = `
-STUDENT AUDIENCE PROFILE: LEVEL 1 (VERY BASIC / EARLY BEGINNER / PRE-SCHOOL ENGLISH):
+STUDENT AUDIENCE PROFILE: LEVEL 1 (VERY BASIC / EARLY BEGINNER / ELEMENTARY LEVEL 1):
 - Target word count is very short (${targetMin} to ${targetMax} words, approximately 1-3 simple sentences).
 - BE EXTREMELY GENTLE, ENCOURAGING, AND WARM!
 - Celebrate any attempt to write words and form basic sentences (e.g., "I like cats", "My dog is brown").
@@ -174,155 +205,287 @@ STUDENT AUDIENCE PROFILE: LEVEL 1 (VERY BASIC / EARLY BEGINNER / PRE-SCHOOL ENGL
 - In Hebrew feedback, write warm, enthusiastic praise ("כל הכבוד!", "התחלה נהדרת!"). Provide at most 1 very simple, gentle tip (e.g. remember to start with a capital letter).`;
     } else if (currentLevel === "Level 3") {
       levelPedagogyGuidance = `
-STUDENT AUDIENCE PROFILE: LEVEL 3 (ELEMENTARY NATIVE / ADVANCED FLUENT YOUNG LEARNERS):
+STUDENT AUDIENCE PROFILE: LEVEL 3 (ADVANCED / ELEMENTARY NATIVE / HIGH SCHOOL BAGRUT PREP):
 - Target word count is ${targetMin} to ${targetMax} words.
-- Evaluate with high standards for expressive vocabulary, creative narrative details, varied sentence structures, and fluid transitions.
+- Evaluate according to the advanced Israeli Ministry of Education (Mafmar) Writing Rubric (CEFR B1-B2 standard).
+- Assess with high standards for expressive vocabulary (Band III), creative details, varied sentence structures, and fluid transitions.
 - Offer constructive, insightful advice on style, depth of thought, and paragraph flow.`;
     } else {
       levelPedagogyGuidance = `
-STUDENT AUDIENCE PROFILE: LEVEL 2 (ISRAELI MIDDLE SCHOOL / AGES 13-15):
+STUDENT AUDIENCE PROFILE: LEVEL 2 (ISRAELI MIDDLE SCHOOL / חטיבת ביניים / AGES 13-15):
 - Target word count is ${targetMin} to ${targetMax} words.
-- Evaluate according to the official Israeli Ministry of Education (Mafmar) Writing Rubric.
-- Balance constructive rigor with encouragement.`;
+- Evaluate strictly according to the official Israeli Ministry of Education (Mafmar) Writing Rubric (CEFR A2-B1 standard).
+- Balance constructive rigor with supportive encouragement.
+- Focus on paragraph coherence, connectors (because, although, for example, first, finally), Band II vocabulary, and correct basic tenses.`;
     }
 
-    const systemPrompt = `You are an expert English teacher evaluating student writing.
+    const systemPrompt = `You are an expert Israeli English teacher and Ministry of Education (משרד החינוך / מפמ"ר אנגלית) pedagogical evaluator.
+You evaluate student writing with pedagogical wisdom, warm encouragement, and exact adherence to the official Israeli English Curriculum Writing Rubric.
 
 ${levelPedagogyGuidance}
 
 TASK DETAILS:
 - Student Level: "${currentLevel}"
-- Task: "${taskTitle || "Writing Task"}"
-- Prompt given to student: "${prompt || "Write a paragraph in English."}"
+- Task Title: "${taskTitle || "Writing Task"}"
+- Prompt given to student: "${prompt || "Write an essay in English."}"
 - Category: "${category || "general"}"
-- Expected word count: ${targetMin} to ${targetMax} words.
+- Target word count: ${targetMin} to ${targetMax} words.
 
 STUDENT ESSAY TO EVALUATE:
 """
 ${essayText}
 """
 
-CRITICAL INSTRUCTIONS:
-1. SPAM / GIBBERISH / TRICK DETECTION:
-   - If the student simply repeated words (like "because because because"), or wrote meaningless gibberish, assign a score between 0 and 20, set "isSpamOrGibberish": true, and explain kindly in Hebrew.
-2. RUBRIC SCORING (Total 100 points, sum of the 4 categories):
-   - Content & Organization (max 30): Did they answer the prompt?
-   - Vocabulary (max 25): Appropriate words for ${currentLevel}.
-   - Language & Grammar (max 25): Appropriate verb tenses and sentence structure.
-   - Mechanics & Spelling (max 20): Capitalization, punctuation, and spelling.
-3. CONSTRUCTIVE HEBREW FEEDBACK:
-   - "encouragement": A warm, natural 1-sentence headline in Hebrew.
-   - "strengths": 2-3 specific real positive points in Hebrew (if spam, leave empty).
-   - "tips": 1-2 specific constructive tips in Hebrew suited for their level.
-   - "corrections": 1 to 4 specific sentence or grammar corrections showing original, suggestion, and explanation in Hebrew.
+CORE ISRAELI PEDAGOGICAL EVALUATION PRINCIPLES:
+1. PEDAGOGICAL VOICE ("משוב סנדוויץ'"):
+   - Speak in the voice of a devoted, supportive Israeli English teacher.
+   - Use warm, encouraging, respectful Hebrew ("כל הכבוד על ההשקעה", "רעיון מעניין מאוד").
+   - Highlight genuine strengths first, followed by clear, actionable explanations of rules for improvement, ending with motivating guidance.
 
-Return ONLY a valid, raw JSON object matching this schema (NO MARKDOWN CODE BLOCKS, NO TICKS):
+2. ISRAELI EFL INTERFERENCE DETECTION (שגיאות תרגום ודקדוק אופייניות לדוברי עברית):
+   - Actively identify common Hebrew-transfer patterns:
+     * Missing auxiliary verb / "to be" (*"He very tall"* -> *"He is very tall"*).
+     * Literal translations & false collocations (*"make a party"* -> *"have a party"*, *"do sport"* -> *"exercise / play sports"*, *"I am agree"* -> *"I agree"*, *"open the light"* -> *"turn on the light"*).
+     * Preposition interference (*"congratulations for"* -> *"congratulations on"*, *"listen music"* -> *"listen to music"*, *"wait to"* -> *"wait for"*).
+     * Word order / double negatives (*"I don't know nothing"* -> *"I don't know anything"*).
+     * Tense confusion (e.g. using Present Simple for an event that happened in the past).
+   - In "corrections", specify the category: "grammar", "vocabulary", "spelling", "punctuation", or "hebrew_interference".
+   - Provide a concise Hebrew explanation that teaches the rule, not just the correction.
+
+3. VOCABULARY BAND ELEVATION (שדרוג אוצר מילים):
+   - Identify 2-3 words the student used and suggest enriched, higher-register Band synonyms suitable for their level (e.g. "good" -> "wonderful / effective", "bad" -> "unpleasant / harmful", "big" -> "huge / vast").
+   - Provide clear Hebrew explanations for each upgrade in "vocabularyUpgrades".
+
+4. OFFICIAL MOE 4-PILLAR RUBRIC SCORING (Sum to 100):
+   - Content and Organization (תוכן ומבנה - max 35): Did the student answer the prompt? Is there logical progression and appropriate transitional connectors (First, Also, However, In addition, In conclusion)?
+   - Vocabulary (אוצר מילים - max 25): Lexical range, accuracy, appropriate Band level (Band I/II/III), avoidance of unnecessary repetition.
+   - Language and Grammar (דקדוק ומבנה משפטים - max 25): Accurate tenses, Subject-Verb agreement, sentence structures (simple, compound, complex).
+   - Mechanics, Spelling & Punctuation (מכניקה ואיות - max 15): Capitalization (sentence start, "I", proper nouns), punctuation (periods, commas, apostrophes), spelling.
+
+5. SPAM / GIBBERISH / CHEATING FILTER:
+   - If the text is pure spam, repeated words ("because because because"), or random characters, set "isSpamOrGibberish": true, assign total score 10-20, and explain gently in Hebrew.
+
+Return ONLY a valid, raw JSON object matching this exact schema (NO MARKDOWN CODE FENCES, NO TICKS):
 {
   "score": number (0-100, exact sum of the 4 rubric categories),
   "isSpamOrGibberish": boolean,
-  "encouragement": "Headline in Hebrew",
-  "strengths": ["נקודת חוזק 1 בעברית", "נקודת חוזק 2 בעברית"],
-  "tips": ["טיפ ממוקד 1 בעברית"],
+  "encouragement": "One-line inspiring headline in Hebrew (e.g. 'עבודה מצוינת עם שימוש עשיר במילות קישור!')",
+  "teacherNote": "A warm, personal 2-3 sentence paragraph in Hebrew from the teacher summarizing the student's work and giving holistic pedagogical feedback.",
+  "strengths": ["נקודת חוזק ספציפית 1 בעברית", "נקודת חוזק ספציפית 2 בעברית"],
+  "tips": ["טיפ ממוקד ויישומי 1 בעברית לפעם הבאה", "טיפ ממוקד 2 בעברית"],
   "rubric": {
-    "contentAndOrganization": { "score": number (0-30), "max": 30, "commentHebrew": "הסבר בעברית" },
-    "vocabulary": { "score": number (0-25), "max": 25, "commentHebrew": "הסבר בעברית" },
-    "languageAndGrammar": { "score": number (0-25), "max": 25, "commentHebrew": "הסבר בעברית" },
-    "mechanicsAndSpelling": { "score": number (0-20), "max": 20, "commentHebrew": "הסבר בעברית" }
+    "contentAndOrganization": { "score": number (0-35), "max": 35, "commentHebrew": "הערכת תוכן ומבנה בעברית" },
+    "vocabulary": { "score": number (0-25), "max": 25, "commentHebrew": "הערכת אוצר מילים בעברית", "bandLevelObserved": "Band II" },
+    "languageAndGrammar": { "score": number (0-25), "max": 25, "commentHebrew": "הערכת דקדוק ומבנה משפטים בעברית" },
+    "mechanicsAndSpelling": { "score": number (0-15), "max": 15, "commentHebrew": "הערכת פיסוק, אותיות גדולות ואיות בעברית" }
   },
   "corrections": [
     {
-      "original": "problematic phrase from student text",
-      "suggestion": "corrected English",
-      "explanationHebrew": "הסבר קצר בעברית"
+      "original": "exact problematic phrase from student",
+      "suggestion": "corrected English phrasing",
+      "explanationHebrew": "הסבר פדגוגי בעברית של כלל הדקדוק",
+      "category": "grammar"
     }
+  ],
+  "vocabularyUpgrades": [
+    {
+      "original": "simple word student used",
+      "enriched": "higher-register Band alternative",
+      "explanationHebrew": "הסבר קצר בעברית מדוע המילה הזו משדרגת את החיבור"
+    }
+  ],
+  "hebrewInterferenceNotes": [
+    "הערה ממוקדת בעברית על דפוס תרגום שכיח מעברית (במידה וזוהה)"
   ]
-};`
+}`;
 
-    // 1. Try Groq (Llama 3.3 70B / 120B)
+    // Cascade Priority Execution Steps
+    const cascadePlan: Array<{
+      provider: "groq" | "gemini" | "openai";
+      model: string;
+      execute: () => Promise<string>;
+    }> = [];
+
+    // 1. Groq Flagship: openai/gpt-oss-120b (120B powerhouse, ultra-fast & high reasoning)
     if (groqApiKey) {
-      try {
-        const groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${groqApiKey}`,
-          },
-          body: JSON.stringify({
-            model: "llama-3.3-70b-versatile",
-            messages: [{ role: "user", content: systemPrompt }],
-            response_format: { type: "json_object" },
-            temperature: 0.1,
-          }),
-        });
+      cascadePlan.push({
+        provider: "groq",
+        model: "openai/gpt-oss-120b",
+        execute: async () => {
+          const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${groqApiKey}`,
+            },
+            body: JSON.stringify({
+              model: "openai/gpt-oss-120b",
+              messages: [{ role: "user", content: systemPrompt }],
+              response_format: { type: "json_object" },
+              temperature: 0.1,
+            }),
+          });
+          if (!res.ok) throw new Error(`Groq 120b status ${res.status}: ${await res.text()}`);
+          const data = await res.json();
+          return data.choices?.[0]?.message?.content || "";
+        },
+      });
 
-        if (groqRes.ok) {
-          const data = await groqRes.json();
-          const content = data.choices?.[0]?.message?.content;
-          if (content) {
-            const cleanContent = content.replace(/^```json\s*/i, "").replace(/\s*```$/i, "").trim();
-            const parsed = JSON.parse(cleanContent) as WritingEvaluationResult;
-            return NextResponse.json({ success: true, evaluation: parsed, source: "groq" });
-          }
-        }
-      } catch (err) {
-        console.warn("Groq evaluation failed, trying Gemini:", err);
-      }
+      // Groq High-Performance Backup: llama-3.3-70b-versatile
+      cascadePlan.push({
+        provider: "groq",
+        model: "llama-3.3-70b-versatile",
+        execute: async () => {
+          const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${groqApiKey}`,
+            },
+            body: JSON.stringify({
+              model: "llama-3.3-70b-versatile",
+              messages: [{ role: "user", content: systemPrompt }],
+              response_format: { type: "json_object" },
+              temperature: 0.1,
+            }),
+          });
+          if (!res.ok) throw new Error(`Groq 70b status ${res.status}: ${await res.text()}`);
+          const data = await res.json();
+          return data.choices?.[0]?.message?.content || "";
+        },
+      });
     }
 
-    // 2. Try Gemini 2.5/3.5 Flash
+    // 2. Google Gemini: gemini-2.5-flash / gemini-3.5-flash
     if (geminiApiKey) {
-      const geminiModels = ["gemini-2.5-flash", "gemini-3.5-flash", "gemini-1.5-flash"];
-      for (const model of geminiModels) {
-        try {
-          const gemRes = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiApiKey}`,
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                contents: [{ parts: [{ text: systemPrompt }] }],
-                generationConfig: {
-                  responseMimeType: "application/json",
-                  temperature: 0.1,
-                },
-              }),
-            }
-          );
-
-          if (gemRes.ok) {
-            const data = await gemRes.json();
-            const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-            if (text) {
-              const cleanText = text.replace(/^```json\s*/i, "").replace(/\s*```$/i, "").trim();
-              const parsed = JSON.parse(cleanText) as WritingEvaluationResult;
-              return NextResponse.json({ success: true, evaluation: parsed, source: "gemini" });
-            }
-          }
-        } catch {
-          // try next model
-        }
+      for (const gemModel of ["gemini-2.5-flash", "gemini-3.5-flash", "gemini-1.5-flash"]) {
+        cascadePlan.push({
+          provider: "gemini",
+          model: gemModel,
+          execute: async () => {
+            const res = await fetch(
+              `https://generativelanguage.googleapis.com/v1beta/models/${gemModel}:generateContent?key=${geminiApiKey}`,
+              {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  contents: [{ parts: [{ text: systemPrompt }] }],
+                  generationConfig: {
+                    responseMimeType: "application/json",
+                    temperature: 0.1,
+                  },
+                }),
+              }
+            );
+            if (!res.ok) throw new Error(`Gemini ${gemModel} status ${res.status}: ${await res.text()}`);
+            const data = await res.json();
+            return data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+          },
+        });
       }
     }
 
-    // 3. Fallback Heuristic Rubric (if no AI keys or offline)
+    // 3. Groq Fast Backup: qwen/qwen3.8-27b
+    if (groqApiKey) {
+      cascadePlan.push({
+        provider: "groq",
+        model: "qwen/qwen3.8-27b",
+        execute: async () => {
+          const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${groqApiKey}`,
+            },
+            body: JSON.stringify({
+              model: "qwen/qwen3.8-27b",
+              messages: [{ role: "user", content: systemPrompt }],
+              response_format: { type: "json_object" },
+              temperature: 0.1,
+            }),
+          });
+          if (!res.ok) throw new Error(`Groq qwen3.8-27b status ${res.status}: ${await res.text()}`);
+          const data = await res.json();
+          return data.choices?.[0]?.message?.content || "";
+        },
+      });
+    }
+
+    // 4. OpenAI: gpt-4o-mini (if OpenAI key provided)
+    if (openaiApiKey) {
+      cascadePlan.push({
+        provider: "openai",
+        model: "gpt-4o-mini",
+        execute: async () => {
+          const res = await fetch("https://api.openai.com/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${openaiApiKey}`,
+            },
+            body: JSON.stringify({
+              model: "gpt-4o-mini",
+              messages: [{ role: "user", content: systemPrompt }],
+              response_format: { type: "json_object" },
+              temperature: 0.1,
+            }),
+          });
+          if (!res.ok) throw new Error(`OpenAI gpt-4o-mini status ${res.status}: ${await res.text()}`);
+          const data = await res.json();
+          return data.choices?.[0]?.message?.content || "";
+        },
+      });
+    }
+
+    // Execute cascade
+    for (const step of cascadePlan) {
+      try {
+        const rawOutput = await step.execute();
+        if (rawOutput) {
+          const parsed = extractJsonFromText(rawOutput) as WritingEvaluationResult;
+          if (parsed && typeof parsed.score === "number") {
+            // Ensure rubric sum matches total score if needed
+            const r = parsed.rubric;
+            if (r) {
+              const calcSum =
+                (r.contentAndOrganization?.score || 0) +
+                (r.vocabulary?.score || 0) +
+                (r.languageAndGrammar?.score || 0) +
+                (r.mechanicsAndSpelling?.score || 0);
+              if (calcSum > 0 && Math.abs(calcSum - parsed.score) > 5) {
+                parsed.score = Math.min(100, Math.max(0, calcSum));
+              }
+            }
+
+            return NextResponse.json({
+              success: true,
+              evaluation: parsed,
+              source: `${step.provider}:${step.model}`,
+            });
+          }
+        }
+      } catch (err: any) {
+        console.warn(`Evaluation failed on ${step.provider}:${step.model}:`, err?.message || err);
+      }
+    }
+
+    // 5. Fallback Heuristic Rubric (if no AI keys or all models timed out)
     const words = essayText.trim().split(/\s+/).filter(Boolean);
     const wordCount = words.length;
-    const lower = essayText.toLowerCase();
-
     const uniqueWords = new Set(words.map((w) => w.toLowerCase()));
     const vocabDiversity = uniqueWords.size / Math.max(1, wordCount);
 
-    let contentScore = Math.min(30, Math.round((wordCount / Math.max(1, targetMin)) * 24));
-    if (wordCount >= targetMin && wordCount <= targetMax + 20) contentScore = 28;
+    let contentScore = Math.min(35, Math.round((wordCount / Math.max(1, targetMin)) * 28));
+    if (wordCount >= targetMin && wordCount <= targetMax + 20) contentScore = 32;
 
     let vocabScore = Math.round(vocabDiversity * 25);
-    if (vocabScore > 24) vocabScore = 23;
+    if (vocabScore > 24) vocabScore = 22;
 
-    let grammarScore = 20;
+    let grammarScore = 21;
     if (/\bi\b/.test(essayText)) grammarScore -= 4; // lowercase 'i' penalty
-    if (!/[.?!]/.test(essayText)) grammarScore -= 6; // missing sentence punctuation
+    if (!/[.?!]/.test(essayText)) grammarScore -= 5; // missing sentence punctuation
 
-    let mechanicsScore = 17;
+    let mechanicsScore = 13;
     if (/[A-Z]/.test(essayText)) mechanicsScore += 2;
 
     const totalScore = Math.min(100, Math.max(25, contentScore + vocabScore + grammarScore + mechanicsScore));
@@ -330,27 +493,29 @@ Return ONLY a valid, raw JSON object matching this schema (NO MARKDOWN CODE BLOC
     const fallbackResult: WritingEvaluationResult = {
       score: totalScore,
       isSpamOrGibberish: false,
-      encouragement: "החיבור נבדק לפי מחוון משרד החינוך (בדיקה פדגוגית בסיסית).",
+      encouragement: "החיבור נבדק לפי עקרונות מחוון משרד החינוך (בדיקה פדגוגית בסיסית).",
+      teacherNote: `כל הכבוד על ההשקעה בכתיבת החיבור! כתבת ${wordCount} מילים מתוך יעד של ${targetMin}–${targetMax} מילים. כדי לקבל משוב מפורט ומעמיק יותר עם הצעות שדרוג לשוניות, מומלץ לחבר מפתח AI (Groq או Gemini) בהגדרות.`,
       strengths: [
-        `אורך החיבור: ${wordCount} מילים (יעד: ${targetMin}–${targetMax} מילים).`,
+        `אורך החיבור: ${wordCount} מילים (יעד המטלה: ${targetMin}–${targetMax} מילים).`,
         vocabDiversity > 0.6
-          ? "מגוון מילים יפה ללא חזרתיות מיותרת."
-          : "השתמשת במילים ברורות להעברת המסר.",
+          ? "שימוש באוצר מילים מגוון ללא חזרות מיותרות."
+          : "העברת רעיון ברור בשפה מובנת.",
       ],
       tips: [
-        "מומלץ לחבר מפתח AI (Groq/Gemini) לקבלת ניתוח תחבירי עמוק והצעות ניסוח מדויקות.",
-        "הקפידו על פתיחת כל משפט באות גדולה (Capital letter) וסיום בנקודה.",
+        "הקפידו לפתוח כל משפט באות גדולה (Capital letter) ולסיים בנקודה.",
+        "שלבו מילות קישור כגון: Also, Because, In addition, For example כדי לחבר בין הרעיונות.",
       ],
       rubric: {
         contentAndOrganization: {
           score: contentScore,
-          max: 30,
-          commentHebrew: `התאמה למטלה ומבנה: ${contentScore}/30`,
+          max: 35,
+          commentHebrew: `התאמה למטלה ומבנה: ${contentScore}/35`,
         },
         vocabulary: {
           score: vocabScore,
           max: 25,
-          commentHebrew: `עושר וגיוון במילים: ${vocabScore}/25`,
+          commentHebrew: `עושר וגיוון באוצר המילים: ${vocabScore}/25`,
+          bandLevelObserved: currentLevel === "Level 1" ? "Band I" : currentLevel === "Level 3" ? "Band III" : "Band II",
         },
         languageAndGrammar: {
           score: grammarScore,
@@ -359,10 +524,25 @@ Return ONLY a valid, raw JSON object matching this schema (NO MARKDOWN CODE BLOC
         },
         mechanicsAndSpelling: {
           score: mechanicsScore,
-          max: 20,
-          commentHebrew: `פיסוק, אותיות גדולות ואיות: ${mechanicsScore}/20`,
+          max: 15,
+          commentHebrew: `פיסוק, אותיות גדולות ואיות: ${mechanicsScore}/15`,
         },
       },
+      corrections: [
+        {
+          original: "i ...",
+          suggestion: "I ...",
+          explanationHebrew: "באנגלית, כינוי הגוף 'I' (אני) נכתב תמיד באות גדולה (Capital letter), בכל מקום במשפט.",
+          category: "punctuation",
+        },
+      ],
+      vocabularyUpgrades: [
+        {
+          original: "good",
+          enriched: "wonderful / great",
+          explanationHebrew: "שימוש במילים מגוונות ועשירות יותר מעלה את רמת הכתיבה שלך במחוון.",
+        },
+      ],
     };
 
     return NextResponse.json({

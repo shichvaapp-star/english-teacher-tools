@@ -49,6 +49,7 @@ import {
   Search,
   Plus,
   Sliders,
+  Award,
 } from "lucide-react";
 
 interface SubmissionRecord {
@@ -134,8 +135,21 @@ export default function WritingPracticePage() {
   const [savedWords, setSavedWords] = useState<VocabItem[]>(() => loadSavedWords(user?.id));
   const [drawerOpen, setDrawerOpen] = useState(false);
 
+  // AI API Keys (Shared with Unseen)
+  const [showAiSettingsModal, setShowAiSettingsModal] = useState(false);
+  const [customGroqKey, setCustomGroqKey] = useState("");
+  const [customGeminiKey, setCustomGeminiKey] = useState("");
+  const [hasAiKeys, setHasAiKeys] = useState(false);
+
   useEffect(() => {
     setSavedWords(loadSavedWords(user?.id));
+    if (typeof window !== "undefined") {
+      const groq = localStorage.getItem("ett_groq_api_key") || "";
+      const gemini = localStorage.getItem("ett_gemini_api_key") || "";
+      setCustomGroqKey(groq);
+      setCustomGeminiKey(gemini);
+      setHasAiKeys(Boolean(groq || gemini));
+    }
   }, [user?.id]);
 
   // Helpers toggle states in writing view
@@ -223,6 +237,29 @@ export default function WritingPracticePage() {
       const trimmed = prev.trim();
       if (!trimmed) return textToInsert;
       return `${trimmed} ${textToInsert}`;
+    });
+  };
+
+  // Apply teacher correction or vocab upgrade directly into student's essay
+  const handleApplyCorrection = (original: string, suggestion: string) => {
+    setEssayText((prev) => {
+      const cleanOrig = original.trim();
+      if (!cleanOrig) return prev;
+      // 1. Try exact word boundary replace
+      try {
+        const regex = new RegExp(`\\b${cleanOrig.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i");
+        if (regex.test(prev)) {
+          return prev.replace(regex, suggestion);
+        }
+      } catch {
+        // fallback to standard includes
+      }
+      // 2. Try substring replace
+      if (prev.includes(cleanOrig)) {
+        return prev.replace(cleanOrig, suggestion);
+      }
+      // 3. If original was already altered, append or notify
+      return `${prev.trim()} ${suggestion}`;
     });
   };
 
@@ -377,8 +414,10 @@ export default function WritingPracticePage() {
       if (typeof window !== "undefined") {
         const groq = localStorage.getItem("ett_groq_api_key");
         const gemini = localStorage.getItem("ett_gemini_api_key");
+        const openai = localStorage.getItem("ett_openai_api_key");
         if (groq) headers["x-groq-api-key"] = groq;
         if (gemini) headers["x-gemini-api-key"] = gemini;
+        if (openai) headers["x-openai-api-key"] = openai;
       }
 
       const res = await fetch("/api/evaluate-writing", {
@@ -595,6 +634,21 @@ export default function WritingPracticePage() {
                 <span className="px-1.5 py-0.2 bg-primary text-primary-foreground rounded-full text-[10px] font-bold">
                   {savedWords.length}
                 </span>
+              )}
+            </Button>
+
+            {/* AI Settings Button */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowAiSettingsModal(true)}
+              className="h-8 text-xs gap-1.5 cursor-pointer border-border/80 px-2 sm:px-3 relative"
+              title="הגדרות מפתחות AI"
+            >
+              <Sliders className="h-3.5 w-3.5 text-primary" />
+              <span className="hidden sm:inline">הגדרות AI</span>
+              {hasAiKeys && (
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" title="AI מחובר" />
               )}
             </Button>
 
@@ -1351,32 +1405,61 @@ export default function WritingPracticePage() {
               {/* AI Feedback Card */}
               {feedback && (
                 <div
-                  className="p-5 rounded-2xl border border-primary/30 bg-card space-y-4 shadow-sm animate-in fade-in"
+                  className="p-5 sm:p-6 rounded-2xl border border-primary/30 bg-card space-y-5 shadow-sm animate-in fade-in"
                   dir="rtl"
                 >
-                  <div className="flex items-center justify-between border-b border-border pb-3">
-                    <div>
-                      <span className="text-xs text-muted-foreground block font-semibold">
-                        משוב מורה AI מותאם ל-{selectedLevel}:
-                      </span>
+                  {/* Header: Score & Headline */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border pb-4">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="text-[11px] gap-1 border-primary/40 text-primary">
+                          <Award className="h-3 w-3" />
+                          <span>מחוון משרד החינוך (MOE Rubric)</span>
+                        </Badge>
+                        <span className="text-xs text-muted-foreground font-semibold">
+                          מותאם ל-{selectedLevel}
+                        </span>
+                      </div>
                       <h4 className="text-base sm:text-lg font-black text-foreground">
                         {feedback.encouragement}
                       </h4>
                     </div>
-                    <Badge
-                      variant="default"
-                      className={`text-sm px-3 py-1 font-bold ${
-                        feedback.score >= 80
-                          ? "bg-emerald-600 text-white"
-                          : feedback.score >= 60
-                          ? "bg-amber-600 text-white"
-                          : "bg-primary text-primary-foreground"
-                      }`}
-                    >
-                      ציון: {feedback.score}
-                    </Badge>
+
+                    <div className="flex items-center gap-3 shrink-0">
+                      <div className="text-right sm:text-left">
+                        <span className="text-[11px] text-muted-foreground block font-medium">ציון משוקלל</span>
+                        <Badge
+                          variant="default"
+                          className={`text-base px-3.5 py-1 font-black ${
+                            feedback.score >= 85
+                              ? "bg-emerald-600 text-white"
+                              : feedback.score >= 70
+                              ? "bg-blue-600 text-white"
+                              : feedback.score >= 55
+                              ? "bg-amber-600 text-white"
+                              : "bg-rose-600 text-white"
+                          }`}
+                        >
+                          {feedback.score} / 100
+                        </Badge>
+                      </div>
+                    </div>
                   </div>
 
+                  {/* Teacher Personal Note */}
+                  {feedback.teacherNote && (
+                    <div className="p-3.5 rounded-xl bg-primary/5 border border-primary/20 text-xs space-y-1">
+                      <div className="flex items-center gap-1.5 font-bold text-primary">
+                        <GraduationCap className="h-4 w-4" />
+                        <span>מכתב אישי מהמורה:</span>
+                      </div>
+                      <p className="text-foreground/90 leading-relaxed text-[12px]">
+                        {feedback.teacherNote}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Spam / Repetition warning */}
                   {feedback.isSpamOrGibberish && (
                     <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-800 dark:text-amber-300 text-xs space-y-1">
                       <div className="flex items-center gap-1.5 font-bold">
@@ -1389,27 +1472,182 @@ export default function WritingPracticePage() {
                     </div>
                   )}
 
+                  {/* 4-Pillar Official MOE Rubric Cards */}
+                  {feedback.rubric && (
+                    <div className="space-y-2.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                          <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
+                          <span>פירוט ציונים לפי 4 עמודי התווך של משרד החינוך:</span>
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
+                        {/* 1. Content & Organization */}
+                        <div className="p-3 rounded-xl border border-border/70 bg-muted/20 space-y-1.5">
+                          <div className="flex items-center justify-between font-bold">
+                            <span className="text-foreground">תוכן ומבנה (Content & Org.)</span>
+                            <span className="text-primary font-mono text-[11px]">
+                              {feedback.rubric.contentAndOrganization.score} / {feedback.rubric.contentAndOrganization.max}
+                            </span>
+                          </div>
+                          <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
+                            <div
+                              className="bg-primary h-1.5 rounded-full transition-all"
+                              style={{
+                                width: `${Math.min(100, (feedback.rubric.contentAndOrganization.score / feedback.rubric.contentAndOrganization.max) * 100)}%`,
+                              }}
+                            />
+                          </div>
+                          <p className="text-[11px] text-muted-foreground leading-relaxed">
+                            {feedback.rubric.contentAndOrganization.commentHebrew}
+                          </p>
+                        </div>
+
+                        {/* 2. Vocabulary */}
+                        <div className="p-3 rounded-xl border border-border/70 bg-muted/20 space-y-1.5">
+                          <div className="flex items-center justify-between font-bold">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-foreground">אוצר מילים (Vocabulary)</span>
+                              {feedback.rubric.vocabulary.bandLevelObserved && (
+                                <Badge variant="outline" className="text-[10px] py-0 px-1.5 h-4">
+                                  {feedback.rubric.vocabulary.bandLevelObserved}
+                                </Badge>
+                              )}
+                            </div>
+                            <span className="text-primary font-mono text-[11px]">
+                              {feedback.rubric.vocabulary.score} / {feedback.rubric.vocabulary.max}
+                            </span>
+                          </div>
+                          <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
+                            <div
+                              className="bg-primary h-1.5 rounded-full transition-all"
+                              style={{
+                                width: `${Math.min(100, (feedback.rubric.vocabulary.score / feedback.rubric.vocabulary.max) * 100)}%`,
+                              }}
+                            />
+                          </div>
+                          <p className="text-[11px] text-muted-foreground leading-relaxed">
+                            {feedback.rubric.vocabulary.commentHebrew}
+                          </p>
+                        </div>
+
+                        {/* 3. Language & Grammar */}
+                        <div className="p-3 rounded-xl border border-border/70 bg-muted/20 space-y-1.5">
+                          <div className="flex items-center justify-between font-bold">
+                            <span className="text-foreground">שפה ודקדוק (Language & Grammar)</span>
+                            <span className="text-primary font-mono text-[11px]">
+                              {feedback.rubric.languageAndGrammar.score} / {feedback.rubric.languageAndGrammar.max}
+                            </span>
+                          </div>
+                          <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
+                            <div
+                              className="bg-primary h-1.5 rounded-full transition-all"
+                              style={{
+                                width: `${Math.min(100, (feedback.rubric.languageAndGrammar.score / feedback.rubric.languageAndGrammar.max) * 100)}%`,
+                              }}
+                            />
+                          </div>
+                          <p className="text-[11px] text-muted-foreground leading-relaxed">
+                            {feedback.rubric.languageAndGrammar.commentHebrew}
+                          </p>
+                        </div>
+
+                        {/* 4. Mechanics & Spelling */}
+                        <div className="p-3 rounded-xl border border-border/70 bg-muted/20 space-y-1.5">
+                          <div className="flex items-center justify-between font-bold">
+                            <span className="text-foreground">מכניקה ואיות (Mechanics & Spelling)</span>
+                            <span className="text-primary font-mono text-[11px]">
+                              {feedback.rubric.mechanicsAndSpelling.score} / {feedback.rubric.mechanicsAndSpelling.max}
+                            </span>
+                          </div>
+                          <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
+                            <div
+                              className="bg-primary h-1.5 rounded-full transition-all"
+                              style={{
+                                width: `${Math.min(100, (feedback.rubric.mechanicsAndSpelling.score / feedback.rubric.mechanicsAndSpelling.max) * 100)}%`,
+                              }}
+                            />
+                          </div>
+                          <p className="text-[11px] text-muted-foreground leading-relaxed">
+                            {feedback.rubric.mechanicsAndSpelling.commentHebrew}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Hebrew Interference Callout (if any) */}
+                  {feedback.hebrewInterferenceNotes && feedback.hebrewInterferenceNotes.length > 0 && (
+                    <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs space-y-1.5">
+                      <div className="flex items-center gap-1.5 font-bold text-amber-700 dark:text-amber-400">
+                        <Lightbulb className="h-4 w-4 shrink-0" />
+                        <span>דגש לתלמידים דוברי עברית (Hebrew-English Transfer):</span>
+                      </div>
+                      <ul className="list-disc pl-5 pr-2 space-y-1 text-foreground/90 text-[11px]">
+                        {feedback.hebrewInterferenceNotes.map((note, i) => (
+                          <li key={i}>{note}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Specific Grammatical & Phrasing Corrections */}
                   {feedback.corrections && feedback.corrections.length > 0 && (
                     <div className="space-y-2 pt-1 border-t border-border/60">
-                      <span className="font-bold text-purple-600 dark:text-purple-400 text-xs flex items-center gap-1.5">
-                        <Sparkles className="h-3.5 w-3.5" />
-                        <span>הצעות לשיפור ניסוח:</span>
-                      </span>
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-purple-600 dark:text-purple-400 text-xs flex items-center gap-1.5">
+                          <Sparkles className="h-3.5 w-3.5" />
+                          <span>הערות המורה לתיקון וללמידה:</span>
+                        </span>
+                        <span className="text-[11px] text-muted-foreground">לחצו על &apos;החלף בחיבור&apos; לעדכון אוטומטי</span>
+                      </div>
+
                       <div className="space-y-2">
                         {feedback.corrections.map((corr, idx) => (
-                          <div key={idx} className="p-2.5 rounded-lg border border-purple-500/20 bg-purple-500/5 text-xs space-y-1">
-                            <div className="flex flex-col sm:flex-row sm:items-center gap-1 font-mono text-[11px] ltr text-left">
-                              <span className="line-through text-red-500 bg-red-500/10 px-1.5 py-0.5 rounded">
-                                {corr.original}
-                              </span>
-                              <span className="text-muted-foreground hidden sm:inline">&rarr;</span>
-                              <span className="text-emerald-600 dark:text-emerald-400 font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded">
-                                {corr.suggestion}
-                              </span>
+                          <div key={idx} className="p-3 rounded-xl border border-purple-500/20 bg-purple-500/5 text-xs space-y-2">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                              <div className="flex flex-wrap items-center gap-1.5 font-mono text-[11px] ltr text-left">
+                                <span className="line-through text-red-500 bg-red-500/10 px-2 py-0.5 rounded">
+                                  {corr.original}
+                                </span>
+                                <span className="text-muted-foreground">&rarr;</span>
+                                <span className="text-emerald-600 dark:text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded">
+                                  {corr.suggestion}
+                                </span>
+                              </div>
+
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                {corr.category && (
+                                  <Badge variant="outline" className="text-[10px] py-0 px-1.5 font-normal">
+                                    {corr.category === "hebrew_interference"
+                                      ? "תרגום מעברית"
+                                      : corr.category === "grammar"
+                                      ? "דקדוק"
+                                      : corr.category === "spelling"
+                                      ? "איות"
+                                      : corr.category === "punctuation"
+                                      ? "פיסוק"
+                                      : "אוצר מילים"}
+                                  </Badge>
+                                )}
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => handleApplyCorrection(corr.original, corr.suggestion)}
+                                  className="h-6 text-[10px] gap-1 cursor-pointer text-primary hover:bg-primary/10 px-2"
+                                  title="החלף את התיקון בטקסט החיבור שלך"
+                                >
+                                  <Check className="h-3 w-3" />
+                                  <span>החלף בחיבור</span>
+                                </Button>
+                              </div>
                             </div>
+
                             {corr.explanationHebrew && (
-                              <p className="text-muted-foreground text-[11px] rtl text-right">
-                                {corr.explanationHebrew}
+                              <p className="text-muted-foreground text-[11px] rtl text-right leading-relaxed">
+                                💡 {corr.explanationHebrew}
                               </p>
                             )}
                           </div>
@@ -1418,6 +1656,45 @@ export default function WritingPracticePage() {
                     </div>
                   )}
 
+                  {/* Vocabulary Upgrades (Band Elevation) */}
+                  {feedback.vocabularyUpgrades && feedback.vocabularyUpgrades.length > 0 && (
+                    <div className="space-y-2 pt-1 border-t border-border/60">
+                      <span className="font-bold text-primary text-xs flex items-center gap-1.5">
+                        <BookMarked className="h-3.5 w-3.5" />
+                        <span>שדרוג אוצר מילים (Band Elevation) – מילים עשירות יותר:</span>
+                      </span>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {feedback.vocabularyUpgrades.map((upg, idx) => (
+                          <div key={idx} className="p-2.5 rounded-lg border border-border/60 bg-muted/30 text-xs space-y-1.5">
+                            <div className="flex items-center justify-between" dir="ltr">
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-muted-foreground line-through text-[11px]">{upg.original}</span>
+                                <span>&rarr;</span>
+                                <span className="font-bold text-primary text-xs">{upg.enriched}</span>
+                              </div>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleApplyCorrection(upg.original, upg.enriched)}
+                                className="h-5 text-[10px] gap-1 cursor-pointer text-primary hover:bg-primary/10 px-1.5 shrink-0"
+                                title="החלף במילה עשירה יותר"
+                              >
+                                <Plus className="h-2.5 w-2.5" />
+                                <span>שדרג</span>
+                              </Button>
+                            </div>
+                            <p className="text-[11px] text-muted-foreground rtl text-right">
+                              {upg.explanationHebrew}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Strengths & Tips */}
                   {feedback.strengths && feedback.strengths.length > 0 && (
                     <div className="space-y-1 text-xs pt-1 border-t border-border/60">
                       <span className="font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
@@ -1810,6 +2087,114 @@ export default function WritingPracticePage() {
                 <span>עבור לאימון מלא באוצר מילים (כרטיסיות ומשחקים)</span>
                 <ArrowLeft className="h-3.5 w-3.5" />
               </Link>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* AI API Keys Settings Modal */}
+      {showAiSettingsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in-0 print:hidden">
+          <div className="bg-card border border-border rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4" dir="rtl">
+            <div className="flex items-center justify-between border-b border-border/50 pb-3">
+              <div className="flex items-center gap-2">
+                <Sliders className="h-5 w-5 text-primary" />
+                <h3 className="font-black text-base text-foreground">הגדרות מפתחות AI (מורה חכם)</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAiSettingsModal(false)}
+                className="p-1 text-muted-foreground hover:text-foreground rounded-md cursor-pointer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              המערכת משתמשת באותם מפתחות AI המוגדרים באנסין ובכתיבה (נשמרים מקומית במכשיר שלך). המפתחות מאפשרים בדיקת חיבור מדויקת לפי מחוון משרד החינוך ויצירת נושאים מקוריים.
+            </p>
+
+            <div className="space-y-3 text-xs">
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <label className="font-semibold text-foreground">מפתח Groq (מומלץ - מהיר וחזק):</label>
+                  <a
+                    href="https://console.groq.com/keys"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-[11px] text-primary hover:underline"
+                  >
+                    קבלת מפתח חינם &larr;
+                  </a>
+                </div>
+                <Input
+                  type="password"
+                  placeholder="gsk_..."
+                  value={customGroqKey}
+                  onChange={(e) => setCustomGroqKey(e.target.value)}
+                  className="h-9 text-xs font-mono ltr text-left"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <label className="font-semibold text-foreground">מפתח Google Gemini:</label>
+                  <a
+                    href="https://aistudio.google.com/app/apikey"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-[11px] text-primary hover:underline"
+                  >
+                    קבלת מפתח חינם &larr;
+                  </a>
+                </div>
+                <Input
+                  type="password"
+                  placeholder="AIzaSy..."
+                  value={customGeminiKey}
+                  onChange={(e) => setCustomGeminiKey(e.target.value)}
+                  className="h-9 text-xs font-mono ltr text-left"
+                />
+              </div>
+            </div>
+
+            <div className="p-2.5 rounded-lg bg-muted/50 border border-border/50 text-[11px] text-muted-foreground space-y-1">
+              <div className="flex items-center gap-1.5 font-bold text-foreground">
+                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                <span>מנגנון מפל אוטומטי (Cascade)</span>
+              </div>
+              <p>
+                אם מודל אחד מגיע למגבלת עומס, המערכת תעבור באופן אוטומטי למודל הבא (Groq 120B &rarr; Gemini 2.5 &rarr; Llama 70B &rarr; מחוון פדגוגי מקומי).
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-border/50">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowAiSettingsModal(false)}
+                className="cursor-pointer text-xs"
+              >
+                ביטול
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => {
+                  if (typeof window !== "undefined") {
+                    if (customGroqKey.trim()) localStorage.setItem("ett_groq_api_key", customGroqKey.trim());
+                    else localStorage.removeItem("ett_groq_api_key");
+
+                    if (customGeminiKey.trim()) localStorage.setItem("ett_gemini_api_key", customGeminiKey.trim());
+                    else localStorage.removeItem("ett_gemini_api_key");
+
+                    setHasAiKeys(Boolean(customGroqKey.trim() || customGeminiKey.trim()));
+                  }
+                  setShowAiSettingsModal(false);
+                }}
+                className="cursor-pointer text-xs font-bold shadow-xs"
+              >
+                שמור הגדרות
+              </Button>
             </div>
           </div>
         </div>
