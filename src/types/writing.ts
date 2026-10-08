@@ -1,4 +1,38 @@
 export type WritingTaskType = "opinion" | "formal_letter" | "description";
+export type WritingLevel = "Level 1" | "Level 2" | "Level 3";
+export type TaskCategory = "letter" | "opinion" | "description" | "creative";
+
+export interface WordBankItem {
+  word: string;
+  hebrew: string;
+  emoji?: string;
+}
+
+export interface GuidedStep {
+  stepNumber: number;
+  titleHebrew: string;
+  starterPhrase: string;
+  placeholder: string;
+  helperHintHebrew: string;
+}
+
+export interface WritingTask {
+  id: string;
+  level: WritingLevel;
+  category: TaskCategory;
+  title: string;
+  hebrewTitle: string;
+  prompt: string;
+  hebrewInstructions: string;
+  targetWords: string;
+  minWords: number;
+  maxWords: number;
+  starterTips: string[];
+  wordBank: WordBankItem[];
+  sentenceStarters: string[];
+  guidedSteps?: GuidedStep[];
+  emoji?: string;
+}
 
 export interface WritingPrompt {
   id: string;

@@ -448,6 +448,16 @@ export default function StudentPortalPage() {
                         )}
                       </button>
                     </div>
+
+                    {sub.type === "unseen" && sub.generationPrompt && (
+                      <div className="col-span-full flex items-start gap-1.5 p-2 rounded-lg bg-purple-500/10 border border-purple-500/20 text-xs">
+                        <Sparkles className="h-3.5 w-3.5 text-purple-600 dark:text-purple-400 shrink-0 mt-0.5" />
+                        <div>
+                          <span className="font-bold text-purple-900 dark:text-purple-200">פרומפט ליצירת הטקסט: </span>
+                          <span className="font-sans font-medium text-foreground/90" dir="auto">"{sub.generationPrompt}"</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* Teacher Feedback Quote if reviewed */}
@@ -534,6 +544,19 @@ export default function StudentPortalPage() {
             {/* Submission Content: Unseen vs Writing */}
             {selectedItem.type === "unseen" ? (
               <div className="space-y-4">
+                {/* Generation Prompt Info (if AI-generated) */}
+                {selectedItem.generationPrompt && (
+                  <div className="p-3 rounded-xl border border-purple-500/30 bg-purple-500/5 space-y-1.5 text-xs">
+                    <div className="flex items-center gap-1.5 font-bold text-purple-700 dark:text-purple-300">
+                      <Sparkles className="h-4 w-4 text-purple-500 shrink-0" />
+                      <span>פרומפט ששימש אותך ליצירת הטקסט:</span>
+                    </div>
+                    <p className="font-sans text-foreground/95 bg-background/70 p-2 rounded-lg border border-border/50 font-medium leading-relaxed" dir="auto">
+                      "{selectedItem.generationPrompt}"
+                    </p>
+                  </div>
+                )}
+
                 {/* Passage */}
                 {selectedItem.passageText && (
                   <div className="space-y-1.5">

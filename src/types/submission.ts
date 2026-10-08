@@ -33,6 +33,8 @@ export interface SubmissionItem {
   // Unseen specific
   storyLevel?: string;
   passageText?: string;
+  generationPrompt?: string; // Prompt/topic used by the student to generate the unseen passage
+  isAiGenerated?: boolean;
   questionsBreakdown?: SubmissionQuestionBreakdown[];
   // Grading & Feedback
   score?: number; // Auto-calculated score (e.g. 0-100)

@@ -25,6 +25,8 @@ export interface MSUnseenStory {
   vocabularyHints: { word: string; translation: string }[];
   questions: MSUnseenQuestion[];
   totalPoints: number;
+  generationPrompt?: string;
+  isAiGenerated?: boolean;
 }
 
 /**

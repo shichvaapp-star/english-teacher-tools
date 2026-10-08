@@ -26,7 +26,7 @@ export interface WritingEvaluationResult {
 }
 
 // Quick deterministic anti-spam & gibberish detector
-function detectObviousSpam(text: string, minWords: number): WritingEvaluationResult | null {
+function detectObviousSpam(text: string, minWords: number, level: string = "Level 2"): WritingEvaluationResult | null {
   const trimmed = text.trim();
   const words = trimmed.split(/\s+/).filter(Boolean);
   if (words.length === 0) return null;
@@ -34,14 +34,15 @@ function detectObviousSpam(text: string, minWords: number): WritingEvaluationRes
   const lowerWords = words.map((w) => w.toLowerCase().replace(/[^a-z0-9]/g, ""));
   const cleanWords = lowerWords.filter((w) => w.length > 0);
 
-  if (cleanWords.length < 5) {
+  const minWordThreshold = level === "Level 1" ? 2 : 5;
+  if (cleanWords.length < minWordThreshold) {
     return {
-      score: 10,
-      encouragement: "החיבור קצרצר ביותר (פחות מ-5 מילים). יש לכתוב פסקה שלמה באנגלית.",
+      score: level === "Level 1" ? 30 : 10,
+      encouragement: level === "Level 1" ? "כתבת מעט מאוד. נסו לכתוב עוד 1-2 מילים כדי לקבל משוב!" : "החיבור קצרצר ביותר (פחות מ-5 מילים). יש לכתוב פסקה שלמה באנגלית.",
       isSpamOrGibberish: true,
       strengths: [],
       tips: [
-        "אנא כתבו לפחות פסקה אחת בת מספר משפטים באנגלית מלאה.",
+        level === "Level 1" ? "לחצו על משפטי הפתיחה או על בנק המילים כדי להוסיף מילים." : "אנא כתבו לפחות פסקה אחת בת מספר משפטים באנגלית מלאה.",
         `יעד המילים למשימה זו הוא לפחות ${minWords} מילים.`,
       ],
       rubric: {
@@ -66,7 +67,7 @@ function detectObviousSpam(text: string, minWords: number): WritingEvaluationRes
   const maxFreqRatio = maxFreq / cleanWords.length;
 
   // If a single word makes up > 35% of all words, or unique ratio is under 30% for a text with > 15 words
-  if (cleanWords.length >= 15 && (maxFreqRatio > 0.35 || uniqueRatio < 0.3)) {
+  if (cleanWords.length >= 15 && (maxFreqRatio > 0.45 || (level !== "Level 1" && uniqueRatio < 0.3))) {
     const mostRepeatedWord = Object.entries(frequencies).find(([, count]) => count === maxFreq)?.[0] || "מילה";
     return {
       score: 15,
@@ -130,7 +131,7 @@ function detectObviousSpam(text: string, minWords: number): WritingEvaluationRes
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { essayText, taskTitle, prompt, category, minWords, maxWords } = body;
+    const { essayText, taskTitle, prompt, category, minWords, maxWords, level } = body;
 
     if (!essayText || typeof essayText !== "string" || essayText.trim().length === 0) {
       return NextResponse.json(
@@ -139,11 +140,15 @@ export async function POST(request: Request) {
       );
     }
 
-    const targetMin = typeof minWords === "number" ? minWords : 40;
-    const targetMax = typeof maxWords === "number" ? maxWords : 80;
+    const currentLevel = level || "Level 2";
+    const defaultMin = currentLevel === "Level 1" ? 10 : currentLevel === "Level 3" ? 80 : 45;
+    const defaultMax = currentLevel === "Level 1" ? 25 : currentLevel === "Level 3" ? 120 : 80;
+
+    const targetMin = typeof minWords === "number" ? minWords : defaultMin;
+    const targetMax = typeof maxWords === "number" ? maxWords : defaultMax;
 
     // Fast deterministic spam filter
-    const spamCheck = detectObviousSpam(essayText, targetMin);
+    const spamCheck = detectObviousSpam(essayText, targetMin, currentLevel);
     if (spamCheck) {
       return NextResponse.json({
         success: true,
@@ -156,10 +161,37 @@ export async function POST(request: Request) {
     const groqApiKey = request.headers.get("x-groq-api-key") || process.env.GROQ_API_KEY;
     const geminiApiKey = request.headers.get("x-gemini-api-key") || process.env.GEMINI_API_KEY;
 
-    // Strict pedagogical system prompt
-    const systemPrompt = `You are a strict yet encouraging, expert English teacher evaluating middle school student writing according to the official Israeli Ministry of Education (Mafmar) Writing Rubric.
+    // Strict pedagogical system prompt calibrated by student level
+    let levelPedagogyGuidance = "";
+    if (currentLevel === "Level 1") {
+      levelPedagogyGuidance = `
+STUDENT AUDIENCE PROFILE: LEVEL 1 (VERY BASIC / EARLY BEGINNER / PRE-SCHOOL ENGLISH):
+- Target word count is very short (${targetMin} to ${targetMax} words, approximately 1-3 simple sentences).
+- BE EXTREMELY GENTLE, ENCOURAGING, AND WARM!
+- Celebrate any attempt to write words and form basic sentences (e.g., "I like cats", "My dog is brown").
+- Grade very generously: assign scores between 85 and 100 for sincere beginner attempts.
+- Do NOT deduct for simple vocabulary or brevity if they wrote about the topic.
+- In Hebrew feedback, write warm, enthusiastic praise ("כל הכבוד!", "התחלה נהדרת!"). Provide at most 1 very simple, gentle tip (e.g. remember to start with a capital letter).`;
+    } else if (currentLevel === "Level 3") {
+      levelPedagogyGuidance = `
+STUDENT AUDIENCE PROFILE: LEVEL 3 (ELEMENTARY NATIVE / ADVANCED FLUENT YOUNG LEARNERS):
+- Target word count is ${targetMin} to ${targetMax} words.
+- Evaluate with high standards for expressive vocabulary, creative narrative details, varied sentence structures, and fluid transitions.
+- Offer constructive, insightful advice on style, depth of thought, and paragraph flow.`;
+    } else {
+      levelPedagogyGuidance = `
+STUDENT AUDIENCE PROFILE: LEVEL 2 (ISRAELI MIDDLE SCHOOL / AGES 13-15):
+- Target word count is ${targetMin} to ${targetMax} words.
+- Evaluate according to the official Israeli Ministry of Education (Mafmar) Writing Rubric.
+- Balance constructive rigor with encouragement.`;
+    }
+
+    const systemPrompt = `You are an expert English teacher evaluating student writing.
+
+${levelPedagogyGuidance}
 
 TASK DETAILS:
+- Student Level: "${currentLevel}"
 - Task: "${taskTitle || "Writing Task"}"
 - Prompt given to student: "${prompt || "Write a paragraph in English."}"
 - Category: "${category || "general"}"
@@ -172,24 +204,25 @@ ${essayText}
 
 CRITICAL INSTRUCTIONS:
 1. SPAM / GIBBERISH / TRICK DETECTION:
-   - If the student simply repeated words (like "because because because", "First of all First of all"), or copied filler text without coherent sentences, or wrote meaningless gibberish, YOU MUST assign a score between 0 and 20, set "isSpamOrGibberish": true, and clearly explain in Hebrew why this is invalid.
-2. MINISTRY OF EDUCATION RUBRIC (Total 100 points):
-   - Content & Organization (max 30): Did they answer the prompt? Is there logical flow, opening, development, and conclusion?
-   - Vocabulary (max 25): Appropriate middle school words, variety of words, correct usage, absence of excessive repetition.
-   - Language & Grammar (max 25): Correct verb tenses, subject-verb agreement, sentence structure (not just isolated phrases).
-   - Mechanics & Spelling (max 20): Capitalization (including capital 'I'), punctuation (. , ? !), and spelling.
+   - If the student simply repeated words (like "because because because"), or wrote meaningless gibberish, assign a score between 0 and 20, set "isSpamOrGibberish": true, and explain kindly in Hebrew.
+2. RUBRIC SCORING (Total 100 points, sum of the 4 categories):
+   - Content & Organization (max 30): Did they answer the prompt?
+   - Vocabulary (max 25): Appropriate words for ${currentLevel}.
+   - Language & Grammar (max 25): Appropriate verb tenses and sentence structure.
+   - Mechanics & Spelling (max 20): Capitalization, punctuation, and spelling.
 3. CONSTRUCTIVE HEBREW FEEDBACK:
+   - "encouragement": A warm, natural 1-sentence headline in Hebrew.
    - "strengths": 2-3 specific real positive points in Hebrew (if spam, leave empty).
-   - "tips": 2-3 specific constructive tips in Hebrew for how to improve.
-   - "corrections": 1 to 4 specific sentence or grammar corrections showing the original text, corrected text, and brief Hebrew explanation.
+   - "tips": 1-2 specific constructive tips in Hebrew suited for their level.
+   - "corrections": 1 to 4 specific sentence or grammar corrections showing original, suggestion, and explanation in Hebrew.
 
 Return ONLY a valid, raw JSON object matching this schema (NO MARKDOWN CODE BLOCKS, NO TICKS):
 {
   "score": number (0-100, exact sum of the 4 rubric categories),
   "isSpamOrGibberish": boolean,
-  "encouragement": "A warm, natural 1-sentence headline in Hebrew reflecting their actual level.",
+  "encouragement": "Headline in Hebrew",
   "strengths": ["נקודת חוזק 1 בעברית", "נקודת חוזק 2 בעברית"],
-  "tips": ["טיפ ממוקד 1 בעברית", "טיפ ממוקד 2 בעברית"],
+  "tips": ["טיפ ממוקד 1 בעברית"],
   "rubric": {
     "contentAndOrganization": { "score": number (0-30), "max": 30, "commentHebrew": "הסבר בעברית" },
     "vocabulary": { "score": number (0-25), "max": 25, "commentHebrew": "הסבר בעברית" },
@@ -198,12 +231,12 @@ Return ONLY a valid, raw JSON object matching this schema (NO MARKDOWN CODE BLOC
   },
   "corrections": [
     {
-      "original": "exact problematic sentence or phrase from student essay",
-      "suggestion": "corrected English sentence",
-      "explanationHebrew": "הסבר קצר בעברית מדוע התיקון נדרש"
+      "original": "problematic phrase from student text",
+      "suggestion": "corrected English",
+      "explanationHebrew": "הסבר קצר בעברית"
     }
   ]
-}`;
+};`
 
     // 1. Try Groq (Llama 3.3 70B / 120B)
     if (groqApiKey) {

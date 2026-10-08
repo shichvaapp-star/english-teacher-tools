@@ -980,6 +980,19 @@ export default function TeacherDashboardPage() {
                             <span className="font-mono font-bold text-foreground">{sub.receiptCode}</span>
                           </div>
                         )}
+                        {sub.type === "unseen" && sub.generationPrompt && (
+                          <div className="col-span-full flex items-start gap-2 p-2 rounded-lg bg-purple-500/10 border border-purple-500/20 text-xs text-foreground mt-1">
+                            <Sparkles className="h-3.5 w-3.5 text-purple-600 dark:text-purple-400 shrink-0 mt-0.5" />
+                            <div className="space-y-0.5 min-w-0">
+                              <span className="font-bold text-purple-900 dark:text-purple-200">
+                                פרומפט התלמיד/ה ליצירת הטקסט:{" "}
+                              </span>
+                              <span className="font-sans font-medium text-foreground/95" dir="auto">
+                                "{sub.generationPrompt}"
+                              </span>
+                            </div>
+                          </div>
+                        )}
                       </div>
 
                       {/* Essay or Unseen snippet */}
@@ -1545,6 +1558,12 @@ export default function TeacherDashboardPage() {
                                 <span className="mr-2">&bull; קוד אישור: {sub.receiptCode}</span>
                               )}
                             </div>
+                            {sub.type === "unseen" && sub.generationPrompt && (
+                              <p className="text-purple-700 dark:text-purple-300 text-[11px] pt-0.5 flex items-center gap-1 font-sans" dir="auto">
+                                <Sparkles className="h-3 w-3 shrink-0 text-purple-500" />
+                                <span>פרומפט: "{sub.generationPrompt}"</span>
+                              </p>
+                            )}
                             {sub.teacherFeedback && (
                               <p className="text-emerald-800 dark:text-emerald-300 text-[11px] pt-1">
                                 💬 הערתך: {sub.teacherFeedback}
@@ -1618,6 +1637,32 @@ export default function TeacherDashboardPage() {
             <div className="space-y-3 flex-1">
               {reviewItem.type === "unseen" ? (
                 <>
+                  {/* Unseen AI Generation Prompt */}
+                  {reviewItem.generationPrompt ? (
+                    <div className="p-3.5 rounded-xl border border-purple-500/30 bg-purple-500/5 space-y-2 text-xs">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5 font-bold text-purple-700 dark:text-purple-300">
+                          <Sparkles className="h-4 w-4 text-purple-500 shrink-0" />
+                          <span>פרומפט התלמיד/ה ליצירת הטקסט (AI Generation Prompt):</span>
+                        </div>
+                        <Badge variant="outline" className="text-[10px] bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/30 font-bold">
+                          ✨ נוצר ע״י התלמיד/ה ב-AI
+                        </Badge>
+                      </div>
+                      <div
+                        className="p-2.5 rounded-lg bg-background/80 border border-border/60 text-foreground font-medium leading-relaxed font-sans"
+                        dir="auto"
+                      >
+                        "{reviewItem.generationPrompt}"
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 p-2 rounded-lg bg-muted/30 border border-border/40 text-[11px] text-muted-foreground">
+                      <BookOpen className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                      <span>טקסט ממאגר הסיפורים המובנה (ללא פרומפט AI עצמאי)</span>
+                    </div>
+                  )}
+
                   {/* Unseen Passage Viewer */}
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between text-xs text-muted-foreground">

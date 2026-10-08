@@ -588,6 +588,8 @@ Return ONLY a valid, raw JSON object matching this schema (NO MARKDOWN FENCES, N
         const parsedObj = extractJsonFromText(rawOutput);
         const story = validateAndFormatStory(parsedObj, selectedLevel);
         if (story) {
+          story.generationPrompt = resolvedTopic;
+          story.isAiGenerated = true;
           return NextResponse.json({
             success: true,
             story,
@@ -608,6 +610,8 @@ Return ONLY a valid, raw JSON object matching this schema (NO MARKDOWN FENCES, N
       const chosen = candidates[Math.floor(Math.random() * candidates.length)] || MIDDLE_SCHOOL_UNSEENS[0];
       const storyWithRandomizedMcqs: MSUnseenStory = {
         ...chosen,
+        generationPrompt: resolvedTopic,
+        isAiGenerated: true,
         questions: randomizeQuestionsOptions(chosen.questions),
       };
       return NextResponse.json({

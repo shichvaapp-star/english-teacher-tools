@@ -300,6 +300,8 @@ export default function UnseenPracticePage() {
       if (res.ok && data.success && data.story) {
         const newStory: MSUnseenStory = {
           ...data.story,
+          generationPrompt: topicToUse,
+          isAiGenerated: true,
           questions: randomizeQuestionsOptions(data.story.questions),
         };
         setStories((prev) => [newStory, ...prev.filter((s) => s.id !== newStory.id)]);
@@ -582,6 +584,8 @@ export default function UnseenPracticePage() {
       hebrewTitle: currentStory.hebrewTitle,
       storyLevel: currentStory.level,
       passageText: currentStory.paragraphs.join("\n\n"),
+      generationPrompt: currentStory.generationPrompt || (currentStory.isAiGenerated || currentStory.id.startsWith("ai-") ? aiTopicInput.trim() || undefined : undefined),
+      isAiGenerated: Boolean(currentStory.isAiGenerated || currentStory.generationPrompt || currentStory.id.startsWith("ai-")),
       questionsBreakdown: breakdown,
       score: earned,
       grade: earned,
@@ -1744,6 +1748,15 @@ export default function UnseenPracticePage() {
                             <span>{copiedReceipt ? "הועתק!" : "העתק קוד"}</span>
                           </Button>
                         </div>
+                        {submissionRecord.generationPrompt && (
+                          <div className="col-span-2 flex items-start gap-1.5 pt-2 border-t border-border/40 text-xs text-muted-foreground" dir="rtl">
+                            <Sparkles className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
+                            <div>
+                              <span>פרומפט ששימש ליצירת הטקסט: </span>
+                              <strong className="text-foreground font-sans" dir="auto">"{submissionRecord.generationPrompt}"</strong>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}
@@ -2016,6 +2029,20 @@ export default function UnseenPracticePage() {
                 </p>
               )}
             </div>
+
+            {currentStory.generationPrompt && (
+              <div className="p-2.5 rounded-xl bg-purple-500/10 border border-purple-500/25 flex items-start gap-2 text-xs">
+                <Sparkles className="h-4 w-4 text-purple-600 dark:text-purple-400 shrink-0 mt-0.5" />
+                <div className="flex-1 space-y-0.5">
+                  <span className="font-bold text-purple-900 dark:text-purple-200 block">
+                    פרומפט ששימש ליצירת הטקסט:
+                  </span>
+                  <p className="text-foreground/90 font-medium font-sans" dir="auto">
+                    "{currentStory.generationPrompt}"
+                  </p>
+                </div>
+              </div>
+            )}
 
             <div className="space-y-3 pt-1">
               {/* Student Name */}
