@@ -11,7 +11,7 @@ export interface WritingCorrection {
   original: string;
   suggestion: string;
   explanationHebrew: string;
-  category?: "grammar" | "vocabulary" | "spelling" | "punctuation" | "hebrew_interference";
+  category?: "capitalization" | "grammar" | "vocabulary" | "spelling" | "punctuation" | "hebrew_interference";
 }
 
 export interface VocabularyUpgrade {
@@ -50,6 +50,83 @@ function extractJsonFromText(raw: string): any {
     cleaned = cleaned.slice(firstBrace, lastBrace + 1);
   }
   return JSON.parse(cleaned);
+}
+
+// Rigorous validator ensuring all Capital Letter errors are flagged and explained
+function ensureCapitalizationChecks(
+  essayText: string,
+  existingCorrections: WritingCorrection[] = [],
+  level: string = "Level 2"
+): WritingCorrection[] {
+  const corrections = [...existingCorrections];
+
+  const hasCorrectionFor = (target: string) => {
+    const clean = target.trim().toLowerCase();
+    return corrections.some((c) => c.original.trim().toLowerCase() === clean);
+  };
+
+  // 1. Lowercase standalone 'i' (must be capital 'I')
+  if (/\bi\b/.test(essayText) && !hasCorrectionFor("i")) {
+    corrections.unshift({
+      original: "i",
+      suggestion: "I",
+      explanationHebrew: "באנגלית, כינוי הגוף 'I' (אני) נכתב תמיד באות גדולה (Capital letter), בכל מקום במשפט.",
+      category: "capitalization",
+    });
+  }
+
+  // 2. Scan lines for closing formulas and line starters
+  const lines = essayText.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  for (const line of lines) {
+    // Check letter closings like "by", "bye"
+    if (/^by\b/i.test(line)) {
+      const firstWord = line.split(/[\s,]+/)[0];
+      if (firstWord && (firstWord === "by" || firstWord === "bye")) {
+        if (!hasCorrectionFor(firstWord)) {
+          corrections.unshift({
+            original: firstWord,
+            suggestion: "Bye,",
+            explanationHebrew: "בסיום מכתב, ברכת הפרידה נכתבת באות גדולה (Capital letter) ועם פסיק: 'Bye,' או 'From,'.",
+            category: "capitalization",
+          });
+        }
+      }
+    }
+
+    // Check lines starting with a lowercase English letter (not punctuation)
+    const lineStartMatch = line.match(/^([a-z][a-z0-9']*)/);
+    if (lineStartMatch) {
+      const lowerWord = lineStartMatch[1];
+      if (!hasCorrectionFor(lowerWord)) {
+        const capitalized = lowerWord.charAt(0).toUpperCase() + lowerWord.slice(1);
+        corrections.unshift({
+          original: lowerWord,
+          suggestion: capitalized,
+          explanationHebrew: "באנגלית, כל שורה, משפט או ברכה חייבים להתחיל באות גדולה (Capital letter).",
+          category: "capitalization",
+        });
+      }
+    }
+  }
+
+  // 3. Check sentence openings after punctuation (. ! ?)
+  const sentenceStarts = essayText.match(/[.!?]\s+([a-z][a-z0-9']*)/g);
+  if (sentenceStarts) {
+    for (const match of sentenceStarts) {
+      const lowerWord = match.replace(/^[.!?]\s+/, "");
+      if (lowerWord && !hasCorrectionFor(lowerWord)) {
+        const capitalized = lowerWord.charAt(0).toUpperCase() + lowerWord.slice(1);
+        corrections.unshift({
+          original: lowerWord,
+          suggestion: capitalized,
+          explanationHebrew: "משפט חדש לאחר נקודה חייב להתחיל באות גדולה (Capital letter).",
+          category: "capitalization",
+        });
+      }
+    }
+  }
+
+  return corrections;
 }
 
 // Quick deterministic anti-spam & gibberish detector
@@ -200,9 +277,12 @@ STUDENT AUDIENCE PROFILE: LEVEL 1 (VERY BASIC / EARLY BEGINNER / ELEMENTARY LEVE
 - Target word count is very short (${targetMin} to ${targetMax} words, approximately 1-3 simple sentences).
 - BE EXTREMELY GENTLE, ENCOURAGING, AND WARM!
 - Celebrate any attempt to write words and form basic sentences (e.g., "I like cats", "My dog is brown").
-- Grade very generously: assign scores between 85 and 100 for sincere beginner attempts.
+- Grade generously: assign scores between 80 and 95 for sincere beginner attempts.
 - Do NOT deduct for simple vocabulary or brevity if they wrote about the topic.
-- In Hebrew feedback, write warm, enthusiastic praise ("כל הכבוד!", "התחלה נהדרת!"). Provide at most 1 very simple, gentle tip (e.g. remember to start with a capital letter).`;
+- HOWEVER, CAPITAL LETTERS AND SPELLING ARE ESSENTIAL FOUNDATION RULES:
+  * You MUST check and correct EVERY capitalization error (missing capital letter at line/sentence start, lowercase "i", letter closings like "by" -> "Bye,").
+  * Mark them in "corrections" with "category": "capitalization".
+- In Hebrew feedback, write warm, enthusiastic praise ("כל הכבוד!", "התחלה נהדרת!"), while clearly explaining the capital letter rule so they acquire the habit immediately.`;
     } else if (currentLevel === "Level 3") {
       levelPedagogyGuidance = `
 STUDENT AUDIENCE PROFILE: LEVEL 3 (ADVANCED / ELEMENTARY NATIVE / HIGH SCHOOL BAGRUT PREP):
@@ -242,27 +322,41 @@ CORE ISRAELI PEDAGOGICAL EVALUATION PRINCIPLES:
    - Use warm, encouraging, respectful Hebrew ("כל הכבוד על ההשקעה", "רעיון מעניין מאוד").
    - Highlight genuine strengths first, followed by clear, actionable explanations of rules for improvement, ending with motivating guidance.
 
-2. ISRAELI EFL INTERFERENCE DETECTION (שגיאות תרגום ודקדוק אופייניות לדוברי עברית):
+2. MANDATORY CAPITAL LETTER EVALUATION (חוקי אותיות גדולות וקטנות - Capitalization - חובה בכל הרמות!):
+   You MUST rigorously evaluate and report ALL capitalization errors in "corrections" with "category": "capitalization":
+   a) Missing Capital Letters:
+      - Line & Sentence Openings: The first letter of every line, sentence, paragraph, letter greeting ("Dear Friend,"), or letter closing (e.g., "by" MUST be corrected to "Bye," with a Capital letter!) MUST be capitalized.
+      - The Pronoun "I": The word "i" MUST always be written as a capital "I", never lowercase "i".
+      - Letter closings: "by" / "bye" must be corrected to "Bye," or "By,".
+      - Proper Nouns: Names of people, places, languages, days of the week, months.
+   b) Unnecessary / Erroneous Capital Letters:
+      - Words inside a sentence that are NOT proper nouns must NOT start with a capital letter (e.g. "at my Home" -> "home", "I love Cats" -> "cats").
+   c) Clear Hebrew Rule Explanations:
+      - For line/sentence/closing opening: "באנגלית, כל משפט, פתיחה וברכת סיום (כמו Bye) חייבים להתחיל באות גדולה (Capital letter)."
+      - For "I": "באנגלית, כינוי הגוף 'I' (אני) נכתב תמיד באות גדולה בכל מקום במשפט."
+      - For random capitals: "באנגלית, שמות עצם רגילים באמצע משפט נכתבים באותיות קטנות (Lowercase)."
+
+3. ISRAELI EFL INTERFERENCE DETECTION (שגיאות תרגום ודקדוק אופייניות לדוברי עברית):
    - Actively identify common Hebrew-transfer patterns:
      * Missing auxiliary verb / "to be" (*"He very tall"* -> *"He is very tall"*).
      * Literal translations & false collocations (*"make a party"* -> *"have a party"*, *"do sport"* -> *"exercise / play sports"*, *"I am agree"* -> *"I agree"*, *"open the light"* -> *"turn on the light"*).
      * Preposition interference (*"congratulations for"* -> *"congratulations on"*, *"listen music"* -> *"listen to music"*, *"wait to"* -> *"wait for"*).
      * Word order / double negatives (*"I don't know nothing"* -> *"I don't know anything"*).
      * Tense confusion (e.g. using Present Simple for an event that happened in the past).
-   - In "corrections", specify the category: "grammar", "vocabulary", "spelling", "punctuation", or "hebrew_interference".
+   - In "corrections", specify the category: "capitalization", "grammar", "vocabulary", "spelling", "punctuation", or "hebrew_interference".
    - Provide a concise Hebrew explanation that teaches the rule, not just the correction.
 
-3. VOCABULARY BAND ELEVATION (שדרוג אוצר מילים):
+4. VOCABULARY BAND ELEVATION (שדרוג אוצר מילים):
    - Identify 2-3 words the student used and suggest enriched, higher-register Band synonyms suitable for their level (e.g. "good" -> "wonderful / effective", "bad" -> "unpleasant / harmful", "big" -> "huge / vast").
    - Provide clear Hebrew explanations for each upgrade in "vocabularyUpgrades".
 
-4. OFFICIAL MOE 4-PILLAR RUBRIC SCORING (Sum to 100):
+5. OFFICIAL MOE 4-PILLAR RUBRIC SCORING (Sum to 100):
    - Content and Organization (תוכן ומבנה - max 35): Did the student answer the prompt? Is there logical progression and appropriate transitional connectors (First, Also, However, In addition, In conclusion)?
    - Vocabulary (אוצר מילים - max 25): Lexical range, accuracy, appropriate Band level (Band I/II/III), avoidance of unnecessary repetition.
    - Language and Grammar (דקדוק ומבנה משפטים - max 25): Accurate tenses, Subject-Verb agreement, sentence structures (simple, compound, complex).
-   - Mechanics, Spelling & Punctuation (מכניקה ואיות - max 15): Capitalization (sentence start, "I", proper nouns), punctuation (periods, commas, apostrophes), spelling.
+   - Mechanics, Spelling & Punctuation (מכניקה ואיות - max 15): Capitalization (sentence start, "I", proper nouns, closing formulas), punctuation (periods, commas, apostrophes), spelling. Deduct points if there are capitalization mistakes!
 
-5. SPAM / GIBBERISH / CHEATING FILTER:
+6. SPAM / GIBBERISH / CHEATING FILTER:
    - If the text is pure spam, repeated words ("because because because"), or random characters, set "isSpamOrGibberish": true, assign total score 10-20, and explain gently in Hebrew.
 
 Return ONLY a valid, raw JSON object matching this exact schema (NO MARKDOWN CODE FENCES, NO TICKS):
@@ -283,8 +377,8 @@ Return ONLY a valid, raw JSON object matching this exact schema (NO MARKDOWN COD
     {
       "original": "exact problematic phrase from student",
       "suggestion": "corrected English phrasing",
-      "explanationHebrew": "הסבר פדגוגי בעברית של כלל הדקדוק",
-      "category": "grammar"
+      "explanationHebrew": "הסבר פדגוגי בעברית של כלל הדקדוק או האותיות הגדולות",
+      "category": "capitalization"
     }
   ],
   "vocabularyUpgrades": [
@@ -444,6 +538,19 @@ Return ONLY a valid, raw JSON object matching this exact schema (NO MARKDOWN COD
         if (rawOutput) {
           const parsed = extractJsonFromText(rawOutput) as WritingEvaluationResult;
           if (parsed && typeof parsed.score === "number") {
+            // Rigorously enforce capitalization checks across all levels
+            parsed.corrections = ensureCapitalizationChecks(essayText, parsed.corrections || [], currentLevel);
+
+            const hasCapitalIssue = (parsed.corrections || []).some((c) => c.category === "capitalization");
+            if (hasCapitalIssue && parsed.rubric?.mechanicsAndSpelling) {
+              if (parsed.rubric.mechanicsAndSpelling.score >= parsed.rubric.mechanicsAndSpelling.max) {
+                parsed.rubric.mechanicsAndSpelling.score = Math.max(1, parsed.rubric.mechanicsAndSpelling.score - 2);
+              }
+              if (!parsed.rubric.mechanicsAndSpelling.commentHebrew.includes("אותיות גדולות")) {
+                parsed.rubric.mechanicsAndSpelling.commentHebrew += " (שימו לב לשימוש באותיות גדולות בתחילת משפט ובסיום).";
+              }
+            }
+
             // Ensure rubric sum matches total score if needed
             const r = parsed.rubric;
             if (r) {
@@ -452,7 +559,7 @@ Return ONLY a valid, raw JSON object matching this exact schema (NO MARKDOWN COD
                 (r.vocabulary?.score || 0) +
                 (r.languageAndGrammar?.score || 0) +
                 (r.mechanicsAndSpelling?.score || 0);
-              if (calcSum > 0 && Math.abs(calcSum - parsed.score) > 5) {
+              if (calcSum > 0 && Math.abs(calcSum - parsed.score) > 3) {
                 parsed.score = Math.min(100, Math.max(0, calcSum));
               }
             }
@@ -528,14 +635,11 @@ Return ONLY a valid, raw JSON object matching this exact schema (NO MARKDOWN COD
           commentHebrew: `פיסוק, אותיות גדולות ואיות: ${mechanicsScore}/15`,
         },
       },
-      corrections: [
-        {
-          original: "i ...",
-          suggestion: "I ...",
-          explanationHebrew: "באנגלית, כינוי הגוף 'I' (אני) נכתב תמיד באות גדולה (Capital letter), בכל מקום במשפט.",
-          category: "punctuation",
-        },
-      ],
+      corrections: ensureCapitalizationChecks(
+        essayText,
+        [],
+        currentLevel
+      ),
       vocabularyUpgrades: [
         {
           original: "good",
