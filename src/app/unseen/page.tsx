@@ -13,6 +13,8 @@ import { UnseenEvaluationResult } from "@/types/unseen";
 import { MIDDLE_SCHOOL_UNSEENS, MSUnseenStory, MSUnseenQuestion, randomizeQuestionsOptions } from "@/data/unseen-middle-school";
 import { lookupBuiltInTranslation } from "@/data/built-in-dictionary";
 import { saveWordToBuilder, VocabItem, loadSavedWords } from "@/lib/vocab-storage";
+import { useSpeechPlayer } from "@/lib/use-speech-player";
+import { UnseenAudioDock } from "@/components/unseen/unseen-audio-dock";
 import { Confetti } from "@/components/confetti";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -23,6 +25,7 @@ import {
   Search,
   BookMarked,
   Volume2,
+  Pause,
   CheckCircle2,
   Sparkles,
   Info,
@@ -89,6 +92,14 @@ export default function UnseenPracticePage() {
   const [selectedStoryId, setSelectedStoryId] = useState<string>(levelStories[0]?.id || MIDDLE_SCHOOL_UNSEENS[0].id);
   const currentStory: MSUnseenStory =
     stories.find((s) => s.id === selectedStoryId) || levelStories[0] || MIDDLE_SCHOOL_UNSEENS[0];
+
+  // Natural Voice Speech Dictation Player
+  const speech = useSpeechPlayer(currentStory.paragraphs);
+
+  // Stop playback on story change
+  useEffect(() => {
+    speech.stop();
+  }, [currentStory.id]);
 
   // Story selector tabs: "library" vs "ai_generator" (default to Library)
   const [storySourceTab, setStorySourceTab] = useState<"library" | "ai_generator">("library");
@@ -538,13 +549,17 @@ export default function UnseenPracticePage() {
     });
   };
 
-  // Text-to-Speech
+  // Text-to-Speech (single word / phrase with selected natural voice)
   const handleSpeak = (text: string) => {
     if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = "en-US";
     utterance.rate = 0.9;
+    if (speech.selectedVoiceURI) {
+      const v = speech.voices.find((item) => item.voice.voiceURI === speech.selectedVoiceURI);
+      if (v) utterance.voice = v.voice;
+    }
     window.speechSynthesis.speak(utterance);
   };
 
@@ -1417,14 +1432,37 @@ export default function UnseenPracticePage() {
 
                       {/* Speech TTS */}
                       <Button
-                        variant="outline"
+                        variant={speech.isActive && speech.isPlaying ? "default" : "outline"}
                         size="sm"
-                        onClick={() => handleSpeak(currentStory.paragraphs.join(" "))}
-                        className="cursor-pointer gap-1 text-xs"
-                        title="Listen to story"
+                        onClick={() => {
+                          if (!speech.isActive) {
+                            speech.startPlayer();
+                          } else {
+                            speech.togglePlayPause();
+                          }
+                        }}
+                        className="cursor-pointer gap-1.5 text-xs font-semibold"
+                        title={
+                          speech.isActive
+                            ? speech.isPlaying
+                              ? "Pause dictation"
+                              : "Resume dictation"
+                            : "Listen to story with natural voice"
+                        }
                       >
-                        <Volume2 className="h-3.5 w-3.5 text-primary" />
-                        <span className="hidden sm:inline">Listen</span>
+                        {speech.isActive && speech.isPlaying ? (
+                          <>
+                            <Pause className="h-3.5 w-3.5 fill-current animate-pulse" />
+                            <span>Pause</span>
+                          </>
+                        ) : (
+                          <>
+                            <Volume2 className="h-3.5 w-3.5 text-primary" />
+                            <span className="hidden sm:inline">
+                              {speech.isActive ? "Resume" : "Listen"}
+                            </span>
+                          </>
+                        )}
                       </Button>
 
                       {/* Print Booklet */}
@@ -1456,6 +1494,25 @@ export default function UnseenPracticePage() {
 
                 {/* Story Paragraphs */}
                 <CardContent className="pt-4 space-y-4">
+                  {/* Floating Interactive Speech Dock */}
+                  {speech.isActive && (
+                    <UnseenAudioDock
+                      isPlaying={speech.isPlaying}
+                      isPaused={speech.isPaused}
+                      currentSentenceIndex={speech.currentSentenceIndex}
+                      totalSentences={speech.totalSentences}
+                      rate={speech.rate}
+                      voices={speech.voices}
+                      selectedVoiceURI={speech.selectedVoiceURI}
+                      onTogglePlayPause={speech.togglePlayPause}
+                      onSkipBack={speech.skipBack}
+                      onSkipForward={speech.skipForward}
+                      onChangeRate={speech.changeRate}
+                      onChangeVoice={speech.changeVoice}
+                      onClose={speech.stop}
+                    />
+                  )}
+
                   {currentStory.paragraphs.map((para, pIdx) => {
                     const isHighlighted =
                       activeQuestion &&
@@ -1470,8 +1527,7 @@ export default function UnseenPracticePage() {
                         ? "text-lg leading-loose"
                         : "text-base leading-relaxed";
 
-                    // Split paragraph into interactive clickable words
-                    const tokens = para.split(/(\s+)/);
+                    const paraSentences = speech.sentences.filter((s) => s.paragraphIndex === pIdx);
 
                     return (
                       <div
@@ -1495,22 +1551,69 @@ export default function UnseenPracticePage() {
                           )}
                         </div>
 
-                        <p className={`${textSizeClass} text-foreground/90 font-sans tracking-wide`}>
-                          {tokens.map((token, tIdx) => {
-                            const isSpace = /^\s+$/.test(token);
-                            if (isSpace) return <span key={tIdx}>{token}</span>;
+                        <p className={`${textSizeClass} text-foreground/90 font-sans tracking-wide leading-relaxed`}>
+                          {paraSentences.length > 0 ? (
+                            paraSentences.map((sObj) => {
+                              const isSpoken =
+                                speech.isActive && speech.currentSentenceIndex === sObj.globalIndex;
+                              const tokens = sObj.text.split(/(\s+)/);
 
-                            return (
-                              <span
-                                key={tIdx}
-                                onClick={() => handleWordClick(token)}
-                                className="cursor-pointer hover:bg-primary/20 hover:text-primary rounded px-0.5 transition-colors underline decoration-dotted decoration-muted-foreground/30 hover:decoration-primary"
-                                title={`Click to translate "${token}"`}
-                              >
-                                {token}
-                              </span>
-                            );
-                          })}
+                              return (
+                                <span
+                                  key={sObj.id}
+                                  onClick={() => {
+                                    if (speech.isActive) {
+                                      speech.seekSentence(sObj.globalIndex);
+                                    }
+                                  }}
+                                  className={`inline rounded transition-all duration-200 ${
+                                    isSpoken
+                                      ? "bg-primary/20 text-foreground font-semibold ring-2 ring-primary/50 px-1 py-0.5 rounded shadow-xs"
+                                      : speech.isActive
+                                      ? "hover:bg-primary/10 rounded px-0.5 cursor-pointer"
+                                      : ""
+                                  }`}
+                                  title={speech.isActive ? "Click sentence to play from here" : undefined}
+                                >
+                                  {tokens.map((token, tIdx) => {
+                                    const isSpace = /^\s+$/.test(token);
+                                    if (isSpace) return <span key={tIdx}>{token}</span>;
+
+                                    return (
+                                      <span
+                                        key={tIdx}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleWordClick(token);
+                                        }}
+                                        className="cursor-pointer hover:bg-primary/25 hover:text-primary rounded px-0.5 transition-colors underline decoration-dotted decoration-muted-foreground/30 hover:decoration-primary"
+                                        title={`Click to translate "${token}"`}
+                                      >
+                                        {token}
+                                      </span>
+                                    );
+                                  })}
+                                  {" "}
+                                </span>
+                              );
+                            })
+                          ) : (
+                            para.split(/(\s+)/).map((token, tIdx) => {
+                              const isSpace = /^\s+$/.test(token);
+                              if (isSpace) return <span key={tIdx}>{token}</span>;
+
+                              return (
+                                <span
+                                  key={tIdx}
+                                  onClick={() => handleWordClick(token)}
+                                  className="cursor-pointer hover:bg-primary/20 hover:text-primary rounded px-0.5 transition-colors underline decoration-dotted decoration-muted-foreground/30 hover:decoration-primary"
+                                  title={`Click to translate "${token}"`}
+                                >
+                                  {token}
+                                </span>
+                              );
+                            })
+                          )}
                         </p>
                       </div>
                     );
