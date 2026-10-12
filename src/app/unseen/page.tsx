@@ -9,6 +9,7 @@ import { db } from "@/lib/firebase";
 import { collection, addDoc, doc, setDoc } from "firebase/firestore";
 import { cleanForFirestore } from "@/lib/utils";
 import { SubmissionItem, SubmissionQuestionBreakdown } from "@/types/submission";
+import { UnseenEvaluationResult } from "@/types/unseen";
 import { MIDDLE_SCHOOL_UNSEENS, MSUnseenStory, MSUnseenQuestion, randomizeQuestionsOptions } from "@/data/unseen-middle-school";
 import { lookupBuiltInTranslation } from "@/data/built-in-dictionary";
 import { saveWordToBuilder, VocabItem, loadSavedWords } from "@/lib/vocab-storage";
@@ -42,6 +43,7 @@ import {
   AlertCircle,
   UserCheck,
   Edit3,
+  GraduationCap,
 } from "lucide-react";
 
 const LOCAL_SUBMISSIONS_KEY = "ett_writing_submissions";
@@ -129,6 +131,9 @@ export default function UnseenPracticePage() {
   // Answers & Checking
   const [userAnswers, setUserAnswers] = useState<Record<string, string | number>>({});
   const [checkedQuestions, setCheckedQuestions] = useState<Record<string, boolean>>({});
+  const [practiceEvaluation, setPracticeEvaluation] = useState<
+    Record<string, { points: number; feedback: string }>
+  >({});
 
   // Graded Mode Submission State
   const [isSubmitted, setIsSubmitted] = useState(false);
@@ -552,65 +557,180 @@ export default function UnseenPracticePage() {
   // Practice mode: check single answer
   const handleCheckPracticeAnswer = (qId: string) => {
     setCheckedQuestions((prev) => ({ ...prev, [qId]: true }));
+    const q = currentStory.questions.find((item) => item.id === qId);
+    if (!q) return;
+
+    if (q.type === "copy") {
+      const ans = String(userAnswers[qId] || "");
+      const cleanUser = ans.trim().toLowerCase().replace(/[^\w\s]/g, "").replace(/\s+/g, " ");
+      const cleanTarget = (q.targetSentence || "").trim().toLowerCase().replace(/[^\w\s]/g, "").replace(/\s+/g, " ");
+      if (cleanUser === cleanTarget) {
+        setPracticeEvaluation((prev) => ({
+          ...prev,
+          [qId]: { points: 10, feedback: "העתקה מושלמת ומדויקת של המשפט מתוך הפסקה! כל הכבוד!" },
+        }));
+      } else if (cleanTarget.includes(cleanUser) && cleanUser.length > 8) {
+        setPracticeEvaluation((prev) => ({
+          ...prev,
+          [qId]: { points: 8, feedback: "הועתק חלק נכון מהמשפט. מומלץ להעתיק את המשפט השלם מההתחלה ועד הנקודה." },
+        }));
+      } else {
+        setPracticeEvaluation((prev) => ({
+          ...prev,
+          [qId]: { points: 0, feedback: `המשפט הנכון מהפסקה הוא: "${q.targetSentence}".` },
+        }));
+      }
+    } else if (q.type === "open") {
+      const ans = String(userAnswers[qId] || "").toLowerCase();
+      const expectedKws = (q.keywords || []).map((k) => k.toLowerCase());
+      const matched = expectedKws.filter((kw) => ans.includes(kw));
+      if (matched.length >= 2 || (expectedKws.length === 1 && matched.length === 1)) {
+        setPracticeEvaluation((prev) => ({
+          ...prev,
+          [qId]: { points: 10, feedback: "תשובה מצוינת! כללת את פרטי המפתח הנכונים מתוך הטקסט." },
+        }));
+      } else if (matched.length === 1 || ans.length > 15) {
+        setPracticeEvaluation((prev) => ({
+          ...prev,
+          [qId]: { points: 7, feedback: "תשובה טובה! זיהית את הרעיון הכללי. כדאי להרחיב ולהסביר באופן מפורט יותר." },
+        }));
+      } else {
+        setPracticeEvaluation((prev) => ({
+          ...prev,
+          [qId]: { points: 2, feedback: q.explanationHebrew || "יש להסתמך על המידע המופיע בפסקה." },
+        }));
+      }
+    }
   };
 
   // Graded mode: Submit all answers
   const handleSubmitGradedExam = async () => {
-    let earned = 0;
-
-    const breakdown: SubmissionQuestionBreakdown[] = currentStory.questions.map((q) => {
-      const ans = userAnswers[q.id];
-      let isCorrect = false;
-      let targetSentence: string | undefined = undefined;
-      let modelAnswer: string | undefined = undefined;
-      let correctAnswer: string | number | undefined = undefined;
-
-      if (q.type === "mcq") {
-        isCorrect = ans === q.correctIndex;
-        correctAnswer = q.correctIndex;
-        if (isCorrect) earned += 10;
-      } else if (q.type === "copy") {
-        targetSentence = q.targetSentence;
-        correctAnswer = q.targetSentence;
-        if (typeof ans === "string" && q.targetSentence) {
-          const cleanUser = ans.trim().toLowerCase().replace(/[^a-z0-9]/g, "");
-          const cleanTarget = q.targetSentence.trim().toLowerCase().replace(/[^a-z0-9]/g, "");
-          if (cleanUser === cleanTarget || cleanTarget.includes(cleanUser)) {
-            isCorrect = true;
-            earned += 10;
-          }
-        }
-      } else if (q.type === "open") {
-        modelAnswer = q.modelAnswer || (q.keywords ? q.keywords.join(", ") : "");
-        correctAnswer = modelAnswer;
-        if (typeof ans === "string" && ans.trim().length > 3) {
-          const cleanUser = ans.toLowerCase();
-          const matches = (q.keywords || []).filter((kw) => cleanUser.includes(kw.toLowerCase()));
-          if (matches.length > 0 || ans.length > 10) {
-            isCorrect = true;
-            earned += 10;
-          }
-        }
-      }
-
-      return {
-        id: q.id,
-        number: q.number,
-        type: q.type,
-        prompt: q.prompt,
-        options: q.options || [],
-        userAnswer: ans,
-        correctAnswer: correctAnswer,
-        isCorrect: isCorrect,
-        targetSentence: targetSentence || "",
-        modelAnswer: modelAnswer || "",
-        explanationHebrew: q.explanationHebrew || "",
-        points: isCorrect ? 10 : 0,
-      };
-    });
+    setIsSubmitting(true);
 
     const teacherObj = teachers.find((t) => t.id === selectedTeacherId) || teachers[0];
     const receiptCode = `ETT-UN-${Math.floor(100000 + Math.random() * 900000)}`;
+
+    let evaluationResult: UnseenEvaluationResult | null = null;
+
+    try {
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (typeof window !== "undefined") {
+        const groq = localStorage.getItem("ett_groq_api_key");
+        const gemini = localStorage.getItem("ett_gemini_api_key");
+        const openai = localStorage.getItem("ett_openai_api_key");
+        if (groq) headers["x-groq-api-key"] = groq;
+        if (gemini) headers["x-gemini-api-key"] = gemini;
+        if (openai) headers["x-openai-api-key"] = openai;
+      }
+
+      const res = await fetch("/api/evaluate-unseen", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          storyId: currentStory.id,
+          storyTitle: currentStory.title,
+          hebrewTitle: currentStory.hebrewTitle,
+          storyLevel: currentStory.level,
+          paragraphs: currentStory.paragraphs,
+          questions: currentStory.questions,
+          userAnswers,
+          studentName: (studentNameInput.trim() || user?.name || "תלמיד/ה").trim(),
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && data.evaluation) {
+          evaluationResult = data.evaluation;
+        }
+      }
+    } catch (err) {
+      console.warn("Error calling evaluate-unseen API:", err);
+    }
+
+    let earned = 0;
+    let breakdown: SubmissionQuestionBreakdown[] = [];
+
+    if (evaluationResult) {
+      earned = evaluationResult.score;
+      breakdown = evaluationResult.breakdown.map((item) => ({
+        id: item.id,
+        number: item.number,
+        type: item.type,
+        prompt: item.prompt,
+        options: item.options || [],
+        userAnswer: item.userAnswer,
+        correctAnswer: item.correctAnswer,
+        isCorrect: item.isCorrect,
+        targetSentence: item.targetSentence || "",
+        modelAnswer: item.modelAnswer || "",
+        explanationHebrew: item.explanationHebrew || "",
+        points: item.points,
+        maxPoints: 10,
+        feedbackHebrew: item.feedbackHebrew || "",
+      }));
+    } else {
+      // Local fallback calculation if API was unreachable
+      breakdown = currentStory.questions.map((q) => {
+        const ans = userAnswers[q.id];
+        let isCorrect = false;
+        let points = 0;
+        let feedbackHebrew = "";
+
+        if (q.type === "mcq") {
+          isCorrect = ans === q.correctIndex;
+          points = isCorrect ? 10 : 0;
+          feedbackHebrew = isCorrect ? "תשובה נכונה! איתור מדויק של המידע בפסקה." : (q.explanationHebrew || "");
+        } else if (q.type === "copy") {
+          const cleanUser = String(ans || "").trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+          const cleanTarget = (q.targetSentence || "").trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+          if (cleanUser === cleanTarget) {
+            isCorrect = true;
+            points = 10;
+            feedbackHebrew = "העתקה מושלמת ומדויקת של המשפט!";
+          } else if (cleanTarget.includes(cleanUser) && cleanUser.length > 8) {
+            isCorrect = true;
+            points = 8;
+            feedbackHebrew = "הועתק חלק עיקרי ונכון מהמשפט.";
+          } else {
+            feedbackHebrew = `המשפט הנכון הוא: "${q.targetSentence}".`;
+          }
+        } else if (q.type === "open") {
+          const cleanUser = String(ans || "").toLowerCase();
+          const matches = (q.keywords || []).filter((kw) => cleanUser.includes(kw.toLowerCase()));
+          if (matches.length >= 2) {
+            isCorrect = true;
+            points = 10;
+            feedbackHebrew = "תשובה מצוינת! כללת את פרטי המפתח הנכונים מתוך הטקסט.";
+          } else if (matches.length === 1 || cleanUser.length > 15) {
+            isCorrect = true;
+            points = 7;
+            feedbackHebrew = "רעיון נכון. ניתן להרחיב ולהסביר באופן מפורט יותר.";
+          } else {
+            feedbackHebrew = q.explanationHebrew || "יש להסתמך על המידע המופיע בפסקה.";
+          }
+        }
+
+        earned += points;
+
+        return {
+          id: q.id,
+          number: q.number,
+          type: q.type,
+          prompt: q.prompt,
+          options: q.options || [],
+          userAnswer: ans,
+          correctAnswer: q.type === "mcq" ? q.correctIndex : q.targetSentence || q.modelAnswer,
+          isCorrect,
+          targetSentence: q.targetSentence || "",
+          modelAnswer: q.modelAnswer || "",
+          explanationHebrew: q.explanationHebrew || "",
+          points,
+          maxPoints: 10,
+          feedbackHebrew,
+        };
+      });
+    }
 
     const newSubmission: SubmissionItem = {
       id: `sub-${Date.now()}`,
@@ -631,12 +751,15 @@ export default function UnseenPracticePage() {
       questionsBreakdown: breakdown,
       score: earned,
       grade: earned,
+      encouragement: evaluationResult?.encouragement || "סיימת בהצלחה את מבחן האנסין!",
+      teacherNote: evaluationResult?.teacherNote,
+      strengths: evaluationResult?.strengths,
+      tips: evaluationResult?.tips,
+      unseenRubric: evaluationResult?.rubric,
       submittedAt: new Date().toLocaleString("he-IL"),
       receiptCode: receiptCode,
       status: "submitted",
     };
-
-    setIsSubmitting(true);
 
     // 1. Save to localStorage
     try {
@@ -666,6 +789,10 @@ export default function UnseenPracticePage() {
     setIsSubmitted(true);
     setSubmissionRecord(newSubmission);
     setShowSubmitModal(false);
+    if (earned >= 80) {
+      setShowPracticeConfetti(true);
+      setTimeout(() => setShowPracticeConfetti(false), 3500);
+    }
   };
 
   // Total answered questions count
@@ -1694,6 +1821,23 @@ export default function UnseenPracticePage() {
                           </p>
                         )}
 
+                        {practiceEvaluation[activeQuestion.id] && (
+                          <div className="p-2.5 rounded-lg bg-primary/10 border border-primary/20 text-xs text-foreground space-y-1">
+                            <div className="flex items-center justify-between font-bold">
+                              <span className="flex items-center gap-1 text-primary">
+                                <Sparkles className="h-3.5 w-3.5" />
+                                <span>הערכת התשובה שכתבת:</span>
+                              </span>
+                              <Badge variant={practiceEvaluation[activeQuestion.id].points >= 7 ? "default" : "secondary"} className="text-[10px]">
+                                {practiceEvaluation[activeQuestion.id].points} / 10 נק׳
+                              </Badge>
+                            </div>
+                            <p className="text-[11px] leading-relaxed">
+                              {practiceEvaluation[activeQuestion.id].feedback}
+                            </p>
+                          </div>
+                        )}
+
                         <p className="text-foreground/90 text-[11px] leading-relaxed text-right rtl">
                           {activeQuestion.explanationHebrew}
                         </p>
@@ -1781,16 +1925,167 @@ export default function UnseenPracticePage() {
                   <CardHeader className="p-0 text-center space-y-2">
                     <span className="text-4xl">🏆</span>
                     <CardTitle className="text-xl text-emerald-700 dark:text-emerald-300 font-black">
-                      ציון המבחן שלך: {gradedScore} / 100
+                      {submissionRecord?.encouragement || `ציון המבחן שלך: ${gradedScore} / 100`}
                     </CardTitle>
-                    <p className="text-xs text-muted-foreground max-w-md mx-auto">
-                      {gradedScore >= 90
-                        ? "מצוין! הפגנת שליטה יוצאת מן הכלל בטקסט!"
-                        : gradedScore >= 70
-                        ? "עבודה יפה מאוד! כל הכבוד על המאמץ!"
-                        : "המשך לתרגל, כל אנסין משפר את אוצר המילים וההבנה שלך!"}
-                    </p>
+                    <div className="flex items-center justify-center gap-2">
+                      <Badge
+                        variant="default"
+                        className={`text-base px-3.5 py-1 font-black ${
+                          gradedScore >= 85
+                            ? "bg-emerald-600 text-white"
+                            : gradedScore >= 70
+                            ? "bg-blue-600 text-white"
+                            : gradedScore >= 55
+                            ? "bg-amber-600 text-white"
+                            : "bg-rose-600 text-white"
+                        }`}
+                      >
+                        {gradedScore} / 100
+                      </Badge>
+                    </div>
                   </CardHeader>
+
+                  {/* Teacher Personal Note */}
+                  {submissionRecord?.teacherNote && (
+                    <div className="p-3.5 rounded-xl bg-primary/5 border border-primary/20 text-xs space-y-1.5 text-right">
+                      <div className="flex items-center gap-1.5 font-bold text-primary">
+                        <GraduationCap className="h-4 w-4" />
+                        <span>משוב פדגוגי אישי מהמורה:</span>
+                      </div>
+                      <p className="text-foreground/90 leading-relaxed text-[12px]">
+                        {submissionRecord.teacherNote}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Strengths & Tips */}
+                  {((submissionRecord?.strengths && submissionRecord.strengths.length > 0) ||
+                    (submissionRecord?.tips && submissionRecord.tips.length > 0)) && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs text-right">
+                      {submissionRecord.strengths && submissionRecord.strengths.length > 0 && (
+                        <div className="p-3 rounded-xl border border-emerald-500/30 bg-emerald-500/5 space-y-1.5">
+                          <div className="flex items-center gap-1.5 font-bold text-emerald-700 dark:text-emerald-300">
+                            <CheckCircle2 className="h-4 w-4 shrink-0" />
+                            <span>נקודות חוזק בבדיקה:</span>
+                          </div>
+                          <ul className="space-y-1 text-foreground/90 pr-1 list-disc list-inside text-[11px]">
+                            {submissionRecord.strengths.map((s, i) => (
+                              <li key={i}>{s}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                      {submissionRecord.tips && submissionRecord.tips.length > 0 && (
+                        <div className="p-3 rounded-xl border border-primary/30 bg-primary/5 space-y-1.5">
+                          <div className="flex items-center gap-1.5 font-bold text-primary">
+                            <Sparkles className="h-4 w-4 shrink-0" />
+                            <span>טיפים לשיפור במבחן הבא:</span>
+                          </div>
+                          <ul className="space-y-1 text-foreground/90 pr-1 list-disc list-inside text-[11px]">
+                            {submissionRecord.tips.map((t, i) => (
+                              <li key={i}>{t}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* 4-Pillar Reading Comprehension Rubric Cards */}
+                  {submissionRecord?.unseenRubric && (
+                    <div className="space-y-2.5 text-right">
+                      <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                        <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
+                        <span>פירוט ציונים לפי 4 עמודי התווך של משרד החינוך בהבנת הנקרא:</span>
+                      </span>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
+                        {/* 1. Explicit Details */}
+                        <div className="p-3 rounded-xl border border-border/70 bg-card space-y-1.5">
+                          <div className="flex items-center justify-between font-bold">
+                            <span className="text-foreground">איתור מידע מפורש (Explicit Details)</span>
+                            <span className="text-primary font-mono text-[11px]">
+                              {submissionRecord.unseenRubric.explicitDetails.score} / {submissionRecord.unseenRubric.explicitDetails.max}
+                            </span>
+                          </div>
+                          <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
+                            <div
+                              className="bg-primary h-1.5 rounded-full transition-all"
+                              style={{
+                                width: `${Math.min(100, (submissionRecord.unseenRubric.explicitDetails.score / submissionRecord.unseenRubric.explicitDetails.max) * 100)}%`,
+                              }}
+                            />
+                          </div>
+                          <p className="text-[11px] text-muted-foreground leading-relaxed">
+                            {submissionRecord.unseenRubric.explicitDetails.commentHebrew}
+                          </p>
+                        </div>
+
+                        {/* 2. Inference & Context */}
+                        <div className="p-3 rounded-xl border border-border/70 bg-card space-y-1.5">
+                          <div className="flex items-center justify-between font-bold">
+                            <span className="text-foreground">הסקת מסקנות ורמזי הקשר (Inference)</span>
+                            <span className="text-primary font-mono text-[11px]">
+                              {submissionRecord.unseenRubric.inferenceAndContext.score} / {submissionRecord.unseenRubric.inferenceAndContext.max}
+                            </span>
+                          </div>
+                          <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
+                            <div
+                              className="bg-primary h-1.5 rounded-full transition-all"
+                              style={{
+                                width: `${Math.min(100, (submissionRecord.unseenRubric.inferenceAndContext.score / submissionRecord.unseenRubric.inferenceAndContext.max) * 100)}%`,
+                              }}
+                            />
+                          </div>
+                          <p className="text-[11px] text-muted-foreground leading-relaxed">
+                            {submissionRecord.unseenRubric.inferenceAndContext.commentHebrew}
+                          </p>
+                        </div>
+
+                        {/* 3. Global Understanding */}
+                        <div className="p-3 rounded-xl border border-border/70 bg-card space-y-1.5">
+                          <div className="flex items-center justify-between font-bold">
+                            <span className="text-foreground">הבנה כוללת ורעיון מרכזי (Global)</span>
+                            <span className="text-primary font-mono text-[11px]">
+                              {submissionRecord.unseenRubric.globalUnderstanding.score} / {submissionRecord.unseenRubric.globalUnderstanding.max}
+                            </span>
+                          </div>
+                          <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
+                            <div
+                              className="bg-primary h-1.5 rounded-full transition-all"
+                              style={{
+                                width: `${Math.min(100, (submissionRecord.unseenRubric.globalUnderstanding.score / submissionRecord.unseenRubric.globalUnderstanding.max) * 100)}%`,
+                              }}
+                            />
+                          </div>
+                          <p className="text-[11px] text-muted-foreground leading-relaxed">
+                            {submissionRecord.unseenRubric.globalUnderstanding.commentHebrew}
+                          </p>
+                        </div>
+
+                        {/* 4. Language & Accuracy */}
+                        <div className="p-3 rounded-xl border border-border/70 bg-card space-y-1.5">
+                          <div className="flex items-center justify-between font-bold">
+                            <span className="text-foreground">דיוק בניסוח ובהעתקת משפטים (Accuracy)</span>
+                            <span className="text-primary font-mono text-[11px]">
+                              {submissionRecord.unseenRubric.languageAndAccuracy.score} / {submissionRecord.unseenRubric.languageAndAccuracy.max}
+                            </span>
+                          </div>
+                          <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
+                            <div
+                              className="bg-primary h-1.5 rounded-full transition-all"
+                              style={{
+                                width: `${Math.min(100, (submissionRecord.unseenRubric.languageAndAccuracy.score / submissionRecord.unseenRubric.languageAndAccuracy.max) * 100)}%`,
+                              }}
+                            />
+                          </div>
+                          <p className="text-[11px] text-muted-foreground leading-relaxed">
+                            {submissionRecord.unseenRubric.languageAndAccuracy.commentHebrew}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Submission Receipt Box */}
                   {submissionRecord && (
@@ -1798,10 +2093,10 @@ export default function UnseenPracticePage() {
                       <div className="flex items-center justify-between border-b border-border/40 pb-2">
                         <span className="font-bold text-emerald-700 dark:text-emerald-300 flex items-center gap-1.5">
                           <CheckCircle2 className="h-4 w-4" />
-                          <span>המבחן הוגש בהצלחה למורה!</span>
+                          <span>המבחן נבדק והוגש בהצלחה למורה!</span>
                         </span>
-                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-300 font-bold border border-amber-500/30">
-                          ⏳ ממתין לבדיקת המורה
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 font-bold border border-emerald-500/30">
+                          ✓ הגשה מאושרת
                         </span>
                       </div>
 
@@ -1920,8 +2215,10 @@ export default function UnseenPracticePage() {
                           <div
                             key={q.id}
                             className={`p-3 rounded-xl border text-xs space-y-1.5 ${
-                              q.isCorrect
+                              q.points >= 8
                                 ? "border-emerald-500/30 bg-emerald-500/5"
+                                : q.points >= 5
+                                ? "border-amber-500/30 bg-amber-500/5"
                                 : "border-destructive/30 bg-destructive/5"
                             }`}
                           >
@@ -1929,21 +2226,24 @@ export default function UnseenPracticePage() {
                               <span className="font-bold text-foreground">
                                 שאלה {q.number}: {q.prompt}
                               </span>
-                              <Badge variant={q.isCorrect ? "default" : "destructive"} className="text-[10px]">
-                                {q.isCorrect ? "✓ 10/10 נכון" : "✗ 0/10 לא נכון"}
+                              <Badge
+                                variant={q.points >= 8 ? "default" : q.points >= 5 ? "secondary" : "destructive"}
+                                className="text-[10px]"
+                              >
+                                {q.points}/10 נק׳
                               </Badge>
                             </div>
 
                             <div className="text-muted-foreground" dir="ltr">
                               <span>התשובה שלך: </span>
-                              <strong className={q.isCorrect ? "text-emerald-600 dark:text-emerald-400" : "text-destructive"}>
+                              <strong className={q.points >= 8 ? "text-emerald-600 dark:text-emerald-400" : q.points >= 5 ? "text-amber-600 dark:text-amber-400" : "text-destructive"}>
                                 {q.type === "mcq" && q.options && typeof q.userAnswer === "number"
                                   ? q.options[q.userAnswer] || q.userAnswer
                                   : String(q.userAnswer || "לא נענה")}
                               </strong>
                             </div>
 
-                            {!q.isCorrect && (
+                            {q.points < 10 && (
                               <div className="text-muted-foreground" dir="ltr">
                                 <span>תשובה נכונה: </span>
                                 <strong className="text-foreground">
@@ -1954,7 +2254,17 @@ export default function UnseenPracticePage() {
                               </div>
                             )}
 
-                            {q.explanationHebrew && (
+                            {q.feedbackHebrew && (
+                              <div className="p-2 rounded-lg bg-primary/10 border border-primary/20 text-[11px] text-foreground space-y-0.5" dir="rtl">
+                                <span className="font-bold text-primary flex items-center gap-1">
+                                  <Sparkles className="h-3 w-3" />
+                                  <span>משוב פדגוגי על התשובה:</span>
+                                </span>
+                                <p className="leading-relaxed">{q.feedbackHebrew}</p>
+                              </div>
+                            )}
+
+                            {q.explanationHebrew && !q.feedbackHebrew && (
                               <p className="text-[11px] text-muted-foreground pt-1 border-t border-border/30" dir="rtl">
                                 💡 {q.explanationHebrew}
                               </p>
@@ -2236,6 +2546,7 @@ export default function UnseenPracticePage() {
               <Button
                 variant="outline"
                 size="sm"
+                disabled={isSubmitting}
                 onClick={() => setShowSubmitModal(false)}
                 className="cursor-pointer text-xs"
               >
@@ -2249,7 +2560,7 @@ export default function UnseenPracticePage() {
                 className="cursor-pointer text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs gap-1.5"
               >
                 <Send className="h-3.5 w-3.5" />
-                <span>{isSubmitting ? "שולח הגשה..." : "שלח למורה וחשב ציון"}</span>
+                <span>{isSubmitting ? "מעריך תשובות ומפיק משוב AI..." : "שלח למורה וחשב ציון"}</span>
               </Button>
             </div>
           </div>

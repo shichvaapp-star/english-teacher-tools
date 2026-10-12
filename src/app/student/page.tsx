@@ -563,6 +563,95 @@ export default function StudentPortalPage() {
             {/* Submission Content: Unseen vs Writing */}
             {selectedItem.type === "unseen" ? (
               <div className="space-y-4">
+                {/* AI Encouragement & Teacher Note */}
+                {(selectedItem.encouragement || selectedItem.teacherNote) && (
+                  <div className="p-3.5 rounded-xl bg-primary/5 border border-primary/20 space-y-1.5 text-xs text-right">
+                    {selectedItem.encouragement && (
+                      <h4 className="font-bold text-sm text-foreground flex items-center gap-1.5">
+                        <Sparkles className="h-4 w-4 text-primary" />
+                        <span>{selectedItem.encouragement}</span>
+                      </h4>
+                    )}
+                    {selectedItem.teacherNote && (
+                      <p className="text-foreground/90 leading-relaxed text-[12px] pt-1 border-t border-border/40">
+                        {selectedItem.teacherNote}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {/* Strengths & Tips */}
+                {((selectedItem.strengths && selectedItem.strengths.length > 0) ||
+                  (selectedItem.tips && selectedItem.tips.length > 0)) && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-right">
+                    {selectedItem.strengths && selectedItem.strengths.length > 0 && (
+                      <div className="p-2.5 rounded-xl border border-emerald-500/30 bg-emerald-500/5 space-y-1">
+                        <span className="font-bold text-emerald-700 dark:text-emerald-300 flex items-center gap-1 text-[11px]">
+                          <CheckCircle2 className="h-3.5 w-3.5" />
+                          <span>נקודות חוזק:</span>
+                        </span>
+                        <ul className="text-[11px] text-foreground/90 pr-1 list-disc list-inside space-y-0.5">
+                          {selectedItem.strengths.map((s, i) => (
+                            <li key={i}>{s}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {selectedItem.tips && selectedItem.tips.length > 0 && (
+                      <div className="p-2.5 rounded-xl border border-primary/30 bg-primary/5 space-y-1">
+                        <span className="font-bold text-primary flex items-center gap-1 text-[11px]">
+                          <Sparkles className="h-3.5 w-3.5" />
+                          <span>טיפים לשיפור:</span>
+                        </span>
+                        <ul className="text-[11px] text-foreground/90 pr-1 list-disc list-inside space-y-0.5">
+                          {selectedItem.tips.map((t, i) => (
+                            <li key={i}>{t}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* 4-Pillar Reading Comprehension Rubric */}
+                {selectedItem.unseenRubric && (
+                  <div className="space-y-2 text-right">
+                    <span className="font-bold text-xs text-foreground block">
+                      ציוני מיומנויות הבנת הנקרא (משרד החינוך):
+                    </span>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div className="p-2 rounded-lg border border-border/70 bg-card space-y-1">
+                        <div className="flex justify-between font-bold text-[11px]">
+                          <span>איתור מידע מפורש</span>
+                          <span className="text-primary font-mono">{selectedItem.unseenRubric.explicitDetails.score}/{selectedItem.unseenRubric.explicitDetails.max}</span>
+                        </div>
+                        <p className="text-[10px] text-muted-foreground">{selectedItem.unseenRubric.explicitDetails.commentHebrew}</p>
+                      </div>
+                      <div className="p-2 rounded-lg border border-border/70 bg-card space-y-1">
+                        <div className="flex justify-between font-bold text-[11px]">
+                          <span>הסקת מסקנות ורמזים</span>
+                          <span className="text-primary font-mono">{selectedItem.unseenRubric.inferenceAndContext.score}/{selectedItem.unseenRubric.inferenceAndContext.max}</span>
+                        </div>
+                        <p className="text-[10px] text-muted-foreground">{selectedItem.unseenRubric.inferenceAndContext.commentHebrew}</p>
+                      </div>
+                      <div className="p-2 rounded-lg border border-border/70 bg-card space-y-1">
+                        <div className="flex justify-between font-bold text-[11px]">
+                          <span>הבנה כוללת ורעיון</span>
+                          <span className="text-primary font-mono">{selectedItem.unseenRubric.globalUnderstanding.score}/{selectedItem.unseenRubric.globalUnderstanding.max}</span>
+                        </div>
+                        <p className="text-[10px] text-muted-foreground">{selectedItem.unseenRubric.globalUnderstanding.commentHebrew}</p>
+                      </div>
+                      <div className="p-2 rounded-lg border border-border/70 bg-card space-y-1">
+                        <div className="flex justify-between font-bold text-[11px]">
+                          <span>דיוק בניסוח והעתקה</span>
+                          <span className="text-primary font-mono">{selectedItem.unseenRubric.languageAndAccuracy.score}/{selectedItem.unseenRubric.languageAndAccuracy.max}</span>
+                        </div>
+                        <p className="text-[10px] text-muted-foreground">{selectedItem.unseenRubric.languageAndAccuracy.commentHebrew}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Generation Prompt Info (if AI-generated) */}
                 {selectedItem.generationPrompt && (
                   <div className="p-3 rounded-xl border border-purple-500/30 bg-purple-500/5 space-y-1.5 text-xs">
@@ -598,62 +687,79 @@ export default function StudentPortalPage() {
                       פירוט כל השאלות והתשובות שלך:
                     </span>
                     <div className="space-y-2.5 max-h-64 overflow-y-auto pr-1">
-                      {selectedItem.questionsBreakdown.map((q) => (
-                        <div
-                          key={q.id}
-                          className={`p-3 rounded-xl border text-xs space-y-1.5 ${
-                            q.isCorrect
-                              ? "border-emerald-500/30 bg-emerald-500/5"
-                              : "border-destructive/30 bg-destructive/5"
-                          }`}
-                        >
-                          <div className="flex items-center justify-between">
-                            <span className="font-bold text-foreground">
-                              שאלה {q.number}: {q.prompt}
-                            </span>
-                            <Badge
-                              variant={q.isCorrect ? "default" : "destructive"}
-                              className="text-[10px]"
-                            >
-                              {q.isCorrect ? "✓ 10 נק'" : "✗ 0 נק'"}
-                            </Badge>
-                          </div>
+                      {selectedItem.questionsBreakdown.map((q) => {
+                        const earnedPts = typeof q.points === "number" ? q.points : q.isCorrect ? 10 : 0;
+                        return (
+                          <div
+                            key={q.id}
+                            className={`p-3 rounded-xl border text-xs space-y-1.5 ${
+                              earnedPts >= 8
+                                ? "border-emerald-500/30 bg-emerald-500/5"
+                                : earnedPts >= 5
+                                ? "border-amber-500/30 bg-amber-500/5"
+                                : "border-destructive/30 bg-destructive/5"
+                            }`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="font-bold text-foreground">
+                                שאלה {q.number}: {q.prompt}
+                              </span>
+                              <Badge
+                                variant={earnedPts >= 8 ? "default" : earnedPts >= 5 ? "secondary" : "destructive"}
+                                className="text-[10px]"
+                              >
+                                {earnedPts}/10 נק׳
+                              </Badge>
+                            </div>
 
-                          <div className="text-muted-foreground" dir="ltr">
-                            <span>התשובה שלך: </span>
-                            <strong
-                              className={
-                                q.isCorrect
-                                  ? "text-emerald-600 dark:text-emerald-400"
-                                  : "text-destructive"
-                              }
-                            >
-                              {q.type === "mcq" && q.options && typeof q.userAnswer === "number"
-                                ? q.options[q.userAnswer] || q.userAnswer
-                                : String(q.userAnswer || "לא נענה")}
-                            </strong>
-                          </div>
-
-                          {!q.isCorrect && (
                             <div className="text-muted-foreground" dir="ltr">
-                              <span>תשובה נכונה: </span>
-                              <strong className="text-foreground">
-                                {q.type === "mcq" && q.options && typeof q.correctAnswer === "number"
-                                  ? q.options[q.correctAnswer]
-                                  : String(
-                                      q.correctAnswer || q.targetSentence || q.modelAnswer || ""
-                                    )}
+                              <span>התשובה שלך: </span>
+                              <strong
+                                className={
+                                  earnedPts >= 8
+                                    ? "text-emerald-600 dark:text-emerald-400"
+                                    : earnedPts >= 5
+                                    ? "text-amber-600 dark:text-amber-400"
+                                    : "text-destructive"
+                                }
+                              >
+                                {q.type === "mcq" && q.options && typeof q.userAnswer === "number"
+                                  ? q.options[q.userAnswer] || q.userAnswer
+                                  : String(q.userAnswer || "לא נענה")}
                               </strong>
                             </div>
-                          )}
 
-                          {q.explanationHebrew && (
-                            <p className="text-[11px] text-muted-foreground pt-1 border-t border-border/30" dir="rtl">
-                              💡 {q.explanationHebrew}
-                            </p>
-                          )}
-                        </div>
-                      ))}
+                            {earnedPts < 10 && (
+                              <div className="text-muted-foreground" dir="ltr">
+                                <span>תשובה נכונה: </span>
+                                <strong className="text-foreground">
+                                  {q.type === "mcq" && q.options && typeof q.correctAnswer === "number"
+                                    ? q.options[q.correctAnswer]
+                                    : String(
+                                        q.correctAnswer || q.targetSentence || q.modelAnswer || ""
+                                      )}
+                                </strong>
+                              </div>
+                            )}
+
+                            {q.feedbackHebrew && (
+                              <div className="p-2 rounded-lg bg-primary/10 border border-primary/20 text-[11px] text-foreground space-y-0.5" dir="rtl">
+                                <span className="font-bold text-primary flex items-center gap-1">
+                                  <Sparkles className="h-3 w-3" />
+                                  <span>משוב על התשובה שלך:</span>
+                                </span>
+                                <p className="leading-relaxed">{q.feedbackHebrew}</p>
+                              </div>
+                            )}
+
+                            {q.explanationHebrew && !q.feedbackHebrew && (
+                              <p className="text-[11px] text-muted-foreground pt-1 border-t border-border/30" dir="rtl">
+                                💡 {q.explanationHebrew}
+                              </p>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 )}

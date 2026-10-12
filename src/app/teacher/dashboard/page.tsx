@@ -1761,6 +1761,52 @@ export default function TeacherDashboardPage() {
                     </div>
                   </div>
 
+                  {/* AI Evaluation Summary & Rubric */}
+                  {(reviewItem.teacherNote || reviewItem.encouragement) && (
+                    <div className="p-3 rounded-xl bg-primary/5 border border-primary/20 space-y-1 text-xs text-right">
+                      <div className="flex items-center gap-1.5 font-bold text-primary">
+                        <GraduationCap className="h-4 w-4" />
+                        <span>משוב פדגוגי שהופק לתלמיד/ה:</span>
+                      </div>
+                      {reviewItem.encouragement && (
+                        <p className="font-semibold text-foreground text-[11px]">
+                          "{reviewItem.encouragement}"
+                        </p>
+                      )}
+                      {reviewItem.teacherNote && (
+                        <p className="text-foreground/90 leading-relaxed text-[11px] pt-1 border-t border-border/40">
+                          {reviewItem.teacherNote}
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {reviewItem.unseenRubric && (
+                    <div className="space-y-1.5 text-right">
+                      <span className="font-bold text-xs text-foreground block">
+                        הערכת מיומנויות הבנת הנקרא:
+                      </span>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 text-xs">
+                        <div className="p-2 rounded-lg border border-border/70 bg-card space-y-0.5">
+                          <span className="text-[10px] text-muted-foreground block">מידע מפורש</span>
+                          <span className="font-bold text-primary text-[11px]">{reviewItem.unseenRubric.explicitDetails.score}/35</span>
+                        </div>
+                        <div className="p-2 rounded-lg border border-border/70 bg-card space-y-0.5">
+                          <span className="text-[10px] text-muted-foreground block">הסקת מסקנות</span>
+                          <span className="font-bold text-primary text-[11px]">{reviewItem.unseenRubric.inferenceAndContext.score}/25</span>
+                        </div>
+                        <div className="p-2 rounded-lg border border-border/70 bg-card space-y-0.5">
+                          <span className="text-[10px] text-muted-foreground block">הבנה כוללת</span>
+                          <span className="font-bold text-primary text-[11px]">{reviewItem.unseenRubric.globalUnderstanding.score}/25</span>
+                        </div>
+                        <div className="p-2 rounded-lg border border-border/70 bg-card space-y-0.5">
+                          <span className="text-[10px] text-muted-foreground block">דיוק וניסוח</span>
+                          <span className="font-bold text-primary text-[11px]">{reviewItem.unseenRubric.languageAndAccuracy.score}/15</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {/* 10 Questions Breakdown */}
                   <div className="space-y-2">
                     <span className="font-bold text-xs text-foreground block">
@@ -1768,57 +1814,72 @@ export default function TeacherDashboardPage() {
                     </span>
                     <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
                       {reviewItem.questionsBreakdown && reviewItem.questionsBreakdown.length > 0 ? (
-                        reviewItem.questionsBreakdown.map((q) => (
-                          <div
-                            key={q.id}
-                            className={`p-3 rounded-xl border text-xs space-y-1.5 ${
-                              q.isCorrect
-                                ? "border-emerald-500/40 bg-emerald-500/5"
-                                : "border-destructive/40 bg-destructive/5"
-                            }`}
-                          >
-                            <div className="flex items-center justify-between">
-                              <span className="font-bold text-foreground">
-                                שאלה {q.number}: {q.prompt}
-                              </span>
-                              <Badge
-                                variant={q.isCorrect ? "default" : "destructive"}
-                                className="text-[10px] font-bold"
-                              >
-                                {q.isCorrect ? `✓ ${q.points || 10} נק'` : "✗ 0 נק'"}
-                              </Badge>
-                            </div>
+                        reviewItem.questionsBreakdown.map((q) => {
+                          const pts = typeof q.points === "number" ? q.points : q.isCorrect ? 10 : 0;
+                          return (
+                            <div
+                              key={q.id}
+                              className={`p-3 rounded-xl border text-xs space-y-1.5 ${
+                                pts >= 8
+                                  ? "border-emerald-500/40 bg-emerald-500/5"
+                                  : pts >= 5
+                                  ? "border-amber-500/40 bg-amber-500/5"
+                                  : "border-destructive/40 bg-destructive/5"
+                              }`}
+                            >
+                              <div className="flex items-center justify-between">
+                                <span className="font-bold text-foreground">
+                                  שאלה {q.number}: {q.prompt}
+                                </span>
+                                <Badge
+                                  variant={pts >= 8 ? "default" : pts >= 5 ? "secondary" : "destructive"}
+                                  className="text-[10px] font-bold"
+                                >
+                                  {pts}/10 נק׳
+                                </Badge>
+                              </div>
 
-                            <div className="text-muted-foreground" dir="ltr">
-                              <span>תשובת התלמיד/ה: </span>
-                              <strong className={q.isCorrect ? "text-emerald-700 dark:text-emerald-300 font-bold" : "text-destructive font-bold"}>
-                                {q.type === "mcq" && q.options && typeof q.userAnswer === "number"
-                                  ? q.options[q.userAnswer] || q.userAnswer
-                                  : String(q.userAnswer || "לא נענה")}
-                              </strong>
-                            </div>
-
-                            {!q.isCorrect && (
                               <div className="text-muted-foreground" dir="ltr">
-                                <span>תשובה נכונה: </span>
-                                <strong className="text-foreground">
-                                  {q.type === "mcq" && q.options && typeof q.correctAnswer === "number"
-                                    ? q.options[q.correctAnswer]
-                                    : String(q.correctAnswer || q.targetSentence || q.modelAnswer || "")}
+                                <span>תשובת התלמיד/ה: </span>
+                                <strong className={pts >= 8 ? "text-emerald-700 dark:text-emerald-300 font-bold" : pts >= 5 ? "text-amber-700 dark:text-amber-300 font-bold" : "text-destructive font-bold"}>
+                                  {q.type === "mcq" && q.options && typeof q.userAnswer === "number"
+                                    ? q.options[q.userAnswer] || q.userAnswer
+                                    : String(q.userAnswer || "לא נענה")}
                                 </strong>
                               </div>
-                            )}
 
-                            {q.explanationHebrew && (
-                              <p className="text-[11px] text-muted-foreground pt-1 border-t border-border/30" dir="rtl">
-                                💡 {q.explanationHebrew}
-                              </p>
-                            )}
-                          </div>
-                        ))
+                              {pts < 10 && (
+                                <div className="text-muted-foreground" dir="ltr">
+                                  <span>תשובה נכונה: </span>
+                                  <strong className="text-foreground">
+                                    {q.type === "mcq" && q.options && typeof q.correctAnswer === "number"
+                                      ? q.options[q.correctAnswer]
+                                      : String(q.correctAnswer || q.targetSentence || q.modelAnswer || "")}
+                                  </strong>
+                                </div>
+                              )}
+
+                              {q.feedbackHebrew && (
+                                <div className="p-2 rounded-lg bg-primary/10 border border-primary/20 text-[11px] text-foreground space-y-0.5" dir="rtl">
+                                  <span className="font-bold text-primary flex items-center gap-1">
+                                    <Sparkles className="h-3 w-3" />
+                                    <span>משוב פדגוגי על התשובה:</span>
+                                  </span>
+                                  <p className="leading-relaxed">{q.feedbackHebrew}</p>
+                                </div>
+                              )}
+
+                              {q.explanationHebrew && !q.feedbackHebrew && (
+                                <p className="text-[11px] text-muted-foreground pt-1 border-t border-border/30" dir="rtl">
+                                  💡 {q.explanationHebrew}
+                                </p>
+                              )}
+                            </div>
+                          );
+                        })
                       ) : (
                         <div className="p-3 rounded-lg bg-muted/30 text-xs text-muted-foreground text-center">
-                          ציון ממוחשב: {reviewItem.score ?? 0} מתוך 100
+                          לא נמצא פירוט שאלות עבור הגשה זו
                         </div>
                       )}
                     </div>
