@@ -6,7 +6,8 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { UserNav } from "@/components/auth/user-nav";
 import { useAuth } from "@/lib/auth-context";
 import { db } from "@/lib/firebase";
-import { collection, addDoc, getDocs, query, where } from "firebase/firestore";
+import { collection, addDoc, getDocs, query, where, doc, setDoc } from "firebase/firestore";
+import { cleanForFirestore } from "@/lib/utils";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -243,6 +244,34 @@ export default function WritingPracticePage() {
       setSelectedTeacherId(fallback);
     }
   }, [teachers, user?.teacherId, selectedTeacherId]);
+
+  // Auto-sync any unsynced submissions from localStorage to Firestore
+  useEffect(() => {
+    const firestore = db;
+    if (!firestore) return;
+    try {
+      const existingJson = localStorage.getItem(LOCAL_SUBMISSIONS_KEY);
+      if (!existingJson) return;
+      const list = JSON.parse(existingJson);
+      if (Array.isArray(list) && list.length > 0) {
+        list.forEach(async (sub) => {
+          if (sub && sub.id) {
+            try {
+              const payload = cleanForFirestore({
+                ...sub,
+                timestamp: sub.submittedAt || new Date().toISOString(),
+              });
+              await setDoc(doc(firestore, "submissions", sub.id), payload, { merge: true });
+            } catch {
+              // Ignore background sync errors
+            }
+          }
+        });
+      }
+    } catch {
+      // Ignore
+    }
+  }, []);
 
   // Handle Level Selection
   const handleLevelSelect = (lvl: WritingLevel) => {
@@ -585,10 +614,11 @@ export default function WritingPracticePage() {
 
       if (db) {
         try {
-          await addDoc(collection(db, "submissions"), {
+          const payload = cleanForFirestore({
             ...newSubmission,
             timestamp: new Date().toISOString(),
           });
+          await setDoc(doc(db, "submissions", newSubmission.id), payload, { merge: true });
         } catch (fbErr) {
           console.warn("Firestore submission fallback:", fbErr);
         }

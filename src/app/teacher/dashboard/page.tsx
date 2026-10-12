@@ -12,7 +12,10 @@ import {
   doc,
   updateDoc,
   deleteDoc,
+  onSnapshot,
+  setDoc,
 } from "firebase/firestore";
+import { cleanForFirestore } from "@/lib/utils";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { UserNav } from "@/components/auth/user-nav";
 import { TeacherAuthModal } from "@/components/auth/teacher-auth-modal";
@@ -129,24 +132,28 @@ export default function TeacherDashboardPage() {
     // 2. Fetch from Firestore if user is a teacher and db exists
     if (db && user && user.role === "teacher") {
       try {
-        const q = query(
-          collection(db, "submissions"),
-          where("teacherId", "==", user.id)
-        );
-        const snap = await getDocs(q);
+        const snap = await getDocs(collection(db, "submissions"));
         const fbItems: SubmissionItem[] = [];
         snap.forEach((docSnap) => {
-          fbItems.push({
-            id: docSnap.id,
-            ...(docSnap.data() as Omit<SubmissionItem, "id">),
-          });
+          const data = docSnap.data() as SubmissionItem;
+          const belongsToMe =
+            data.teacherId === user.id ||
+            (user.teacherCode && data.teacherId?.toLowerCase() === user.teacherCode.toLowerCase()) ||
+            (user.name && data.teacherName?.toLowerCase() === user.name.toLowerCase());
+
+          if (belongsToMe) {
+            fbItems.push({
+              ...data,
+              id: docSnap.id,
+            });
+          }
         });
 
         // Merge: prefer Firestore records over local duplicates
         if (fbItems.length > 0) {
           const map = new Map<string, SubmissionItem>();
-          items.forEach((item) => map.set(item.id, item));
-          fbItems.forEach((item) => map.set(item.id, item));
+          items.forEach((item) => map.set(item.receiptCode || item.id, item));
+          fbItems.forEach((item) => map.set(item.receiptCode || item.id, item));
           items = Array.from(map.values());
         }
       } catch (err) {
@@ -179,10 +186,85 @@ export default function TeacherDashboardPage() {
     }
   };
 
+  // Initial load
   useEffect(() => {
     if (user && user.role === "teacher") {
       fetchSubmissions();
       fetchStudents();
+    }
+  }, [user]);
+
+  // Real-time listener for incoming submissions
+  useEffect(() => {
+    if (!db || !user || user.role !== "teacher") return;
+
+    const unsub = onSnapshot(
+      collection(db, "submissions"),
+      (snap) => {
+        const fbItems: SubmissionItem[] = [];
+        snap.forEach((docSnap) => {
+          const data = docSnap.data() as SubmissionItem;
+          const belongsToMe =
+            data.teacherId === user.id ||
+            (user.teacherCode && data.teacherId?.toLowerCase() === user.teacherCode.toLowerCase()) ||
+            (user.name && data.teacherName?.toLowerCase() === user.name.toLowerCase());
+
+          if (belongsToMe) {
+            fbItems.push({
+              ...data,
+              id: docSnap.id,
+            });
+          }
+        });
+
+        if (fbItems.length > 0) {
+          setSubmissions((prev) => {
+            const map = new Map<string, SubmissionItem>();
+            prev.forEach((item) => map.set(item.receiptCode || item.id, item));
+            fbItems.forEach((item) => map.set(item.receiptCode || item.id, item));
+            const merged = Array.from(map.values());
+            merged.sort((a, b) => {
+              const timeA = new Date(a.submittedAt).getTime() || 0;
+              const timeB = new Date(b.submittedAt).getTime() || 0;
+              return timeB - timeA;
+            });
+            return merged;
+          });
+        }
+      },
+      (err) => {
+        console.warn("Real-time submissions listener notice:", err);
+      }
+    );
+
+    return () => unsub();
+  }, [user]);
+
+  // Auto-sync any local submissions on teacher machine to Firestore
+  useEffect(() => {
+    const firestore = db;
+    if (!firestore || !user || user.role !== "teacher") return;
+    try {
+      const raw = localStorage.getItem(LOCAL_SUBMISSIONS_KEY);
+      if (!raw) return;
+      const list: SubmissionItem[] = JSON.parse(raw);
+      if (Array.isArray(list) && list.length > 0) {
+        list.forEach(async (sub) => {
+          if (sub && sub.id) {
+            try {
+              const payload = cleanForFirestore({
+                ...sub,
+                timestamp: sub.submittedAt || new Date().toISOString(),
+              });
+              await setDoc(doc(firestore, "submissions", sub.id), payload, { merge: true });
+            } catch {
+              // Ignore
+            }
+          }
+        });
+      }
+    } catch {
+      // Ignore
     }
   }, [user]);
 

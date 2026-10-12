@@ -14,6 +14,15 @@ function extractJsonFromText(raw: string): any {
   return JSON.parse(cleaned);
 }
 
+function validateWritingTask(task: any): boolean {
+  if (!task || typeof task !== "object") return false;
+  const prompt = String(task.prompt || "").trim();
+  const title = String(task.title || "").trim();
+  if (/[\u0590-\u05FF]/.test(prompt) || !/[a-zA-Z]/.test(prompt)) return false;
+  if (/[\u0590-\u05FF]/.test(title) || !/[a-zA-Z]/.test(title)) return false;
+  return true;
+}
+
 function createFallbackTask(topic: string, level: WritingLevel, category: TaskCategory): WritingTask {
   const safeTopic = topic.trim() || "My Favorite Hobby";
   const id = `custom-${Date.now()}`;
@@ -172,6 +181,16 @@ export async function POST(request: Request) {
     const promptInstructions = `
 You are an expert English curriculum designer. Create an interactive writing task for students based on the requested topic and level.
 
+=======================================================
+CRITICAL LANGUAGE RULES:
+- "title" MUST BE IN ENGLISH ONLY (e.g. "My Favorite Sport").
+- "prompt" MUST BE IN ENGLISH ONLY (e.g. "Write a paragraph explaining why...").
+- "sentenceStarters" MUST BE IN ENGLISH ONLY.
+- In "wordBank", each "word" MUST BE IN ENGLISH ONLY.
+- Even if the topic was provided in Hebrew ("${safeTopic}"), translate and adapt it into an English writing task!
+- The ONLY fields in Hebrew are "hebrewTitle", "hebrewInstructions", "starterTips", and the "hebrew" translations in "wordBank" and "guidedSteps".
+=======================================================
+
 USER REQUEST:
 - Topic: "${safeTopic}"
 - Target Level: "${currentLevel}"
@@ -227,7 +246,9 @@ Return ONLY a valid JSON object matching this schema (NO MARKDOWN CODEBLOCKS):
           const content = data.choices?.[0]?.message?.content;
           if (content) {
             const parsed = extractJsonFromText(content);
-            return NextResponse.json({ success: true, task: parsed, source: "groq" });
+            if (validateWritingTask(parsed)) {
+              return NextResponse.json({ success: true, task: parsed, source: "groq" });
+            }
           }
         }
       } catch (err) {
@@ -252,7 +273,9 @@ Return ONLY a valid JSON object matching this schema (NO MARKDOWN CODEBLOCKS):
           const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
           if (text) {
             const parsed = extractJsonFromText(text);
-            return NextResponse.json({ success: true, task: parsed, source: "gemini" });
+            if (validateWritingTask(parsed)) {
+              return NextResponse.json({ success: true, task: parsed, source: "gemini" });
+            }
           }
         }
       } catch (err) {

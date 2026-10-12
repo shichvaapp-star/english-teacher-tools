@@ -1,3 +1,5 @@
+import type { UnseenRubric } from "./unseen";
+
 export interface SubmissionQuestionBreakdown {
   id: string;
   number: number;
@@ -12,6 +14,8 @@ export interface SubmissionQuestionBreakdown {
   modelAnswer?: string;
   explanationHebrew?: string;
   points: number;
+  maxPoints?: number;
+  feedbackHebrew?: string; // Nuanced teacher feedback specifically on student's answer
 }
 
 export interface SubmissionItem {
@@ -36,6 +40,12 @@ export interface SubmissionItem {
   generationPrompt?: string; // Prompt/topic used by the student to generate the unseen passage
   isAiGenerated?: boolean;
   questionsBreakdown?: SubmissionQuestionBreakdown[];
+  // Unseen AI Evaluation Feedback
+  encouragement?: string;
+  teacherNote?: string;
+  strengths?: string[];
+  tips?: string[];
+  unseenRubric?: UnseenRubric;
   // Grading & Feedback
   score?: number; // Auto-calculated score (e.g. 0-100)
   grade?: number; // Final teacher grade (0-100)
@@ -45,3 +55,4 @@ export interface SubmissionItem {
   status: "submitted" | "reviewed";
   reviewedAt?: string;
 }
+

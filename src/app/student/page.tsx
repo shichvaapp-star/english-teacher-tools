@@ -4,7 +4,8 @@ import React, { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import { db } from "@/lib/firebase";
-import { collection, query, where, getDocs } from "firebase/firestore";
+import { collection, query, where, getDocs, doc, setDoc } from "firebase/firestore";
+import { cleanForFirestore } from "@/lib/utils";
 import { SubmissionItem } from "@/types/submission";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { UserNav } from "@/components/auth/user-nav";
@@ -71,6 +72,24 @@ export default function StudentPortalPage() {
           );
         } else {
           items = parsed;
+        }
+
+        // Auto-sync local items to Firestore
+        const firestore = db;
+        if (firestore && items.length > 0) {
+          items.forEach(async (it) => {
+            if (it && it.id) {
+              try {
+                const payload = cleanForFirestore({
+                  ...it,
+                  timestamp: it.submittedAt || new Date().toISOString(),
+                });
+                await setDoc(doc(firestore, "submissions", it.id), payload, { merge: true });
+              } catch {
+                // Ignore
+              }
+            }
+          });
         }
       }
     } catch {

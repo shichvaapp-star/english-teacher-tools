@@ -92,8 +92,61 @@ function validateAndFormatStory(
 
   if (paragraphs.length < 3) return null;
 
+  const hebrewRegex = /[\u0590-\u05FF]/g;
+  const englishRegex = /[a-zA-Z]/g;
+
+  // 1. Mandatory English Check: The reading passage MUST be 100% in English
+  // An unseen reading comprehension passage should never contain Hebrew text.
+  for (const p of paragraphs) {
+    const hebrewMatches = p.match(hebrewRegex) || [];
+    const englishMatches = p.match(englishRegex) || [];
+    if (hebrewMatches.length > 0 || englishMatches.length < 25) {
+      console.warn("[validateAndFormatStory] Rejected non-English paragraph:", p.slice(0, 60));
+      return null;
+    }
+  }
+
+  // 2. Validate Title: English title required
+  let title = String(rawObj.title || "").trim();
+  let hebrewTitle = String(rawObj.hebrewTitle || "").trim();
+
+  // If the AI accidentally swapped title and hebrewTitle:
+  const titleHebrewCount = (title.match(hebrewRegex) || []).length;
+  const titleEnglishCount = (title.match(englishRegex) || []).length;
+  const hebrewTitleHebrewCount = (hebrewTitle.match(hebrewRegex) || []).length;
+  const hebrewTitleEnglishCount = (hebrewTitle.match(englishRegex) || []).length;
+
+  if (titleHebrewCount > titleEnglishCount && hebrewTitleEnglishCount > hebrewTitleHebrewCount) {
+    const temp = title;
+    title = hebrewTitle;
+    hebrewTitle = temp;
+  }
+
+  // Title must have English letters and NO Hebrew letters
+  if ((title.match(hebrewRegex) || []).length > 0 || (title.match(englishRegex) || []).length < 2) {
+    console.warn("[validateAndFormatStory] Rejected non-English title:", title);
+    return null;
+  }
+
   const rawQuestions: any[] = Array.isArray(rawObj.questions) ? rawObj.questions : [];
   if (rawQuestions.length < 5) return null;
+
+  // 3. Validate Questions: Prompts and options must be in English
+  for (const q of rawQuestions) {
+    const prompt = String(q?.prompt || "").trim();
+    if ((prompt.match(hebrewRegex) || []).length > 2) {
+      console.warn("[validateAndFormatStory] Rejected non-English question prompt:", prompt);
+      return null;
+    }
+    if (Array.isArray(q?.options)) {
+      for (const opt of q.options) {
+        if ((String(opt || "").match(hebrewRegex) || []).length > 2) {
+          console.warn("[validateAndFormatStory] Rejected non-English option:", opt);
+          return null;
+        }
+      }
+    }
+  }
 
   // Format exactly 10 questions supporting mcq, open, and copy
   const formattedQuestions: MSUnseenQuestion[] = rawQuestions.slice(0, 10).map((q, idx) => {
@@ -268,8 +321,8 @@ function validateAndFormatStory(
 
   return {
     id: `ai-story-${Date.now()}`,
-    title: String(rawObj.title || defaultTitles[selectedLevel].en).trim(),
-    hebrewTitle: String(rawObj.hebrewTitle || defaultTitles[selectedLevel].he).trim(),
+    title: title || defaultTitles[selectedLevel].en,
+    hebrewTitle: hebrewTitle || defaultTitles[selectedLevel].he,
     level: selectedLevel,
     levelLabel:
       selectedLevel === "Level 1"
@@ -301,6 +354,10 @@ export async function POST(request: Request) {
       | "Level 3";
 
     const resolvedTopic = topic && topic.trim() ? topic.trim() : "an exciting and educational real-world adventure";
+    const hasHebrewTopic = /[\u0590-\u05FF]/.test(resolvedTopic);
+    const topicInstruction = hasHebrewTopic
+      ? `"${resolvedTopic}" (NOTE: The student entered this topic in Hebrew. You MUST translate and adapt it into an English educational subject. The reading passage, title, and all questions MUST BE 100% IN ENGLISH!)`
+      : `"${resolvedTopic}"`;
 
     // API Keys: Prefer headers (from client storage) or server environment variables
     const groqApiKey = request.headers.get("x-groq-api-key") || process.env.GROQ_API_KEY;
@@ -349,13 +406,28 @@ export async function POST(request: Request) {
     const systemPrompt = `You are a master English curriculum designer and test writer for middle school and high school (Israeli Bagrut standard).
 Generate a complete, high-quality reading comprehension (Unseen) activity with EXACTLY 10 questions.
 
+================================================================================
+CRITICAL LANGUAGE MANDATE - ABSOLUTE REQUIREMENT (NEVER VIOLATE THIS):
+================================================================================
+1. The reading comprehension passage ("paragraphs") MUST BE 100% IN ENGLISH!
+   - Under NO circumstances may ANY paragraph be written in Hebrew or any other non-English language.
+   - This is an English language exam for Israeli students learning English. The passage MUST ALWAYS be in English.
+   - Even if the user entered the topic in Hebrew (e.g. "${resolvedTopic}"), you MUST interpret/translate the topic into an English educational subject and write all paragraphs in natural, engaging ENGLISH.
+2. The main "title" MUST BE IN ENGLISH ONLY (e.g. "The Wonders of Whales", "The Secret of the Ocean").
+3. All question prompts ("prompt"), multiple-choice choices ("options"), sentence copying targets ("targetSentence"), and model answers ("modelAnswer") MUST BE 100% IN ENGLISH!
+4. The ONLY fields that MUST be in Hebrew are:
+   - "hebrewTitle": Natural Hebrew translation of the English title (for display in the student header).
+   - "explanationHebrew": Detailed pedagogical explanation in natural Hebrew explaining why the answer is correct according to the English text.
+   - "vocabularyHints": 4-6 objects with English "word" and its accurate Hebrew "translation".
+================================================================================
+
 Pedagogical Parameters:
 - Target Level: ${selectedLevel} (${levelPrompt})
-- Theme / Subject: ${resolvedTopic}
+- Theme / Subject: ${topicInstruction}
 
 Output Requirements:
-- Paragraphs: EXACTLY 4 or 5 paragraphs (50 to 75 words each).
-- Questions: EXACTLY 10 questions (numbered 1 to 10).
+- Paragraphs: EXACTLY 4 or 5 paragraphs (50 to 75 words each). ALL IN ENGLISH ONLY.
+- Questions: EXACTLY 10 questions (numbered 1 to 10). ALL IN ENGLISH ONLY.
   - Q1-Q2 test Paragraph 1
   - Q3-Q4 test Paragraph 2
   - Q5-Q6 test Paragraph 3

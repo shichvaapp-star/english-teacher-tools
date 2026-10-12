@@ -6,7 +6,8 @@ import { useAuth } from "@/lib/auth-context";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { UserNav } from "@/components/auth/user-nav";
 import { db } from "@/lib/firebase";
-import { collection, addDoc } from "firebase/firestore";
+import { collection, addDoc, doc, setDoc } from "firebase/firestore";
+import { cleanForFirestore } from "@/lib/utils";
 import { SubmissionItem, SubmissionQuestionBreakdown } from "@/types/submission";
 import { MIDDLE_SCHOOL_UNSEENS, MSUnseenStory, MSUnseenQuestion, randomizeQuestionsOptions } from "@/data/unseen-middle-school";
 import { lookupBuiltInTranslation } from "@/data/built-in-dictionary";
@@ -185,6 +186,34 @@ export default function UnseenPracticePage() {
     }
   }, [teachers, selectedTeacherId, user]);
 
+  // Auto-sync any unsynced submissions from localStorage to Firestore
+  useEffect(() => {
+    const firestore = db;
+    if (!firestore) return;
+    try {
+      const existingJson = localStorage.getItem(LOCAL_SUBMISSIONS_KEY);
+      if (!existingJson) return;
+      const list: SubmissionItem[] = JSON.parse(existingJson);
+      if (Array.isArray(list) && list.length > 0) {
+        list.forEach(async (sub) => {
+          if (sub && sub.id) {
+            try {
+              const payload = cleanForFirestore({
+                ...sub,
+                timestamp: sub.submittedAt || new Date().toISOString(),
+              });
+              await setDoc(doc(firestore, "submissions", sub.id), payload, { merge: true });
+            } catch {
+              // Ignore background sync errors
+            }
+          }
+        });
+      }
+    } catch {
+      // Ignore
+    }
+  }, []);
+
   // Word Click & Translation Popup
   const [clickedWord, setClickedWord] = useState<{
     word: string;
@@ -298,6 +327,19 @@ export default function UnseenPracticePage() {
       const data = await res.json();
 
       if (res.ok && data.success && data.story) {
+        // Defensive check: Ensure the reading passage and title are in English
+        const hasHebrewParagraphs =
+          Array.isArray(data.story.paragraphs) &&
+          data.story.paragraphs.some((p: string) => /[\u0590-\u05FF]/.test(p));
+        const hasHebrewInTitle =
+          typeof data.story.title === "string" && /[\u0590-\u05FF]/.test(data.story.title);
+
+        if (hasHebrewParagraphs || hasHebrewInTitle) {
+          setAiNoticeType("error");
+          setAiNotice("שגיאה: קטע הקריאה נוצר בשפה שגויה (עברית במקום אנגלית). אנא נסו שוב.");
+          return;
+        }
+
         const newStory: MSUnseenStory = {
           ...data.story,
           generationPrompt: topicToUse,
@@ -556,13 +598,13 @@ export default function UnseenPracticePage() {
         number: q.number,
         type: q.type,
         prompt: q.prompt,
-        options: q.options,
+        options: q.options || [],
         userAnswer: ans,
         correctAnswer: correctAnswer,
         isCorrect: isCorrect,
-        targetSentence: targetSentence,
-        modelAnswer: modelAnswer,
-        explanationHebrew: q.explanationHebrew,
+        targetSentence: targetSentence || "",
+        modelAnswer: modelAnswer || "",
+        explanationHebrew: q.explanationHebrew || "",
         points: isCorrect ? 10 : 0,
       };
     });
@@ -584,7 +626,7 @@ export default function UnseenPracticePage() {
       hebrewTitle: currentStory.hebrewTitle,
       storyLevel: currentStory.level,
       passageText: currentStory.paragraphs.join("\n\n"),
-      generationPrompt: currentStory.generationPrompt || (currentStory.isAiGenerated || currentStory.id.startsWith("ai-") ? aiTopicInput.trim() || undefined : undefined),
+      generationPrompt: currentStory.generationPrompt || (currentStory.isAiGenerated || currentStory.id.startsWith("ai-") ? aiTopicInput.trim() || "" : ""),
       isAiGenerated: Boolean(currentStory.isAiGenerated || currentStory.generationPrompt || currentStory.id.startsWith("ai-")),
       questionsBreakdown: breakdown,
       score: earned,
@@ -606,13 +648,14 @@ export default function UnseenPracticePage() {
       console.warn("Could not save unseen submission to local storage:", localErr);
     }
 
-    // 2. Save to Firestore if available
+    // 2. Save to Firestore with sanitization
     if (db) {
       try {
-        await addDoc(collection(db, "submissions"), {
+        const payload = cleanForFirestore({
           ...newSubmission,
           timestamp: new Date().toISOString(),
         });
+        await setDoc(doc(db, "submissions", newSubmission.id), payload, { merge: true });
       } catch (fbErr) {
         console.warn("Firestore unseen submission fallback to local storage:", fbErr);
       }
@@ -1460,19 +1503,36 @@ export default function UnseenPracticePage() {
                       </p>
                     </div>
                   </div>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      setShowPracticeConfetti(true);
-                      setShowPracticeCompleteModal(true);
-                    }}
-                    className="h-7 text-[11px] font-bold border-emerald-500/40 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 shrink-0 cursor-pointer"
-                  >
-                    <Sparkles className="h-3 w-3 text-amber-500 mr-1" />
-                    <span>צפה בסיכום</span>
-                  </Button>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => {
+                        setIsChangingTeacher(false);
+                        if (user?.teacherId) {
+                          setSelectedTeacherId(user.teacherId);
+                        }
+                        setShowSubmitModal(true);
+                      }}
+                      className="h-7 text-[11px] font-bold bg-emerald-600 hover:bg-emerald-700 text-white shrink-0 cursor-pointer gap-1"
+                    >
+                      <Send className="h-3 w-3" />
+                      <span>הגש למורה</span>
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setShowPracticeConfetti(true);
+                        setShowPracticeCompleteModal(true);
+                      }}
+                      className="h-7 text-[11px] font-bold border-emerald-500/40 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 shrink-0 cursor-pointer"
+                    >
+                      <Sparkles className="h-3 w-3 text-amber-500 mr-1" />
+                      <span>סיכום</span>
+                    </Button>
+                  </div>
                 </div>
               )}
 
@@ -1667,15 +1727,33 @@ export default function UnseenPracticePage() {
                     </div>
 
                     {mode === "practice" ? (
-                      <Button
-                        variant="default"
-                        size="sm"
-                        onClick={() => handleCheckPracticeAnswer(activeQuestion.id)}
-                        className="cursor-pointer gap-1.5 text-xs"
-                      >
-                        <Check className="h-3.5 w-3.5" />
-                        <span>בדוק תשובה</span>
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setIsChangingTeacher(false);
+                            if (user?.teacherId) {
+                              setSelectedTeacherId(user.teacherId);
+                            }
+                            setShowSubmitModal(true);
+                          }}
+                          className="cursor-pointer gap-1.5 text-xs text-emerald-700 dark:text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/10 font-bold"
+                          title="הגש את תוצאות התרגול למורה"
+                        >
+                          <Send className="h-3.5 w-3.5 text-emerald-600" />
+                          <span>הגש למורה ({answeredCount}/10)</span>
+                        </Button>
+                        <Button
+                          variant="default"
+                          size="sm"
+                          onClick={() => handleCheckPracticeAnswer(activeQuestion.id)}
+                          className="cursor-pointer gap-1.5 text-xs"
+                        >
+                          <Check className="h-3.5 w-3.5" />
+                          <span>בדוק תשובה</span>
+                        </Button>
+                      </div>
                     ) : (
                       <Button
                         variant="default"
@@ -2494,6 +2572,22 @@ export default function UnseenPracticePage() {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+              <Button
+                variant="default"
+                size="sm"
+                onClick={() => {
+                  setShowPracticeCompleteModal(false);
+                  setIsChangingTeacher(false);
+                  if (user?.teacherId) {
+                    setSelectedTeacherId(user.teacherId);
+                  }
+                  setShowSubmitModal(true);
+                }}
+                className="cursor-pointer text-xs font-bold gap-1.5 h-10 bg-emerald-600 hover:bg-emerald-700 text-white sm:col-span-2 shadow-xs"
+              >
+                <Send className="h-4 w-4" />
+                <span>הגש תוצאות למורה לבדיקה ({answeredCount}/10)</span>
+              </Button>
               <Button
                 variant="outline"
                 size="sm"
