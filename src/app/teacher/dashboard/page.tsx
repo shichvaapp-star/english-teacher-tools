@@ -52,10 +52,15 @@ import {
   Lock,
   Shuffle,
   Layers,
+  Loader2,
+  Lightbulb,
+  Award,
 } from "lucide-react";
 
 import { SubmissionItem } from "@/types/submission";
 import { StudentProfile } from "@/types/auth";
+import { ALL_WRITING_TASKS } from "@/data/writing-tasks";
+import type { WritingEvaluationResult } from "@/app/api/evaluate-writing/route";
 
 const LOCAL_SUBMISSIONS_KEY = "ett_writing_submissions";
 
@@ -106,6 +111,11 @@ export default function TeacherDashboardPage() {
   const [feedbackInput, setFeedbackInput] = useState<string>("");
   const [isSavingGrade, setIsSavingGrade] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+
+  // AI Review State
+  const [loadingAiSubId, setLoadingAiSubId] = useState<string | null>(null);
+  const [isEvaluatingAi, setIsEvaluatingAi] = useState(false);
+  const [writingAiResult, setWritingAiResult] = useState<WritingEvaluationResult | null>(null);
 
   // Copied code toast
   const [copiedCode, setCopiedCode] = useState(false);
@@ -292,8 +302,94 @@ export default function TeacherDashboardPage() {
   const handleOpenReview = (item: SubmissionItem) => {
     setReviewItem(item);
     setGradeInput(item.grade !== undefined ? String(item.grade) : item.score !== undefined ? String(item.score) : "");
-    setFeedbackInput(item.teacherFeedback || "");
+    setFeedbackInput(item.teacherFeedback || item.teacherNote || "");
     setSaveSuccess(false);
+
+    if (item.writingRubric) {
+      setWritingAiResult({
+        score: item.grade ?? item.score ?? 0,
+        encouragement: item.encouragement || "",
+        teacherNote: item.teacherNote,
+        isSpamOrGibberish: false,
+        strengths: item.strengths || [],
+        tips: item.tips || [],
+        rubric: item.writingRubric,
+        corrections: item.corrections,
+        vocabularyUpgrades: item.vocabularyUpgrades,
+      });
+    } else {
+      setWritingAiResult(null);
+    }
+  };
+
+  // Run AI review for a submission using the same logic and rubric as self-review
+  const handleAiReview = async (sub: SubmissionItem) => {
+    setLoadingAiSubId(sub.id);
+    handleOpenReview(sub);
+
+    if (sub.type === "writing") {
+      setIsEvaluatingAi(true);
+      setWritingAiResult(null);
+
+      try {
+        const headers: Record<string, string> = { "Content-Type": "application/json" };
+        if (typeof window !== "undefined") {
+          const groq = localStorage.getItem("ett_groq_api_key");
+          const gemini = localStorage.getItem("ett_gemini_api_key");
+          const openai = localStorage.getItem("ett_openai_api_key");
+          if (groq) headers["x-groq-api-key"] = groq;
+          if (gemini) headers["x-gemini-api-key"] = gemini;
+          if (openai) headers["x-openai-api-key"] = openai;
+        }
+
+        const matchedTask = ALL_WRITING_TASKS.find(
+          (t) => t.id === sub.taskId || t.title.toLowerCase() === (sub.taskTitle || "").toLowerCase()
+        );
+
+        const res = await fetch("/api/evaluate-writing", {
+          method: "POST",
+          headers,
+          body: JSON.stringify({
+            essayText: (sub.essayText || "").trim(),
+            taskTitle: matchedTask?.title || sub.taskTitle || sub.hebrewTitle,
+            prompt: matchedTask?.prompt || sub.hebrewTitle || sub.taskTitle,
+            category: matchedTask?.category || sub.category || "opinion",
+            level: matchedTask?.level || (sub.storyLevel as any) || "Level 2",
+            minWords: matchedTask?.minWords || 15,
+            maxWords: matchedTask?.maxWords || 120,
+          }),
+        });
+
+        const data = await res.json();
+        if (data.success && data.evaluation) {
+          const evalRes: WritingEvaluationResult = data.evaluation;
+          setWritingAiResult(evalRes);
+          setGradeInput(String(evalRes.score));
+          if (evalRes.teacherNote) {
+            setFeedbackInput(evalRes.teacherNote);
+          } else if (evalRes.encouragement) {
+            setFeedbackInput(evalRes.encouragement);
+          }
+        } else {
+          alert(data.error || "אירעה שגיאה בבדיקת ה-AI. אנא נסו שוב.");
+        }
+      } catch (err) {
+        console.error("AI Review error:", err);
+        alert("לא ניתן היה להתחבר לשירות בדיקת ה-AI. אנא בדקו את החיבור לרשת ונסו שוב.");
+      } finally {
+        setIsEvaluatingAi(false);
+        setLoadingAiSubId(null);
+      }
+    } else if (sub.type === "unseen") {
+      // Unseen submissions already possess auto-evaluation
+      if (sub.score !== undefined) {
+        setGradeInput(String(sub.grade ?? sub.score));
+      }
+      if (sub.teacherNote || sub.encouragement) {
+        setFeedbackInput(sub.teacherFeedback || sub.teacherNote || sub.encouragement || "");
+      }
+      setLoadingAiSubId(null);
+    }
   };
 
   // Save grade and teacher feedback
@@ -310,18 +406,39 @@ export default function TeacherDashboardPage() {
       teacherFeedback: feedbackInput.trim(),
       status: "reviewed",
       reviewedAt: new Date().toLocaleString("he-IL"),
+      ...(writingAiResult ? {
+        score: writingAiResult.score,
+        encouragement: writingAiResult.encouragement,
+        teacherNote: writingAiResult.teacherNote,
+        strengths: writingAiResult.strengths,
+        tips: writingAiResult.tips,
+        writingRubric: writingAiResult.rubric,
+        corrections: writingAiResult.corrections,
+        vocabularyUpgrades: writingAiResult.vocabularyUpgrades,
+      } : {}),
     };
 
     // 1. Update in Firestore
     if (db) {
       try {
         const ref = doc(db, "submissions", reviewItem.id);
-        await updateDoc(ref, {
+        const updatePayload = cleanForFirestore({
           grade: numericGrade,
           teacherFeedback: feedbackInput.trim(),
           status: "reviewed",
           reviewedAt: new Date().toISOString(),
+          ...(writingAiResult ? {
+            score: writingAiResult.score,
+            encouragement: writingAiResult.encouragement,
+            teacherNote: writingAiResult.teacherNote,
+            strengths: writingAiResult.strengths,
+            tips: writingAiResult.tips,
+            writingRubric: writingAiResult.rubric,
+            corrections: writingAiResult.corrections,
+            vocabularyUpgrades: writingAiResult.vocabularyUpgrades,
+          } : {}),
         });
+        await updateDoc(ref, updatePayload);
       } catch (err) {
         console.warn("Firestore update notice:", err);
       }
@@ -1017,6 +1134,27 @@ export default function TeacherDashboardPage() {
                           <div className="flex items-center gap-1.5">
                             <Button
                               size="sm"
+                              variant="outline"
+                              onClick={() => handleAiReview(sub)}
+                              disabled={loadingAiSubId === sub.id}
+                              className="h-7 text-xs font-bold gap-1 cursor-pointer border-purple-500/40 text-purple-700 dark:text-purple-300 bg-purple-500/10 hover:bg-purple-500/20 px-2.5 shadow-xs"
+                              title="הפעל בדיקת AI מקיפה עם מחוון וציון מומלץ"
+                            >
+                              {loadingAiSubId === sub.id ? (
+                                <>
+                                  <Loader2 className="h-3 w-3 animate-spin text-purple-600 dark:text-purple-400" />
+                                  <span>בודק ב-AI...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Sparkles className="h-3 w-3 text-purple-600 dark:text-purple-400" />
+                                  <span>בדיקת AI</span>
+                                </>
+                              )}
+                            </Button>
+
+                            <Button
+                              size="sm"
                               onClick={() => handleOpenReview(sub)}
                               className="h-7 text-xs font-bold gap-1 cursor-pointer bg-primary hover:bg-primary/90 px-2.5"
                             >
@@ -1653,17 +1791,43 @@ export default function TeacherDashboardPage() {
                             )}
                           </div>
 
-                          <Button
-                            size="sm"
-                            onClick={() => {
-                              setHistoryStudent(null);
-                              handleOpenReview(sub);
-                            }}
-                            className="h-7 text-xs font-bold gap-1 cursor-pointer bg-primary hover:bg-primary/90 px-3 self-end sm:self-center"
-                          >
-                            <Eye className="h-3 w-3" />
-                            <span>{isReviewed ? "צפה / ערוך בדיקה" : "בדוק כעת"}</span>
-                          </Button>
+                          <div className="flex items-center gap-1.5 self-end sm:self-center">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                setHistoryStudent(null);
+                                handleAiReview(sub);
+                              }}
+                              disabled={loadingAiSubId === sub.id}
+                              className="h-7 text-xs font-bold gap-1 cursor-pointer border-purple-500/40 text-purple-700 dark:text-purple-300 bg-purple-500/10 hover:bg-purple-500/20 px-2.5 shadow-xs"
+                              title="הפעל בדיקת AI"
+                            >
+                              {loadingAiSubId === sub.id ? (
+                                <>
+                                  <Loader2 className="h-3 w-3 animate-spin text-purple-600 dark:text-purple-400" />
+                                  <span>בודק ב-AI...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Sparkles className="h-3 w-3 text-purple-600 dark:text-purple-400" />
+                                  <span>בדיקת AI</span>
+                                </>
+                              )}
+                            </Button>
+
+                            <Button
+                              size="sm"
+                              onClick={() => {
+                                setHistoryStudent(null);
+                                handleOpenReview(sub);
+                              }}
+                              className="h-7 text-xs font-bold gap-1 cursor-pointer bg-primary hover:bg-primary/90 px-3"
+                            >
+                              <Eye className="h-3 w-3" />
+                              <span>{isReviewed ? "צפה / ערוך בדיקה" : "בדוק כעת"}</span>
+                            </Button>
+                          </div>
                         </div>
                       );
                     })}
@@ -1707,12 +1871,35 @@ export default function TeacherDashboardPage() {
                   </p>
                 </div>
               </div>
-              <button
-                onClick={() => setReviewItem(null)}
-                className="p-1 rounded-md text-muted-foreground hover:text-foreground cursor-pointer"
-              >
-                <X className="h-5 w-5" />
-              </button>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => handleAiReview(reviewItem)}
+                  disabled={isEvaluatingAi}
+                  className="h-8 text-xs font-bold gap-1.5 border-purple-500/40 text-purple-700 dark:text-purple-300 bg-purple-500/10 hover:bg-purple-500/20 cursor-pointer shadow-xs"
+                  title="הפעל בדיקת AI מקיפה על עבודה זו"
+                >
+                  {isEvaluatingAi ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 animate-spin text-purple-600 dark:text-purple-400" />
+                      <span>בודק ב-AI...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="h-3.5 w-3.5 text-purple-600 dark:text-purple-400" />
+                      <span>{writingAiResult ? "בדיקת AI מחדש" : "בדיקת AI"}</span>
+                    </>
+                  )}
+                </Button>
+                <button
+                  onClick={() => setReviewItem(null)}
+                  className="p-1 rounded-md text-muted-foreground hover:text-foreground cursor-pointer"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
             </div>
 
             {/* Student Work Content */}
@@ -1902,6 +2089,266 @@ export default function TeacherDashboardPage() {
                   >
                     {reviewItem.essayText || "אין טקסט זמין"}
                   </div>
+
+                  {/* AI Evaluation Section for Writing */}
+                  {isEvaluatingAi && (
+                    <div className="p-4 rounded-xl border border-purple-500/30 bg-purple-500/10 flex items-center justify-center gap-2.5 text-xs text-purple-700 dark:text-purple-300 font-bold animate-pulse">
+                      <Loader2 className="h-4 w-4 animate-spin text-purple-600 dark:text-purple-400" />
+                      <span>מבצע בדיקת AI מלאה (הערכת מחוון משרד החינוך, דקדוק, אוצר מילים ומשוב)...</span>
+                    </div>
+                  )}
+
+                  {!writingAiResult && !isEvaluatingAi && (
+                    <div className="p-3 rounded-xl border border-dashed border-purple-500/40 bg-purple-500/5 flex flex-col sm:flex-row items-center justify-between gap-2.5 text-xs">
+                      <div className="flex items-center gap-2 text-purple-800 dark:text-purple-300 font-medium">
+                        <Sparkles className="h-4 w-4 shrink-0 text-purple-600 dark:text-purple-400" />
+                        <span>רוצים לבדוק חיבור זה עם AI? המערכת תספק ציון מחוון משרד החינוך, דוח שגיאות ומשוב מוצע.</span>
+                      </div>
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => handleAiReview(reviewItem)}
+                        className="h-7 text-xs font-bold gap-1.5 bg-purple-600 hover:bg-purple-700 text-white shrink-0 cursor-pointer shadow-xs"
+                      >
+                        <Sparkles className="h-3 w-3" />
+                        <span>הפעל בדיקת AI</span>
+                      </Button>
+                    </div>
+                  )}
+
+                  {writingAiResult && !isEvaluatingAi && (
+                    <div className="p-4 sm:p-5 rounded-2xl border border-purple-500/30 bg-purple-500/5 space-y-4 animate-in fade-in text-xs">
+                      {/* Header with Score and Apply button */}
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/60 pb-3">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="text-[10px] gap-1 border-purple-500/40 text-purple-700 dark:text-purple-300 font-bold">
+                              <Sparkles className="h-3 w-3 text-purple-500" />
+                              <span>בדיקת AI פדגוגית (מחוון משרד החינוך)</span>
+                            </Badge>
+                            <span className="text-[11px] text-muted-foreground font-semibold">
+                              מותאם ל-{reviewItem.storyLevel || "Level 2"}
+                            </span>
+                          </div>
+                          <h4 className="text-sm sm:text-base font-black text-foreground">
+                            "{writingAiResult.encouragement}"
+                          </h4>
+                        </div>
+
+                        <div className="flex items-center gap-3 shrink-0">
+                          <div className="text-right sm:text-left">
+                            <span className="text-[10px] text-muted-foreground block font-medium">ציון AI משוקלל</span>
+                            <Badge
+                              className={`text-base px-3 py-0.5 font-black text-white ${
+                                writingAiResult.score >= 85
+                                  ? "bg-emerald-600"
+                                  : writingAiResult.score >= 70
+                                  ? "bg-blue-600"
+                                  : writingAiResult.score >= 55
+                                  ? "bg-amber-600"
+                                  : "bg-rose-600"
+                              }`}
+                            >
+                              {writingAiResult.score} / 100
+                            </Badge>
+                          </div>
+
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={() => {
+                              setGradeInput(String(writingAiResult.score));
+                              if (writingAiResult.teacherNote) {
+                                setFeedbackInput(writingAiResult.teacherNote);
+                              } else if (writingAiResult.encouragement) {
+                                setFeedbackInput(writingAiResult.encouragement);
+                              }
+                            }}
+                            className="h-8 text-xs font-bold gap-1 bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer shadow-xs"
+                            title="העתק את הציון והמשוב של ה-AI לשדות הטופס"
+                          >
+                            <Check className="h-3.5 w-3.5" />
+                            <span>החל על הטופס</span>
+                          </Button>
+                        </div>
+                      </div>
+
+                      {/* Teacher Note in Hebrew */}
+                      {writingAiResult.teacherNote && (
+                        <div className="p-3 rounded-xl bg-card border border-border/80 space-y-1 text-right">
+                          <span className="font-bold text-primary text-[11px] flex items-center gap-1.5">
+                            <GraduationCap className="h-3.5 w-3.5" />
+                            <span>הצעת משוב פדגוגי אישי לתלמיד/ה:</span>
+                          </span>
+                          <p className="text-foreground/90 leading-relaxed text-[12px]">
+                            {writingAiResult.teacherNote}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* 4-Pillar Rubric Breakdown */}
+                      {writingAiResult.rubric && (
+                        <div className="space-y-1.5 text-right">
+                          <span className="font-bold text-xs text-foreground block">
+                            פירוט מחוון משרד החינוך (MOE Rubric):
+                          </span>
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                            {/* Content & Organization */}
+                            <div className="p-2.5 rounded-xl border border-border/70 bg-card space-y-1">
+                              <div className="flex items-center justify-between font-bold text-[11px]">
+                                <span className="text-foreground">תוכן וארגון</span>
+                                <span className="text-primary font-mono">{writingAiResult.rubric.contentAndOrganization.score}/35</span>
+                              </div>
+                              <div className="w-full bg-muted rounded-full h-1 overflow-hidden">
+                                <div
+                                  className="bg-primary h-1 rounded-full"
+                                  style={{ width: `${Math.min(100, (writingAiResult.rubric.contentAndOrganization.score / 35) * 100)}%` }}
+                                />
+                              </div>
+                              <p className="text-[10px] text-muted-foreground line-clamp-2">
+                                {writingAiResult.rubric.contentAndOrganization.commentHebrew}
+                              </p>
+                            </div>
+
+                            {/* Vocabulary */}
+                            <div className="p-2.5 rounded-xl border border-border/70 bg-card space-y-1">
+                              <div className="flex items-center justify-between font-bold text-[11px]">
+                                <span className="text-foreground">אוצר מילים</span>
+                                <span className="text-primary font-mono">{writingAiResult.rubric.vocabulary.score}/25</span>
+                              </div>
+                              <div className="w-full bg-muted rounded-full h-1 overflow-hidden">
+                                <div
+                                  className="bg-primary h-1 rounded-full"
+                                  style={{ width: `${Math.min(100, (writingAiResult.rubric.vocabulary.score / 25) * 100)}%` }}
+                                />
+                              </div>
+                              <p className="text-[10px] text-muted-foreground line-clamp-2">
+                                {writingAiResult.rubric.vocabulary.commentHebrew}
+                              </p>
+                            </div>
+
+                            {/* Language & Grammar */}
+                            <div className="p-2.5 rounded-xl border border-border/70 bg-card space-y-1">
+                              <div className="flex items-center justify-between font-bold text-[11px]">
+                                <span className="text-foreground">דקדוק ומבנה</span>
+                                <span className="text-primary font-mono">{writingAiResult.rubric.languageAndGrammar.score}/25</span>
+                              </div>
+                              <div className="w-full bg-muted rounded-full h-1 overflow-hidden">
+                                <div
+                                  className="bg-primary h-1 rounded-full"
+                                  style={{ width: `${Math.min(100, (writingAiResult.rubric.languageAndGrammar.score / 25) * 100)}%` }}
+                                />
+                              </div>
+                              <p className="text-[10px] text-muted-foreground line-clamp-2">
+                                {writingAiResult.rubric.languageAndGrammar.commentHebrew}
+                              </p>
+                            </div>
+
+                            {/* Mechanics & Spelling */}
+                            <div className="p-2.5 rounded-xl border border-border/70 bg-card space-y-1">
+                              <div className="flex items-center justify-between font-bold text-[11px]">
+                                <span className="text-foreground">איות ופיסוק</span>
+                                <span className="text-primary font-mono">{writingAiResult.rubric.mechanicsAndSpelling.score}/15</span>
+                              </div>
+                              <div className="w-full bg-muted rounded-full h-1 overflow-hidden">
+                                <div
+                                  className="bg-primary h-1 rounded-full"
+                                  style={{ width: `${Math.min(100, (writingAiResult.rubric.mechanicsAndSpelling.score / 15) * 100)}%` }}
+                                />
+                              </div>
+                              <p className="text-[10px] text-muted-foreground line-clamp-2">
+                                {writingAiResult.rubric.mechanicsAndSpelling.commentHebrew}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Strengths & Tips */}
+                      {((writingAiResult.strengths && writingAiResult.strengths.length > 0) ||
+                        (writingAiResult.tips && writingAiResult.tips.length > 0)) && (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-right">
+                          {writingAiResult.strengths && writingAiResult.strengths.length > 0 && (
+                            <div className="p-2.5 rounded-xl border border-emerald-500/30 bg-card space-y-1">
+                              <span className="font-bold text-emerald-700 dark:text-emerald-300 flex items-center gap-1.5 text-[11px]">
+                                <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                                <span>נקודות חוזק בחיבור:</span>
+                              </span>
+                              <ul className="space-y-0.5 text-foreground/90 pr-2 list-disc list-inside text-[11px]">
+                                {writingAiResult.strengths.map((s, i) => (
+                                  <li key={i}>{s}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+
+                          {writingAiResult.tips && writingAiResult.tips.length > 0 && (
+                            <div className="p-2.5 rounded-xl border border-amber-500/30 bg-card space-y-1">
+                              <span className="font-bold text-amber-700 dark:text-amber-300 flex items-center gap-1.5 text-[11px]">
+                                <Lightbulb className="h-3.5 w-3.5 shrink-0 text-amber-500" />
+                                <span>דגשים לשיפור:</span>
+                              </span>
+                              <ul className="space-y-0.5 text-foreground/90 pr-2 list-disc list-inside text-[11px]">
+                                {writingAiResult.tips.map((t, i) => (
+                                  <li key={i}>{t}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Grammar, Spelling & Capital Letter Corrections */}
+                      {writingAiResult.corrections && writingAiResult.corrections.length > 0 && (
+                        <div className="p-3 rounded-xl border border-border/80 bg-card space-y-2 text-right">
+                          <span className="font-bold text-xs text-foreground flex items-center gap-1.5">
+                            <AlertCircle className="h-3.5 w-3.5 text-rose-500" />
+                            <span>תיקוני לשון, איות ואותיות גדולות שה-AI זיהה ({writingAiResult.corrections.length}):</span>
+                          </span>
+                          <div className="space-y-1.5 max-h-44 overflow-y-auto">
+                            {writingAiResult.corrections.map((corr, i) => (
+                              <div key={i} className="p-2 rounded-lg bg-muted/30 border border-border/50 text-[11px] space-y-1">
+                                <div className="flex items-center gap-2" dir="ltr">
+                                  <span className="line-through text-rose-600 dark:text-rose-400 font-mono px-1.5 py-0.5 bg-rose-500/10 rounded">
+                                    {corr.original}
+                                  </span>
+                                  <span className="text-muted-foreground font-bold">&rarr;</span>
+                                  <span className="font-bold text-emerald-600 dark:text-emerald-400 font-mono px-1.5 py-0.5 bg-emerald-500/10 rounded">
+                                    {corr.suggestion}
+                                  </span>
+                                </div>
+                                <p className="text-muted-foreground text-[11px] leading-snug">
+                                  {corr.explanationHebrew}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Vocabulary Enrichments */}
+                      {writingAiResult.vocabularyUpgrades && writingAiResult.vocabularyUpgrades.length > 0 && (
+                        <div className="p-3 rounded-xl border border-border/80 bg-card space-y-2 text-right">
+                          <span className="font-bold text-xs text-foreground flex items-center gap-1.5">
+                            <Sparkles className="h-3.5 w-3.5 text-purple-500" />
+                            <span>הצעות להעשרת אוצר מילים:</span>
+                          </span>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                            {writingAiResult.vocabularyUpgrades.map((upg, i) => (
+                              <div key={i} className="p-2 rounded-lg bg-muted/30 border border-border/50 text-[11px] space-y-0.5">
+                                <div className="flex items-center gap-1.5" dir="ltr">
+                                  <span className="font-mono text-muted-foreground">{upg.original}</span>
+                                  <span>&rarr;</span>
+                                  <span className="font-bold text-purple-600 dark:text-purple-400 font-mono">{upg.enriched}</span>
+                                </div>
+                                <p className="text-[10px] text-muted-foreground">{upg.explanationHebrew}</p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </>
               )}
 

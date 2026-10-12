@@ -46,6 +46,10 @@ export interface SubmissionItem {
   strengths?: string[];
   tips?: string[];
   unseenRubric?: UnseenRubric;
+  // Writing AI Evaluation Feedback
+  writingRubric?: any;
+  corrections?: any[];
+  vocabularyUpgrades?: any[];
   // Grading & Feedback
   score?: number; // Auto-calculated score (e.g. 0-100)
   grade?: number; // Final teacher grade (0-100)
