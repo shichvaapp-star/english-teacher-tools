@@ -892,6 +892,19 @@ export default function WritingPracticePage() {
               </span>
             </div>
 
+            {/* Helpful Teacher Assignment Callout */}
+            <div className="p-2.5 sm:p-3 rounded-lg bg-primary/10 border border-primary/20 text-xs flex items-center justify-between gap-2" dir="rtl">
+              <div className="flex items-center gap-2 text-foreground font-medium min-w-0">
+                <span className="text-base shrink-0">💡</span>
+                <p className="leading-snug">
+                  <strong className="text-primary font-bold">קיבלתם משימת כתיבה מהמורה?</strong> בחרו ב<strong>&quot;מטלה והגשה למורה (Assignment Mode)&quot;</strong> כדי להגיש ישירות לבדיקה רשמית.
+                </p>
+              </div>
+              <span className="text-[11px] text-muted-foreground shrink-0 hidden md:inline">
+                (ניתן להגיש למורה גם מתוך אימון חופשי בכל שלב!)
+              </span>
+            </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3" dir="rtl">
               <button
                 type="button"
@@ -915,7 +928,7 @@ export default function WritingPracticePage() {
                     )}
                   </div>
                   <p className="text-xs text-muted-foreground leading-relaxed">
-                    כתיבה עצמאית עם בדיקת AI מיידית, רמזים ומשוב מעודד ללא לחץ.
+                    כתיבה עצמאית עם בדיקת AI מיידית, רמזים ומשוב מעודד ללא לחץ. <strong>ניתן להגיש למורה גם מתוך מצב זה בכל שלב!</strong>
                   </p>
                 </div>
               </button>
@@ -935,9 +948,13 @@ export default function WritingPracticePage() {
                 <div className="space-y-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <h4 className="text-sm font-bold text-foreground">מטלה והגשה למורה (Assignment Mode)</h4>
-                    {activeMode === "submit" && (
+                    {activeMode === "submit" ? (
                       <span className="text-[10px] px-1.5 py-0.2 bg-purple-600 text-white rounded-full font-bold">
                         נבחר
+                      </span>
+                    ) : (
+                      <span className="text-[10px] px-1.5 py-0.2 bg-purple-500/15 text-purple-700 dark:text-purple-300 rounded-full font-bold border border-purple-500/30">
+                        להגשה למורה 📤
                       </span>
                     )}
                   </div>
@@ -1131,16 +1148,33 @@ export default function WritingPracticePage() {
             )}
           </div>
 
-          {/* Bottom Start Writing Button (Arrow pointing LEFT for RTL) */}
-          <div className="pt-2 flex justify-center">
-            <Button
-              size="lg"
-              onClick={handleStartWriting}
-              className="w-full sm:w-80 cursor-pointer gap-2 text-base font-black h-12 shadow-md bg-primary text-primary-foreground hover:bg-primary/90"
-            >
-              <span>התחל לכתוב עכשיו ✍️</span>
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
+          {/* Bottom Start Writing Button */}
+          <div className="pt-2">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-3 sm:p-4 rounded-xl bg-card border border-border/80" dir="rtl">
+              <div className="text-xs space-y-0.5 text-center sm:text-right">
+                <div>
+                  <span className="font-bold text-foreground">מצב נבחר: </span>
+                  <span className={`font-black ${activeMode === "submit" ? "text-purple-600 dark:text-purple-400" : "text-primary"}`}>
+                    {activeMode === "submit" ? "מטלה והגשה למורה 📤" : "אימון חופשי 🎯"}
+                  </span>
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  {activeMode === "submit" ? "החיבור יישלח ישירות למורה שלך בסיום הכתיבה." : "בדיקת AI מיידית (וניתן להגיש למורה בכל שלב)."}
+                </p>
+              </div>
+              <Button
+                size="lg"
+                onClick={handleStartWriting}
+                className={`w-full sm:w-auto h-12 px-8 text-sm font-black gap-2 shadow-md cursor-pointer ${
+                  activeMode === "submit"
+                    ? "bg-purple-600 hover:bg-purple-700 text-white"
+                    : "bg-primary hover:bg-primary/90 text-primary-foreground"
+                }`}
+              >
+                <span>{activeMode === "submit" ? "התחל משימה להגשה למורה 🚀" : "התחל כתיבה באימון חופשי ✍️"}</span>
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+            </div>
           </div>
         </main>
       )}
@@ -1159,9 +1193,37 @@ export default function WritingPracticePage() {
               <Badge variant="outline" className="font-bold border-primary/30 text-primary">
                 {selectedLevel}
               </Badge>
-              <Badge variant="secondary" className="font-bold">
-                {activeMode === "practice" ? "אימון חופשי" : "מטלה להגשה למורה"}
-              </Badge>
+
+              {/* Mode Switcher Pill */}
+              <div className="inline-flex items-center rounded-lg bg-muted/80 p-0.5 text-xs font-semibold border border-border/50">
+                <button
+                  type="button"
+                  onClick={() => setActiveMode("practice")}
+                  className={`px-2.5 py-1 rounded-md text-[11px] transition cursor-pointer flex items-center gap-1.5 ${
+                    activeMode === "practice"
+                      ? "bg-background text-foreground shadow-xs font-bold"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                  title="אימון חופשי עם משוב AI"
+                >
+                  <Sparkles className="h-3 w-3 text-primary" />
+                  <span>אימון חופשי</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveMode("submit")}
+                  className={`px-2.5 py-1 rounded-md text-[11px] transition cursor-pointer flex items-center gap-1.5 ${
+                    activeMode === "submit"
+                      ? "bg-purple-600 text-white shadow-xs font-bold"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                  title="מטלה להגשה ישירה למורה"
+                >
+                  <GraduationCap className="h-3 w-3" />
+                  <span>מטלה להגשה למורה</span>
+                </button>
+              </div>
+
               <span className="text-muted-foreground hidden sm:inline">&bull;</span>
               <span className="font-bold text-foreground">
                 {currentTask.hebrewTitle}
@@ -1846,16 +1908,27 @@ export default function WritingPracticePage() {
           {/* ACTION BUTTONS & FEEDBACK */}
           {activeMode === "practice" && (
             <div className="space-y-4 pt-1">
-              <Button
-                onClick={handleEvaluate}
-                disabled={isEvaluating}
-                className="w-full h-11 text-sm font-bold cursor-pointer gap-2 bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm"
-              >
-                <Send className="h-4 w-4" />
-                <span>
-                  {isEvaluating ? "בודק את החיבור עם מורה AI..." : "בדיקת חיבור וקבלת משוב מעודד 🌟"}
-                </span>
-              </Button>
+              <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-3">
+                <Button
+                  onClick={handleEvaluate}
+                  disabled={isEvaluating}
+                  className="flex-1 h-11 text-xs sm:text-sm font-bold cursor-pointer gap-2 bg-primary hover:bg-primary/90 text-primary-foreground shadow-xs"
+                >
+                  <Sparkles className="h-4 w-4" />
+                  <span>
+                    {isEvaluating ? "בודק את החיבור עם מורה AI..." : "בדיקת חיבור ומשוב AI מקדים ✨"}
+                  </span>
+                </Button>
+
+                <Button
+                  onClick={() => setActiveMode("submit")}
+                  variant="outline"
+                  className="flex-1 h-11 text-xs sm:text-sm font-bold cursor-pointer gap-2 border-purple-500/50 bg-purple-500/10 hover:bg-purple-500/20 text-purple-700 dark:text-purple-300 shadow-xs"
+                >
+                  <GraduationCap className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                  <span>הגש חיבור למורה (Turn In) 📤</span>
+                </Button>
+              </div>
 
               {/* AI Feedback Card */}
               {feedback && (
@@ -2179,19 +2252,26 @@ export default function WritingPracticePage() {
                     </div>
                   )}
 
-                  {feedback.tips && feedback.tips.length > 0 && (
-                    <div className="space-y-1 text-xs pt-1 border-t border-border/60">
-                      <span className="font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
-                        <Lightbulb className="h-4 w-4 shrink-0" />
-                        <span>טיפ לפעם הבאה:</span>
-                      </span>
-                      <ul className="space-y-1 text-foreground/90 pl-5 pr-2 list-disc">
-                        {feedback.tips.map((t, i) => (
-                          <li key={i}>{t}</li>
-                        ))}
-                      </ul>
+                  {/* Turn in to teacher from practice after feedback */}
+                  <div className="p-3.5 rounded-xl bg-purple-500/10 border border-purple-500/25 flex flex-col sm:flex-row items-center justify-between gap-3 text-right">
+                    <div className="space-y-0.5">
+                      <h5 className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                        <GraduationCap className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                        <span>רוצים להגיש את החיבור למורה עכשיו?</span>
+                      </h5>
+                      <p className="text-[11px] text-muted-foreground">
+                        החיבור שלכם מוכן! תוכלו להגיש אותו ישירות למורה שלכם לקבלת ציון רשמי ואישור הגשה.
+                      </p>
                     </div>
-                  )}
+                    <Button
+                      size="sm"
+                      onClick={() => setActiveMode("submit")}
+                      className="h-9 px-4 text-xs font-bold bg-purple-600 hover:bg-purple-700 text-white shrink-0 cursor-pointer gap-1.5 shadow-xs"
+                    >
+                      <Send className="h-3.5 w-3.5" />
+                      <span>הגש למורה עכשיו 📤</span>
+                    </Button>
+                  </div>
                 </div>
               )}
             </div>
@@ -2200,12 +2280,37 @@ export default function WritingPracticePage() {
           {/* ASSIGNMENT MODE: SUBMIT TO TEACHER */}
           {activeMode === "submit" && (
             <div className="space-y-4 pt-1">
+              {/* Optional banner if already evaluated with AI */}
+              {feedback && !submissionSuccess && (
+                <div className="p-3 rounded-xl border border-primary/30 bg-primary/5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs" dir="rtl">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-primary shrink-0" />
+                    <span className="text-foreground">
+                      ציון AI מקדים שקיבלת באימון: <strong className="font-bold text-primary">{feedback.score} / 100</strong>
+                    </span>
+                  </div>
+                  <Badge variant="outline" className="text-[10px] border-primary/40 text-primary">
+                    החיבור ייבדק רשמית ע&quot;י המורה
+                  </Badge>
+                </div>
+              )}
+
               {!submissionSuccess ? (
                 <Card className="border border-purple-500/40 bg-card p-4 sm:p-5 space-y-3.5 shadow-xs" dir="rtl">
                   <div className="border-b border-border/50 pb-2.5">
-                    <div className="flex items-center gap-2 text-purple-600 dark:text-purple-400 font-bold text-sm">
-                      <GraduationCap className="h-4 w-4" />
-                      <span>הגשת המשימה למורה לבדיקה ולמתן ציון</span>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-purple-600 dark:text-purple-400 font-bold text-sm">
+                        <GraduationCap className="h-4 w-4" />
+                        <span>הגשת המשימה למורה לבדיקה ולמתן ציון</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setActiveMode("practice")}
+                        className="text-primary hover:underline text-[11px] font-semibold cursor-pointer flex items-center gap-1"
+                      >
+                        <Sparkles className="h-3 w-3" />
+                        <span>חזרה לאימון חופשי</span>
+                      </button>
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5">
                       החיבור יישלח ישירות למורה שלך ויישמר במערכת לבדיקה.

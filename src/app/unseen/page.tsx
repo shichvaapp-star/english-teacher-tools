@@ -802,6 +802,7 @@ export default function UnseenPracticePage() {
     setIsSubmitting(false);
     setGradedScore(earned);
     setIsSubmitted(true);
+    setMode("graded");
     setSubmissionRecord(newSubmission);
     setShowSubmitModal(false);
     if (earned >= 80) {
@@ -1014,7 +1015,20 @@ export default function UnseenPracticePage() {
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold uppercase tracking-wider text-foreground flex items-center gap-1.5">
                 <FileCheck className="h-4 w-4 text-primary" />
-                <span>2. מצב פעילות (Practice vs. Exam)</span>
+                <span>2. מצב פעילות (Practice vs. Assignment)</span>
+              </span>
+            </div>
+
+            {/* Helpful Teacher Assignment Callout */}
+            <div className="p-2.5 sm:p-3 rounded-lg bg-primary/10 border border-primary/20 text-xs flex items-center justify-between gap-2" dir="rtl">
+              <div className="flex items-center gap-2 text-foreground font-medium min-w-0">
+                <span className="text-base shrink-0">💡</span>
+                <p className="leading-snug">
+                  <strong className="text-primary font-bold">קיבלתם משימה מהמורה?</strong> בחרו ב<strong>&quot;מטלה להגשה למורה / מבחן לציון&quot;</strong> כדי שהציון והתשובות יישלחו ישירות למורה בסיום.
+                </p>
+              </div>
+              <span className="text-[11px] text-muted-foreground shrink-0 hidden md:inline">
+                (ניתן להגיש למורה גם מתוך אימון חופשי בכל שלב!)
               </span>
             </div>
 
@@ -1041,10 +1055,10 @@ export default function UnseenPracticePage() {
                     )}
                   </div>
                   <span className="text-xs text-muted-foreground block md:hidden">
-                    בדיקת תשובות מיידית, רמזים והסברים בעברית.
+                    בדיקת תשובות מיידית והסברים. ניתן להגיש למורה בכל שלב!
                   </span>
                   <p className="text-xs text-muted-foreground leading-relaxed hidden md:block">
-                    בדיקת תשובות מיידית תוך כדי פתרון (&ldquo;בדוק תשובה&rdquo;), רמזים, אפשרות לנסות שוב, והסבר מפורט בעברית לכל שאלה.
+                    בדיקת תשובות מיידית תוך כדי פתרון (&ldquo;בדוק תשובה&rdquo;), רמזים, אפשרות לנסות שוב, והסבר מפורט בעברית. <strong>ניתן להגיש למורה גם מתוך מצב זה בכל שלב!</strong>
                   </p>
                 </div>
               </button>
@@ -1054,7 +1068,7 @@ export default function UnseenPracticePage() {
                 onClick={() => setMode("graded")}
                 className={`p-3 sm:p-4 rounded-xl border text-right transition cursor-pointer flex items-start gap-3 ${
                   mode === "graded"
-                    ? "border-primary bg-primary/5 shadow-xs ring-2 ring-primary/30"
+                    ? "border-emerald-600 bg-emerald-500/10 shadow-xs ring-2 ring-emerald-500/30"
                     : "border-border/60 hover:bg-muted/40"
                 }`}
               >
@@ -1063,18 +1077,22 @@ export default function UnseenPracticePage() {
                 </div>
                 <div className="space-y-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <h4 className="text-sm font-bold text-foreground">מבחן לציון (Graded Exam)</h4>
-                    {mode === "graded" && (
+                    <h4 className="text-sm font-bold text-foreground">מטלה להגשה למורה / מבחן (Assignment Mode)</h4>
+                    {mode === "graded" ? (
                       <span className="text-[10px] px-1.5 py-0.2 bg-emerald-600 text-white rounded-full font-bold">
                         נבחר
+                      </span>
+                    ) : (
+                      <span className="text-[10px] px-1.5 py-0.2 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 rounded-full font-bold border border-emerald-500/30">
+                        להגשה למורה 📤
                       </span>
                     )}
                   </div>
                   <span className="text-xs text-muted-foreground block md:hidden">
-                    עונים על 10 השאלות ומגישים לקבלת ציון מתוך 100.
+                    משימה רשמית: עונים על 10 השאלות ומגישים לקבלת ציון ישירות למורה.
                   </span>
                   <p className="text-xs text-muted-foreground leading-relaxed hidden md:block">
-                    סימולציית מבחן אמיתית: עונים על כל 10 השאלות ללא חשיפת תשובות ביניים, ובסיום מגישים לקבלת ציון מתוך 100 עם דוח משוב מלא.
+                    משימת כיתה, שיעורי בית או מבחן: עונים על כל 10 השאלות ומגישים לקבלת ציון מתוך 100 עם משוב מלא ודוח ישיר למורה.
                   </p>
                 </div>
               </button>
@@ -1294,9 +1312,14 @@ export default function UnseenPracticePage() {
                 <span className="text-xs sm:text-sm font-bold text-primary truncate max-w-[150px] sm:max-w-none">{currentStory.title}</span>
                 <span className="text-[11px] sm:text-xs text-muted-foreground truncate hidden sm:inline">({currentStory.hebrewTitle})</span>
               </div>
-              <p className="text-[11px] sm:text-xs text-muted-foreground">
-                {selectedLevel} &bull; 10 שאלות &bull; {mode === "practice" ? "אימון עם רמזים" : "הגשה לציון"}
-              </p>
+              <div className="flex items-center gap-2">
+                <p className="text-[11px] sm:text-xs text-muted-foreground">
+                  {selectedLevel} &bull; 10 שאלות &bull;{" "}
+                  <span className={`font-bold ${mode === "graded" ? "text-emerald-600 dark:text-emerald-400" : "text-primary"}`}>
+                    {mode === "graded" ? "מטלה להגשה למורה 📤" : "אימון חופשי 🎯"}
+                  </span>
+                </p>
+              </div>
             </div>
 
             <div className="flex items-center gap-2 w-full sm:w-auto">
@@ -1313,9 +1336,13 @@ export default function UnseenPracticePage() {
               <Button
                 size="lg"
                 onClick={handleStartExercise}
-                className="flex-1 sm:flex-none cursor-pointer gap-2 text-sm font-black h-11 sm:h-12 px-6 sm:px-8 shadow-md bg-primary text-primary-foreground hover:bg-primary/90"
+                className={`flex-1 sm:flex-none cursor-pointer gap-2 text-sm font-black h-11 sm:h-12 px-6 sm:px-8 shadow-md ${
+                  mode === "graded"
+                    ? "bg-emerald-600 hover:bg-emerald-700 text-white"
+                    : "bg-primary text-primary-foreground hover:bg-primary/90"
+                }`}
               >
-                <span>התחל קריאה ותרגול</span>
+                <span>{mode === "graded" ? "התחל מטלה להגשה למורה 🚀" : "התחל אימון חופשי ✍️"}</span>
                 <ArrowRight className="h-4 w-4" />
               </Button>
             </div>
@@ -1326,8 +1353,8 @@ export default function UnseenPracticePage() {
       {stage === "exercise" && (
         <main className="container mx-auto flex-1 px-3 sm:px-8 py-4 sm:py-6 space-y-4 sm:space-y-6 max-w-6xl animate-in fade-in-0 print:hidden">
           {/* Active Context Ribbon */}
-          <div className="flex items-center justify-between bg-card border border-border/60 rounded-xl p-2.5 sm:p-3 shadow-xs print:hidden gap-2">
-            <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+          <div className="flex flex-wrap items-center justify-between bg-card border border-border/60 rounded-xl p-2.5 sm:p-3 shadow-xs print:hidden gap-2.5">
+            <div className="flex flex-wrap items-center gap-2 min-w-0">
               <button
                 type="button"
                 onClick={() => setStage("settings")}
@@ -1339,17 +1366,67 @@ export default function UnseenPracticePage() {
               </button>
               <span className="text-muted-foreground">&bull;</span>
               <span className="text-xs text-muted-foreground font-medium shrink-0">{selectedLevel}</span>
-              <span className="text-muted-foreground hidden sm:inline">&bull;</span>
-              <Badge variant={mode === "practice" ? "secondary" : "default"} className="text-[10px] hidden sm:inline-flex">
-                {mode === "practice" ? "אימון חופשי" : "מצב מבחן להגשה"}
-              </Badge>
+              <span className="text-muted-foreground">&bull;</span>
+
+              {/* Mode Switcher */}
+              <div className="inline-flex items-center rounded-lg bg-muted/80 p-0.5 text-xs font-semibold border border-border/50">
+                <button
+                  type="button"
+                  onClick={() => setMode("practice")}
+                  className={`px-2 py-1 rounded-md text-[11px] transition cursor-pointer flex items-center gap-1 ${
+                    mode === "practice"
+                      ? "bg-background text-foreground shadow-xs font-bold"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                  title="בדיקת תשובות מיידית תוך כדי פתרון"
+                >
+                  <Target className="h-3 w-3 text-primary" />
+                  <span>אימון חופשי</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMode("graded")}
+                  className={`px-2 py-1 rounded-md text-[11px] transition cursor-pointer flex items-center gap-1 ${
+                    mode === "graded"
+                      ? "bg-emerald-600 text-white shadow-xs font-bold"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                  title="מטלה להגשה למורה וחישוב ציון רשמי"
+                >
+                  <Send className="h-3 w-3" />
+                  <span>מטלה להגשה למורה</span>
+                </button>
+              </div>
             </div>
 
-            <div className="text-[11px] sm:text-xs text-muted-foreground shrink-0">
-              {mode === "graded" ? (
-                <span className="font-semibold text-primary">{answeredCount}/10 נענו</span>
+            <div className="flex items-center gap-2 mr-auto sm:mr-0 shrink-0">
+              {mode === "practice" && !isSubmitted && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    setIsChangingTeacher(false);
+                    if (user?.teacherId) {
+                      setSelectedTeacherId(user.teacherId);
+                    }
+                    setShowSubmitModal(true);
+                  }}
+                  className="h-7 text-[11px] font-bold text-emerald-700 dark:text-emerald-300 border-emerald-500/50 bg-emerald-500/10 hover:bg-emerald-500/20 cursor-pointer gap-1"
+                >
+                  <Send className="h-3 w-3 text-emerald-600" />
+                  <span>הגש למורה ({answeredCount}/10)</span>
+                </Button>
+              )}
+              {isSubmitted ? (
+                <Badge className="bg-emerald-600 text-white text-[11px] font-bold gap-1">
+                  <CheckCircle2 className="h-3 w-3" />
+                  <span>הוגש למורה</span>
+                </Badge>
+              ) : mode === "graded" ? (
+                <span className="font-semibold text-xs text-primary">{answeredCount}/10 נענו</span>
               ) : (
-                <span>שאלה {activeQuestionIndex + 1}/10</span>
+                <span className="text-[11px] sm:text-xs text-muted-foreground">שאלה {activeQuestionIndex + 1}/10</span>
               )}
             </div>
           </div>
@@ -2023,7 +2100,7 @@ export default function UnseenPracticePage() {
               )}
 
               {/* Graded Mode Summary Card */}
-              {mode === "graded" && isSubmitted && gradedScore !== null && (
+              {isSubmitted && gradedScore !== null && (
                 <Card className="border-emerald-500/40 bg-emerald-500/5 shadow-md animate-in fade-in-0 space-y-4 p-5" dir="rtl">
                   <CardHeader className="p-0 text-center space-y-2">
                     <span className="text-4xl">🏆</span>
