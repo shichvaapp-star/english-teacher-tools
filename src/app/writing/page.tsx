@@ -1201,8 +1201,10 @@ export default function WritingPracticePage() {
               </CardTitle>
 
               <CardDescription
-                className="text-xs sm:text-sm text-foreground/90 leading-relaxed font-sans pt-1"
+                className="text-xs sm:text-sm text-foreground/90 leading-relaxed font-sans pt-1 notranslate"
                 dir="ltr"
+                translate="no"
+                lang="en"
               >
                 {currentTask.prompt}
               </CardDescription>
@@ -1826,6 +1828,8 @@ export default function WritingPracticePage() {
                 setSubmissionSuccess(null);
               }}
               dir="ltr"
+              translate="no"
+              lang="en"
               autoCorrect="off"
               autoCapitalize="off"
               autoComplete="off"
@@ -1833,7 +1837,7 @@ export default function WritingPracticePage() {
               data-gramm="false"
               data-gramm_editor="false"
               data-enable-grammarly="false"
-              className={`w-full rounded-2xl border border-input bg-card p-4 leading-relaxed font-sans shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+              className={`w-full rounded-2xl border border-input bg-card p-4 leading-relaxed font-sans shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary notranslate ${
                 fontSize === "sm" ? "text-sm" : fontSize === "lg" ? "text-lg" : "text-base"
               }`}
             />

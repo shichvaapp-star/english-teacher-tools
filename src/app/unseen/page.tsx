@@ -1480,7 +1480,7 @@ export default function UnseenPracticePage() {
                   </div>
 
                   <div className="mt-2">
-                    <CardTitle className="text-xl font-bold tracking-tight">{currentStory.title}</CardTitle>
+                    <CardTitle className="text-xl font-bold tracking-tight notranslate" translate="no" lang="en">{currentStory.title}</CardTitle>
                     <p className="text-sm text-muted-foreground mt-0.5">{currentStory.hebrewTitle}</p>
                   </div>
 
@@ -1493,7 +1493,7 @@ export default function UnseenPracticePage() {
                 </CardHeader>
 
                 {/* Story Paragraphs */}
-                <CardContent className="pt-4 space-y-4">
+                <CardContent className="pt-4 space-y-4 notranslate" translate="no" lang="en">
                   {/* Floating Interactive Speech Dock */}
                   {speech.isActive && (
                     <UnseenAudioDock
@@ -1793,12 +1793,12 @@ export default function UnseenPracticePage() {
                       </p>
                     )}
 
-                    <h3 className="text-sm font-semibold text-foreground mt-2 leading-relaxed">
+                    <h3 className="text-sm font-semibold text-foreground mt-2 leading-relaxed notranslate" translate="no" lang="en">
                       {activeQuestion.prompt}
                     </h3>
                   </CardHeader>
 
-                  <CardContent className="pt-4 space-y-3">
+                  <CardContent className="pt-4 space-y-3 notranslate" translate="no" lang="en">
                     {/* Multiple Choice Question */}
                     {activeQuestion.type === "mcq" && activeQuestion.options && (
                       <div className="space-y-2">
@@ -3059,7 +3059,7 @@ export default function UnseenPracticePage() {
           Visible ONLY during window.print() (hidden on screen)
           Structured into dedicated .print-page-sheet sections with standard 20mm Word margins
           ========================================================================= */}
-      <div className="hidden print:block w-full bg-white text-slate-900 font-sans text-left ltr antialiased">
+      <div className="hidden print:block w-full bg-white text-slate-900 font-sans text-left ltr antialiased notranslate" translate="no" lang="en">
         <style dangerouslySetInnerHTML={{ __html: `
           @page {
             size: A4 portrait;

@@ -552,7 +552,7 @@ export default function VocabularyPage() {
               </div>
 
               {!isFlipped ? (
-                <div className="space-y-3 my-auto">
+                <div className="space-y-3 my-auto notranslate" translate="no" lang="en">
                   <h2 className="text-4xl sm:text-5xl font-extrabold tracking-tight text-foreground">
                     {currentCard.english}
                   </h2>
