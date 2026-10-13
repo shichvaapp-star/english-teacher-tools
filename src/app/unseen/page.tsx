@@ -958,12 +958,21 @@ export default function UnseenPracticePage() {
               </HeaderTooltip>
             )}
 
-            <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
-              <span className="text-lg sm:text-xl shrink-0">🔍</span>
+            <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
+              <div className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20 shrink-0">
+                <Search className="h-4 w-4" />
+              </div>
               <div className="min-w-0">
-                <h1 className="text-xs sm:text-sm font-semibold tracking-tight truncate">בלשי האנסין</h1>
-                <p className="text-[10px] text-muted-foreground truncate hidden sm:block">
-                  {stage === "settings" ? "שלב 1: בחירת הגדרות וקטע קריאה" : `${currentStory.title} • 10 שאלות`}
+                <div className="flex items-center gap-1.5">
+                  <h1 className="text-xs sm:text-sm font-medium tracking-tight text-foreground truncate font-sans">
+                    Unseen Practice
+                  </h1>
+                  <span className="text-[10px] text-muted-foreground font-hebrew hidden sm:inline">
+                    • בלשי האנסין
+                  </span>
+                </div>
+                <p className="text-[10px] text-muted-foreground truncate hidden sm:block font-hebrew">
+                  {stage === "settings" ? "הגדרות תרגול ובחירת קטע" : `${currentStory.title} • 10 שאלות`}
                 </p>
               </div>
             </div>
@@ -975,10 +984,10 @@ export default function UnseenPracticePage() {
                 <Button
                   size="icon"
                   onClick={handleStartExercise}
-                  className="cursor-pointer font-bold shadow-xs h-9 w-9 bg-primary text-primary-foreground hover:bg-primary/90 shrink-0"
+                  className="cursor-pointer shadow-xs h-9 w-9 bg-primary text-primary-foreground hover:bg-primary/90 shrink-0"
                   aria-label="התחל תרגול"
                 >
-                  <ArrowRight className="h-4 w-4" />
+                  <ArrowLeft className="h-4 w-4" />
                 </Button>
               </HeaderTooltip>
             )}
@@ -1008,11 +1017,11 @@ export default function UnseenPracticePage() {
           STAGE 1: SETTINGS / SETUP VIEW
           ========================================================================= */}
       {stage === "settings" && (
-        <main className="container mx-auto flex-1 px-3 sm:px-8 py-4 sm:py-8 max-w-4xl space-y-4 sm:space-y-6 print:hidden" dir="rtl">
+        <main className="container mx-auto flex-1 px-3 sm:px-8 py-4 sm:py-6 max-w-4xl space-y-4 sm:space-y-5 print:hidden" dir="rtl">
           {/* Teacher Assignment Notification Banner */}
           {assignedNotice && (
-            <div className="p-3.5 rounded-2xl bg-purple-500/10 border-2 border-purple-500/30 flex items-center justify-between gap-3 text-xs text-purple-900 dark:text-purple-200 shadow-xs" dir="rtl">
-              <div className="flex items-center gap-2.5 font-bold">
+            <div className="p-3 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-between gap-3 text-xs text-purple-900 dark:text-purple-200" dir="rtl">
+              <div className="flex items-center gap-2 font-medium font-hebrew">
                 <Sparkles className="h-4 w-4 text-purple-600 dark:text-purple-400 shrink-0" />
                 <span>{assignedNotice}</span>
               </div>
@@ -1026,67 +1035,47 @@ export default function UnseenPracticePage() {
             </div>
           )}
 
-          {/* Settings Hero Card with Immediate Start Button */}
-          <div className="bg-card border-2 border-primary/20 rounded-2xl p-4 sm:p-6 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-right" dir="rtl">
-            <div className="space-y-1 w-full sm:w-auto">
-              <div className="flex items-center justify-center sm:justify-start gap-2">
-                <Badge variant="outline" className="text-xs px-2.5 py-0.5 border-primary/30 text-primary font-bold">
-                  הגדרות תרגול
+          {/* Settings Compact Header */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-1 border-b border-border/50" dir="rtl">
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-xl sm:text-2xl font-normal tracking-tight text-foreground font-hebrew">
+                  הגדרות תרגול אנסין
+                </h2>
+                <Badge variant="secondary" className="text-[11px] font-sans">
+                  10 Questions
                 </Badge>
-                <span className="text-xs text-muted-foreground hidden sm:inline">&bull; קטע נבחר: {currentStory.title}</span>
               </div>
-              <h2 className="text-xl sm:text-2xl font-black tracking-tight text-foreground">
-                מוכנים להתחיל לקרוא ולתרגל?
-              </h2>
-              <p className="text-xs text-muted-foreground">
-                בחרו רמה וקטע קריאה, ולחצו להתחלה מיידית של התרגול (10 שאלות).
+              <p className="text-xs text-muted-foreground font-sans">
+                Reading Comprehension Setup • {currentStory.title}
               </p>
             </div>
 
             <Button
-              size="lg"
+              size="default"
               onClick={handleStartExercise}
-              className="w-full sm:w-auto cursor-pointer gap-2 text-sm font-black px-6 shadow-md h-11 bg-primary text-primary-foreground hover:bg-primary/90 shrink-0"
+              className="cursor-pointer gap-2 text-xs sm:text-sm font-normal px-5 h-9 bg-primary text-primary-foreground hover:bg-primary/90 shrink-0 font-hebrew"
             >
-              <span>התחל קריאה ותרגול</span>
-              <ArrowRight className="h-4 w-4 rtl:rotate-180" />
+              <span>התחלת תרגול</span>
+              <ArrowLeft className="h-3.5 w-3.5" />
             </Button>
           </div>
 
           {/* Setting 1: Level Selection */}
-          <div className="bg-card border border-border/60 rounded-xl p-3.5 sm:p-4 shadow-xs space-y-2.5 sm:space-y-3" dir="rtl">
+          <div className="bg-card border border-border/70 rounded-xl p-3.5 sm:p-4 shadow-2xs space-y-2.5" dir="rtl">
             <div className="flex items-center justify-between" dir="rtl">
-              <span className="text-xs font-bold uppercase tracking-wider text-foreground flex items-center gap-1.5">
-                <Target className="h-4 w-4 text-primary shrink-0" />
+              <span className="text-xs font-medium text-foreground flex items-center gap-1.5 font-hebrew">
+                <Target className="h-3.5 w-3.5 text-primary shrink-0" />
                 <span>1. רמת קריאה</span>
-                <span className="text-muted-foreground font-normal lowercase tracking-normal" dir="ltr">(Reading Level)</span>
+                <span className="text-muted-foreground font-normal font-sans" dir="ltr">(Reading Level)</span>
               </span>
-              <span className="text-[11px] text-muted-foreground hidden sm:inline">ללא תלות בשכבת גיל</span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-2.5">
+            <div className="grid grid-cols-3 gap-2 sm:gap-2.5">
               {[
-                {
-                  id: "Level 1" as const,
-                  title: "רמה 1",
-                  sub: "קוראים מתחילים",
-                  desc: "Starting level English for beginner readers. Short, clear sentences and high-frequency vocabulary.",
-                  badgeColor: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
-                },
-                {
-                  id: "Level 2" as const,
-                  title: "רמה 2",
-                  sub: "רמה שוטפת",
-                  desc: "Satisfactory English, equivalent to late elementary native reading. Good descriptive language.",
-                  badgeColor: "bg-blue-500/10 text-blue-600 border-blue-500/20",
-                },
-                {
-                  id: "Level 3" as const,
-                  title: "רמה 3",
-                  sub: "מתקדמים ודוברי אנגלית",
-                  desc: "Challenging texts for fluent English speakers. Complex sentence structures and rich vocabulary.",
-                  badgeColor: "bg-purple-500/10 text-purple-600 border-purple-500/20",
-                },
+                { id: "Level 1" as const, hebrew: "מתחילים", sub: "Beginner" },
+                { id: "Level 2" as const, hebrew: "שוטף", sub: "Intermediate" },
+                { id: "Level 3" as const, hebrew: "מתקדמים", sub: "Advanced" },
               ].map((lvl) => {
                 const isSelected = selectedLevel === lvl.id;
                 return (
@@ -1094,19 +1083,14 @@ export default function UnseenPracticePage() {
                     key={lvl.id}
                     type="button"
                     onClick={() => handleLevelSelect(lvl.id)}
-                    className={`p-3 sm:p-3.5 rounded-xl border text-right transition cursor-pointer flex flex-col justify-between gap-1.5 sm:gap-2 ${
+                    className={`p-3 rounded-xl border text-center transition cursor-pointer flex flex-col items-center justify-center gap-1 ${
                       isSelected
-                        ? "border-primary bg-primary/5 shadow-xs ring-2 ring-primary/30"
-                        : "border-border/60 hover:bg-muted/40 hover:border-border"
+                        ? "border-primary bg-primary/10 text-primary shadow-2xs ring-1 ring-primary/40"
+                        : "border-border/60 hover:bg-muted/40 text-foreground"
                     }`}
                   >
-                    <div className="flex items-center justify-between w-full">
-                      <span className="text-sm font-bold text-foreground">{lvl.title}</span>
-                      <span className={`text-[10px] px-2 py-0.5 rounded border ${lvl.badgeColor}`}>
-                        {lvl.sub}
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-muted-foreground leading-relaxed hidden md:block text-right" dir="ltr">{lvl.desc}</p>
+                    <span className="text-sm font-medium font-sans">{lvl.id}</span>
+                    <span className="text-xs text-muted-foreground font-hebrew">{lvl.hebrew}</span>
                   </button>
                 );
               })}
@@ -1114,56 +1098,35 @@ export default function UnseenPracticePage() {
           </div>
 
           {/* Setting 2: Practice Mode vs. Graded Mode */}
-          <div className="bg-card border border-border/60 rounded-xl p-3.5 sm:p-4 shadow-xs space-y-2.5 sm:space-y-3" dir="rtl">
+          <div className="bg-card border border-border/70 rounded-xl p-3.5 sm:p-4 shadow-2xs space-y-2.5" dir="rtl">
             <div className="flex items-center justify-between" dir="rtl">
-              <span className="text-xs font-bold uppercase tracking-wider text-foreground flex items-center gap-1.5">
-                <FileCheck className="h-4 w-4 text-primary shrink-0" />
+              <span className="text-xs font-medium text-foreground flex items-center gap-1.5 font-hebrew">
+                <FileCheck className="h-3.5 w-3.5 text-primary shrink-0" />
                 <span>2. מצב פעילות</span>
-                <span className="text-muted-foreground font-normal lowercase tracking-normal" dir="ltr">(Practice vs. Assignment)</span>
+                <span className="text-muted-foreground font-normal font-sans" dir="ltr">(Mode)</span>
               </span>
             </div>
 
-            {/* Helpful Teacher Assignment Callout */}
-            <div className="p-2.5 sm:p-3 rounded-lg bg-primary/10 border border-primary/20 text-xs flex items-center justify-between gap-2" dir="rtl">
-              <div className="flex items-center gap-2 text-foreground font-medium min-w-0">
-                <span className="text-base shrink-0">💡</span>
-                <p className="leading-snug">
-                  <strong className="text-primary font-bold">קיבלתם משימה מהמורה?</strong> בחרו ב<strong>&quot;מטלה להגשה למורה / מבחן לציון&quot;</strong> כדי שהציון והתשובות יישלחו ישירות למורה בסיום.
-                </p>
-              </div>
-              <span className="text-[11px] text-muted-foreground shrink-0 hidden md:inline">
-                (ניתן להגיש למורה גם מתוך אימון חופשי בכל שלב!)
-              </span>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               <button
                 type="button"
                 onClick={() => setMode("practice")}
-                className={`p-3 sm:p-4 rounded-xl border text-right transition cursor-pointer flex items-start gap-3 ${
+                className={`p-3 sm:p-3.5 rounded-xl border text-right transition cursor-pointer flex items-center gap-3 ${
                   mode === "practice"
-                    ? "border-primary bg-primary/5 shadow-xs ring-2 ring-primary/30"
+                    ? "border-primary bg-primary/10 shadow-2xs ring-1 ring-primary/40"
                     : "border-border/60 hover:bg-muted/40"
                 }`}
               >
-                <div className="p-2 sm:p-2.5 rounded-lg bg-primary/10 text-primary shrink-0 mt-0.5">
-                  <Target className="h-4 w-4 sm:h-5 sm:w-5" />
+                <div className="p-2 rounded-lg bg-primary/10 text-primary shrink-0">
+                  <Target className="h-4 w-4" />
                 </div>
-                <div className="space-y-1 min-w-0">
+                <div className="min-w-0">
                   <div className="flex items-center gap-1.5">
-                    <h4 className="text-sm font-bold text-foreground">אימון חופשי</h4>
-                    <span className="text-xs text-muted-foreground font-normal" dir="ltr">(Practice Mode)</span>
-                    {mode === "practice" && (
-                      <span className="text-[10px] px-1.5 py-0.2 bg-primary text-primary-foreground rounded-full font-bold">
-                        נבחר
-                      </span>
-                    )}
+                    <h4 className="text-sm font-medium text-foreground font-hebrew">אימון חופשי</h4>
+                    <span className="text-[11px] text-muted-foreground font-sans" dir="ltr">Practice</span>
                   </div>
-                  <span className="text-xs text-muted-foreground block md:hidden">
-                    בדיקת תשובות מיידית והסברים. ניתן להגיש למורה בכל שלב!
-                  </span>
-                  <p className="text-xs text-muted-foreground leading-relaxed hidden md:block">
-                    בדיקת תשובות מיידית תוך כדי פתרון (&ldquo;בדוק תשובה&rdquo;), רמזים, אפשרות לנסות שוב, והסבר מפורט בעברית. <strong>ניתן להגיש למורה גם מתוך מצב זה בכל שלב!</strong>
+                  <p className="text-xs text-muted-foreground font-hebrew">
+                    תרגול עצמאי עם בדיקה מיידית ורמזים
                   </p>
                 </div>
               </button>
@@ -1171,34 +1134,22 @@ export default function UnseenPracticePage() {
               <button
                 type="button"
                 onClick={() => setMode("graded")}
-                className={`p-3 sm:p-4 rounded-xl border text-right transition cursor-pointer flex items-start gap-3 ${
+                className={`p-3 sm:p-3.5 rounded-xl border text-right transition cursor-pointer flex items-center gap-3 ${
                   mode === "graded"
-                    ? "border-emerald-600 bg-emerald-500/10 shadow-xs ring-2 ring-emerald-500/30"
+                    ? "border-emerald-600 bg-emerald-500/10 shadow-2xs ring-1 ring-emerald-500/40"
                     : "border-border/60 hover:bg-muted/40"
                 }`}
               >
-                <div className="p-2 sm:p-2.5 rounded-lg bg-emerald-500/10 text-emerald-600 shrink-0 mt-0.5">
-                  <Award className="h-4 w-4 sm:h-5 sm:w-5" />
+                <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-600 shrink-0">
+                  <Award className="h-4 w-4" />
                 </div>
-                <div className="space-y-1 min-w-0">
+                <div className="min-w-0">
                   <div className="flex items-center gap-1.5">
-                    <h4 className="text-sm font-bold text-foreground">מטלה להגשה למורה / מבחן</h4>
-                    <span className="text-xs text-muted-foreground font-normal" dir="ltr">(Assignment Mode)</span>
-                    {mode === "graded" ? (
-                      <span className="text-[10px] px-1.5 py-0.2 bg-emerald-600 text-white rounded-full font-bold">
-                        נבחר
-                      </span>
-                    ) : (
-                      <span className="text-[10px] px-1.5 py-0.2 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 rounded-full font-bold border border-emerald-500/30">
-                        להגשה למורה 📤
-                      </span>
-                    )}
+                    <h4 className="text-sm font-medium text-foreground font-hebrew">מטלה להגשה למורה</h4>
+                    <span className="text-[11px] text-muted-foreground font-sans" dir="ltr">Assignment</span>
                   </div>
-                  <span className="text-xs text-muted-foreground block md:hidden">
-                    משימה רשמית: עונים על 10 השאלות ומגישים לקבלת ציון ישירות למורה.
-                  </span>
-                  <p className="text-xs text-muted-foreground leading-relaxed hidden md:block">
-                    משימת כיתה, שיעורי בית או מבחן: עונים על כל 10 השאלות ומגישים לקבלת ציון מתוך 100 עם משוב מלא ודוח ישיר למורה.
+                  <p className="text-xs text-muted-foreground font-hebrew">
+                    מבחן לציון עם משוב רשמי מהמורה
                   </p>
                 </div>
               </button>
@@ -1206,36 +1157,36 @@ export default function UnseenPracticePage() {
           </div>
 
           {/* Setting 3: Choose Story or Generate with AI */}
-          <div className="bg-card border border-border/60 rounded-xl p-4 shadow-xs space-y-3" dir="rtl">
+          <div className="bg-card border border-border/70 rounded-xl p-3.5 sm:p-4 shadow-2xs space-y-3" dir="rtl">
             <div className="flex items-center justify-between border-b border-border/50 pb-2.5" dir="rtl">
-              <span className="text-xs font-bold uppercase tracking-wider text-foreground flex items-center gap-1.5">
-                <BookMarked className="h-4 w-4 text-primary shrink-0" />
-                <span>3. בחר קטע קריאה או צור עם AI</span>
+              <span className="text-xs font-medium text-foreground flex items-center gap-1.5 font-hebrew">
+                <BookMarked className="h-3.5 w-3.5 text-primary shrink-0" />
+                <span>3. בחירת קטע קריאה</span>
               </span>
 
               <div className="flex items-center gap-1 bg-muted p-0.5 rounded-lg" dir="rtl">
                 <button
                   type="button"
+                  onClick={() => setStorySourceTab("library")}
+                  className={`px-3 py-1 rounded-md text-xs font-normal transition cursor-pointer font-hebrew ${
+                    storySourceTab === "library"
+                      ? "bg-card text-foreground shadow-2xs font-medium"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  ספרייה ({levelStories.length})
+                </button>
+                <button
+                  type="button"
                   onClick={() => setStorySourceTab("ai_generator")}
-                  className={`px-3 py-1 rounded-md text-xs font-medium transition cursor-pointer flex items-center gap-1 ${
+                  className={`px-3 py-1 rounded-md text-xs font-normal transition cursor-pointer flex items-center gap-1 font-hebrew ${
                     storySourceTab === "ai_generator"
-                      ? "bg-card text-foreground shadow-xs font-bold"
+                      ? "bg-card text-foreground shadow-2xs font-medium"
                       : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
                   <Sparkles className="h-3 w-3 text-amber-500" />
                   <span>יצירה עם AI</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setStorySourceTab("library")}
-                  className={`px-3 py-1 rounded-md text-xs font-medium transition cursor-pointer ${
-                    storySourceTab === "library"
-                      ? "bg-card text-foreground shadow-xs font-bold"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  ספרייה מוכנה ({levelStories.length})
                 </button>
               </div>
             </div>
@@ -1243,38 +1194,26 @@ export default function UnseenPracticePage() {
             {/* Library Stories Grid */}
             {storySourceTab === "library" && (
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2 pt-1">
-                {levelStories.map((story, idx) => {
+                {levelStories.map((story) => {
                   const isSelected = story.id === currentStory.id;
                   return (
                     <button
                       key={story.id}
                       type="button"
                       onClick={() => handleStorySelect(story.id)}
-                      className={`p-3 rounded-xl border text-left transition cursor-pointer flex flex-col justify-between h-24 ${
+                      className={`p-3 rounded-xl border text-left transition cursor-pointer flex flex-col justify-between h-20 ${
                         isSelected
-                          ? "border-primary bg-primary/10 shadow-xs ring-2 ring-primary/30"
+                          ? "border-primary bg-primary/10 shadow-2xs ring-1 ring-primary/40"
                           : "border-border/60 hover:border-primary/40 hover:bg-muted/30"
                       }`}
                     >
-                      <div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-[10px] text-muted-foreground flex items-center gap-1">
-                            {story.id.startsWith("ai-story") ? (
-                              <>
-                                <Sparkles className="h-2.5 w-2.5 text-amber-500" />
-                                <span className="font-bold text-amber-600 dark:text-amber-400">AI</span>
-                              </>
-                            ) : (
-                              `טקסט ${idx + 1}`
-                            )}
-                          </span>
-                          {isSelected && (
-                            <span className="h-2 w-2 rounded-full bg-primary" />
-                          )}
+                      <div className="min-w-0">
+                        <div className="flex items-center justify-between gap-1">
+                          <h4 className="text-xs font-medium text-foreground truncate font-sans">{story.title}</h4>
+                          {isSelected && <span className="h-1.5 w-1.5 rounded-full bg-primary shrink-0" />}
                         </div>
-                        <h4 className="text-xs font-bold text-foreground truncate mt-0.5">{story.title}</h4>
                       </div>
-                      <span className="text-[11px] text-muted-foreground truncate text-right rtl">
+                      <span className="text-[11px] text-muted-foreground truncate text-right rtl font-hebrew">
                         {story.hebrewTitle}
                       </span>
                     </button>
@@ -1289,10 +1228,10 @@ export default function UnseenPracticePage() {
                 <div className="flex flex-col sm:flex-row items-center gap-2">
                   <Input
                     type="text"
-                    placeholder="כתוב נושא שמעניין אותך (למשל: מיינקראפט, כדורגל, חלל, פירמידות...)"
+                    placeholder="נושא לקטע קריאה (למשל: ספורט, חלל, רובוטים...)"
                     value={aiTopicInput}
                     onChange={(e) => setAiTopicInput(e.target.value)}
-                    className="text-xs h-9.5 text-right rtl"
+                    className="text-xs h-9 text-right rtl font-hebrew"
                     disabled={isGeneratingAi}
                   />
                   <div className="flex items-center gap-1.5 w-full sm:w-auto">
@@ -1300,44 +1239,40 @@ export default function UnseenPracticePage() {
                       onClick={() => handleGenerateAiStory()}
                       disabled={isGeneratingAi || !aiTopicInput.trim()}
                       size="sm"
-                      className="flex-1 sm:flex-none shrink-0 gap-1.5 cursor-pointer text-xs h-9.5 px-4 font-bold shadow-xs"
+                      className="flex-1 sm:flex-none shrink-0 gap-1.5 cursor-pointer text-xs h-9 px-4 font-normal shadow-2xs font-hebrew"
                     >
                       <Sparkles className="h-3.5 w-3.5" />
-                      <span>{isGeneratingAi ? "יוצר אנסין (10 שאלות)..." : "צור קטע קריאה עם 10 שאלות"}</span>
+                      <span>{isGeneratingAi ? "יוצר קטע..." : "צור קטע קריאה"}</span>
                     </Button>
                     <Button
                       type="button"
                       variant="outline"
                       size="sm"
                       onClick={() => setShowAiSettingsModal(true)}
-                      className="h-9.5 px-2.5 cursor-pointer shrink-0 gap-1 text-xs"
+                      className="h-9 px-2.5 cursor-pointer shrink-0 gap-1 text-xs"
                       title="הגדרת מפתחות AI"
                     >
                       <Key className="h-3.5 w-3.5 text-primary" />
-                      <span className="hidden sm:inline text-[11px]">מפתחות</span>
                     </Button>
                   </div>
                 </div>
 
                 {/* Quick Chips */}
-                <div>
-                  <p className="text-[11px] text-muted-foreground mb-1.5">או בחר נושא מומלץ בלחיצה אחת:</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {SUGGESTED_TOPICS.map((t) => (
-                      <button
-                        key={t.label}
-                        type="button"
-                        disabled={isGeneratingAi}
-                        onClick={() => {
-                          setAiTopicInput(t.value);
-                          handleGenerateAiStory(t.value);
-                        }}
-                        className="text-xs px-2.5 py-1 rounded-full border border-border/80 bg-muted/40 hover:bg-primary/10 hover:border-primary/40 transition cursor-pointer"
-                      >
-                        {t.label}
-                      </button>
-                    ))}
-                  </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {SUGGESTED_TOPICS.map((t) => (
+                    <button
+                      key={t.label}
+                      type="button"
+                      disabled={isGeneratingAi}
+                      onClick={() => {
+                        setAiTopicInput(t.value);
+                        handleGenerateAiStory(t.value);
+                      }}
+                      className="text-xs px-2.5 py-1 rounded-full border border-border/80 bg-muted/40 hover:bg-primary/10 hover:border-primary/40 transition cursor-pointer font-hebrew"
+                    >
+                      {t.label}
+                    </button>
+                  ))}
                 </div>
 
                 {/* AI Notice Banner */}
@@ -1354,7 +1289,7 @@ export default function UnseenPracticePage() {
                     ) : (
                       <AlertCircle className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
                     )}
-                    <div className="flex-1 text-right rtl leading-relaxed">
+                    <div className="flex-1 text-right rtl leading-relaxed font-hebrew">
                       <span>{aiNotice}</span>
                       {aiNoticeType === "error" && (
                         <div className="mt-1.5 flex items-center gap-2">
@@ -1375,33 +1310,29 @@ export default function UnseenPracticePage() {
 
                 {/* Generated AI Story Preview Card */}
                 {currentStory.id.startsWith("ai-story") && (
-                  <div className="p-4 rounded-xl border-2 border-primary/30 bg-primary/5 space-y-3 mt-2 text-right rtl animate-in fade-in-0">
+                  <div className="p-3.5 rounded-xl border border-primary/30 bg-primary/5 space-y-2.5 text-right rtl animate-in fade-in-0">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div className="flex items-center gap-1.5">
-                        <Badge className="bg-primary/20 text-primary border-primary/30 flex items-center gap-1 text-[11px] font-bold">
-                          <Sparkles className="h-3 w-3 text-amber-500" />
-                          <span>קטע שנוצר כעת עם AI</span>
-                        </Badge>
-                        <Badge variant="outline" className="text-[11px]">
-                          {currentStory.level} &bull; 10 שאלות &bull; 100 נקודות
+                        <Badge className="bg-primary/20 text-primary border-primary/30 text-[11px] font-normal font-sans">
+                          AI Story • {currentStory.level}
                         </Badge>
                       </div>
                       <Button
                         size="sm"
                         onClick={handleStartExercise}
-                        className="cursor-pointer gap-1.5 font-bold shadow-xs text-xs h-8 px-4"
+                        className="cursor-pointer gap-1.5 font-normal shadow-2xs text-xs h-8 px-4 font-hebrew"
                       >
-                        <span>התחל קריאה ותרגול עכשיו</span>
-                        <ArrowRight className="h-3.5 w-3.5" />
+                        <span>התחלת תרגול</span>
+                        <ArrowLeft className="h-3.5 w-3.5" />
                       </Button>
                     </div>
 
                     <div className="space-y-0.5">
-                      <h3 className="text-sm sm:text-base font-bold text-foreground ltr text-left">{currentStory.title}</h3>
-                      <p className="text-xs text-muted-foreground font-medium">{currentStory.hebrewTitle}</p>
+                      <h3 className="text-sm font-medium text-foreground ltr text-left font-sans">{currentStory.title}</h3>
+                      <p className="text-xs text-muted-foreground font-hebrew">{currentStory.hebrewTitle}</p>
                     </div>
 
-                    <p className="text-xs text-muted-foreground line-clamp-2 ltr text-left leading-relaxed">
+                    <p className="text-xs text-muted-foreground line-clamp-2 ltr text-left leading-relaxed font-sans">
                       {currentStory.paragraphs[0]}
                     </p>
                   </div>
@@ -1411,18 +1342,17 @@ export default function UnseenPracticePage() {
           </div>
 
           {/* Bottom Action Bar: Sticky on Mobile so it is NEVER lost */}
-          <div className="sticky bottom-0 z-30 -mx-3 sm:mx-0 p-3 sm:p-4 bg-background/95 backdrop-blur-md border-t-2 sm:border sm:rounded-2xl border-primary/30 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-3" dir="rtl">
+          <div className="sticky bottom-0 z-30 -mx-3 sm:mx-0 p-3 sm:p-4 bg-background/95 backdrop-blur-md border-t sm:border sm:rounded-2xl border-border/80 shadow-lg flex flex-col sm:flex-row items-center justify-between gap-3" dir="rtl">
             <div className="text-right rtl space-y-0.5 w-full sm:w-auto flex sm:flex-col justify-between items-center sm:items-start">
               <div className="flex items-center gap-1.5 sm:gap-2">
-                <span className="text-xs sm:text-sm font-bold text-foreground">קטע:</span>
-                <span className="text-xs sm:text-sm font-bold text-primary truncate max-w-[150px] sm:max-w-none">{currentStory.title}</span>
-                <span className="text-[11px] sm:text-xs text-muted-foreground truncate hidden sm:inline">({currentStory.hebrewTitle})</span>
+                <span className="text-xs sm:text-sm font-medium text-foreground font-sans truncate max-w-[150px] sm:max-w-none">{currentStory.title}</span>
+                <span className="text-[11px] sm:text-xs text-muted-foreground truncate hidden sm:inline font-hebrew">({currentStory.hebrewTitle})</span>
               </div>
               <div className="flex items-center gap-2">
-                <p className="text-[11px] sm:text-xs text-muted-foreground">
-                  {selectedLevel} &bull; 10 שאלות &bull;{" "}
-                  <span className={`font-bold ${mode === "graded" ? "text-emerald-600 dark:text-emerald-400" : "text-primary"}`}>
-                    {mode === "graded" ? "מטלה להגשה למורה 📤" : "אימון חופשי 🎯"}
+                <p className="text-[11px] sm:text-xs text-muted-foreground font-hebrew">
+                  <span className="font-sans">{selectedLevel}</span> &bull; 10 שאלות &bull;{" "}
+                  <span className={mode === "graded" ? "text-emerald-600 dark:text-emerald-400 font-medium" : "text-primary font-medium"}>
+                    {mode === "graded" ? "מטלה להגשה" : "אימון חופשי"}
                   </span>
                 </p>
               </div>
@@ -1433,23 +1363,22 @@ export default function UnseenPracticePage() {
                 variant="outline"
                 size="default"
                 onClick={() => setShowPrintModal(true)}
-                className="hidden sm:inline-flex cursor-pointer gap-2 text-xs font-bold px-4 border-border/80"
-                title="הדפס דף עבודה או מבחן מלא"
+                className="hidden sm:inline-flex cursor-pointer gap-2 text-xs font-normal px-4 border-border/80 font-hebrew"
               >
                 <Printer className="h-4 w-4 text-primary" />
-                <span>הדפסת מבחן / דף עבודה</span>
+                <span>הדפסת דף עבודה</span>
               </Button>
               <Button
-                size="lg"
+                size="default"
                 onClick={handleStartExercise}
-                className={`flex-1 sm:flex-none cursor-pointer gap-2 text-sm font-black h-11 sm:h-12 px-6 sm:px-8 shadow-md ${
+                className={`flex-1 sm:flex-none cursor-pointer gap-2 text-xs sm:text-sm font-normal h-10 px-6 shadow-2xs font-hebrew ${
                   mode === "graded"
                     ? "bg-emerald-600 hover:bg-emerald-700 text-white"
                     : "bg-primary text-primary-foreground hover:bg-primary/90"
                 }`}
               >
-                <span>{mode === "graded" ? "התחל מטלה להגשה למורה 🚀" : "התחל אימון חופשי ✍️"}</span>
-                <ArrowRight className="h-4 w-4 rtl:rotate-180" />
+                <span>{mode === "graded" ? "התחלת מטלה להגשה" : "התחלת אימון חופשי"}</span>
+                <ArrowLeft className="h-4 w-4" />
               </Button>
             </div>
           </div>
