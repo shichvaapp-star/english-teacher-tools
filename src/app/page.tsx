@@ -22,7 +22,6 @@ import {
   GraduationCap,
   CheckCircle2,
   Users,
-  BookOpen,
   ArrowLeft,
   LayoutDashboard,
 } from "lucide-react";
@@ -250,53 +249,27 @@ export default function Home() {
             ברוכים הבאים למרחב התרגול באנגלית. בחרו באחד התחומים למטה כדי להתחיל לתרגל קריאת אנסין, שינון אוצר מילים וכתיבה!
           </p>
 
-          <div className="flex flex-wrap items-center justify-center gap-3 pt-4" dir="rtl">
-            {!user ? (
-              <>
-                <Button
-                  size="default"
-                  onClick={() => setStudentModalOpen(true)}
-                  className="cursor-pointer gap-2 font-normal h-10 px-5"
-                >
-                  <Users className="h-4 w-4" />
-                  <span>כניסת תלמידים (ללא אימייל)</span>
-                </Button>
-                <Button
-                  variant="outline"
-                  size="default"
-                  onClick={() => setTeacherModalOpen(true)}
-                  className="cursor-pointer gap-2 font-normal h-10 px-5"
-                >
-                  <GraduationCap className="h-4 w-4 text-primary" />
-                  <span>כניסת מורים</span>
-                </Button>
-              </>
-            ) : (
-              <div className="flex flex-wrap items-center justify-center gap-3">
-                <Button
-                  size="default"
-                  onClick={() => router.push("/unseen")}
-                  className="cursor-pointer gap-2 font-normal h-10 px-5"
-                >
-                  <BookOpen className="h-4 w-4" />
-                  <span>התחלת תרגול</span>
-                  <ArrowLeft className="h-4 w-4" />
-                </Button>
-
-                {user.role === "student" && (
-                  <Button
-                    variant="outline"
-                    size="default"
-                    onClick={() => router.push("/student")}
-                    className="cursor-pointer gap-2 font-normal h-10 px-5 border-emerald-500/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/10"
-                  >
-                    <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                    <span>העבודות והציונים שלי</span>
-                  </Button>
-                )}
-              </div>
-            )}
-          </div>
+          {!user && (
+            <div className="flex flex-wrap items-center justify-center gap-3 pt-4" dir="rtl">
+              <Button
+                size="default"
+                onClick={() => setStudentModalOpen(true)}
+                className="cursor-pointer gap-2 font-normal h-10 px-5"
+              >
+                <Users className="h-4 w-4" />
+                <span>כניסת תלמידים (ללא אימייל)</span>
+              </Button>
+              <Button
+                variant="outline"
+                size="default"
+                onClick={() => setTeacherModalOpen(true)}
+                className="cursor-pointer gap-2 font-normal h-10 px-5"
+              >
+                <GraduationCap className="h-4 w-4 text-primary" />
+                <span>כניסת מורים</span>
+              </Button>
+            </div>
+          )}
         </div>
 
         {/* Student Submissions Status Section (When logged in as a student) */}
