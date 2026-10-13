@@ -4,6 +4,7 @@ import React, { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { UserNav } from "@/components/auth/user-nav";
+import { HeaderTooltip } from "@/components/ui/header-tooltip";
 import { useAuth } from "@/lib/auth-context";
 import { db } from "@/lib/firebase";
 import { collection, addDoc, getDocs, query, where, doc, setDoc } from "firebase/firestore";
@@ -680,25 +681,27 @@ export default function WritingPracticePage() {
         <div className="container mx-auto flex h-16 items-center justify-between px-3 sm:px-8 gap-2">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             {stage === "writing" ? (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleBackToSettings}
-                className="cursor-pointer gap-1.5 text-xs h-8 px-2.5 border-border/70"
-                title="חזרה להגדרות המשימה"
-              >
-                <Sliders className="h-3.5 w-3.5 text-primary" />
-                <span>שינוי הגדרות</span>
-              </Button>
+              <HeaderTooltip label="חזרה להגדרות המשימה">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={handleBackToSettings}
+                  className="cursor-pointer h-9 w-9 border-border/70 shrink-0"
+                  aria-label="שינוי הגדרות"
+                >
+                  <Sliders className="h-4 w-4 text-primary" />
+                </Button>
+              </HeaderTooltip>
             ) : (
-              <Link
-                href="/"
-                className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground p-1.5 px-2 rounded-lg border border-border/60 hover:bg-muted/40 transition-colors shrink-0"
-                title="חזרה לראשי"
-              >
-                <ArrowRight className="h-4 w-4" />
-                <span className="hidden sm:inline">ראשי</span>
-              </Link>
+              <HeaderTooltip label="חזרה לדף הראשי">
+                <Link
+                  href="/"
+                  className="inline-flex items-center justify-center h-9 w-9 text-muted-foreground hover:text-foreground rounded-lg border border-border/60 hover:bg-muted/40 transition-colors shrink-0"
+                  aria-label="ראשי"
+                >
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              </HeaderTooltip>
             )}
 
             <div className="h-4 w-[1px] bg-border hidden sm:block" />
@@ -720,71 +723,68 @@ export default function WritingPracticePage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             {stage === "settings" && (
-              <Button
-                size="sm"
-                onClick={handleStartWriting}
-                className="cursor-pointer gap-1.5 font-bold shadow-xs text-xs h-8 px-3 bg-primary text-primary-foreground hover:bg-primary/90"
-              >
-                <span>התחל לכתוב</span>
-                <ArrowLeft className="h-3.5 w-3.5" />
-              </Button>
+              <HeaderTooltip label="התחלת כתיבה">
+                <Button
+                  size="icon"
+                  onClick={handleStartWriting}
+                  className="cursor-pointer font-bold shadow-xs h-9 w-9 bg-primary text-primary-foreground hover:bg-primary/90 shrink-0"
+                  aria-label="התחל לכתוב"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                </Button>
+              </HeaderTooltip>
             )}
 
             {/* Vocab Notebook Button */}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setSavedWords(loadSavedWords(user?.id));
-                setDrawerOpen(true);
-              }}
-              className="h-8 text-xs gap-1.5 cursor-pointer border-border/80 px-2 sm:px-3 relative"
-              title="פנקס מילים"
-            >
-              <BookMarked className="h-3.5 w-3.5 text-primary" />
-              <span className="hidden sm:inline">פנקס מילים</span>
-              {savedWords.length > 0 && (
-                <span className="px-1.5 py-0.2 bg-primary text-primary-foreground rounded-full text-[10px] font-bold">
-                  {savedWords.length}
-                </span>
-              )}
-            </Button>
+            <HeaderTooltip label="פנקס מילים">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => {
+                  setSavedWords(loadSavedWords(user?.id));
+                  setDrawerOpen(true);
+                }}
+                className="h-9 w-9 cursor-pointer border-border/80 relative shrink-0"
+                aria-label="פנקס מילים"
+              >
+                <BookMarked className="h-4 w-4 text-primary" />
+                {savedWords.length > 0 && (
+                  <span className="absolute -top-1 -right-1 px-1 min-w-4 h-4 flex items-center justify-center bg-primary text-primary-foreground rounded-full text-[10px] font-bold leading-none">
+                    {savedWords.length}
+                  </span>
+                )}
+              </Button>
+            </HeaderTooltip>
 
             {/* AI Settings Button */}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowAiSettingsModal(true)}
-              className="h-8 text-xs gap-1.5 cursor-pointer border-border/80 px-2 sm:px-3 relative"
-              title="הגדרות מפתחות AI"
-            >
-              <Sliders className="h-3.5 w-3.5 text-primary" />
-              <span className="hidden sm:inline">הגדרות AI</span>
-              {hasAiKeys && (
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" title="AI מחובר" />
-              )}
-            </Button>
+            <HeaderTooltip label="הגדרות מפתחות AI">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setShowAiSettingsModal(true)}
+                className="h-9 w-9 cursor-pointer border-border/80 relative shrink-0"
+                aria-label="הגדרות AI"
+              >
+                <Sliders className="h-4 w-4 text-primary" />
+                {hasAiKeys && (
+                  <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-emerald-500 animate-pulse" title="AI מחובר" />
+                )}
+              </Button>
+            </HeaderTooltip>
 
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleOpenHistory}
-              className="h-8 text-xs gap-1 cursor-pointer border-border/80 px-2 sm:px-3"
-              title="הצג הגשות קודמות"
-            >
-              <History className="h-3.5 w-3.5 text-muted-foreground" />
-              <span className="hidden sm:inline">הגשות קודמות</span>
-            </Button>
-
-            <Link
-              href="/guide"
-              className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border/70 hover:border-purple-500/40 bg-card hover:bg-accent/60 text-xs font-medium text-foreground transition"
-            >
-              <BookOpen className="h-3.5 w-3.5 text-purple-600 dark:text-purple-400" />
-              <span>מדריך</span>
-            </Link>
+            <HeaderTooltip label="הצג הגשות קודמות">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={handleOpenHistory}
+                className="h-9 w-9 cursor-pointer border-border/80 shrink-0"
+                aria-label="הגשות קודמות"
+              >
+                <History className="h-4 w-4 text-muted-foreground" />
+              </Button>
+            </HeaderTooltip>
 
             <ThemeToggle />
             <div className="h-4 w-[1px] bg-border hidden sm:block" />

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { UserNav } from "@/components/auth/user-nav";
+import { HeaderTooltip } from "@/components/ui/header-tooltip";
 import {
   MIDDLE_SCHOOL_EASY,
   MIDDLE_SCHOOL_MEDIUM,
@@ -299,21 +300,22 @@ export default function VocabularyPage() {
       <header className="sticky top-0 z-40 border-b border-border/60 bg-background/95 backdrop-blur print:hidden">
         <div className="container mx-auto flex h-16 items-center justify-between px-3 sm:px-8 gap-2">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-            <Link
-              href="/"
-              className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground p-1.5 px-2 rounded-lg border border-border/60 hover:bg-muted/40 transition-colors shrink-0"
-              title="חזרה לראשי"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              <span className="hidden sm:inline">ראשי</span>
-            </Link>
+            <HeaderTooltip label="חזרה לדף הראשי">
+              <Link
+                href="/"
+                className="inline-flex items-center justify-center h-9 w-9 text-muted-foreground hover:text-foreground rounded-lg border border-border/60 hover:bg-muted/40 transition-colors shrink-0"
+                aria-label="ראשי"
+              >
+                <ArrowLeft className="h-4 w-4" />
+              </Link>
+            </HeaderTooltip>
             <div className="h-4 w-[1px] bg-border hidden sm:block" />
             <div className="flex items-center gap-2 min-w-0">
               <div className="p-1.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 shrink-0">
                 <BookA className="h-4 w-4" />
               </div>
               <span className="font-bold text-xs sm:text-base truncate">
-                <span>אימון אוצר מילים</span>
+                <span>בנק מילים אישי ואימון אוצר מילים</span>
                 <span className="hidden sm:inline"> &bull; חטיבת ביניים בן גוריון</span>
               </span>
             </div>
@@ -321,28 +323,20 @@ export default function VocabularyPage() {
 
           <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
             {/* Quick Add Word Button in Navbar */}
-            <Button
-              onClick={() => {
-                setShowAddModal(true);
-                setFormError(null);
-              }}
-              size="sm"
-              className="h-8 text-xs font-bold gap-1 cursor-pointer bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs px-2 sm:px-3"
-              dir="rtl"
-              title="הוספת מילה חדשה"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">הוספת מילה</span>
-              <span className="sm:hidden">הוסף</span>
-            </Button>
+            <HeaderTooltip label="הוספת מילה חדשה לפנקס">
+              <Button
+                onClick={() => {
+                  setShowAddModal(true);
+                  setFormError(null);
+                }}
+                size="icon"
+                className="h-9 w-9 cursor-pointer bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs shrink-0"
+                aria-label="הוספת מילה"
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+            </HeaderTooltip>
 
-            <Link
-              href="/guide"
-              className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border/70 hover:border-emerald-500/40 bg-card hover:bg-accent/60 text-xs font-medium text-foreground transition"
-            >
-              <BookOpen className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-              <span>Guide</span>
-            </Link>
             <ThemeToggle />
             <div className="h-4 w-[1px] bg-border hidden sm:block" />
             <UserNav />

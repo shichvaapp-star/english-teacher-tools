@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { UserNav } from "@/components/auth/user-nav";
+import { HeaderTooltip } from "@/components/ui/header-tooltip";
 import { db } from "@/lib/firebase";
 import { collection, addDoc, doc, setDoc } from "firebase/firestore";
 import { cleanForFirestore } from "@/lib/utils";
@@ -50,6 +51,53 @@ import {
 } from "lucide-react";
 
 const LOCAL_SUBMISSIONS_KEY = "ett_writing_submissions";
+
+/**
+ * Renders English text where every word is an interactive clickable token that
+ * triggers the instant translation toast and adds the word to the student's word bank.
+ */
+function InteractiveEnglishText({
+  text,
+  onWordClick,
+  className = "",
+  stopEventPropagation = false,
+}: {
+  text: string;
+  onWordClick: (word: string) => void;
+  className?: string;
+  stopEventPropagation?: boolean;
+}) {
+  if (!text) return null;
+  const tokens = text.split(/(\s+)/);
+
+  return (
+    <span className={className}>
+      {tokens.map((token, idx) => {
+        const isSpace = /^\s+$/.test(token);
+        if (isSpace) return <span key={idx}>{token}</span>;
+
+        const hasEnglish = /[a-zA-Z]/.test(token);
+        if (!hasEnglish) return <span key={idx}>{token}</span>;
+
+        return (
+          <span
+            key={idx}
+            onClick={(e) => {
+              if (stopEventPropagation) {
+                e.stopPropagation();
+              }
+              onWordClick(token);
+            }}
+            className="cursor-pointer hover:bg-primary/20 hover:text-primary rounded px-0.5 transition-colors underline decoration-dotted decoration-muted-foreground/30 hover:decoration-primary"
+            title={`Click to translate "${token.replace(/^[^a-zA-Z]+|[^a-zA-Z]+$/g, "")}"`}
+          >
+            {token}
+          </span>
+        );
+      })}
+    </span>
+  );
+}
 
 export default function UnseenPracticePage() {
   const { user, teachers } = useAuth();
@@ -859,29 +907,31 @@ export default function UnseenPracticePage() {
         <div className="container mx-auto flex h-16 items-center justify-between px-3 sm:px-8 gap-2">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             {stage === "exercise" ? (
-              <button
-                type="button"
-                onClick={() => {
-                  setStage("settings");
-                  if (typeof window !== "undefined") {
-                    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
-                  }
-                }}
-                className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground p-1.5 px-2 sm:px-2.5 rounded-lg border border-border/60 hover:bg-muted/40 transition cursor-pointer shrink-0"
-                title="שנה הגדרות / בחר קטע אחר"
-              >
-                <Sliders className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">הגדרות</span>
-              </button>
+              <HeaderTooltip label="שינוי הגדרות / בחר קטע אחר">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStage("settings");
+                    if (typeof window !== "undefined") {
+                      window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+                    }
+                  }}
+                  className="inline-flex items-center justify-center h-9 w-9 text-muted-foreground hover:text-foreground rounded-lg border border-border/60 hover:bg-muted/40 transition cursor-pointer shrink-0"
+                  aria-label="הגדרות"
+                >
+                  <Sliders className="h-4 w-4" />
+                </button>
+              </HeaderTooltip>
             ) : (
-              <Link
-                href="/"
-                className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground p-1.5 px-2 rounded-lg border border-border/60 hover:bg-muted/40 transition-colors shrink-0"
-                title="חזרה לראשי"
-              >
-                <ArrowLeft className="h-4 w-4" />
-                <span className="hidden sm:inline">ראשי</span>
-              </Link>
+              <HeaderTooltip label="חזרה לדף הראשי">
+                <Link
+                  href="/"
+                  className="inline-flex items-center justify-center h-9 w-9 text-muted-foreground hover:text-foreground rounded-lg border border-border/60 hover:bg-muted/40 transition-colors shrink-0"
+                  aria-label="ראשי"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                </Link>
+              </HeaderTooltip>
             )}
 
             <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
@@ -897,37 +947,33 @@ export default function UnseenPracticePage() {
 
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             {stage === "settings" && (
-              <Button
-                size="sm"
-                onClick={handleStartExercise}
-                className="cursor-pointer gap-1.5 font-bold shadow-xs text-xs h-8 px-3 bg-primary text-primary-foreground hover:bg-primary/90"
-              >
-                <span>התחל תרגול</span>
-                <ArrowRight className="h-3.5 w-3.5" />
-              </Button>
+              <HeaderTooltip label="התחלת תרגול">
+                <Button
+                  size="icon"
+                  onClick={handleStartExercise}
+                  className="cursor-pointer font-bold shadow-xs h-9 w-9 bg-primary text-primary-foreground hover:bg-primary/90 shrink-0"
+                  aria-label="התחל תרגול"
+                >
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
+              </HeaderTooltip>
             )}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setDrawerOpen(true)}
-              className="cursor-pointer gap-1 text-xs border-primary/20 hover:border-primary/40 relative px-2 sm:px-3 h-8"
-              title="פנקס מילים"
-            >
-              <BookMarked className="h-3.5 w-3.5 text-primary" />
-              <span className="hidden sm:inline">פנקס מילים</span>
-              {savedWords.length > 0 && (
-                <span className="px-1.5 py-0.2 bg-primary text-primary-foreground rounded-full text-[10px] font-bold">
-                  {savedWords.length}
-                </span>
-              )}
-            </Button>
-            <Link
-              href="/guide"
-              className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border/70 hover:border-primary/40 bg-card hover:bg-accent/60 text-xs font-medium text-foreground transition"
-            >
-              <Info className="h-3.5 w-3.5 text-primary" />
-              <span>Guide</span>
-            </Link>
+            <HeaderTooltip label="פנקס מילים">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setDrawerOpen(true)}
+                className="cursor-pointer border-primary/20 hover:border-primary/40 relative h-9 w-9 shrink-0"
+                aria-label="פנקס מילים"
+              >
+                <BookMarked className="h-4 w-4 text-primary" />
+                {savedWords.length > 0 && (
+                  <span className="absolute -top-1 -right-1 px-1 min-w-4 h-4 flex items-center justify-center bg-primary text-primary-foreground rounded-full text-[10px] font-bold leading-none">
+                    {savedWords.length}
+                  </span>
+                )}
+              </Button>
+            </HeaderTooltip>
             <ThemeToggle />
             <UserNav />
           </div>
@@ -1588,7 +1634,7 @@ export default function UnseenPracticePage() {
                   <div className="p-2 rounded-lg bg-muted/40 text-[11px] text-muted-foreground flex items-center gap-2 mt-2 print:hidden">
                     <Info className="h-3.5 w-3.5 text-primary shrink-0" />
                     <span>
-                      💡 <strong>טיפ בלשים:</strong> לחץ על <strong>כל מילה</strong> בטקסט כדי לראות תרגום מיידי ולהוסיף לפנקס המילים האישי שלך!
+                      💡 <strong>טיפ בלשים:</strong> לחצו על <strong>כל מילה</strong> בטקסט או בשאלות ובתשובות כדי לראות תרגום מיידי ולהוסיף לפנקס המילים האישי שלכם!
                     </span>
                   </div>
                 </CardHeader>
@@ -1650,7 +1696,6 @@ export default function UnseenPracticePage() {
                             paraSentences.map((sObj) => {
                               const isSpoken =
                                 speech.isActive && speech.currentSentenceIndex === sObj.globalIndex;
-                              const tokens = sObj.text.split(/(\s+)/);
 
                               return (
                                 <span
@@ -1669,44 +1714,20 @@ export default function UnseenPracticePage() {
                                   }`}
                                   title={speech.isActive ? "Click sentence to play from here" : undefined}
                                 >
-                                  {tokens.map((token, tIdx) => {
-                                    const isSpace = /^\s+$/.test(token);
-                                    if (isSpace) return <span key={tIdx}>{token}</span>;
-
-                                    return (
-                                      <span
-                                        key={tIdx}
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleWordClick(token);
-                                        }}
-                                        className="cursor-pointer hover:bg-primary/25 hover:text-primary rounded px-0.5 transition-colors underline decoration-dotted decoration-muted-foreground/30 hover:decoration-primary"
-                                        title={`Click to translate "${token}"`}
-                                      >
-                                        {token}
-                                      </span>
-                                    );
-                                  })}
+                                  <InteractiveEnglishText
+                                    text={sObj.text}
+                                    onWordClick={handleWordClick}
+                                    stopEventPropagation
+                                  />
                                   {" "}
                                 </span>
                               );
                             })
                           ) : (
-                            para.split(/(\s+)/).map((token, tIdx) => {
-                              const isSpace = /^\s+$/.test(token);
-                              if (isSpace) return <span key={tIdx}>{token}</span>;
-
-                              return (
-                                <span
-                                  key={tIdx}
-                                  onClick={() => handleWordClick(token)}
-                                  className="cursor-pointer hover:bg-primary/20 hover:text-primary rounded px-0.5 transition-colors underline decoration-dotted decoration-muted-foreground/30 hover:decoration-primary"
-                                  title={`Click to translate "${token}"`}
-                                >
-                                  {token}
-                                </span>
-                              );
-                            })
+                            <InteractiveEnglishText
+                              text={para}
+                              onWordClick={handleWordClick}
+                            />
                           )}
                         </p>
                       </div>
@@ -1888,7 +1909,10 @@ export default function UnseenPracticePage() {
                     )}
 
                     <h3 className="text-sm font-semibold text-foreground mt-2 leading-relaxed notranslate" translate="no" lang="en">
-                      {activeQuestion.prompt}
+                      <InteractiveEnglishText
+                        text={activeQuestion.prompt}
+                        onWordClick={handleWordClick}
+                      />
                     </h3>
                   </CardHeader>
 
@@ -1896,6 +1920,12 @@ export default function UnseenPracticePage() {
                     {/* Multiple Choice Question */}
                     {activeQuestion.type === "mcq" && activeQuestion.options && (
                       <div className="space-y-2">
+                        <div className="flex items-center justify-between text-[11px] text-muted-foreground px-0.5">
+                          <span>בחר את התשובה הנכונה:</span>
+                          <span className="text-[10px] text-primary/80 flex items-center gap-1">
+                            <span>💡 לחצו על מילה לתרגום</span>
+                          </span>
+                        </div>
                         {activeQuestion.options.map((option, optIdx) => {
                           const isSelected = userAnswers[activeQuestion.id] === optIdx;
                           const isChecked = checkedQuestions[activeQuestion.id];
@@ -1929,7 +1959,13 @@ export default function UnseenPracticePage() {
                               <span className="h-5 w-5 rounded-full border border-current flex items-center justify-center shrink-0 text-[10px] font-bold mt-0.5">
                                 {String.fromCharCode(65 + optIdx)}
                               </span>
-                              <span className="flex-1 leading-relaxed">{option}</span>
+                              <span className="flex-1 leading-relaxed">
+                                <InteractiveEnglishText
+                                  text={option}
+                                  onWordClick={handleWordClick}
+                                  stopEventPropagation
+                                />
+                              </span>
                               {mode === "practice" && isChecked && isCorrectOption && (
                                 <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
                               )}
@@ -1998,13 +2034,29 @@ export default function UnseenPracticePage() {
 
                         {activeQuestion.targetSentence && (
                           <p className="text-muted-foreground font-mono text-[11px]">
-                            משפט היעד: <strong>&ldquo;{activeQuestion.targetSentence}&rdquo;</strong>
+                            משפט היעד:{" "}
+                            <span className="font-normal font-sans">
+                              &ldquo;
+                              <InteractiveEnglishText
+                                text={activeQuestion.targetSentence}
+                                onWordClick={handleWordClick}
+                              />
+                              &rdquo;
+                            </span>
                           </p>
                         )}
 
                         {activeQuestion.modelAnswer && (
                           <p className="text-muted-foreground text-[11px]">
-                            תשובה לדוגמה: <strong>&ldquo;{activeQuestion.modelAnswer}&rdquo;</strong>
+                            תשובה לדוגמה:{" "}
+                            <span className="font-normal font-sans">
+                              &ldquo;
+                              <InteractiveEnglishText
+                                text={activeQuestion.modelAnswer}
+                                onWordClick={handleWordClick}
+                              />
+                              &rdquo;
+                            </span>
                           </p>
                         )}
 
@@ -2395,7 +2447,8 @@ export default function UnseenPracticePage() {
                           >
                             <div className="flex items-center justify-between">
                               <span className="font-bold text-foreground">
-                                שאלה {q.number}: {q.prompt}
+                                שאלה {q.number}:{" "}
+                                <InteractiveEnglishText text={q.prompt} onWordClick={handleWordClick} />
                               </span>
                               <Badge
                                 variant={q.points >= 8 ? "default" : q.points >= 5 ? "secondary" : "destructive"}
