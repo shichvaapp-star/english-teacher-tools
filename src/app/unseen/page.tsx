@@ -1901,7 +1901,11 @@ export default function UnseenPracticePage() {
                               type="button"
                               onClick={() => {
                                 setUserAnswers((prev) => ({ ...prev, [activeQuestion.id]: optIdx }));
-                                setCheckedQuestions((prev) => ({ ...prev, [activeQuestion.id]: false }));
+                                if (mode === "practice") {
+                                  setCheckedQuestions((prev) => ({ ...prev, [activeQuestion.id]: true }));
+                                } else {
+                                  setCheckedQuestions((prev) => ({ ...prev, [activeQuestion.id]: false }));
+                                }
                               }}
                               className={`w-full p-3 rounded-lg border text-left text-xs transition cursor-pointer flex items-start gap-2.5 ${optStyle}`}
                             >
@@ -2051,23 +2055,7 @@ export default function UnseenPracticePage() {
                     </div>
 
                     {mode === "practice" ? (
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            setIsChangingTeacher(false);
-                            if (user?.teacherId) {
-                              setSelectedTeacherId(user.teacherId);
-                            }
-                            setShowSubmitModal(true);
-                          }}
-                          className="cursor-pointer gap-1.5 text-xs text-emerald-700 dark:text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/10 font-bold"
-                          title="הגש את תוצאות התרגול למורה"
-                        >
-                          <Send className="h-3.5 w-3.5 text-emerald-600" />
-                          <span>הגש למורה ({answeredCount}/10)</span>
-                        </Button>
+                      activeQuestion.type !== "mcq" && (
                         <Button
                           variant="default"
                           size="sm"
@@ -2077,7 +2065,7 @@ export default function UnseenPracticePage() {
                           <Check className="h-3.5 w-3.5" />
                           <span>בדוק תשובה</span>
                         </Button>
-                      </div>
+                      )
                     ) : (
                       <Button
                         variant="default"
