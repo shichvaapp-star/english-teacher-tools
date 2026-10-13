@@ -185,11 +185,10 @@ export default function StudentPortalPage() {
           <div className="flex items-center gap-3">
             <Link
               href="/"
-              className="inline-flex items-center justify-center h-9 w-9 text-muted-foreground hover:text-foreground rounded-lg border border-border/60 hover:bg-muted/40 transition-colors"
-              title="חזרה לראשי"
-              aria-label="חזרה לראשי"
+              className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground p-1.5 rounded-lg border border-border/60 hover:bg-muted/40 transition-colors"
             >
               <ArrowLeft className="h-4 w-4" />
+              <span className="hidden sm:inline">חזרה לראשי</span>
             </Link>
             <div className="h-4 w-[1px] bg-border" />
             <div className="flex items-center gap-2">
@@ -205,16 +204,16 @@ export default function StudentPortalPage() {
           <div className="flex items-center gap-3">
             <Button
               variant="outline"
-              size="icon"
+              size="sm"
               onClick={fetchStudentSubmissions}
               disabled={isLoading}
-              className="h-9 w-9 cursor-pointer border-border/80 shrink-0"
+              className="h-8 text-xs gap-1.5 cursor-pointer border-border/80"
               title="רענן רשימה"
-              aria-label="רענן"
             >
               <RefreshCw
-                className={`h-4 w-4 ${isLoading ? "animate-spin text-primary" : ""}`}
+                className={`h-3.5 w-3.5 ${isLoading ? "animate-spin text-primary" : ""}`}
               />
+              <span className="hidden sm:inline">רענן</span>
             </Button>
 
             <ThemeToggle />
