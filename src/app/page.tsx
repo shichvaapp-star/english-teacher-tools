@@ -11,9 +11,9 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { UserNav } from "@/components/auth/user-nav";
 import { StudentLoginModal } from "@/components/auth/student-login-modal";
 import { TeacherAuthModal } from "@/components/auth/teacher-auth-modal";
-import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import {
   Search,
   BookA,
@@ -110,60 +110,33 @@ export default function Home() {
   const sections = [
     {
       englishTitle: "Unseen Practice",
-      hebrewTitle: "בלשי האנסין • קריאה והבנה",
-      description:
-        "קטעי קריאה מרתקים ב-3 רמות קושי: קוראים מתחילים, רמה שוטפת, ודוברי אנגלית. לחצו על כל מילה בטקסט כדי לקבל תרגום מיידי ולשמור אותה לפנקס אוצר המילים שלכם!",
+      hebrewTitle: "קריאה והבנה",
+      description: "קטעי קריאה ב-3 רמות קושי, תרגום מיידי לכל מילה ושאלות הבנה.",
       icon: Search,
-      badge: "3 רמות קושי • 10 שאלות",
-      badgeVariant: "default" as const,
       color: "text-sky-500 dark:text-sky-400",
       bgColor: "bg-sky-500/10",
       borderColor: "hover:border-sky-500/40",
       href: "/unseen",
-      highlights: [
-        "תרגול ב-3 רמות: קוראים מתחילים, רמה שוטפת ומתקדמים",
-        "לחיצה על כל מילה בטקסט מציגה תרגום מיידי לעברית",
-        "10 שאלות: בחירה מרובה, שאלות פתוחות והעתקת משפטים",
-        "יצירת קטעי קריאה אישיים עם AI לפי תחומי עניין",
-      ],
     },
     {
       englishTitle: "Vocab Trainer",
-      hebrewTitle: "אימון אוצר מילים • כרטיסיות ומשחקים",
-      description:
-        "שינון ותרגול מילים נבחרות לחטיבת הביניים יחד עם המילים ששמרתם מקטעי האנסין, באמצעות משחקים אינטראקטיביים, כרטיסיות חכמות ובחנים.",
+      hebrewTitle: "אימון אוצר מילים",
+      description: "כרטיסיות חכמות, משחקי התאמה מהירים ותרגול אוצר מילים אישי.",
       icon: BookA,
-      badge: "כרטיסיות ומשחקים",
-      badgeVariant: "secondary" as const,
       color: "text-emerald-500 dark:text-emerald-400",
       bgColor: "bg-emerald-500/10",
       borderColor: "hover:border-emerald-500/40",
       href: "/vocabulary",
-      highlights: [
-        "שמירת מילים מהאנסין + הזנה ידנית של מילים עם משפט לדוגמה",
-        "כרטיסיות חכמות עם היפוך ושמע הגייה באנגלית",
-        "משחק התאמה מהיר (Speed Match) ובחנים אינטראקטיביים",
-        "מילון אישי מלא ודפי עבודה להדפסה בלחיצה אחת",
-      ],
     },
     {
       englishTitle: "Writing Practice",
-      hebrewTitle: "אימון כתיבה • מכתבים, פסקאות דעה וסיפורים",
-      description:
-        "כתיבת מכתבים, פסקאות דעה וסיפורים יצירתיים (50–80 מילים) בסביבה מודרכת עם מילות קישור, משוב AI מעודד או הגשה ישירה למורה לבדיקה.",
+      hebrewTitle: "סדנת כתיבה",
+      description: "משימות כתיבה מודרכות עם בנק מילות קישור ומשוב AI מיידי.",
       icon: PenTool,
-      badge: "אימון AI או הגשה למורה",
-      badgeVariant: "outline" as const,
       color: "text-purple-500 dark:text-purple-400",
       bgColor: "bg-purple-500/10",
       borderColor: "hover:border-purple-500/40",
       href: "/writing",
-      highlights: [
-        "24 נושאי כתיבה מגוונים וכפתור 🎲 'הפתע אותי עם נושא רנדומלי'",
-        "בנק מילות קישור בלחיצה (סדר וארגון, ניגוד, הוספת מידע, סיבה)",
-        "משוב AI מיידי עם ציון משוער, נקודות חוזק וטיפים לשיפור",
-        "מצב הגשה ישירה למורה לבדיקה עם קוד אישור הגשה ותיעוד",
-      ],
     },
   ];
 
@@ -191,42 +164,29 @@ export default function Home() {
             </div>
           </Link>
 
-          <div className="flex items-center gap-1 sm:gap-2.5 shrink-0">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             {user?.role === "teacher" && (
               <Link
                 href="/teacher/dashboard"
-                className="inline-flex items-center gap-1 p-2 sm:px-2.5 sm:py-1.5 rounded-lg border border-purple-500/30 bg-purple-500/10 hover:bg-purple-500/20 text-xs font-bold text-purple-700 dark:text-purple-300 transition shadow-2xs"
-                dir="rtl"
+                className="inline-flex items-center justify-center h-9 w-9 rounded-lg border border-purple-500/30 bg-purple-500/10 hover:bg-purple-500/20 text-purple-700 dark:text-purple-300 transition shadow-2xs shrink-0"
                 title="לוח בקרת מורה"
+                aria-label="לוח בקרת מורה"
               >
-                <LayoutDashboard className="h-3.5 w-3.5 text-purple-600 dark:text-purple-400" />
-                <span className="hidden md:inline">לוח בקרת מורה</span>
-                <span className="hidden sm:inline md:hidden">לוח מורה</span>
+                <LayoutDashboard className="h-4 w-4 text-purple-600 dark:text-purple-400" />
               </Link>
             )}
 
             {user?.role === "student" && (
               <Link
                 href="/student"
-                className="inline-flex items-center gap-1 p-2 sm:px-2.5 sm:py-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-xs font-bold text-emerald-700 dark:text-emerald-300 transition shadow-2xs"
-                dir="rtl"
+                className="inline-flex items-center justify-center h-9 w-9 rounded-lg border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 transition shadow-2xs shrink-0"
                 title="העבודות והציונים שלי"
+                aria-label="העבודות והציונים שלי"
               >
-                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-                <span className="hidden md:inline">ההגשות והציונים שלי</span>
-                <span className="hidden sm:inline md:hidden">ההגשות שלי</span>
+                <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
               </Link>
             )}
 
-            <Link
-              href="/guide"
-              className="inline-flex items-center gap-1.5 p-2 sm:px-2.5 sm:py-1.5 rounded-lg border border-border/70 hover:border-primary/40 bg-card hover:bg-accent/60 text-xs font-medium text-foreground transition shadow-2xs"
-              title="Teacher Guide"
-            >
-              <BookOpen className="h-3.5 w-3.5 text-primary" />
-              <span className="hidden md:inline">Teacher Guide</span>
-              <span className="md:hidden hidden sm:inline">Guide</span>
-            </Link>
             <ThemeToggle />
             <div className="h-4 w-[1px] bg-border hidden sm:block" />
             <UserNav />
@@ -438,63 +398,45 @@ export default function Home() {
           </div>
         )}
 
-        {/* 3 Core Cards with Clean English Header & Hebrew RTL body */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 max-w-6xl mx-auto">
+        {/* 3 Core Section Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 md:gap-6 max-w-5xl mx-auto">
           {sections.map((sec) => {
             const Icon = sec.icon;
             return (
-              <Card
+              <Link
                 key={sec.englishTitle}
-                className={`flex flex-col justify-between border border-border/70 hover:shadow-lg transition-all duration-200 bg-card ${sec.borderColor}`}
+                href={sec.href}
+                className={`group flex flex-col justify-between p-6 sm:p-7 rounded-2xl border border-border/70 bg-card hover:bg-card/90 hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200 cursor-pointer ${sec.borderColor}`}
               >
-                <CardHeader className="p-4 sm:p-6 pb-2 md:pb-3 text-right" dir="rtl">
-                  <div className="flex items-center justify-between mb-2 md:mb-3">
-                    <div className={`p-2 md:p-2.5 rounded-xl ${sec.bgColor} ${sec.color}`}>
-                      <Icon className="h-5 w-5 md:h-6 md:w-6" />
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className={`p-3 rounded-xl ${sec.bgColor} ${sec.color} transition-transform group-hover:scale-110`}>
+                      <Icon className="h-6 w-6" />
                     </div>
-                    <Badge variant={sec.badgeVariant} className="text-[11px] md:text-xs font-semibold">
-                      {sec.badge}
-                    </Badge>
+                    <div className="h-8 w-8 rounded-full border border-border/60 flex items-center justify-center text-muted-foreground group-hover:text-primary group-hover:border-primary/40 group-hover:-translate-x-1 transition-all">
+                      <ArrowLeft className="h-4 w-4" />
+                    </div>
                   </div>
 
-                  {/* Header Style: Large title in English, smaller Hebrew translation below */}
-                  <div>
-                    <h3 className="text-lg sm:text-xl md:text-2xl font-black text-foreground font-sans tracking-tight text-left" dir="ltr">
+                  <div className="space-y-1">
+                    <h3 className="text-xl sm:text-2xl font-black text-foreground font-sans tracking-tight">
                       {sec.englishTitle}
                     </h3>
-                    <p className="text-xs font-bold text-primary mt-0.5 md:mt-1 text-right" dir="rtl">
+                    <p className="text-xs font-bold text-primary" dir="rtl">
                       {sec.hebrewTitle}
                     </p>
                   </div>
 
-                  <p className="text-xs leading-relaxed text-muted-foreground pt-1.5 md:pt-2 text-right line-clamp-2 md:line-clamp-none" dir="rtl">
+                  <p className="text-xs text-muted-foreground leading-relaxed" dir="rtl">
                     {sec.description}
                   </p>
-                </CardHeader>
+                </div>
 
-                <CardContent className="flex-1 p-4 pt-0 sm:p-6 sm:pt-0 hidden md:block" dir="rtl">
-                  <div className="border-t border-border/50 pt-3.5 space-y-2.5 text-right">
-                    {sec.highlights.map((h, i) => (
-                      <div key={i} className="flex items-start gap-2.5 text-xs text-foreground/85">
-                        <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
-                        <span className="leading-relaxed">{h}</span>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-
-                <CardFooter className="p-4 sm:p-6 pt-2 md:pt-3 border-t border-border/40" dir="rtl">
-                  <Link
-                    href={sec.href}
-                    className={buttonVariants({
-                      className: "w-full justify-between font-semibold cursor-pointer shadow-xs",
-                    })}
-                  >
-                    <span>התחל תרגול</span>
-                    <ArrowLeft className="h-4 w-4" />
-                  </Link>
-                </CardFooter>
-              </Card>
+                <div className="pt-5 mt-5 border-t border-border/40 flex items-center justify-between text-xs font-semibold text-foreground/80 group-hover:text-primary transition-colors" dir="rtl">
+                  <span>התחל תרגול</span>
+                  <ArrowLeft className="h-3.5 w-3.5 group-hover:-translate-x-1 transition-transform" />
+                </div>
+              </Link>
             );
           })}
         </div>

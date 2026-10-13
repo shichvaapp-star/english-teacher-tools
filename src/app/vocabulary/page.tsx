@@ -36,7 +36,6 @@ import {
   AlertCircle,
   Sparkles,
   Check,
-  BookOpen,
 } from "lucide-react";
 
 // Pure deterministic shuffle helper
@@ -301,11 +300,11 @@ export default function VocabularyPage() {
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <Link
               href="/"
-              className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground p-1.5 px-2 rounded-lg border border-border/60 hover:bg-muted/40 transition-colors shrink-0"
+              className="inline-flex items-center justify-center h-9 w-9 text-muted-foreground hover:text-foreground rounded-lg border border-border/60 hover:bg-muted/40 transition-colors shrink-0"
               title="חזרה לראשי"
+              aria-label="ראשי"
             >
               <ArrowLeft className="h-4 w-4" />
-              <span className="hidden sm:inline">ראשי</span>
             </Link>
             <div className="h-4 w-[1px] bg-border hidden sm:block" />
             <div className="flex items-center gap-2 min-w-0">
@@ -326,23 +325,14 @@ export default function VocabularyPage() {
                 setShowAddModal(true);
                 setFormError(null);
               }}
-              size="sm"
-              className="h-8 text-xs font-bold gap-1 cursor-pointer bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs px-2 sm:px-3"
-              dir="rtl"
+              size="icon"
+              className="h-9 w-9 cursor-pointer bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs shrink-0"
               title="הוספת מילה חדשה"
+              aria-label="הוספת מילה"
             >
-              <Plus className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">הוספת מילה</span>
-              <span className="sm:hidden">הוסף</span>
+              <Plus className="h-4 w-4" />
             </Button>
 
-            <Link
-              href="/guide"
-              className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border/70 hover:border-emerald-500/40 bg-card hover:bg-accent/60 text-xs font-medium text-foreground transition"
-            >
-              <BookOpen className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-              <span>Guide</span>
-            </Link>
             <ThemeToggle />
             <div className="h-4 w-[1px] bg-border hidden sm:block" />
             <UserNav />

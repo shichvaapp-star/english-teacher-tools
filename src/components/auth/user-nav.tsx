@@ -4,8 +4,7 @@ import React, { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { GraduationCap, User, LogOut, ChevronDown, School, RefreshCw, BookOpen, LayoutDashboard, CheckCircle2 } from "lucide-react";
+import { GraduationCap, User, LogOut, ChevronDown, School, RefreshCw, LayoutDashboard, CheckCircle2 } from "lucide-react";
 import { TeacherAuthModal } from "./teacher-auth-modal";
 import { StudentLoginModal } from "./student-login-modal";
 
@@ -44,22 +43,24 @@ export function UserNav() {
         <div className="flex items-center gap-1.5 sm:gap-2">
           <Button
             variant="outline"
-            size="sm"
+            size="icon"
             onClick={() => setStudentModalOpen(true)}
-            className="cursor-pointer gap-1 sm:gap-1.5 h-8 sm:h-9 px-2 sm:px-3 text-xs"
+            className="cursor-pointer h-9 w-9 text-xs"
+            title="כניסת תלמידים (Student Login)"
+            aria-label="Student Login"
           >
-            <User className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-emerald-600 dark:text-emerald-400" />
-            <span className="hidden sm:inline">Student</span> Login
+            <User className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
           </Button>
 
           <Button
             variant="default"
-            size="sm"
+            size="icon"
             onClick={() => setTeacherModalOpen(true)}
-            className="cursor-pointer gap-1 sm:gap-1.5 h-8 sm:h-9 px-2 sm:px-3 text-xs"
+            className="cursor-pointer h-9 w-9 text-xs"
+            title="כניסת מורים (Teacher Portal)"
+            aria-label="Teacher Portal"
           >
-            <GraduationCap className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-            <span className="hidden sm:inline">Teacher</span> Portal
+            <GraduationCap className="h-4 w-4" />
           </Button>
         </div>
 
@@ -78,18 +79,15 @@ export function UserNav() {
         onClick={() => setDropdownOpen((prev) => !prev)}
         aria-expanded={dropdownOpen}
         aria-haspopup="true"
-        className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 h-8 sm:h-9 rounded-lg border border-border bg-card hover:bg-accent/50 text-foreground text-xs sm:text-sm font-medium transition shadow-xs cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/20"
+        className="flex items-center justify-center h-9 w-9 rounded-lg border border-border bg-card hover:bg-accent/50 text-foreground transition shadow-xs cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/20 shrink-0"
+        title={`${user.name} (${isTeacher ? "מורה" : "תלמיד/ה"})`}
+        aria-label={user.name}
       >
         {isTeacher ? (
           <GraduationCap className="h-4 w-4 text-primary shrink-0" />
         ) : (
           <User className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
         )}
-        <span className="max-w-[70px] sm:max-w-[130px] truncate">{user.name}</span>
-        <Badge variant={isTeacher ? "default" : "secondary"} className="text-[10px] px-1.5 py-0 hidden sm:inline-flex">
-          {isTeacher ? "Teacher" : "Student"}
-        </Badge>
-        <ChevronDown className={`h-3.5 w-3.5 text-muted-foreground transition-transform duration-200 ${dropdownOpen ? "rotate-180" : ""}`} />
       </button>
 
       {dropdownOpen && (
@@ -139,15 +137,6 @@ export function UserNav() {
                 <span>ההגשות והציונים שלי (My Work)</span>
               </Link>
             )}
-
-            <Link
-              href="/guide"
-              onClick={() => setDropdownOpen(false)}
-              className="w-full flex items-center gap-2 px-3 py-2 text-xs text-foreground hover:bg-accent rounded-lg transition text-left cursor-pointer font-medium"
-            >
-              <BookOpen className="h-3.5 w-3.5 text-primary" />
-              <span>Teacher Guide & Handout</span>
-            </Link>
 
             <button
               type="button"

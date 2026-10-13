@@ -736,10 +736,11 @@ export default function TeacherDashboardPage() {
           <div className="container mx-auto flex h-16 items-center justify-between px-4 sm:px-8">
             <Link
               href="/"
-              className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground p-1.5 rounded-lg border border-border/60 hover:bg-muted/40 transition-colors"
+              className="inline-flex items-center justify-center h-9 w-9 text-muted-foreground hover:text-foreground rounded-lg border border-border/60 hover:bg-muted/40 transition-colors"
+              title="חזרה לדף הראשי"
+              aria-label="חזרה לדף הראשי"
             >
               <ArrowLeft className="h-4 w-4" />
-              <span>חזרה לדף הראשי</span>
             </Link>
 
             <div className="flex items-center gap-3">
@@ -805,11 +806,11 @@ export default function TeacherDashboardPage() {
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <Link
               href="/"
-              className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground p-1.5 px-2 rounded-lg border border-border/60 hover:bg-muted/40 transition-colors shrink-0"
+              className="inline-flex items-center justify-center h-9 w-9 text-muted-foreground hover:text-foreground rounded-lg border border-border/60 hover:bg-muted/40 transition-colors shrink-0"
               title="חזרה לראשי"
+              aria-label="ראשי"
             >
               <ArrowLeft className="h-4 w-4" />
-              <span className="hidden sm:inline">ראשי</span>
             </Link>
             <div className="h-4 w-[1px] bg-border hidden sm:block" />
             <div className="flex items-center gap-2 min-w-0">
@@ -826,14 +827,14 @@ export default function TeacherDashboardPage() {
           <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
             <Button
               variant="outline"
-              size="sm"
+              size="icon"
               onClick={handleRefreshAll}
               disabled={isLoadingSubmissions || isLoadingStudents}
-              className="h-8 text-xs gap-1 cursor-pointer border-border/80 px-2 sm:px-3"
+              className="h-9 w-9 cursor-pointer border-border/80 shrink-0"
               title="רענן נתונים"
+              aria-label="רענן"
             >
-              <RefreshCw className={`h-3.5 w-3.5 ${(isLoadingSubmissions || isLoadingStudents) ? "animate-spin text-primary" : ""}`} />
-              <span className="hidden sm:inline">רענן</span>
+              <RefreshCw className={`h-4 w-4 ${(isLoadingSubmissions || isLoadingStudents) ? "animate-spin text-primary" : ""}`} />
             </Button>
 
             <ThemeToggle />
