@@ -108,11 +108,33 @@ export default function UnseenPracticePage() {
   // Mobile active tab when in "exercise" stage: "text" (reading passage) vs. "questions"
   const [mobileTab, setMobileTab] = useState<"text" | "questions">("text");
 
+  const [assignedNotice, setAssignedNotice] = useState<string | null>(null);
+  const [currentAssignmentId, setCurrentAssignmentId] = useState<string | null>(null);
+
   React.useEffect(() => {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
       if (params.get("stage") === "exercise") {
         setStage("exercise");
+      }
+      const passageParam = params.get("passageId");
+      const assignIdParam = params.get("assignmentId");
+      if (passageParam && passageParam !== "free_choice") {
+        const found = MIDDLE_SCHOOL_UNSEENS.find((s) => s.id === passageParam);
+        if (found) {
+          setSelectedLevel(found.level);
+          setSelectedStoryId(found.id);
+          setStage("exercise");
+          setMode("graded");
+        }
+      }
+      if (assignIdParam) {
+        setCurrentAssignmentId(assignIdParam);
+        if (!passageParam || passageParam === "free_choice") {
+          setAssignedNotice("✨ משימת אנסין בבחירה חופשית מהמורה שלך: בחרו כל קטע קריאה שתרצו (או צרו קטע עם ה-AI), ענו על השאלות והגישו לבדיקה!");
+        } else {
+          setAssignedNotice("מבחן אנסין זה הוקצה על ידי המורה שלך. בסיום המענה, הגישו לבדיקה.");
+        }
       }
     }
   }, []);
@@ -802,7 +824,9 @@ export default function UnseenPracticePage() {
       teacherId: teacherObj ? teacherObj.id : (teachers[0]?.id || ""),
       teacherName: teacherObj ? teacherObj.name : (teachers[0]?.name || "מורה לאנגלית"),
       studentClass: studentClassInput || user?.fullClass || "חטיבת ביניים",
+      studentGroup: user?.group || undefined,
       studentNote: studentNoteInput.trim(),
+      assignmentId: currentAssignmentId || undefined,
       taskId: currentStory.id,
       taskTitle: currentStory.title,
       hebrewTitle: currentStory.hebrewTitle,
@@ -985,6 +1009,23 @@ export default function UnseenPracticePage() {
           ========================================================================= */}
       {stage === "settings" && (
         <main className="container mx-auto flex-1 px-3 sm:px-8 py-4 sm:py-8 max-w-4xl space-y-4 sm:space-y-6 print:hidden" dir="rtl">
+          {/* Teacher Assignment Notification Banner */}
+          {assignedNotice && (
+            <div className="p-3.5 rounded-2xl bg-purple-500/10 border-2 border-purple-500/30 flex items-center justify-between gap-3 text-xs text-purple-900 dark:text-purple-200 shadow-xs" dir="rtl">
+              <div className="flex items-center gap-2.5 font-bold">
+                <Sparkles className="h-4 w-4 text-purple-600 dark:text-purple-400 shrink-0" />
+                <span>{assignedNotice}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAssignedNotice(null)}
+                className="text-purple-600 hover:text-purple-800 dark:hover:text-purple-100 p-1 cursor-pointer rounded-md"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          )}
+
           {/* Settings Hero Card with Immediate Start Button */}
           <div className="bg-card border-2 border-primary/20 rounded-2xl p-4 sm:p-6 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-right" dir="rtl">
             <div className="space-y-1 w-full sm:w-auto">
@@ -1500,6 +1541,23 @@ export default function UnseenPracticePage() {
               )}
             </div>
           </div>
+
+          {/* Teacher Assignment Notification Banner */}
+          {assignedNotice && (
+            <div className="p-3 rounded-xl bg-purple-500/10 border border-purple-500/30 flex items-center justify-between gap-3 text-xs text-purple-900 dark:text-purple-200" dir="rtl">
+              <div className="flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-purple-600 dark:text-purple-400 shrink-0" />
+                <span className="font-semibold">{assignedNotice}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAssignedNotice(null)}
+                className="text-purple-600 hover:text-purple-800 dark:hover:text-purple-100 p-1 cursor-pointer"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          )}
 
           {/* Mobile View Switcher (Passage vs. Questions) - Only visible on mobile (< lg) */}
           <div className="lg:hidden flex items-center p-1 rounded-xl bg-card border border-border/80 sticky top-16 z-30 shadow-xs backdrop-blur-md">

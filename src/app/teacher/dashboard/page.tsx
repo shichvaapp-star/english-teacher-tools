@@ -20,7 +20,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { UserNav } from "@/components/auth/user-nav";
 import { HeaderTooltip } from "@/components/ui/header-tooltip";
 import { TeacherAuthModal } from "@/components/auth/teacher-auth-modal";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,11 +28,9 @@ import {
   GraduationCap,
   ArrowLeft,
   Search,
-  Filter,
   CheckCircle2,
   Clock,
   FileText,
-  BookOpen,
   User,
   Users,
   UserPlus,
@@ -49,21 +47,25 @@ import {
   EyeOff,
   Send,
   Sparkles,
-  School,
   Lock,
   Shuffle,
   Layers,
-  Loader2,
-  Lightbulb,
-  Award,
+  Plus,
 } from "lucide-react";
 
 import { SubmissionItem } from "@/types/submission";
-import { StudentProfile } from "@/types/auth";
+import { StudentProfile, StudentGroup } from "@/types/auth";
+import { TeacherAssignment } from "@/types/assignment";
 import { ALL_WRITING_TASKS } from "@/data/writing-tasks";
 import type { WritingEvaluationResult } from "@/app/api/evaluate-writing/route";
 
+import { TurnInsTable, parseSubmissionTimestamp } from "./turn-ins-table";
+import { ReviewDialog } from "./review-dialog";
+import { AssignTaskModal } from "./assign-task-modal";
+import { AssignedTasksView } from "./assigned-tasks-view";
+
 const LOCAL_SUBMISSIONS_KEY = "ett_writing_submissions";
+const LOCAL_ASSIGNMENTS_KEY = "ett_teacher_assignments";
 
 export default function TeacherDashboardPage() {
   const {
@@ -74,8 +76,8 @@ export default function TeacherDashboardPage() {
     deleteStudent,
   } = useAuth();
 
-  // Active view tab: submissions or students roster
-  const [activeTab, setActiveTab] = useState<"submissions" | "students">("submissions");
+  // Active navigation view tab
+  const [activeTab, setActiveTab] = useState<"submissions" | "assignments" | "students">("submissions");
 
   // Submissions State
   const [submissions, setSubmissions] = useState<SubmissionItem[]>([]);
@@ -84,12 +86,18 @@ export default function TeacherDashboardPage() {
   const [statusFilter, setStatusFilter] = useState<"all" | "submitted" | "reviewed">("all");
   const [typeFilter, setTypeFilter] = useState<"all" | "writing" | "unseen">("all");
   const [classFilter, setClassFilter] = useState<string>("all");
+  const [groupFilter, setGroupFilter] = useState<string>("all");
+
+  // Assignments State
+  const [assignments, setAssignments] = useState<TeacherAssignment[]>([]);
+  const [assignModalOpen, setAssignModalOpen] = useState(false);
 
   // Students Roster State
   const [students, setStudents] = useState<StudentProfile[]>([]);
   const [isLoadingStudents, setIsLoadingStudents] = useState(true);
   const [studentSearchQuery, setStudentSearchQuery] = useState("");
   const [studentClassFilter, setStudentClassFilter] = useState<string>("all");
+  const [studentGroupFilter, setStudentGroupFilter] = useState<string>("all");
   const [showPins, setShowPins] = useState(false);
   const [copiedPinStudentId, setCopiedPinStudentId] = useState<string | null>(null);
 
@@ -99,6 +107,7 @@ export default function TeacherDashboardPage() {
   const [studentNameInput, setStudentNameInput] = useState("");
   const [studentGradeInput, setStudentGradeInput] = useState("ז");
   const [studentNumberInput, setStudentNumberInput] = useState<number>(1);
+  const [studentGroupInput, setStudentGroupInput] = useState<StudentGroup | "none">("א1");
   const [studentPinInput, setStudentPinInput] = useState("");
   const [studentFormError, setStudentFormError] = useState<string | null>(null);
   const [isSavingStudent, setIsSavingStudent] = useState(false);
@@ -106,41 +115,36 @@ export default function TeacherDashboardPage() {
   // Student Submissions History Modal
   const [historyStudent, setHistoryStudent] = useState<StudentProfile | null>(null);
 
-  // Selected submission for review modal
+  // Selected submission for full modal review
   const [reviewItem, setReviewItem] = useState<SubmissionItem | null>(null);
-  const [gradeInput, setGradeInput] = useState<string>("");
-  const [feedbackInput, setFeedbackInput] = useState<string>("");
-  const [isSavingGrade, setIsSavingGrade] = useState(false);
-  const [saveSuccess, setSaveSuccess] = useState(false);
-
-  // AI Review State
   const [loadingAiSubId, setLoadingAiSubId] = useState<string | null>(null);
   const [isEvaluatingAi, setIsEvaluatingAi] = useState(false);
   const [writingAiResult, setWritingAiResult] = useState<WritingEvaluationResult | null>(null);
 
-  // Copied code toast
+  // Teacher Code Copied Toast
   const [copiedCode, setCopiedCode] = useState(false);
 
-  // Auth modal for non-teachers
+  // Auth modal for unauthorized users
   const [authModalOpen, setAuthModalOpen] = useState(false);
 
-  // Fetch submissions from Firestore and localStorage
+  // ---------------------------------------------------------------------------
+  // FETCH SUBMISSIONS
+  // ---------------------------------------------------------------------------
   const fetchSubmissions = async () => {
     setIsLoadingSubmissions(true);
     let items: SubmissionItem[] = [];
 
-    // 1. Read from local storage
+    // 1. Read local storage
     try {
       const localRaw = localStorage.getItem(LOCAL_SUBMISSIONS_KEY);
       if (localRaw) {
-        const parsed: SubmissionItem[] = JSON.parse(localRaw);
-        items = parsed;
+        items = JSON.parse(localRaw);
       }
     } catch {
       items = [];
     }
 
-    // 2. Fetch from Firestore if user is a teacher and db exists
+    // 2. Fetch from Firestore
     if (db && user && user.role === "teacher") {
       try {
         const snap = await getDocs(collection(db, "submissions"));
@@ -160,7 +164,6 @@ export default function TeacherDashboardPage() {
           }
         });
 
-        // Merge: prefer Firestore records over local duplicates
         if (fbItems.length > 0) {
           const map = new Map<string, SubmissionItem>();
           items.forEach((item) => map.set(item.receiptCode || item.id, item));
@@ -172,10 +175,10 @@ export default function TeacherDashboardPage() {
       }
     }
 
-    // Sort newest first
+    // Strictly sort newest turn-ins first
     items.sort((a, b) => {
-      const timeA = new Date(a.submittedAt).getTime() || 0;
-      const timeB = new Date(b.submittedAt).getTime() || 0;
+      const timeA = parseSubmissionTimestamp(a.submittedAt);
+      const timeB = parseSubmissionTimestamp(b.submittedAt);
       return timeB - timeA;
     });
 
@@ -183,7 +186,9 @@ export default function TeacherDashboardPage() {
     setIsLoadingSubmissions(false);
   };
 
-  // Fetch registered students
+  // ---------------------------------------------------------------------------
+  // FETCH STUDENTS
+  // ---------------------------------------------------------------------------
   const fetchStudents = async () => {
     if (!user || user.role !== "teacher") return;
     setIsLoadingStudents(true);
@@ -197,11 +202,53 @@ export default function TeacherDashboardPage() {
     }
   };
 
+  // ---------------------------------------------------------------------------
+  // FETCH ASSIGNMENTS
+  // ---------------------------------------------------------------------------
+  const fetchAssignments = async () => {
+    let list: TeacherAssignment[] = [];
+    try {
+      const localRaw = localStorage.getItem(LOCAL_ASSIGNMENTS_KEY);
+      if (localRaw) {
+        list = JSON.parse(localRaw);
+      }
+    } catch {
+      list = [];
+    }
+
+    if (db && user && user.role === "teacher") {
+      try {
+        const snap = await getDocs(
+          query(collection(db, "assignments"), where("teacherId", "==", user.id))
+        );
+        const fbItems: TeacherAssignment[] = [];
+        snap.forEach((docSnap) => {
+          fbItems.push({
+            ...(docSnap.data() as TeacherAssignment),
+            id: docSnap.id,
+          });
+        });
+        if (fbItems.length > 0) {
+          const map = new Map<string, TeacherAssignment>();
+          list.forEach((a) => map.set(a.id, a));
+          fbItems.forEach((a) => map.set(a.id, a));
+          list = Array.from(map.values());
+        }
+      } catch (err) {
+        console.warn("Firestore fetch assignments notice:", err);
+      }
+    }
+
+    list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    setAssignments(list);
+  };
+
   // Initial load
   useEffect(() => {
     if (user && user.role === "teacher") {
       fetchSubmissions();
       fetchStudents();
+      fetchAssignments();
     }
   }, [user]);
 
@@ -235,8 +282,8 @@ export default function TeacherDashboardPage() {
             fbItems.forEach((item) => map.set(item.receiptCode || item.id, item));
             const merged = Array.from(map.values());
             merged.sort((a, b) => {
-              const timeA = new Date(a.submittedAt).getTime() || 0;
-              const timeB = new Date(b.submittedAt).getTime() || 0;
+              const timeA = parseSubmissionTimestamp(a.submittedAt);
+              const timeB = parseSubmissionTimestamp(b.submittedAt);
               return timeB - timeA;
             });
             return merged;
@@ -251,37 +298,9 @@ export default function TeacherDashboardPage() {
     return () => unsub();
   }, [user]);
 
-  // Auto-sync any local submissions on teacher machine to Firestore
-  useEffect(() => {
-    const firestore = db;
-    if (!firestore || !user || user.role !== "teacher") return;
-    try {
-      const raw = localStorage.getItem(LOCAL_SUBMISSIONS_KEY);
-      if (!raw) return;
-      const list: SubmissionItem[] = JSON.parse(raw);
-      if (Array.isArray(list) && list.length > 0) {
-        list.forEach(async (sub) => {
-          if (sub && sub.id) {
-            try {
-              const payload = cleanForFirestore({
-                ...sub,
-                timestamp: sub.submittedAt || new Date().toISOString(),
-              });
-              await setDoc(doc(firestore, "submissions", sub.id), payload, { merge: true });
-            } catch {
-              // Ignore
-            }
-          }
-        });
-      }
-    } catch {
-      // Ignore
-    }
-  }, [user]);
-
-  // Refresh both submissions and students
+  // Refresh all
   const handleRefreshAll = async () => {
-    await Promise.all([fetchSubmissions(), fetchStudents()]);
+    await Promise.all([fetchSubmissions(), fetchStudents(), fetchAssignments()]);
   };
 
   // Copy teacher code
@@ -299,13 +318,54 @@ export default function TeacherDashboardPage() {
     setTimeout(() => setCopiedPinStudentId(null), 2000);
   };
 
-  // Open review modal
+  // ---------------------------------------------------------------------------
+  // TASK ASSIGNMENT ACTIONS
+  // ---------------------------------------------------------------------------
+  const handleTaskAssigned = async (newAssignment: TeacherAssignment) => {
+    // 1. Save to local storage
+    const updated = [newAssignment, ...assignments];
+    setAssignments(updated);
+    try {
+      localStorage.setItem(LOCAL_ASSIGNMENTS_KEY, JSON.stringify(updated));
+    } catch {
+      // Ignore
+    }
+
+    // 2. Save to Firestore
+    if (db) {
+      try {
+        await setDoc(doc(db, "assignments", newAssignment.id), cleanForFirestore(newAssignment));
+      } catch (err) {
+        console.warn("Could not save assignment to Firestore:", err);
+      }
+    }
+  };
+
+  const handleArchiveAssignment = async (id: string) => {
+    if (!confirm("האם לארכב / למחוק משימה זו?")) return;
+
+    const filtered = assignments.filter((a) => a.id !== id);
+    setAssignments(filtered);
+    try {
+      localStorage.setItem(LOCAL_ASSIGNMENTS_KEY, JSON.stringify(filtered));
+    } catch {
+      // Ignore
+    }
+
+    if (db) {
+      try {
+        await deleteDoc(doc(db, "assignments", id));
+      } catch (err) {
+        console.warn("Firestore delete assignment error:", err);
+      }
+    }
+  };
+
+  // ---------------------------------------------------------------------------
+  // REVIEW & GRADING ACTIONS
+  // ---------------------------------------------------------------------------
   const handleOpenReview = (item: SubmissionItem) => {
     setReviewItem(item);
-    setGradeInput(item.grade !== undefined ? String(item.grade) : item.score !== undefined ? String(item.score) : "");
-    setFeedbackInput(item.teacherFeedback || item.teacherNote || "");
-    setSaveSuccess(false);
-
     if (item.writingRubric) {
       setWritingAiResult({
         score: item.grade ?? item.score ?? 0,
@@ -323,7 +383,90 @@ export default function TeacherDashboardPage() {
     }
   };
 
-  // Run AI review for a submission using the same logic and rubric as self-review
+  // Quick Inline Save Grade
+  const handleQuickSaveGrade = async (sub: SubmissionItem, grade?: number, feedback?: string) => {
+    const reviewedItem: SubmissionItem = {
+      ...sub,
+      grade,
+      teacherFeedback: feedback,
+      status: "reviewed",
+      reviewedAt: new Date().toLocaleString("he-IL"),
+    };
+
+    // 1. Update Firestore
+    if (db) {
+      try {
+        await updateDoc(doc(db, "submissions", sub.id), cleanForFirestore({
+          grade,
+          teacherFeedback: feedback,
+          status: "reviewed",
+          reviewedAt: new Date().toISOString(),
+        }));
+      } catch (err) {
+        console.warn("Firestore quick grade update notice:", err);
+      }
+    }
+
+    // 2. Update localStorage
+    try {
+      const existingRaw = localStorage.getItem(LOCAL_SUBMISSIONS_KEY);
+      if (existingRaw) {
+        const list: SubmissionItem[] = JSON.parse(existingRaw);
+        const updatedList = list.map((it) => (it.id === sub.id ? reviewedItem : it));
+        localStorage.setItem(LOCAL_SUBMISSIONS_KEY, JSON.stringify(updatedList));
+      }
+    } catch {
+      // Ignore
+    }
+
+    // 3. Update local state
+    setSubmissions((prev) => prev.map((it) => (it.id === sub.id ? reviewedItem : it)));
+    if (reviewItem?.id === sub.id) {
+      setReviewItem(reviewedItem);
+    }
+  };
+
+  // Full Modal Save Grade
+  const handleSaveGradeModal = async (updatedItem: SubmissionItem) => {
+    if (db) {
+      try {
+        await updateDoc(doc(db, "submissions", updatedItem.id), cleanForFirestore({
+          grade: updatedItem.grade,
+          teacherFeedback: updatedItem.teacherFeedback,
+          status: "reviewed",
+          reviewedAt: new Date().toISOString(),
+          ...(writingAiResult ? {
+            score: writingAiResult.score,
+            encouragement: writingAiResult.encouragement,
+            teacherNote: writingAiResult.teacherNote,
+            strengths: writingAiResult.strengths,
+            tips: writingAiResult.tips,
+            writingRubric: writingAiResult.rubric,
+            corrections: writingAiResult.corrections,
+            vocabularyUpgrades: writingAiResult.vocabularyUpgrades,
+          } : {}),
+        }));
+      } catch (err) {
+        console.warn("Firestore update grade notice:", err);
+      }
+    }
+
+    try {
+      const existingRaw = localStorage.getItem(LOCAL_SUBMISSIONS_KEY);
+      if (existingRaw) {
+        const list: SubmissionItem[] = JSON.parse(existingRaw);
+        const updatedList = list.map((it) => (it.id === updatedItem.id ? updatedItem : it));
+        localStorage.setItem(LOCAL_SUBMISSIONS_KEY, JSON.stringify(updatedList));
+      }
+    } catch {
+      // Ignore
+    }
+
+    setSubmissions((prev) => prev.map((it) => (it.id === updatedItem.id ? updatedItem : it)));
+    setReviewItem(updatedItem);
+  };
+
+  // AI Review Action
   const handleAiReview = async (sub: SubmissionItem) => {
     setLoadingAiSubId(sub.id);
     handleOpenReview(sub);
@@ -365,117 +508,25 @@ export default function TeacherDashboardPage() {
         if (data.success && data.evaluation) {
           const evalRes: WritingEvaluationResult = data.evaluation;
           setWritingAiResult(evalRes);
-          setGradeInput(String(evalRes.score));
-          if (evalRes.teacherNote) {
-            setFeedbackInput(evalRes.teacherNote);
-          } else if (evalRes.encouragement) {
-            setFeedbackInput(evalRes.encouragement);
-          }
         } else {
           alert(data.error || "אירעה שגיאה בבדיקת ה-AI. אנא נסו שוב.");
         }
       } catch (err) {
         console.error("AI Review error:", err);
-        alert("לא ניתן היה להתחבר לשירות בדיקת ה-AI. אנא בדקו את החיבור לרשת ונסו שוב.");
+        alert("לא ניתן היה להתחבר לשירות בדיקת ה-AI.");
       } finally {
         setIsEvaluatingAi(false);
         setLoadingAiSubId(null);
       }
-    } else if (sub.type === "unseen") {
-      // Unseen submissions already possess auto-evaluation
-      if (sub.score !== undefined) {
-        setGradeInput(String(sub.grade ?? sub.score));
-      }
-      if (sub.teacherNote || sub.encouragement) {
-        setFeedbackInput(sub.teacherFeedback || sub.teacherNote || sub.encouragement || "");
-      }
+    } else {
       setLoadingAiSubId(null);
     }
   };
 
-  // Save grade and teacher feedback
-  const handleSaveGrade = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!reviewItem) return;
-
-    setIsSavingGrade(true);
-
-    const numericGrade = gradeInput.trim() !== "" ? Number(gradeInput.trim()) : undefined;
-    const reviewedItem: SubmissionItem = {
-      ...reviewItem,
-      grade: numericGrade,
-      teacherFeedback: feedbackInput.trim(),
-      status: "reviewed",
-      reviewedAt: new Date().toLocaleString("he-IL"),
-      ...(writingAiResult ? {
-        score: writingAiResult.score,
-        encouragement: writingAiResult.encouragement,
-        teacherNote: writingAiResult.teacherNote,
-        strengths: writingAiResult.strengths,
-        tips: writingAiResult.tips,
-        writingRubric: writingAiResult.rubric,
-        corrections: writingAiResult.corrections,
-        vocabularyUpgrades: writingAiResult.vocabularyUpgrades,
-      } : {}),
-    };
-
-    // 1. Update in Firestore
-    if (db) {
-      try {
-        const ref = doc(db, "submissions", reviewItem.id);
-        const updatePayload = cleanForFirestore({
-          grade: numericGrade,
-          teacherFeedback: feedbackInput.trim(),
-          status: "reviewed",
-          reviewedAt: new Date().toISOString(),
-          ...(writingAiResult ? {
-            score: writingAiResult.score,
-            encouragement: writingAiResult.encouragement,
-            teacherNote: writingAiResult.teacherNote,
-            strengths: writingAiResult.strengths,
-            tips: writingAiResult.tips,
-            writingRubric: writingAiResult.rubric,
-            corrections: writingAiResult.corrections,
-            vocabularyUpgrades: writingAiResult.vocabularyUpgrades,
-          } : {}),
-        });
-        await updateDoc(ref, updatePayload);
-      } catch (err) {
-        console.warn("Firestore update notice:", err);
-      }
-    }
-
-    // 2. Update in localStorage
-    try {
-      const existingRaw = localStorage.getItem(LOCAL_SUBMISSIONS_KEY);
-      if (existingRaw) {
-        const list: SubmissionItem[] = JSON.parse(existingRaw);
-        const updatedList = list.map((item) =>
-          item.id === reviewItem.id ? reviewedItem : item
-        );
-        localStorage.setItem(LOCAL_SUBMISSIONS_KEY, JSON.stringify(updatedList));
-      }
-    } catch {
-      // Ignore
-    }
-
-    // 3. Update local state
-    setSubmissions((prev) =>
-      prev.map((item) => (item.id === reviewItem.id ? reviewedItem : item))
-    );
-    setReviewItem(reviewedItem);
-    setIsSavingGrade(false);
-    setSaveSuccess(true);
-    setTimeout(() => setSaveSuccess(false), 3000);
-  };
-
   // Delete submission
   const handleDeleteSubmission = async (id: string, studentName: string) => {
-    if (!confirm(`האם למחוק את ההגשה של התלמיד/ה "${studentName}"?`)) {
-      return;
-    }
+    if (!confirm(`האם למחוק את ההגשה של התלמיד/ה "${studentName}"?`)) return;
 
-    // 1. Delete from Firestore
     if (db) {
       try {
         await deleteDoc(doc(db, "submissions", id));
@@ -484,33 +535,29 @@ export default function TeacherDashboardPage() {
       }
     }
 
-    // 2. Delete from localStorage
     try {
       const existingRaw = localStorage.getItem(LOCAL_SUBMISSIONS_KEY);
       if (existingRaw) {
         const list: SubmissionItem[] = JSON.parse(existingRaw);
-        const updatedList = list.filter((item) => item.id !== id);
-        localStorage.setItem(LOCAL_SUBMISSIONS_KEY, JSON.stringify(updatedList));
+        localStorage.setItem(LOCAL_SUBMISSIONS_KEY, JSON.stringify(list.filter((it) => it.id !== id)));
       }
     } catch {
       // Ignore
     }
 
-    // 3. Update local state
-    setSubmissions((prev) => prev.filter((item) => item.id !== id));
-    if (reviewItem?.id === id) {
-      setReviewItem(null);
-    }
+    setSubmissions((prev) => prev.filter((it) => it.id !== id));
+    if (reviewItem?.id === id) setReviewItem(null);
   };
 
-  // -------------------------------------------------------------
-  // STUDENT MANAGEMENT ACTIONS
-  // -------------------------------------------------------------
+  // ---------------------------------------------------------------------------
+  // STUDENT ROSTER ACTIONS (Including Manual Grouping Editing)
+  // ---------------------------------------------------------------------------
   const handleOpenAddStudent = () => {
     setEditingStudent(null);
     setStudentNameInput("");
     setStudentGradeInput("ז");
     setStudentNumberInput(1);
+    setStudentGroupInput("א1");
     setStudentPinInput(String(Math.floor(1000 + Math.random() * 9000)));
     setStudentFormError(null);
     setStudentModalOpen(true);
@@ -521,14 +568,14 @@ export default function TeacherDashboardPage() {
     setStudentNameInput(student.name);
     setStudentGradeInput(student.classGrade || "ז");
     setStudentNumberInput(student.classNumber || 1);
+    setStudentGroupInput(student.group || "א1");
     setStudentPinInput(student.pin || "");
     setStudentFormError(null);
     setStudentModalOpen(true);
   };
 
   const handleGenerateRandomPin = () => {
-    const pin = String(Math.floor(1000 + Math.random() * 9000));
-    setStudentPinInput(pin);
+    setStudentPinInput(String(Math.floor(1000 + Math.random() * 9000)));
   };
 
   const handleSaveStudent = async (e: React.FormEvent) => {
@@ -550,6 +597,8 @@ export default function TeacherDashboardPage() {
     }
 
     setIsSavingStudent(true);
+    const chosenGroup: StudentGroup | undefined =
+      studentGroupInput === "none" ? undefined : (studentGroupInput as StudentGroup);
 
     if (editingStudent) {
       const fullClass = `${studentGradeInput}׳${studentNumberInput}`;
@@ -558,6 +607,7 @@ export default function TeacherDashboardPage() {
         classGrade: studentGradeInput,
         classNumber: studentNumberInput,
         fullClass,
+        group: chosenGroup,
         pin: cleanPin,
       });
       setIsSavingStudent(false);
@@ -572,6 +622,7 @@ export default function TeacherDashboardPage() {
                   classGrade: studentGradeInput,
                   classNumber: studentNumberInput,
                   fullClass,
+                  group: chosenGroup,
                   pin: cleanPin,
                 }
               : s
@@ -587,6 +638,7 @@ export default function TeacherDashboardPage() {
         studentName: cleanName,
         classGrade: studentGradeInput,
         classNumber: studentNumberInput,
+        group: chosenGroup,
         pin: cleanPin,
       });
       setIsSavingStudent(false);
@@ -603,71 +655,20 @@ export default function TeacherDashboardPage() {
   };
 
   const handleDeleteStudent = async (student: StudentProfile) => {
-    if (!confirm(`האם להסיר את התלמיד/ה "${student.name}" (${student.fullClass || "כיתה"}) מרשימת הכיתה?`)) {
-      return;
-    }
+    if (!confirm(`האם להסיר את התלמיד/ה "${student.name}" (${student.fullClass || "כיתה"})?`)) return;
 
     const res = await deleteStudent(student.id);
     if (res.success) {
       setStudents((prev) => prev.filter((s) => s.id !== student.id));
-      if (historyStudent?.id === student.id) {
-        setHistoryStudent(null);
-      }
+      if (historyStudent?.id === student.id) setHistoryStudent(null);
     } else {
       alert(res.error || "שגיאה בהסרת התלמיד/ה.");
     }
   };
 
-  // -------------------------------------------------------------
+  // ---------------------------------------------------------------------------
   // FILTERING & STATS
-  // -------------------------------------------------------------
-  const filteredSubmissions = useMemo(() => {
-    return submissions.filter((item) => {
-      // Search query
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase().trim();
-        const matchesStudent = item.studentName.toLowerCase().includes(q);
-        const matchesTitle = item.hebrewTitle.toLowerCase().includes(q) || item.taskTitle.toLowerCase().includes(q);
-        const matchesCode = item.receiptCode?.toLowerCase().includes(q);
-        if (!matchesStudent && !matchesTitle && !matchesCode) return false;
-      }
-
-      // Status filter
-      if (statusFilter !== "all" && item.status !== statusFilter) {
-        return false;
-      }
-
-      // Type filter
-      if (typeFilter !== "all" && item.type !== typeFilter) {
-        return false;
-      }
-
-      // Class filter
-      if (classFilter !== "all" && item.studentClass !== classFilter) {
-        return false;
-      }
-
-      return true;
-    });
-  }, [submissions, searchQuery, statusFilter, typeFilter, classFilter]);
-
-  const filteredStudents = useMemo(() => {
-    return students.filter((s) => {
-      if (studentSearchQuery.trim()) {
-        const q = studentSearchQuery.toLowerCase().trim();
-        const matchesName = s.name.toLowerCase().includes(q);
-        const matchesClass = (s.fullClass || "").toLowerCase().includes(q);
-        if (!matchesName && !matchesClass) return false;
-      }
-      if (studentClassFilter !== "all") {
-        if (s.fullClass !== studentClassFilter && s.classGrade !== studentClassFilter) {
-          return false;
-        }
-      }
-      return true;
-    });
-  }, [students, studentSearchQuery, studentClassFilter]);
-
+  // ---------------------------------------------------------------------------
   // Available classes for filters
   const availableClasses = useMemo(() => {
     const classSet = new Set<string>(["ז'1", "ז'2", "ז'3", "ח'1", "ח'2", "ח'3", "ט'1", "ט'2", "ט'3"]);
@@ -680,16 +681,57 @@ export default function TeacherDashboardPage() {
     return Array.from(classSet).sort();
   }, [students, submissions]);
 
-  // Per-student stats helper
+  // Filtered submissions
+  const filteredSubmissions = useMemo(() => {
+    return submissions.filter((item) => {
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim();
+        const matchesStudent = item.studentName.toLowerCase().includes(q);
+        const matchesTitle = item.hebrewTitle.toLowerCase().includes(q) || item.taskTitle.toLowerCase().includes(q);
+        const matchesCode = item.receiptCode?.toLowerCase().includes(q);
+        if (!matchesStudent && !matchesTitle && !matchesCode) return false;
+      }
+      if (statusFilter !== "all" && item.status !== statusFilter) return false;
+      if (typeFilter !== "all" && item.type !== typeFilter) return false;
+      if (classFilter !== "all" && item.studentClass !== classFilter) return false;
+      if (groupFilter !== "all" && item.studentGroup !== groupFilter) return false;
+      return true;
+    });
+  }, [submissions, searchQuery, statusFilter, typeFilter, classFilter, groupFilter]);
+
+  // Filtered students
+  const filteredStudents = useMemo(() => {
+    return students.filter((s) => {
+      if (studentSearchQuery.trim()) {
+        const q = studentSearchQuery.toLowerCase().trim();
+        const matchesName = s.name.toLowerCase().includes(q);
+        const matchesClass = (s.fullClass || "").toLowerCase().includes(q);
+        if (!matchesName && !matchesClass) return false;
+      }
+      if (studentClassFilter !== "all") {
+        if (s.fullClass !== studentClassFilter && s.classGrade !== studentClassFilter) return false;
+      }
+      if (studentGroupFilter !== "all") {
+        if (s.group !== studentGroupFilter) return false;
+      }
+      return true;
+    });
+  }, [students, studentSearchQuery, studentClassFilter, studentGroupFilter]);
+
+  // Metrics
+  const totalSubmissionsCount = submissions.length;
+  const pendingSubmissionsCount = submissions.filter((s) => s.status === "submitted").length;
+  const reviewedSubmissionsCount = submissions.filter((s) => s.status === "reviewed").length;
+  const activeAssignmentsCount = assignments.filter((a) => a.status === "active").length;
+
+  // Student stats helper
   const getStudentStats = (student: StudentProfile) => {
     const studentSubs = submissions.filter(
       (sub) =>
         sub.studentId === student.id ||
         sub.studentName.toLowerCase().trim() === student.name.toLowerCase().trim()
     );
-    const gradedSubs = studentSubs.filter(
-      (sub) => sub.grade !== undefined || sub.score !== undefined
-    );
+    const gradedSubs = studentSubs.filter((sub) => sub.grade !== undefined || sub.score !== undefined);
     const avgScore =
       gradedSubs.length > 0
         ? Math.round(
@@ -700,39 +742,17 @@ export default function TeacherDashboardPage() {
 
     return {
       total: studentSubs.length,
-      reviewed: studentSubs.filter((s) => s.status === "reviewed").length,
-      pending: studentSubs.filter((s) => s.status === "submitted").length,
       average: avgScore,
       submissions: studentSubs,
     };
   };
 
-  // Submissions Stats
-  const totalSubmissionsCount = submissions.length;
-  const pendingSubmissionsCount = submissions.filter((s) => s.status === "submitted").length;
-  const reviewedSubmissionsCount = submissions.filter((s) => s.status === "reviewed").length;
-
-  // Global active students count (either registered or submitted)
-  const allStudentNames = new Set([
-    ...students.map((s) => s.name.trim().toLowerCase()),
-    ...submissions.map((s) => s.studentName.trim().toLowerCase()),
-  ]);
-  const totalUniqueStudents = Math.max(students.length, allStudentNames.size);
-
-  // Class Average Grade Calculation
-  const allGraded = submissions.filter((s) => s.grade !== undefined || s.score !== undefined);
-  const overallAverageGrade =
-    allGraded.length > 0
-      ? Math.round(allGraded.reduce((acc, curr) => acc + (curr.grade ?? curr.score ?? 0), 0) / allGraded.length)
-      : null;
-
-  // -------------------------------------------------------------
-  // ACCESS CONTROL: Strictly visible only for logged in teachers
-  // -------------------------------------------------------------
+  // ---------------------------------------------------------------------------
+  // AUTH GUARD
+  // ---------------------------------------------------------------------------
   if (!user || user.role !== "teacher") {
     return (
       <div className="flex flex-col min-h-screen bg-background text-foreground">
-        {/* Top Navbar */}
         <header className="sticky top-0 z-40 border-b border-border/60 bg-background/95 backdrop-blur">
           <div className="container mx-auto flex h-16 items-center justify-between px-4 sm:px-8">
             <HeaderTooltip label="חזרה לדף הראשי">
@@ -753,7 +773,6 @@ export default function TeacherDashboardPage() {
           </div>
         </header>
 
-        {/* Access Restricted Screen */}
         <main className="flex-1 flex items-center justify-center p-4">
           <Card className="max-w-md w-full border-border/80 shadow-lg text-center p-6 space-y-5" dir="rtl">
             <div className="p-3.5 rounded-2xl bg-destructive/10 text-destructive w-16 h-16 mx-auto flex items-center justify-center">
@@ -765,19 +784,14 @@ export default function TeacherDashboardPage() {
                 אזור מורים בלבד (Teacher Portal)
               </CardTitle>
               <CardDescription className="text-xs text-muted-foreground leading-relaxed">
-                לוח הבקרה מיועד למורי אנגלית בלבד לצורך צפייה וניהול של הגשות תלמידים, מתן ציונים והערות.
-                {user?.role === "student" && (
-                  <span className="block mt-2 font-bold text-foreground">
-                    כרגע הנך מחובר/ת כחשבון תלמיד/ה ({user.name}).
-                  </span>
-                )}
+                לוח הבקרה מיועד למורי אנגלית לצורך צפייה וניהול של הגשות תלמידים, הקצאת משימות ומתן משוב.
               </CardDescription>
             </div>
 
             <div className="space-y-2 pt-2">
               <Button
                 onClick={() => setAuthModalOpen(true)}
-                className="w-full gap-2 text-xs font-bold cursor-pointer bg-primary hover:bg-primary/90"
+                className="w-full gap-2 text-xs font-bold cursor-pointer bg-primary hover:bg-primary/90 text-primary-foreground"
               >
                 <GraduationCap className="h-4 w-4" />
                 <span>התחברות כמורה מורשה</span>
@@ -797,9 +811,9 @@ export default function TeacherDashboardPage() {
     );
   }
 
-  // -------------------------------------------------------------
-  // TEACHER DASHBOARD VIEW (Authorized Teacher)
-  // -------------------------------------------------------------
+  // ---------------------------------------------------------------------------
+  // MAIN DASHBOARD VIEW
+  // ---------------------------------------------------------------------------
   return (
     <div className="flex flex-col min-h-screen bg-background text-foreground print:bg-white print:text-black overflow-x-hidden">
       {/* Top Navbar */}
@@ -817,18 +831,32 @@ export default function TeacherDashboardPage() {
             </HeaderTooltip>
             <div className="h-4 w-[1px] bg-border hidden sm:block" />
             <div className="flex items-center gap-2 min-w-0">
-              <div className="p-1.5 rounded-md bg-purple-500/10 text-purple-600 dark:text-purple-400 shrink-0">
+              <div className="p-1.5 rounded-lg bg-primary/10 text-primary shrink-0">
                 <GraduationCap className="h-4 w-4" />
               </div>
               <span className="font-bold text-xs sm:text-base truncate">
                 <span>לוח מורה</span>
-                <span className="hidden sm:inline"> &bull; {user.schoolName || "חטיבת ביניים בן גוריון"}</span>
+                <span className="hidden sm:inline"> &bull; {user.schoolName || "חטיבת ביניים"}</span>
               </span>
             </div>
           </div>
 
-          <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
-            <HeaderTooltip label="רענון נתוני כיתה והגשות">
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+            {/* Teacher Code Chip */}
+            {user.teacherCode && (
+              <button
+                type="button"
+                onClick={handleCopyCode}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-border/80 bg-muted/40 hover:bg-muted text-xs font-mono font-bold transition-colors cursor-pointer"
+                title="לחץ להעתקת קוד המורה לתלמידים"
+              >
+                <span className="text-[11px] text-muted-foreground font-sans font-normal hidden md:inline">קוד מורה:</span>
+                <span className="text-primary">{user.teacherCode}</span>
+                {copiedCode ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3 text-muted-foreground" />}
+              </button>
+            )}
+
+            <HeaderTooltip label="רענון נתונים">
               <Button
                 variant="outline"
                 size="icon"
@@ -837,7 +865,11 @@ export default function TeacherDashboardPage() {
                 className="h-9 w-9 cursor-pointer border-border/80 shrink-0"
                 aria-label="רענן"
               >
-                <RefreshCw className={`h-4 w-4 ${(isLoadingSubmissions || isLoadingStudents) ? "animate-spin text-primary" : ""}`} />
+                <RefreshCw
+                  className={`h-4 w-4 ${
+                    isLoadingSubmissions || isLoadingStudents ? "animate-spin text-primary" : ""
+                  }`}
+                />
               </Button>
             </HeaderTooltip>
 
@@ -848,67 +880,127 @@ export default function TeacherDashboardPage() {
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="flex-1 container mx-auto px-3 sm:px-8 py-5 sm:py-8 space-y-5 sm:space-y-6">
-        {/* Welcome & Teacher Class Code Card */}
-        <div className="p-4 sm:p-6 rounded-2xl border border-primary/20 bg-card shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4 print:hidden" dir="rtl">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-primary px-2.5 py-0.5 rounded-full bg-primary/10">
-                סגל הוראה &bull; {user.schoolName || "חטיבת ביניים בן גוריון"}
-              </span>
-            </div>
-            <h1 className="text-lg sm:text-2xl font-black text-foreground">
+      {/* Main Container */}
+      <main className="flex-1 container mx-auto px-3 sm:px-8 py-5 sm:py-7 space-y-5">
+        {/* Minimalist Greeting & Action Bar */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 print:hidden" dir="rtl">
+          <div>
+            <h1 className="text-lg sm:text-xl font-black text-foreground">
               שלום, {user.name}! 👋
             </h1>
             <p className="text-xs text-muted-foreground">
-              ניהול מקיף של תלמידי הכיתה, צפייה במטלות שהוגשו, הזנת ציונים ומשוב אישי.
+              לוח הבקרה המרכזי למעקב אחר הגשות, מתן ציונים והקצאת משימות לתלמידים.
             </p>
           </div>
 
-          {/* Class Code Box */}
-          {user.teacherCode && (
-            <div className="p-3 sm:p-3.5 rounded-xl border border-border bg-muted/30 flex items-center justify-between gap-3 w-full md:w-auto min-w-0 sm:min-w-[260px]">
-              <div>
-                <span className="text-[10px] sm:text-[11px] text-muted-foreground block font-semibold">קוד המורה שלך לתלמידים:</span>
-                <span className="font-mono text-base sm:text-lg font-black tracking-wider text-primary">
-                  {user.teacherCode}
-                </span>
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleCopyCode}
-                className="h-8 text-xs gap-1.5 cursor-pointer shrink-0"
-              >
-                {copiedCode ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
-                <span>{copiedCode ? "הועתק!" : "העתק קוד"}</span>
-              </Button>
-            </div>
-          )}
+          <div className="flex items-center gap-2 shrink-0">
+            <Button
+              size="sm"
+              onClick={() => setAssignModalOpen(true)}
+              className="h-9 text-xs font-bold gap-1.5 cursor-pointer bg-primary hover:bg-primary/90 text-primary-foreground shadow-xs px-4"
+            >
+              <Send className="h-3.5 w-3.5" />
+              <span>הקצה משימה חדשה</span>
+            </Button>
+          </div>
         </div>
 
-        {/* View Mode Navigation Tabs */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/80 pb-3 print:hidden" dir="rtl">
-          <div className="flex items-center gap-2">
+        {/* Minimalist KPI Metrics Strip - Compact Single Row */}
+        <div className="grid grid-cols-4 gap-2 print:hidden" dir="rtl">
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab("submissions");
+              setStatusFilter("all");
+            }}
+            className={`py-1.5 px-3 rounded-lg border text-right transition-all cursor-pointer shadow-2xs flex items-center justify-between ${
+              activeTab === "submissions" && statusFilter === "all"
+                ? "border-primary/50 bg-primary/5 ring-1 ring-primary/30"
+                : "border-border/70 bg-card hover:border-primary/30 hover:bg-muted/30"
+            }`}
+          >
+            <span className="text-[11px] text-muted-foreground font-medium">סה״כ הגשות</span>
+            <span className="text-sm font-black text-foreground">{totalSubmissionsCount}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab("submissions");
+              setStatusFilter("submitted");
+            }}
+            className={`py-1.5 px-3 rounded-lg border text-right transition-all cursor-pointer shadow-2xs flex items-center justify-between ${
+              activeTab === "submissions" && statusFilter === "submitted"
+                ? "border-amber-500/50 bg-amber-500/5 ring-1 ring-amber-500/30"
+                : "border-border/70 bg-card hover:border-amber-500/30 hover:bg-muted/30"
+            }`}
+          >
+            <div className="flex items-center gap-1.5">
+              <span className="text-[11px] text-muted-foreground font-medium">ממתינות לבדיקה</span>
+              {pendingSubmissionsCount > 0 && (
+                <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
+              )}
+            </div>
+            <span className="text-sm font-black text-amber-600 dark:text-amber-400">
+              {pendingSubmissionsCount}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab("submissions");
+              setStatusFilter("reviewed");
+            }}
+            className={`py-1.5 px-3 rounded-lg border text-right transition-all cursor-pointer shadow-2xs flex items-center justify-between ${
+              activeTab === "submissions" && statusFilter === "reviewed"
+                ? "border-emerald-500/50 bg-emerald-500/5 ring-1 ring-emerald-500/30"
+                : "border-border/70 bg-card hover:border-emerald-500/30 hover:bg-muted/30"
+            }`}
+          >
+            <span className="text-[11px] text-muted-foreground font-medium">נבדקו וניתן ציון</span>
+            <span className="text-sm font-black text-emerald-600 dark:text-emerald-400">
+              {reviewedSubmissionsCount}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab("assignments")}
+            className={`py-1.5 px-3 rounded-lg border text-right transition-all cursor-pointer shadow-2xs flex items-center justify-between ${
+              activeTab === "assignments"
+                ? "border-primary/50 bg-primary/5 ring-1 ring-primary/30"
+                : "border-border/70 bg-card hover:border-primary/30 hover:bg-muted/30"
+            }`}
+          >
+            <span className="text-[11px] text-muted-foreground font-medium">משימות שהוקצו</span>
+            <span className="text-sm font-black text-foreground">
+              {activeAssignmentsCount}
+            </span>
+          </button>
+        </div>
+
+        {/* Segmented Navigation Tabs */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/80 pb-2.5 print:hidden" dir="rtl">
+          <div className="flex items-center gap-1.5 overflow-x-auto">
             <button
               type="button"
               onClick={() => setActiveTab("submissions")}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer shrink-0 ${
                 activeTab === "submissions"
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "bg-muted/50 text-muted-foreground hover:text-foreground hover:bg-muted"
+                  ? "bg-primary text-primary-foreground shadow-xs"
+                  : "bg-muted/40 text-muted-foreground hover:text-foreground hover:bg-muted"
               }`}
             >
               <FileText className="h-4 w-4" />
-              <span>הגשות ובדיקת מטלות</span>
-              <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${
+              <span>טבלת הגשות ובדיקה</span>
+              <span className={`px-2 py-0.2 rounded-full text-[11px] font-bold ${
                 activeTab === "submissions" ? "bg-primary-foreground/20 text-primary-foreground" : "bg-muted text-muted-foreground"
               }`}>
                 {totalSubmissionsCount}
               </span>
               {pendingSubmissionsCount > 0 && (
-                <span className="px-1.5 py-0.5 rounded-full text-[10px] font-black bg-amber-500 text-white">
+                <span className="px-1.5 py-0.2 rounded-full text-[10px] font-black bg-amber-500 text-white">
                   {pendingSubmissionsCount} להערכה
                 </span>
               )}
@@ -916,16 +1008,34 @@ export default function TeacherDashboardPage() {
 
             <button
               type="button"
+              onClick={() => setActiveTab("assignments")}
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer shrink-0 ${
+                activeTab === "assignments"
+                  ? "bg-primary text-primary-foreground shadow-xs"
+                  : "bg-muted/40 text-muted-foreground hover:text-foreground hover:bg-muted"
+              }`}
+            >
+              <Send className="h-3.5 w-3.5" />
+              <span>משימות שהוקצו</span>
+              <span className={`px-2 py-0.2 rounded-full text-[11px] font-bold ${
+                activeTab === "assignments" ? "bg-primary-foreground/20 text-primary-foreground" : "bg-muted text-muted-foreground"
+              }`}>
+                {assignments.length}
+              </span>
+            </button>
+
+            <button
+              type="button"
               onClick={() => setActiveTab("students")}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer shrink-0 ${
                 activeTab === "students"
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "bg-muted/50 text-muted-foreground hover:text-foreground hover:bg-muted"
+                  ? "bg-primary text-primary-foreground shadow-xs"
+                  : "bg-muted/40 text-muted-foreground hover:text-foreground hover:bg-muted"
               }`}
             >
               <Users className="h-4 w-4" />
               <span>ניהול תלמידים רשומים</span>
-              <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${
+              <span className={`px-2 py-0.2 rounded-full text-[11px] font-bold ${
                 activeTab === "students" ? "bg-primary-foreground/20 text-primary-foreground" : "bg-muted text-muted-foreground"
               }`}>
                 {students.length}
@@ -934,7 +1044,7 @@ export default function TeacherDashboardPage() {
           </div>
 
           {activeTab === "students" && (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 shrink-0">
               <Button
                 size="sm"
                 onClick={handleOpenAddStudent}
@@ -958,70 +1068,21 @@ export default function TeacherDashboardPage() {
           )}
         </div>
 
-        {/* TAB 1: SUBMISSIONS VIEW */}
+        {/* -------------------------------------------------------------------
+            TAB 1: SUBMISSIONS TABLE VIEW
+            ------------------------------------------------------------------- */}
         {activeTab === "submissions" && (
-          <div className="space-y-5 print:hidden">
-            {/* Stats Row */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4" dir="rtl">
-              <Card className="border-border/80 shadow-xs">
-                <CardContent className="p-4 flex items-center gap-3">
-                  <div className="p-2.5 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400">
-                    <FileText className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <span className="text-xs text-muted-foreground block">סה״כ הגשות:</span>
-                    <span className="text-2xl font-black text-foreground">{totalSubmissionsCount}</span>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="border-border/80 shadow-xs">
-                <CardContent className="p-4 flex items-center gap-3">
-                  <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
-                    <Clock className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <span className="text-xs text-muted-foreground block">ממתינות לבדיקה:</span>
-                    <span className="text-2xl font-black text-amber-600 dark:text-amber-400">{pendingSubmissionsCount}</span>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="border-border/80 shadow-xs">
-                <CardContent className="p-4 flex items-center gap-3">
-                  <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-                    <CheckCircle2 className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <span className="text-xs text-muted-foreground block">נבדקו וניתן ציון:</span>
-                    <span className="text-2xl font-black text-emerald-600 dark:text-emerald-400">{reviewedSubmissionsCount}</span>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="border-border/80 shadow-xs">
-                <CardContent className="p-4 flex items-center gap-3">
-                  <div className="p-2.5 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400">
-                    <Users className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <span className="text-xs text-muted-foreground block">תלמידים במערכת:</span>
-                    <span className="text-2xl font-black text-foreground">{totalUniqueStudents}</span>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Submissions Filters Toolbar */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-border/50 pb-4" dir="rtl">
+          <div className="space-y-4 print:hidden" dir="rtl">
+            {/* Filter Toolbar */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
               <div className="flex flex-wrap items-center gap-2">
-                {/* Status Tabs */}
-                <div className="inline-flex rounded-lg p-1 bg-muted/60 border border-border/80 text-xs overflow-x-auto max-w-full">
+                {/* Status Segmented Tabs */}
+                <div className="inline-flex rounded-lg p-0.5 bg-muted/60 border border-border/80 text-xs">
                   <button
                     type="button"
                     onClick={() => setStatusFilter("all")}
-                    className={`px-2 sm:px-2.5 py-1 rounded-md font-semibold transition-colors cursor-pointer text-xs shrink-0 ${
-                      statusFilter === "all" ? "bg-background text-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"
+                    className={`px-2.5 py-1 rounded-md font-semibold transition-colors cursor-pointer text-xs ${
+                      statusFilter === "all" ? "bg-background text-foreground shadow-2xs" : "text-muted-foreground hover:text-foreground"
                     }`}
                   >
                     הכל ({totalSubmissionsCount})
@@ -1029,7 +1090,7 @@ export default function TeacherDashboardPage() {
                   <button
                     type="button"
                     onClick={() => setStatusFilter("submitted")}
-                    className={`px-2 sm:px-2.5 py-1 rounded-md font-semibold transition-colors cursor-pointer text-xs shrink-0 ${
+                    className={`px-2.5 py-1 rounded-md font-semibold transition-colors cursor-pointer text-xs ${
                       statusFilter === "submitted" ? "bg-amber-500/20 text-amber-800 dark:text-amber-200" : "text-muted-foreground hover:text-foreground"
                     }`}
                   >
@@ -1038,7 +1099,7 @@ export default function TeacherDashboardPage() {
                   <button
                     type="button"
                     onClick={() => setStatusFilter("reviewed")}
-                    className={`px-2 sm:px-2.5 py-1 rounded-md font-semibold transition-colors cursor-pointer text-xs shrink-0 ${
+                    className={`px-2.5 py-1 rounded-md font-semibold transition-colors cursor-pointer text-xs ${
                       statusFilter === "reviewed" ? "bg-emerald-500/20 text-emerald-800 dark:text-emerald-200" : "text-muted-foreground hover:text-foreground"
                     }`}
                   >
@@ -1050,7 +1111,7 @@ export default function TeacherDashboardPage() {
                 <select
                   value={typeFilter}
                   onChange={(e) => setTypeFilter(e.target.value as "all" | "writing" | "unseen")}
-                  className="h-8 rounded-lg border border-input bg-background px-2.5 text-xs shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring cursor-pointer"
+                  className="h-8 rounded-lg border border-input bg-background px-2.5 text-xs shadow-2xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring cursor-pointer"
                 >
                   <option value="all">כל המשימות</option>
                   <option value="writing">✍️ כתיבה</option>
@@ -1061,7 +1122,7 @@ export default function TeacherDashboardPage() {
                 <select
                   value={classFilter}
                   onChange={(e) => setClassFilter(e.target.value)}
-                  className="h-8 rounded-lg border border-input bg-background px-2.5 text-xs shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring cursor-pointer"
+                  className="h-8 rounded-lg border border-input bg-background px-2.5 text-xs shadow-2xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring cursor-pointer"
                 >
                   <option value="all">כל הכיתות</option>
                   {availableClasses.map((cls) => (
@@ -1069,6 +1130,18 @@ export default function TeacherDashboardPage() {
                       כיתה {cls}
                     </option>
                   ))}
+                </select>
+
+                {/* Grouping Filter */}
+                <select
+                  value={groupFilter}
+                  onChange={(e) => setGroupFilter(e.target.value)}
+                  className="h-8 rounded-lg border border-input bg-background px-2.5 text-xs shadow-2xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring cursor-pointer"
+                >
+                  <option value="all">כל ההקבצות</option>
+                  <option value="א1">הקבצה א1</option>
+                  <option value="א2">הקבצה א2</option>
+                  <option value="ב">הקבצה ב</option>
                 </select>
               </div>
 
@@ -1085,243 +1158,52 @@ export default function TeacherDashboardPage() {
               </div>
             </div>
 
-            {/* Submissions List */}
-            <div className="space-y-3" dir="rtl">
-              {filteredSubmissions.length === 0 ? (
-                <div className="py-16 text-center space-y-3 rounded-2xl border border-dashed border-border/80 bg-muted/20">
-                  <FileText className="h-10 w-10 text-muted-foreground/50 mx-auto" />
-                  <div className="space-y-1">
-                    <h3 className="font-bold text-base text-foreground">
-                      לא נמצאו הגשות תואמות
-                    </h3>
-                    <p className="text-xs text-muted-foreground max-w-sm mx-auto">
-                      כאשר תלמידים יגישו משימות כתיבה או מבחני אנסין ויבחרו בך כמורה, ההגשות יופיעו כאן באופן אוטומטי.
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                filteredSubmissions.map((sub) => {
-                  const isReviewed = sub.status === "reviewed";
-                  return (
-                    <div
-                      key={sub.id}
-                      className="p-3.5 sm:p-4 rounded-xl border border-border/80 bg-card hover:border-primary/40 transition-colors shadow-xs space-y-3"
-                    >
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b border-border/40 pb-2.5">
-                        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-                          <span className="font-black text-sm sm:text-base text-foreground">
-                            {sub.studentName}
-                          </span>
-
-                          {sub.studentClass && (
-                            <Badge variant="outline" className="text-[10px]">
-                              {sub.studentClass}
-                            </Badge>
-                          )}
-
-                          <Badge variant="secondary" className="text-[10px]">
-                            {sub.type === "writing" ? "✍️ כתיבה" : "📖 אנסין"}
-                          </Badge>
-
-                          {isReviewed ? (
-                            <Badge variant="default" className="text-[10px] bg-emerald-600 text-white font-bold">
-                              ✓ נבדק {sub.grade !== undefined ? `(${sub.grade})` : sub.score !== undefined ? `(${sub.score})` : ""}
-                            </Badge>
-                          ) : (
-                            <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-500/40 bg-amber-500/10 font-bold">
-                              ⏳ ממתין
-                            </Badge>
-                          )}
-                        </div>
-
-                        <div className="flex items-center justify-between sm:justify-end gap-2 sm:gap-3 text-xs text-muted-foreground w-full sm:w-auto">
-                          <span className="text-[11px] sm:text-xs">{sub.submittedAt}</span>
-                          <div className="flex items-center gap-1.5">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleAiReview(sub)}
-                              disabled={loadingAiSubId === sub.id}
-                              className="h-7 text-xs font-bold gap-1 cursor-pointer border-purple-500/40 text-purple-700 dark:text-purple-300 bg-purple-500/10 hover:bg-purple-500/20 px-2.5 shadow-xs"
-                              title="הפעל בדיקת AI מקיפה עם מחוון וציון מומלץ"
-                            >
-                              {loadingAiSubId === sub.id ? (
-                                <>
-                                  <Loader2 className="h-3 w-3 animate-spin text-purple-600 dark:text-purple-400" />
-                                  <span>בודק ב-AI...</span>
-                                </>
-                              ) : (
-                                <>
-                                  <Sparkles className="h-3 w-3 text-purple-600 dark:text-purple-400" />
-                                  <span>בדיקת AI</span>
-                                </>
-                              )}
-                            </Button>
-
-                            <Button
-                              size="sm"
-                              onClick={() => handleOpenReview(sub)}
-                              className="h-7 text-xs font-bold gap-1 cursor-pointer bg-primary hover:bg-primary/90 px-2.5"
-                            >
-                              <Eye className="h-3 w-3" />
-                              <span>{isReviewed ? "צפה / ערוך" : "בדוק מטלה"}</span>
-                            </Button>
-
-                            <button
-                              onClick={() => handleDeleteSubmission(sub.id, sub.studentName)}
-                              className="p-1 text-muted-foreground hover:text-destructive transition-colors cursor-pointer"
-                              title="מחק הגשה"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs text-muted-foreground">
-                        <div>
-                          <span>משימה: </span>
-                          <strong className="text-foreground">{sub.hebrewTitle}</strong> ({sub.taskTitle})
-                        </div>
-                        {sub.type === "unseen" ? (
-                          <div>
-                            <span>רמת אנסין: </span>
-                            <strong className="text-foreground">{sub.storyLevel || "חטיבת ביניים"}</strong>
-                            {sub.score !== undefined && (
-                              <span className="mr-2"> &bull; ציון: <strong>{sub.grade ?? sub.score}/100</strong></span>
-                            )}
-                          </div>
-                        ) : (
-                          sub.wordCount !== undefined && (
-                            <div>
-                              <span>ספירת מילים: </span>
-                              <strong className="text-foreground">{sub.wordCount} מילים</strong>
-                            </div>
-                          )
-                        )}
-                        {sub.receiptCode && (
-                          <div>
-                            <span>קוד אישור: </span>
-                            <span className="font-mono font-bold text-foreground">{sub.receiptCode}</span>
-                          </div>
-                        )}
-                        {sub.type === "unseen" && sub.generationPrompt && (
-                          <div className="col-span-full flex items-start gap-2 p-2 rounded-lg bg-purple-500/10 border border-purple-500/20 text-xs text-foreground mt-1">
-                            <Sparkles className="h-3.5 w-3.5 text-purple-600 dark:text-purple-400 shrink-0 mt-0.5" />
-                            <div className="space-y-0.5 min-w-0">
-                              <span className="font-bold text-purple-900 dark:text-purple-200">
-                                פרומפט התלמיד/ה ליצירת הטקסט:{" "}
-                              </span>
-                              <span className="font-sans font-medium text-foreground/95" dir="auto">
-                                "{sub.generationPrompt}"
-                              </span>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Essay or Unseen snippet */}
-                      {sub.type === "unseen" ? (
-                        sub.passageText && (
-                          <div className="p-3 rounded-lg bg-muted/40 border border-border/40 font-sans text-xs text-foreground/90 line-clamp-2" dir="ltr">
-                            📖 {sub.passageText}
-                          </div>
-                        )
-                      ) : (
-                        sub.essayText && (
-                          <div className="p-3 rounded-lg bg-muted/40 border border-border/40 font-sans text-xs text-foreground/90 line-clamp-2" dir="ltr">
-                            {sub.essayText}
-                          </div>
-                        )
-                      )}
-
-                      {/* Teacher Feedback snippet if reviewed */}
-                      {sub.teacherFeedback && (
-                        <div className="p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-900 dark:text-emerald-200">
-                          <span className="font-bold block">הערת המורה לתלמיד/ה:</span>
-                          <p className="mt-0.5">{sub.teacherFeedback}</p>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })
-              )}
-            </div>
+            {/* Turn-ins Data Table */}
+            <TurnInsTable
+              submissions={filteredSubmissions}
+              onOpenFullReview={handleOpenReview}
+              onAiReview={handleAiReview}
+              onDeleteSubmission={handleDeleteSubmission}
+              onQuickSaveGrade={handleQuickSaveGrade}
+              loadingAiSubId={loadingAiSubId}
+            />
           </div>
         )}
 
-        {/* TAB 2: STUDENTS ROSTER & MANAGEMENT VIEW */}
+        {/* -------------------------------------------------------------------
+            TAB 2: ASSIGNED TASKS VIEW
+            ------------------------------------------------------------------- */}
+        {activeTab === "assignments" && (
+          <div className="print:hidden">
+            <AssignedTasksView
+              assignments={assignments}
+              submissions={submissions}
+              students={students}
+              onArchiveAssignment={handleArchiveAssignment}
+              onOpenAssignModal={() => setAssignModalOpen(true)}
+            />
+          </div>
+        )}
+
+        {/* -------------------------------------------------------------------
+            TAB 3: STUDENTS ROSTER VIEW
+            ------------------------------------------------------------------- */}
         {activeTab === "students" && (
-          <div className="space-y-5 print:hidden">
-            {/* Student Stats Cards */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4" dir="rtl">
-              <Card className="border-border/80 shadow-xs">
-                <CardContent className="p-4 flex items-center gap-3">
-                  <div className="p-2.5 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400">
-                    <Users className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <span className="text-xs text-muted-foreground block">רשומים בכיתה:</span>
-                    <span className="text-2xl font-black text-foreground">{students.length}</span>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="border-border/80 shadow-xs">
-                <CardContent className="p-4 flex items-center gap-3">
-                  <div className="p-2.5 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400">
-                    <Layers className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <span className="text-xs text-muted-foreground block">כיתות פעילות:</span>
-                    <span className="text-2xl font-black text-blue-600 dark:text-blue-400">
-                      {new Set(students.map((s) => s.fullClass).filter(Boolean)).size || 1}
-                    </span>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="border-border/80 shadow-xs">
-                <CardContent className="p-4 flex items-center gap-3">
-                  <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
-                    <FileText className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <span className="text-xs text-muted-foreground block">עבודות שהוגשו:</span>
-                    <span className="text-2xl font-black text-amber-600 dark:text-amber-400">
-                      {totalSubmissionsCount}
-                    </span>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="border-border/80 shadow-xs">
-                <CardContent className="p-4 flex items-center gap-3">
-                  <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-                    <Sparkles className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <span className="text-xs text-muted-foreground block">ממוצע כיתתי:</span>
-                    <span className="text-2xl font-black text-emerald-600 dark:text-emerald-400">
-                      {overallAverageGrade !== null ? `${overallAverageGrade}` : "—"}
-                    </span>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Students Toolbar */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-border/50 pb-4" dir="rtl">
+          <div className="space-y-4 print:hidden" dir="rtl">
+            {/* Toolbar */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
               <div className="flex flex-wrap items-center gap-2">
                 {/* Class Filter */}
                 <select
                   value={studentClassFilter}
                   onChange={(e) => setStudentClassFilter(e.target.value)}
-                  className="h-8 rounded-lg border border-input bg-background px-2.5 text-xs shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring cursor-pointer"
+                  className="h-8 rounded-lg border border-input bg-background px-2.5 text-xs shadow-2xs cursor-pointer"
                 >
                   <option value="all">כל הכיתות ({students.length})</option>
                   {availableClasses.map((cls) => {
-                    const countInClass = students.filter((s) => s.fullClass === cls || s.classGrade === cls).length;
+                    const countInClass = students.filter(
+                      (s) => s.fullClass === cls || s.classGrade === cls
+                    ).length;
                     return (
                       <option key={cls} value={cls}>
                         כיתה {cls} ({countInClass})
@@ -1330,7 +1212,19 @@ export default function TeacherDashboardPage() {
                   })}
                 </select>
 
-                {/* Show / Hide PINs button */}
+                {/* Grouping Filter */}
+                <select
+                  value={studentGroupFilter}
+                  onChange={(e) => setStudentGroupFilter(e.target.value)}
+                  className="h-8 rounded-lg border border-input bg-background px-2.5 text-xs shadow-2xs cursor-pointer"
+                >
+                  <option value="all">כל ההקבצות</option>
+                  <option value="א1">הקבצה א1</option>
+                  <option value="א2">הקבצה א2</option>
+                  <option value="ב">הקבצה ב</option>
+                </select>
+
+                {/* Show PINs Toggle */}
                 <Button
                   variant="outline"
                   size="sm"
@@ -1346,7 +1240,7 @@ export default function TeacherDashboardPage() {
               <div className="relative w-full md:w-64">
                 <Search className="h-3.5 w-3.5 absolute right-2.5 top-2.5 text-muted-foreground" />
                 <Input
-                  placeholder="חיפוש לפי שם תלמיד/ה או כיתה..."
+                  placeholder="חיפוש לפי שם או כיתה..."
                   value={studentSearchQuery}
                   onChange={(e) => setStudentSearchQuery(e.target.value)}
                   className="h-8 pr-8 pl-3 text-xs w-full"
@@ -1355,206 +1249,140 @@ export default function TeacherDashboardPage() {
               </div>
             </div>
 
-            {/* Students List / Table */}
-            <div className="space-y-3" dir="rtl">
-              {filteredStudents.length === 0 ? (
-                <div className="py-16 text-center space-y-4 rounded-2xl border border-dashed border-border/80 bg-muted/20">
-                  <div className="p-3 rounded-2xl bg-purple-500/10 text-purple-600 dark:text-purple-400 w-14 h-14 mx-auto flex items-center justify-center">
-                    <Users className="h-7 w-7" />
-                  </div>
-                  <div className="space-y-1.5 max-w-md mx-auto">
-                    <h3 className="font-bold text-base text-foreground">
-                      {students.length === 0
-                        ? "טרם נרשמו תלמידים תחת חשבונך"
-                        : "לא נמצאו תלמידים התואמים לחיפוש"}
-                    </h3>
-                    <p className="text-xs text-muted-foreground leading-relaxed">
-                      {students.length === 0
-                        ? `תלמידים יכולים להירשם באופן עצמאי באמצעות קוד המורה שלך (${user.teacherCode || "TEACHER"}), או שתוכל/י להוסיף תלמידים ישירות כאן.`
-                        : "נסה/י לשנות את הכיתה שנבחרה או לבדוק את איות השם."}
-                    </p>
-                  </div>
-                  {students.length === 0 && (
-                    <Button
-                      onClick={handleOpenAddStudent}
-                      className="gap-2 text-xs font-bold cursor-pointer bg-primary hover:bg-primary/90"
+            {/* Students List */}
+            {filteredStudents.length === 0 ? (
+              <div className="py-16 text-center space-y-3 rounded-2xl border border-dashed border-border/80 bg-muted/20">
+                <Users className="h-10 w-10 text-muted-foreground/50 mx-auto" />
+                <h3 className="font-bold text-sm text-foreground">
+                  {students.length === 0 ? "טרם נרשמו תלמידים" : "לא נמצאו תלמידים תואמים"}
+                </h3>
+                <p className="text-xs text-muted-foreground max-w-sm mx-auto">
+                  תוכל/י להוסיף תלמידים ידנית או שהם ירשמו בעצמם עם קוד המורה שלך.
+                </p>
+                {students.length === 0 && (
+                  <Button
+                    size="sm"
+                    onClick={handleOpenAddStudent}
+                    className="gap-2 text-xs font-bold cursor-pointer bg-primary hover:bg-primary/90 text-primary-foreground"
+                  >
+                    <UserPlus className="h-4 w-4" />
+                    <span>הוסף תלמיד/ה ראשונ/ה</span>
+                  </Button>
+                )}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+                {filteredStudents.map((student) => {
+                  const stats = getStudentStats(student);
+                  const isCopied = copiedPinStudentId === student.id;
+
+                  return (
+                    <div
+                      key={student.id}
+                      className="p-4 rounded-2xl border border-border/80 bg-card hover:border-primary/40 transition-all shadow-2xs flex flex-col justify-between gap-3"
                     >
-                      <UserPlus className="h-4 w-4" />
-                      <span>הוסף תלמיד/ה ראשונ/ה</span>
-                    </Button>
-                  )}
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
-                  {filteredStudents.map((student) => {
-                    const stats = getStudentStats(student);
-                    const isCopied = copiedPinStudentId === student.id;
+                      <div className="space-y-2">
+                        {/* Top: Name, Class, Group & Actions */}
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <h4 className="font-black text-sm text-foreground truncate" dir="ltr">
+                              {student.name}
+                            </h4>
+                            <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                              <Badge variant="outline" className="text-[10px] font-bold">
+                                {student.fullClass || "כיתה"}
+                              </Badge>
 
-                    return (
-                      <div
-                        key={student.id}
-                        className="p-4 rounded-xl border border-border/80 bg-card hover:border-primary/40 transition-all shadow-xs flex flex-col justify-between gap-3"
-                      >
-                        {/* Top: Name & Class */}
-                        <div className="space-y-2">
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="min-w-0">
-                              <h4 className="font-black text-sm sm:text-base text-foreground truncate" dir="ltr">
-                                {student.name}
-                              </h4>
-                              <div className="flex items-center gap-1.5 mt-0.5">
-                                <Badge variant="outline" className="text-[10px] font-bold">
-                                  {student.fullClass || "כיתה"}
+                              {student.group ? (
+                                <Badge
+                                  variant="outline"
+                                  className="text-[10px] font-bold border-purple-500/40 text-purple-700 dark:text-purple-300 bg-purple-500/10"
+                                >
+                                  הקבצה {student.group}
                                 </Badge>
-                                <span className="text-[10px] text-muted-foreground">
-                                  {student.createdAt
-                                    ? new Date(student.createdAt).toLocaleDateString("he-IL")
-                                    : "רשום"}
-                                </span>
-                              </div>
-                            </div>
-
-                            {/* Actions menu */}
-                            <div className="flex items-center gap-1">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleOpenEditStudent(student)}
-                                className="h-7 w-7 p-0 cursor-pointer text-muted-foreground hover:text-foreground"
-                                title="ערוך פרטי תלמיד/ה וקוד PIN"
-                              >
-                                <Edit2 className="h-3.5 w-3.5" />
-                              </Button>
-
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleDeleteStudent(student)}
-                                className="h-7 w-7 p-0 cursor-pointer text-muted-foreground hover:text-destructive"
-                                title="הסר תלמיד/ה מהכיתה"
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </Button>
+                              ) : (
+                                <Badge variant="secondary" className="text-[10px] text-muted-foreground">
+                                  ללא הקבצה
+                                </Badge>
+                              )}
                             </div>
                           </div>
 
-                          {/* Student PIN Box */}
-                          <div className="p-2 rounded-lg bg-muted/40 border border-border/50 flex items-center justify-between text-xs">
-                            <div className="flex items-center gap-2">
-                              <KeyRound className="h-3.5 w-3.5 text-muted-foreground" />
-                              <span className="text-muted-foreground font-semibold">קוד PIN:</span>
-                              <span className="font-mono font-black text-foreground tracking-wider">
-                                {showPins ? student.pin : "••••"}
-                              </span>
-                            </div>
+                          <div className="flex items-center gap-1">
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => handleCopyPin(student)}
-                              className="h-6 px-2 text-[11px] gap-1 cursor-pointer"
-                              title="העתק קוד PIN"
+                              onClick={() => handleOpenEditStudent(student)}
+                              className="h-7 w-7 p-0 cursor-pointer text-muted-foreground hover:text-foreground"
+                              title="ערוך פרטי תלמיד/ה והקבצה"
                             >
-                              {isCopied ? (
-                                <>
-                                  <Check className="h-3 w-3 text-emerald-500" />
-                                  <span className="text-emerald-500 font-bold">הועתק!</span>
-                                </>
-                              ) : (
-                                <>
-                                  <Copy className="h-3 w-3" />
-                                  <span>העתק</span>
-                                </>
-                              )}
+                              <Edit2 className="h-3.5 w-3.5" />
+                            </Button>
+
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDeleteStudent(student)}
+                              className="h-7 w-7 p-0 cursor-pointer text-muted-foreground hover:text-destructive"
+                              title="הסר תלמיד/ה"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
                             </Button>
                           </div>
                         </div>
 
-                        {/* Bottom: Submissions & Average Grade */}
-                        <div className="pt-2 border-t border-border/40 flex items-center justify-between text-xs">
-                          <button
-                            type="button"
-                            onClick={() => setHistoryStudent(student)}
-                            className="flex items-center gap-1.5 text-primary hover:underline cursor-pointer font-bold"
+                        {/* PIN Box */}
+                        <div className="p-2 rounded-lg bg-muted/40 border border-border/50 flex items-center justify-between text-xs">
+                          <div className="flex items-center gap-2">
+                            <KeyRound className="h-3.5 w-3.5 text-muted-foreground" />
+                            <span className="text-muted-foreground text-[11px]">קוד PIN:</span>
+                            <span className="font-mono font-black text-foreground">
+                              {showPins ? student.pin : "••••"}
+                            </span>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleCopyPin(student)}
+                            className="h-6 px-2 text-[11px] gap-1 cursor-pointer"
                           >
-                            <FileText className="h-3.5 w-3.5" />
-                            <span>
-                              {stats.total > 0 ? `${stats.total} הגשות` : "אין הגשות"}
-                            </span>
-                          </button>
-
-                          {stats.average !== null ? (
-                            <Badge variant="default" className="text-[10px] bg-emerald-600 text-white font-black">
-                              ממוצע: {stats.average}
-                            </Badge>
-                          ) : (
-                            <span className="text-[10px] text-muted-foreground">
-                              טרם הוזן ציון
-                            </span>
-                          )}
+                            {isCopied ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
+                            <span>{isCopied ? "הועתק!" : "העתק"}</span>
+                          </Button>
                         </div>
                       </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
+
+                      {/* Submissions Count & Average */}
+                      <div className="pt-2 border-t border-border/40 flex items-center justify-between text-xs">
+                        <button
+                          type="button"
+                          onClick={() => setHistoryStudent(student)}
+                          className="flex items-center gap-1.5 text-primary hover:underline cursor-pointer font-bold text-[11px]"
+                        >
+                          <FileText className="h-3.5 w-3.5" />
+                          <span>{stats.total > 0 ? `${stats.total} הגשות` : "אין הגשות"}</span>
+                        </button>
+
+                        {stats.average !== null ? (
+                          <Badge className="text-[10px] bg-emerald-600 text-white font-black">
+                            ממוצע: {stats.average}
+                          </Badge>
+                        ) : (
+                          <span className="text-[10px] text-muted-foreground">טרם הוזן ציון</span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
       </main>
 
-      {/* PRINTABLE CLASS ROSTER VIEW (Visible only during window.print()) */}
-      <div className="hidden print:block p-8 space-y-6 bg-white text-black font-sans" dir="rtl">
-        <div className="border-b-2 border-black pb-4 flex justify-between items-start">
-          <div>
-            <h1 className="text-2xl font-black">רשימת תלמידים וקודי כניסה למערכת</h1>
-            <p className="text-sm mt-1 text-gray-700">
-              {user.schoolName || "חטיבת ביניים בן גוריון"} &bull; מורה: <strong>{user.name}</strong>
-            </p>
-          </div>
-          <div className="text-left" dir="ltr">
-            <span className="text-xs text-gray-500 block">Teacher Code:</span>
-            <span className="font-mono text-lg font-bold">{user.teacherCode}</span>
-          </div>
-        </div>
-
-        <div className="text-xs text-gray-600 bg-gray-100 p-3 rounded border border-gray-300">
-          📌 <strong>הנחיה לתלמידים:</strong> בכניסה לאתר, לחצו על ״כניסת תלמידים״, בחרו את המורה שלכם, בחרו את שמכם והקלידו את קוד ה-PIN האישי בן 4 הספרות.
-        </div>
-
-        <table className="w-full border-collapse text-xs mt-4">
-          <thead>
-            <tr className="bg-gray-100 border-b border-gray-400">
-              <th className="p-2 text-right">#</th>
-              <th className="p-2 text-right">שם התלמיד/ה (באנגלית)</th>
-              <th className="p-2 text-right">כיתה</th>
-              <th className="p-2 text-right">קוד PIN אישי</th>
-              <th className="p-2 text-right">חתימת תלמיד / הערות</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredStudents.map((s, idx) => (
-              <tr key={s.id} className="border-b border-gray-200">
-                <td className="p-2 text-gray-500">{idx + 1}</td>
-                <td className="p-2 font-bold font-sans" dir="ltr">
-                  {s.name}
-                </td>
-                <td className="p-2">{s.fullClass || "—"}</td>
-                <td className="p-2 font-mono font-bold text-sm tracking-wider" dir="ltr">
-                  {s.pin}
-                </td>
-                <td className="p-2 border-b border-gray-200 w-44"></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-
-        <div className="pt-8 text-[11px] text-gray-500 border-t border-gray-300 flex justify-between">
-          <span>הופק מתוך מערכת English Teacher Tools</span>
-          <span>תאריך הדפסה: {new Date().toLocaleDateString("he-IL")}</span>
-        </div>
-      </div>
-
-      {/* ADD / EDIT STUDENT MODAL */}
+      {/* -------------------------------------------------------------------
+          MODAL: ADD / EDIT STUDENT (With Grouping Input)
+          ------------------------------------------------------------------- */}
       {studentModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in">
           <div className="w-full max-w-md bg-card border border-border rounded-2xl p-6 shadow-2xl space-y-4" dir="rtl">
@@ -1568,7 +1396,7 @@ export default function TeacherDashboardPage() {
                     {editingStudent ? `עריכת פרטי תלמיד/ה: ${editingStudent.name}` : "הוספת תלמיד/ה חדש/ה"}
                   </h3>
                   <p className="text-xs text-muted-foreground">
-                    התלמיד/ה יוכל/תוכל להתחבר מיד עם השם וקוד ה-PIN.
+                    הגדירו שם, כיתה, הקבצה באנגלית וקוד PIN לכניסה.
                   </p>
                 </div>
               </div>
@@ -1580,15 +1408,15 @@ export default function TeacherDashboardPage() {
               </button>
             </div>
 
-            <form onSubmit={handleSaveStudent} className="space-y-4 text-xs">
+            <form onSubmit={handleSaveStudent} className="space-y-3.5 text-xs">
               {studentFormError && (
-                <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/30 text-destructive flex items-center gap-2 font-medium">
+                <div className="p-2.5 rounded-lg bg-destructive/10 border border-destructive/30 text-destructive flex items-center gap-2 font-medium">
                   <AlertCircle className="h-4 w-4 shrink-0" />
                   <span>{studentFormError}</span>
                 </div>
               )}
 
-              {/* Full Name in English */}
+              {/* English Name */}
               <div className="space-y-1">
                 <label className="font-bold text-foreground block">
                   שם מלא באנגלית (English Name) <span className="text-destructive">*</span>
@@ -1602,9 +1430,6 @@ export default function TeacherDashboardPage() {
                   dir="ltr"
                   required
                 />
-                <span className="text-[11px] text-muted-foreground">
-                  חובה להזין באותיות באנגלית (A-Z) כדי שהתלמיד/ה יופיע/תופיע ברשימת הכניסה.
-                </span>
               </div>
 
               {/* Class Grade & Number */}
@@ -1614,7 +1439,7 @@ export default function TeacherDashboardPage() {
                   <select
                     value={studentGradeInput}
                     onChange={(e) => setStudentGradeInput(e.target.value)}
-                    className="w-full h-9 rounded-lg border border-input bg-background px-3 text-xs shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring cursor-pointer"
+                    className="w-full h-9 rounded-lg border border-input bg-background px-3 text-xs cursor-pointer"
                   >
                     <option value="ז">שכבה ז׳</option>
                     <option value="ח">שכבה ח׳</option>
@@ -1630,7 +1455,7 @@ export default function TeacherDashboardPage() {
                   <select
                     value={studentNumberInput}
                     onChange={(e) => setStudentNumberInput(Number(e.target.value))}
-                    className="w-full h-9 rounded-lg border border-input bg-background px-3 text-xs shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring cursor-pointer"
+                    className="w-full h-9 rounded-lg border border-input bg-background px-3 text-xs cursor-pointer"
                   >
                     <option value={1}>כיתה 1</option>
                     <option value={2}>כיתה 2</option>
@@ -1642,7 +1467,41 @@ export default function TeacherDashboardPage() {
                 </div>
               </div>
 
-              {/* 4-digit PIN Code */}
+              {/* English Grouping (הקבצה) */}
+              <div className="space-y-1">
+                <label className="font-bold text-foreground block">
+                  הקבצה באנגלית (English Grouping):
+                </label>
+                <div className="grid grid-cols-4 gap-2">
+                  {(["א1", "א2", "ב"] as StudentGroup[]).map((grp) => (
+                    <button
+                      key={grp}
+                      type="button"
+                      onClick={() => setStudentGroupInput(grp)}
+                      className={`p-2 rounded-lg border text-center font-bold text-xs cursor-pointer transition-all ${
+                        studentGroupInput === grp
+                          ? "border-purple-500 bg-purple-500/15 text-purple-700 dark:text-purple-300"
+                          : "border-border hover:bg-muted/40 text-muted-foreground"
+                      }`}
+                    >
+                      הקבצה {grp}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setStudentGroupInput("none")}
+                    className={`p-2 rounded-lg border text-center text-xs cursor-pointer transition-all ${
+                      studentGroupInput === "none"
+                        ? "border-primary bg-primary/10 text-primary font-bold"
+                        : "border-border hover:bg-muted/40 text-muted-foreground"
+                    }`}
+                  >
+                    ללא
+                  </button>
+                </div>
+              </div>
+
+              {/* PIN Code */}
               <div className="space-y-1">
                 <div className="flex items-center justify-between">
                   <label className="font-bold text-foreground">
@@ -1654,7 +1513,7 @@ export default function TeacherDashboardPage() {
                     className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline cursor-pointer"
                   >
                     <Shuffle className="h-3 w-3" />
-                    <span>הגרל קוד חדש</span>
+                    <span>הגרל קוד</span>
                   </button>
                 </div>
                 <Input
@@ -1667,9 +1526,6 @@ export default function TeacherDashboardPage() {
                   dir="ltr"
                   required
                 />
-                <span className="text-[11px] text-muted-foreground">
-                  קוד זה ישמש את התלמיד/ה להתחברות במערכת.
-                </span>
               </div>
 
               <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
@@ -1686,7 +1542,7 @@ export default function TeacherDashboardPage() {
                   type="submit"
                   size="sm"
                   disabled={isSavingStudent}
-                  className="text-xs font-bold gap-1.5 cursor-pointer bg-primary hover:bg-primary/90"
+                  className="text-xs font-bold gap-1.5 cursor-pointer bg-primary hover:bg-primary/90 text-primary-foreground"
                 >
                   <Check className="h-3.5 w-3.5" />
                   <span>{isSavingStudent ? "שומר..." : editingStudent ? "שמור שינויים" : "הוסף תלמיד/ה"}</span>
@@ -1697,7 +1553,9 @@ export default function TeacherDashboardPage() {
         </div>
       )}
 
-      {/* STUDENT SUBMISSIONS HISTORY MODAL */}
+      {/* -------------------------------------------------------------------
+          MODAL: STUDENT SUBMISSION HISTORY
+          ------------------------------------------------------------------- */}
       {historyStudent && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in">
           <div className="w-full max-w-2xl bg-card border border-border rounded-2xl p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto flex flex-col" dir="rtl">
@@ -1707,11 +1565,12 @@ export default function TeacherDashboardPage() {
                   <User className="h-5 w-5" />
                 </div>
                 <div>
-                  <h3 className="font-black text-lg text-foreground font-sans" dir="ltr">
+                  <h3 className="font-black text-lg text-foreground" dir="ltr">
                     {historyStudent.name}
                   </h3>
                   <p className="text-xs text-muted-foreground">
-                    {historyStudent.fullClass || "כיתה"} &bull; קוד PIN: <strong className="font-mono">{historyStudent.pin}</strong>
+                    {historyStudent.fullClass || "כיתה"}
+                    {historyStudent.group && ` • הקבצה ${historyStudent.group}`} &bull; קוד PIN: <strong className="font-mono">{historyStudent.pin}</strong>
                   </p>
                 </div>
               </div>
@@ -1723,7 +1582,6 @@ export default function TeacherDashboardPage() {
               </button>
             </div>
 
-            {/* Submissions by this student */}
             <div className="space-y-3 flex-1">
               {(() => {
                 const stats = getStudentStats(historyStudent);
@@ -1731,123 +1589,46 @@ export default function TeacherDashboardPage() {
                   return (
                     <div className="py-12 text-center space-y-2 rounded-xl border border-dashed border-border bg-muted/20">
                       <FileText className="h-8 w-8 text-muted-foreground/50 mx-auto" />
-                      <p className="font-bold text-sm text-foreground">
-                        תלמיד/ה זה/זו טרם הגיש/ה משימות
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        כאשר התלמיד/ה יגיש/תגיש מטלות כתיבה או מבחני אנסין, תוכל/י לראותם כאן.
-                      </p>
+                      <p className="font-bold text-sm text-foreground">טרם הוגשו משימות</p>
                     </div>
                   );
                 }
 
                 return (
                   <div className="space-y-2.5">
-                    <div className="flex items-center justify-between text-xs text-muted-foreground pb-1">
-                      <span>סה״כ {stats.submissions.length} הגשות:</span>
-                      {stats.average !== null && (
-                        <Badge variant="default" className="text-xs bg-emerald-600 text-white font-bold">
-                          ציון ממוצע: {stats.average}
-                        </Badge>
-                      )}
-                    </div>
-
-                    {stats.submissions.map((sub) => {
-                      const isReviewed = sub.status === "reviewed";
-                      return (
-                        <div
-                          key={sub.id}
-                          className="p-3.5 rounded-xl border border-border bg-muted/30 hover:border-primary/40 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
-                        >
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-2">
-                              <strong className="text-foreground font-bold text-sm">
-                                {sub.hebrewTitle}
-                              </strong>
-                              <Badge variant="secondary" className="text-[10px]">
-                                {sub.type === "writing" ? "✍️ כתיבה" : "📖 אנסין"}
-                              </Badge>
-                              {isReviewed ? (
-                                <Badge variant="default" className="text-[10px] bg-emerald-600 text-white font-bold">
-                                  ✓ ציון: {sub.grade ?? sub.score ?? "—"}
-                                </Badge>
-                              ) : (
-                                <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-500/40 bg-amber-500/10 font-bold">
-                                  ⏳ ממתין לבדיקה
-                                </Badge>
-                              )}
-                            </div>
-                            <div className="text-muted-foreground text-[11px]">
-                              <span>הוגש בתאריך: {sub.submittedAt}</span>
-                              {sub.receiptCode && (
-                                <span className="mr-2">&bull; קוד אישור: {sub.receiptCode}</span>
-                              )}
-                            </div>
-                            {sub.type === "unseen" && sub.generationPrompt && (
-                              <p className="text-purple-700 dark:text-purple-300 text-[11px] pt-0.5 flex items-center gap-1 font-sans" dir="auto">
-                                <Sparkles className="h-3 w-3 shrink-0 text-purple-500" />
-                                <span>פרומפט: "{sub.generationPrompt}"</span>
-                              </p>
-                            )}
-                            {sub.teacherFeedback && (
-                              <p className="text-emerald-800 dark:text-emerald-300 text-[11px] pt-1">
-                                💬 הערתך: {sub.teacherFeedback}
-                              </p>
-                            )}
-                          </div>
-
-                          <div className="flex items-center gap-1.5 self-end sm:self-center">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => {
-                                setHistoryStudent(null);
-                                handleAiReview(sub);
-                              }}
-                              disabled={loadingAiSubId === sub.id}
-                              className="h-7 text-xs font-bold gap-1 cursor-pointer border-purple-500/40 text-purple-700 dark:text-purple-300 bg-purple-500/10 hover:bg-purple-500/20 px-2.5 shadow-xs"
-                              title="הפעל בדיקת AI"
-                            >
-                              {loadingAiSubId === sub.id ? (
-                                <>
-                                  <Loader2 className="h-3 w-3 animate-spin text-purple-600 dark:text-purple-400" />
-                                  <span>בודק ב-AI...</span>
-                                </>
-                              ) : (
-                                <>
-                                  <Sparkles className="h-3 w-3 text-purple-600 dark:text-purple-400" />
-                                  <span>בדיקת AI</span>
-                                </>
-                              )}
-                            </Button>
-
-                            <Button
-                              size="sm"
-                              onClick={() => {
-                                setHistoryStudent(null);
-                                handleOpenReview(sub);
-                              }}
-                              className="h-7 text-xs font-bold gap-1 cursor-pointer bg-primary hover:bg-primary/90 px-3"
-                            >
-                              <Eye className="h-3 w-3" />
-                              <span>{isReviewed ? "צפה / ערוך בדיקה" : "בדוק כעת"}</span>
-                            </Button>
-                          </div>
+                    {stats.submissions.map((sub) => (
+                      <div
+                        key={sub.id}
+                        className="p-3 rounded-xl border border-border bg-muted/30 flex items-center justify-between text-xs"
+                      >
+                        <div>
+                          <strong className="text-foreground block">{sub.hebrewTitle}</strong>
+                          <span className="text-muted-foreground text-[11px]">{sub.submittedAt}</span>
                         </div>
-                      );
-                    })}
+                        <div className="flex items-center gap-2">
+                          <Badge variant={sub.status === "reviewed" ? "default" : "outline"} className="text-[10px]">
+                            {sub.status === "reviewed" ? `ציון: ${sub.grade ?? sub.score}` : "ממתין"}
+                          </Badge>
+                          <Button
+                            size="sm"
+                            onClick={() => {
+                              setHistoryStudent(null);
+                              handleOpenReview(sub);
+                            }}
+                            className="h-7 text-xs font-bold px-2.5"
+                          >
+                            בדוק
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 );
               })()}
             </div>
 
-            <div className="flex items-center justify-end pt-3 border-t border-border">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setHistoryStudent(null)}
-                className="text-xs cursor-pointer"
-              >
+            <div className="flex justify-end pt-3 border-t border-border">
+              <Button variant="outline" size="sm" onClick={() => setHistoryStudent(null)} className="text-xs">
                 סגור
               </Button>
             </div>
@@ -1855,594 +1636,77 @@ export default function TeacherDashboardPage() {
         </div>
       )}
 
-      {/* Review & Grading Drawer / Modal */}
-      {reviewItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in">
-          <div
-            className="w-full max-w-2xl bg-card border border-border rounded-2xl p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto flex flex-col"
-            dir="rtl"
-          >
-            <div className="flex items-center justify-between border-b border-border pb-3">
-              <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-xl bg-purple-500/15 text-purple-600 dark:text-purple-400">
-                  <GraduationCap className="h-5 w-5" />
-                </div>
-                <div>
-                  <h3 className="font-black text-lg text-foreground">
-                    בדיקת הגשה &bull; {reviewItem.studentName}
-                  </h3>
-                  <p className="text-xs text-muted-foreground">
-                    {reviewItem.hebrewTitle} &bull; {reviewItem.studentClass || "חטיבת ביניים"} ({reviewItem.type === "unseen" ? "מבחן אנסין" : "חיבור כתיבה"})
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={() => handleAiReview(reviewItem)}
-                  disabled={isEvaluatingAi}
-                  className="h-8 text-xs font-bold gap-1.5 border-purple-500/40 text-purple-700 dark:text-purple-300 bg-purple-500/10 hover:bg-purple-500/20 cursor-pointer shadow-xs"
-                  title="הפעל בדיקת AI מקיפה על עבודה זו"
-                >
-                  {isEvaluatingAi ? (
-                    <>
-                      <Loader2 className="h-3.5 w-3.5 animate-spin text-purple-600 dark:text-purple-400" />
-                      <span>בודק ב-AI...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="h-3.5 w-3.5 text-purple-600 dark:text-purple-400" />
-                      <span>{writingAiResult ? "בדיקת AI מחדש" : "בדיקת AI"}</span>
-                    </>
-                  )}
-                </Button>
-                <button
-                  onClick={() => setReviewItem(null)}
-                  className="p-1 rounded-md text-muted-foreground hover:text-foreground cursor-pointer"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-            </div>
+      {/* -------------------------------------------------------------------
+          MODAL: FULL REVIEW & RUBRIC DIALOG
+          ------------------------------------------------------------------- */}
+      <ReviewDialog
+        reviewItem={reviewItem}
+        onClose={() => setReviewItem(null)}
+        onSaveGrade={handleSaveGradeModal}
+        onAiReview={handleAiReview}
+        isEvaluatingAi={isEvaluatingAi}
+        writingAiResult={writingAiResult}
+      />
 
-            {/* Student Work Content */}
-            <div className="space-y-3 flex-1">
-              {reviewItem.type === "unseen" ? (
-                <>
-                  {/* Unseen AI Generation Prompt */}
-                  {reviewItem.generationPrompt ? (
-                    <div className="p-3.5 rounded-xl border border-purple-500/30 bg-purple-500/5 space-y-2 text-xs">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-1.5 font-bold text-purple-700 dark:text-purple-300">
-                          <Sparkles className="h-4 w-4 text-purple-500 shrink-0" />
-                          <span>פרומפט התלמיד/ה ליצירת הטקסט (AI Generation Prompt):</span>
-                        </div>
-                        <Badge variant="outline" className="text-[10px] bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/30 font-bold">
-                          ✨ נוצר ע״י התלמיד/ה ב-AI
-                        </Badge>
-                      </div>
-                      <div
-                        className="p-2.5 rounded-lg bg-background/80 border border-border/60 text-foreground font-medium leading-relaxed font-sans"
-                        dir="auto"
-                      >
-                        "{reviewItem.generationPrompt}"
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2 p-2 rounded-lg bg-muted/30 border border-border/40 text-[11px] text-muted-foreground">
-                      <BookOpen className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                      <span>טקסט ממאגר הסיפורים המובנה (ללא פרומפט AI עצמאי)</span>
-                    </div>
-                  )}
+      {/* -------------------------------------------------------------------
+          MODAL: ASSIGN TASK TO STUDENTS
+          ------------------------------------------------------------------- */}
+      <AssignTaskModal
+        open={assignModalOpen}
+        onOpenChange={setAssignModalOpen}
+        teacherId={user.id}
+        teacherName={user.name}
+        students={students}
+        availableClasses={availableClasses}
+        onTaskAssigned={handleTaskAssigned}
+      />
 
-                  {/* Unseen Passage Viewer */}
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between text-xs text-muted-foreground">
-                      <span className="font-bold text-foreground">קטע הקריאה (Reading Passage):</span>
-                      <Badge variant="outline" className="text-[11px]">
-                        {reviewItem.storyLevel || "Unseen"} &bull; ציון ממוחשב: {reviewItem.score ?? 0}/100
-                      </Badge>
-                    </div>
-                    <div
-                      className="p-3.5 rounded-xl border border-border bg-muted/20 text-xs font-sans leading-relaxed text-foreground whitespace-pre-wrap max-h-44 overflow-y-auto"
-                      dir="ltr"
-                    >
-                      {reviewItem.passageText || "קטע קריאה לא זמין"}
-                    </div>
-                  </div>
-
-                  {/* AI Evaluation Summary & Rubric */}
-                  {(reviewItem.teacherNote || reviewItem.encouragement) && (
-                    <div className="p-3 rounded-xl bg-primary/5 border border-primary/20 space-y-1 text-xs text-right">
-                      <div className="flex items-center gap-1.5 font-bold text-primary">
-                        <GraduationCap className="h-4 w-4" />
-                        <span>משוב פדגוגי שהופק לתלמיד/ה:</span>
-                      </div>
-                      {reviewItem.encouragement && (
-                        <p className="font-semibold text-foreground text-[11px]">
-                          "{reviewItem.encouragement}"
-                        </p>
-                      )}
-                      {reviewItem.teacherNote && (
-                        <p className="text-foreground/90 leading-relaxed text-[11px] pt-1 border-t border-border/40">
-                          {reviewItem.teacherNote}
-                        </p>
-                      )}
-                    </div>
-                  )}
-
-                  {reviewItem.unseenRubric && (
-                    <div className="space-y-1.5 text-right">
-                      <span className="font-bold text-xs text-foreground block">
-                        הערכת מיומנויות הבנת הנקרא:
-                      </span>
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 text-xs">
-                        <div className="p-2 rounded-lg border border-border/70 bg-card space-y-0.5">
-                          <span className="text-[10px] text-muted-foreground block">מידע מפורש</span>
-                          <span className="font-bold text-primary text-[11px]">{reviewItem.unseenRubric.explicitDetails.score}/35</span>
-                        </div>
-                        <div className="p-2 rounded-lg border border-border/70 bg-card space-y-0.5">
-                          <span className="text-[10px] text-muted-foreground block">הסקת מסקנות</span>
-                          <span className="font-bold text-primary text-[11px]">{reviewItem.unseenRubric.inferenceAndContext.score}/25</span>
-                        </div>
-                        <div className="p-2 rounded-lg border border-border/70 bg-card space-y-0.5">
-                          <span className="text-[10px] text-muted-foreground block">הבנה כוללת</span>
-                          <span className="font-bold text-primary text-[11px]">{reviewItem.unseenRubric.globalUnderstanding.score}/25</span>
-                        </div>
-                        <div className="p-2 rounded-lg border border-border/70 bg-card space-y-0.5">
-                          <span className="text-[10px] text-muted-foreground block">דיוק וניסוח</span>
-                          <span className="font-bold text-primary text-[11px]">{reviewItem.unseenRubric.languageAndAccuracy.score}/15</span>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* 10 Questions Breakdown */}
-                  <div className="space-y-2">
-                    <span className="font-bold text-xs text-foreground block">
-                      פירוט תשובות התלמיד/ה ({reviewItem.questionsBreakdown?.length || 0} שאלות):
-                    </span>
-                    <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-                      {reviewItem.questionsBreakdown && reviewItem.questionsBreakdown.length > 0 ? (
-                        reviewItem.questionsBreakdown.map((q) => {
-                          const pts = typeof q.points === "number" ? q.points : q.isCorrect ? 10 : 0;
-                          return (
-                            <div
-                              key={q.id}
-                              className={`p-3 rounded-xl border text-xs space-y-1.5 ${
-                                pts >= 8
-                                  ? "border-emerald-500/40 bg-emerald-500/5"
-                                  : pts >= 5
-                                  ? "border-amber-500/40 bg-amber-500/5"
-                                  : "border-destructive/40 bg-destructive/5"
-                              }`}
-                            >
-                              <div className="flex items-center justify-between">
-                                <span className="font-bold text-foreground">
-                                  שאלה {q.number}: {q.prompt}
-                                </span>
-                                <Badge
-                                  variant={pts >= 8 ? "default" : pts >= 5 ? "secondary" : "destructive"}
-                                  className="text-[10px] font-bold"
-                                >
-                                  {pts}/10 נק׳
-                                </Badge>
-                              </div>
-
-                              <div className="text-muted-foreground" dir="ltr">
-                                <span>תשובת התלמיד/ה: </span>
-                                <strong className={pts >= 8 ? "text-emerald-700 dark:text-emerald-300 font-bold" : pts >= 5 ? "text-amber-700 dark:text-amber-300 font-bold" : "text-destructive font-bold"}>
-                                  {q.type === "mcq" && q.options && typeof q.userAnswer === "number"
-                                    ? q.options[q.userAnswer] || q.userAnswer
-                                    : String(q.userAnswer || "לא נענה")}
-                                </strong>
-                              </div>
-
-                              {pts < 10 && (
-                                <div className="text-muted-foreground" dir="ltr">
-                                  <span>תשובה נכונה: </span>
-                                  <strong className="text-foreground">
-                                    {q.type === "mcq" && q.options && typeof q.correctAnswer === "number"
-                                      ? q.options[q.correctAnswer]
-                                      : String(q.correctAnswer || q.targetSentence || q.modelAnswer || "")}
-                                  </strong>
-                                </div>
-                              )}
-
-                              {q.feedbackHebrew && (
-                                <div className="p-2 rounded-lg bg-primary/10 border border-primary/20 text-[11px] text-foreground space-y-0.5" dir="rtl">
-                                  <span className="font-bold text-primary flex items-center gap-1">
-                                    <Sparkles className="h-3 w-3" />
-                                    <span>משוב פדגוגי על התשובה:</span>
-                                  </span>
-                                  <p className="leading-relaxed">{q.feedbackHebrew}</p>
-                                </div>
-                              )}
-
-                              {q.explanationHebrew && !q.feedbackHebrew && (
-                                <p className="text-[11px] text-muted-foreground pt-1 border-t border-border/30" dir="rtl">
-                                  💡 {q.explanationHebrew}
-                                </p>
-                              )}
-                            </div>
-                          );
-                        })
-                      ) : (
-                        <div className="p-3 rounded-lg bg-muted/30 text-xs text-muted-foreground text-center">
-                          לא נמצא פירוט שאלות עבור הגשה זו
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span>טקסט החיבור שהוגש על ידי התלמיד/ה:</span>
-                    {reviewItem.wordCount !== undefined && (
-                      <Badge variant="outline" className="text-[11px]">
-                        {reviewItem.wordCount} מילים
-                      </Badge>
-                    )}
-                  </div>
-
-                  <div
-                    className="p-4 rounded-xl border border-border bg-muted/20 text-sm font-sans leading-relaxed text-foreground whitespace-pre-wrap max-h-60 overflow-y-auto"
-                    dir="ltr"
-                  >
-                    {reviewItem.essayText || "אין טקסט זמין"}
-                  </div>
-
-                  {/* AI Evaluation Section for Writing */}
-                  {isEvaluatingAi && (
-                    <div className="p-4 rounded-xl border border-purple-500/30 bg-purple-500/10 flex items-center justify-center gap-2.5 text-xs text-purple-700 dark:text-purple-300 font-bold animate-pulse">
-                      <Loader2 className="h-4 w-4 animate-spin text-purple-600 dark:text-purple-400" />
-                      <span>מבצע בדיקת AI מלאה (הערכת מחוון משרד החינוך, דקדוק, אוצר מילים ומשוב)...</span>
-                    </div>
-                  )}
-
-                  {!writingAiResult && !isEvaluatingAi && (
-                    <div className="p-3 rounded-xl border border-dashed border-purple-500/40 bg-purple-500/5 flex flex-col sm:flex-row items-center justify-between gap-2.5 text-xs">
-                      <div className="flex items-center gap-2 text-purple-800 dark:text-purple-300 font-medium">
-                        <Sparkles className="h-4 w-4 shrink-0 text-purple-600 dark:text-purple-400" />
-                        <span>רוצים לבדוק חיבור זה עם AI? המערכת תספק ציון מחוון משרד החינוך, דוח שגיאות ומשוב מוצע.</span>
-                      </div>
-                      <Button
-                        type="button"
-                        size="sm"
-                        onClick={() => handleAiReview(reviewItem)}
-                        className="h-7 text-xs font-bold gap-1.5 bg-purple-600 hover:bg-purple-700 text-white shrink-0 cursor-pointer shadow-xs"
-                      >
-                        <Sparkles className="h-3 w-3" />
-                        <span>הפעל בדיקת AI</span>
-                      </Button>
-                    </div>
-                  )}
-
-                  {writingAiResult && !isEvaluatingAi && (
-                    <div className="p-4 sm:p-5 rounded-2xl border border-purple-500/30 bg-purple-500/5 space-y-4 animate-in fade-in text-xs">
-                      {/* Header with Score and Apply button */}
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/60 pb-3">
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <Badge variant="outline" className="text-[10px] gap-1 border-purple-500/40 text-purple-700 dark:text-purple-300 font-bold">
-                              <Sparkles className="h-3 w-3 text-purple-500" />
-                              <span>בדיקת AI פדגוגית (מחוון משרד החינוך)</span>
-                            </Badge>
-                            <span className="text-[11px] text-muted-foreground font-semibold">
-                              מותאם ל-{reviewItem.storyLevel || "Level 2"}
-                            </span>
-                          </div>
-                          <h4 className="text-sm sm:text-base font-black text-foreground">
-                            "{writingAiResult.encouragement}"
-                          </h4>
-                        </div>
-
-                        <div className="flex items-center gap-3 shrink-0">
-                          <div className="text-right sm:text-left">
-                            <span className="text-[10px] text-muted-foreground block font-medium">ציון AI משוקלל</span>
-                            <Badge
-                              className={`text-base px-3 py-0.5 font-black text-white ${
-                                writingAiResult.score >= 85
-                                  ? "bg-emerald-600"
-                                  : writingAiResult.score >= 70
-                                  ? "bg-blue-600"
-                                  : writingAiResult.score >= 55
-                                  ? "bg-amber-600"
-                                  : "bg-rose-600"
-                              }`}
-                            >
-                              {writingAiResult.score} / 100
-                            </Badge>
-                          </div>
-
-                          <Button
-                            type="button"
-                            size="sm"
-                            onClick={() => {
-                              setGradeInput(String(writingAiResult.score));
-                              if (writingAiResult.teacherNote) {
-                                setFeedbackInput(writingAiResult.teacherNote);
-                              } else if (writingAiResult.encouragement) {
-                                setFeedbackInput(writingAiResult.encouragement);
-                              }
-                            }}
-                            className="h-8 text-xs font-bold gap-1 bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer shadow-xs"
-                            title="העתק את הציון והמשוב של ה-AI לשדות הטופס"
-                          >
-                            <Check className="h-3.5 w-3.5" />
-                            <span>החל על הטופס</span>
-                          </Button>
-                        </div>
-                      </div>
-
-                      {/* Teacher Note in Hebrew */}
-                      {writingAiResult.teacherNote && (
-                        <div className="p-3 rounded-xl bg-card border border-border/80 space-y-1 text-right">
-                          <span className="font-bold text-primary text-[11px] flex items-center gap-1.5">
-                            <GraduationCap className="h-3.5 w-3.5" />
-                            <span>הצעת משוב פדגוגי אישי לתלמיד/ה:</span>
-                          </span>
-                          <p className="text-foreground/90 leading-relaxed text-[12px]">
-                            {writingAiResult.teacherNote}
-                          </p>
-                        </div>
-                      )}
-
-                      {/* 4-Pillar Rubric Breakdown */}
-                      {writingAiResult.rubric && (
-                        <div className="space-y-1.5 text-right">
-                          <span className="font-bold text-xs text-foreground block">
-                            פירוט מחוון משרד החינוך (MOE Rubric):
-                          </span>
-                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-                            {/* Content & Organization */}
-                            <div className="p-2.5 rounded-xl border border-border/70 bg-card space-y-1">
-                              <div className="flex items-center justify-between font-bold text-[11px]">
-                                <span className="text-foreground">תוכן וארגון</span>
-                                <span className="text-primary font-mono">{writingAiResult.rubric.contentAndOrganization.score}/35</span>
-                              </div>
-                              <div className="w-full bg-muted rounded-full h-1 overflow-hidden">
-                                <div
-                                  className="bg-primary h-1 rounded-full"
-                                  style={{ width: `${Math.min(100, (writingAiResult.rubric.contentAndOrganization.score / 35) * 100)}%` }}
-                                />
-                              </div>
-                              <p className="text-[10px] text-muted-foreground line-clamp-2">
-                                {writingAiResult.rubric.contentAndOrganization.commentHebrew}
-                              </p>
-                            </div>
-
-                            {/* Vocabulary */}
-                            <div className="p-2.5 rounded-xl border border-border/70 bg-card space-y-1">
-                              <div className="flex items-center justify-between font-bold text-[11px]">
-                                <span className="text-foreground">אוצר מילים</span>
-                                <span className="text-primary font-mono">{writingAiResult.rubric.vocabulary.score}/25</span>
-                              </div>
-                              <div className="w-full bg-muted rounded-full h-1 overflow-hidden">
-                                <div
-                                  className="bg-primary h-1 rounded-full"
-                                  style={{ width: `${Math.min(100, (writingAiResult.rubric.vocabulary.score / 25) * 100)}%` }}
-                                />
-                              </div>
-                              <p className="text-[10px] text-muted-foreground line-clamp-2">
-                                {writingAiResult.rubric.vocabulary.commentHebrew}
-                              </p>
-                            </div>
-
-                            {/* Language & Grammar */}
-                            <div className="p-2.5 rounded-xl border border-border/70 bg-card space-y-1">
-                              <div className="flex items-center justify-between font-bold text-[11px]">
-                                <span className="text-foreground">דקדוק ומבנה</span>
-                                <span className="text-primary font-mono">{writingAiResult.rubric.languageAndGrammar.score}/25</span>
-                              </div>
-                              <div className="w-full bg-muted rounded-full h-1 overflow-hidden">
-                                <div
-                                  className="bg-primary h-1 rounded-full"
-                                  style={{ width: `${Math.min(100, (writingAiResult.rubric.languageAndGrammar.score / 25) * 100)}%` }}
-                                />
-                              </div>
-                              <p className="text-[10px] text-muted-foreground line-clamp-2">
-                                {writingAiResult.rubric.languageAndGrammar.commentHebrew}
-                              </p>
-                            </div>
-
-                            {/* Mechanics & Spelling */}
-                            <div className="p-2.5 rounded-xl border border-border/70 bg-card space-y-1">
-                              <div className="flex items-center justify-between font-bold text-[11px]">
-                                <span className="text-foreground">איות ופיסוק</span>
-                                <span className="text-primary font-mono">{writingAiResult.rubric.mechanicsAndSpelling.score}/15</span>
-                              </div>
-                              <div className="w-full bg-muted rounded-full h-1 overflow-hidden">
-                                <div
-                                  className="bg-primary h-1 rounded-full"
-                                  style={{ width: `${Math.min(100, (writingAiResult.rubric.mechanicsAndSpelling.score / 15) * 100)}%` }}
-                                />
-                              </div>
-                              <p className="text-[10px] text-muted-foreground line-clamp-2">
-                                {writingAiResult.rubric.mechanicsAndSpelling.commentHebrew}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Strengths & Tips */}
-                      {((writingAiResult.strengths && writingAiResult.strengths.length > 0) ||
-                        (writingAiResult.tips && writingAiResult.tips.length > 0)) && (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-right">
-                          {writingAiResult.strengths && writingAiResult.strengths.length > 0 && (
-                            <div className="p-2.5 rounded-xl border border-emerald-500/30 bg-card space-y-1">
-                              <span className="font-bold text-emerald-700 dark:text-emerald-300 flex items-center gap-1.5 text-[11px]">
-                                <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
-                                <span>נקודות חוזק בחיבור:</span>
-                              </span>
-                              <ul className="space-y-0.5 text-foreground/90 pr-2 list-disc list-inside text-[11px]">
-                                {writingAiResult.strengths.map((s, i) => (
-                                  <li key={i}>{s}</li>
-                                ))}
-                              </ul>
-                            </div>
-                          )}
-
-                          {writingAiResult.tips && writingAiResult.tips.length > 0 && (
-                            <div className="p-2.5 rounded-xl border border-amber-500/30 bg-card space-y-1">
-                              <span className="font-bold text-amber-700 dark:text-amber-300 flex items-center gap-1.5 text-[11px]">
-                                <Lightbulb className="h-3.5 w-3.5 shrink-0 text-amber-500" />
-                                <span>דגשים לשיפור:</span>
-                              </span>
-                              <ul className="space-y-0.5 text-foreground/90 pr-2 list-disc list-inside text-[11px]">
-                                {writingAiResult.tips.map((t, i) => (
-                                  <li key={i}>{t}</li>
-                                ))}
-                              </ul>
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Grammar, Spelling & Capital Letter Corrections */}
-                      {writingAiResult.corrections && writingAiResult.corrections.length > 0 && (
-                        <div className="p-3 rounded-xl border border-border/80 bg-card space-y-2 text-right">
-                          <span className="font-bold text-xs text-foreground flex items-center gap-1.5">
-                            <AlertCircle className="h-3.5 w-3.5 text-rose-500" />
-                            <span>תיקוני לשון, איות ואותיות גדולות שה-AI זיהה ({writingAiResult.corrections.length}):</span>
-                          </span>
-                          <div className="space-y-1.5 max-h-44 overflow-y-auto">
-                            {writingAiResult.corrections.map((corr, i) => (
-                              <div key={i} className="p-2 rounded-lg bg-muted/30 border border-border/50 text-[11px] space-y-1">
-                                <div className="flex items-center gap-2" dir="ltr">
-                                  <span className="line-through text-rose-600 dark:text-rose-400 font-mono px-1.5 py-0.5 bg-rose-500/10 rounded">
-                                    {corr.original}
-                                  </span>
-                                  <span className="text-muted-foreground font-bold">&rarr;</span>
-                                  <span className="font-bold text-emerald-600 dark:text-emerald-400 font-mono px-1.5 py-0.5 bg-emerald-500/10 rounded">
-                                    {corr.suggestion}
-                                  </span>
-                                </div>
-                                <p className="text-muted-foreground text-[11px] leading-snug">
-                                  {corr.explanationHebrew}
-                                </p>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Vocabulary Enrichments */}
-                      {writingAiResult.vocabularyUpgrades && writingAiResult.vocabularyUpgrades.length > 0 && (
-                        <div className="p-3 rounded-xl border border-border/80 bg-card space-y-2 text-right">
-                          <span className="font-bold text-xs text-foreground flex items-center gap-1.5">
-                            <Sparkles className="h-3.5 w-3.5 text-purple-500" />
-                            <span>הצעות להעשרת אוצר מילים:</span>
-                          </span>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                            {writingAiResult.vocabularyUpgrades.map((upg, i) => (
-                              <div key={i} className="p-2 rounded-lg bg-muted/30 border border-border/50 text-[11px] space-y-0.5">
-                                <div className="flex items-center gap-1.5" dir="ltr">
-                                  <span className="font-mono text-muted-foreground">{upg.original}</span>
-                                  <span>&rarr;</span>
-                                  <span className="font-bold text-purple-600 dark:text-purple-400 font-mono">{upg.enriched}</span>
-                                </div>
-                                <p className="text-[10px] text-muted-foreground">{upg.explanationHebrew}</p>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </>
-              )}
-
-              {reviewItem.studentNote && (
-                <div className="p-2.5 rounded-lg bg-muted/40 border border-border/60 text-xs">
-                  <span className="font-bold text-foreground">הערה אישית מהתלמיד/ה: </span>
-                  <span className="text-muted-foreground">{reviewItem.studentNote}</span>
-                </div>
-              )}
-            </div>
-
-            {/* Grading Form */}
-            <form onSubmit={handleSaveGrade} className="border-t border-border pt-4 space-y-4 text-xs">
-              <h4 className="font-bold text-sm text-foreground flex items-center gap-1.5">
-                <Sparkles className="h-4 w-4 text-purple-500" />
-                <span>הזנת ציון ומשוב מורה</span>
-              </h4>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className="space-y-1">
-                  <label className="font-semibold text-foreground">ציון מספרי (0–100):</label>
-                  <Input
-                    type="number"
-                    min={0}
-                    max={100}
-                    placeholder="למשל: 92"
-                    value={gradeInput}
-                    onChange={(e) => setGradeInput(e.target.value)}
-                    className="h-9 text-xs font-bold"
-                  />
-                </div>
-
-                <div className="sm:col-span-2 space-y-1">
-                  <label className="font-semibold text-foreground">משוב והערות בונות לתלמיד/ה:</label>
-                  <Input
-                    type="text"
-                    placeholder="למשל: עבודה מצוינת! שימוש נהדר במילות קישור ואוצר מילים עשיר."
-                    value={feedbackInput}
-                    onChange={(e) => setFeedbackInput(e.target.value)}
-                    className="h-9 text-xs"
-                  />
-                </div>
-              </div>
-
-              {saveSuccess && (
-                <div className="p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 flex items-center gap-1.5 text-xs font-bold">
-                  <CheckCircle2 className="h-4 w-4" />
-                  <span>הציון והמשוב נשמרו בהצלחה!</span>
-                </div>
-              )}
-
-              <div className="flex flex-wrap items-center justify-between gap-2 pt-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => window.print()}
-                  className="text-xs gap-1.5 cursor-pointer"
-                >
-                  <Printer className="h-3.5 w-3.5" />
-                  <span>הדפס עבודה</span>
-                </Button>
-
-                <div className="flex items-center gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setReviewItem(null)}
-                    className="text-xs cursor-pointer"
-                  >
-                    סגור
-                  </Button>
-
-                  <Button
-                    type="submit"
-                    size="sm"
-                    disabled={isSavingGrade}
-                    className="text-xs font-bold gap-1.5 cursor-pointer bg-purple-600 hover:bg-purple-700 text-white shadow-xs"
-                  >
-                    <Send className="h-3.5 w-3.5" />
-                    <span>{isSavingGrade ? "שומר..." : "שמור בדיקה ועדכן ציון"}</span>
-                  </Button>
-                </div>
-              </div>
-            </form>
+      {/* -------------------------------------------------------------------
+          PRINTABLE CLASS ROSTER VIEW (window.print())
+          ------------------------------------------------------------------- */}
+      <div className="hidden print:block p-8 space-y-6 bg-white text-black font-sans" dir="rtl">
+        <div className="border-b-2 border-black pb-4 flex justify-between items-start">
+          <div>
+            <h1 className="text-2xl font-black">רשימת תלמידים וקודי כניסה למערכת</h1>
+            <p className="text-sm mt-1 text-gray-700">
+              {user.schoolName || "חטיבת ביניים"} &bull; מורה: <strong>{user.name}</strong>
+            </p>
+          </div>
+          <div className="text-left" dir="ltr">
+            <span className="text-xs text-gray-500 block">Teacher Code:</span>
+            <span className="font-mono text-lg font-bold">{user.teacherCode}</span>
           </div>
         </div>
-      )}
+
+        <table className="w-full border-collapse text-xs mt-4">
+          <thead>
+            <tr className="bg-gray-100 border-b border-gray-400">
+              <th className="p-2 text-right">#</th>
+              <th className="p-2 text-right">שם התלמיד/ה (באנגלית)</th>
+              <th className="p-2 text-right">כיתה</th>
+              <th className="p-2 text-right">הקבצה</th>
+              <th className="p-2 text-right">קוד PIN</th>
+              <th className="p-2 text-right">חתימת תלמיד / הערות</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredStudents.map((s, idx) => (
+              <tr key={s.id} className="border-b border-gray-200">
+                <td className="p-2 text-gray-500">{idx + 1}</td>
+                <td className="p-2 font-bold font-sans" dir="ltr">
+                  {s.name}
+                </td>
+                <td className="p-2">{s.fullClass || "—"}</td>
+                <td className="p-2">{s.group ? `הקבצה ${s.group}` : "—"}</td>
+                <td className="p-2 font-mono font-bold text-sm tracking-wider" dir="ltr">
+                  {s.pin}
+                </td>
+                <td className="p-2 border-b border-gray-200 w-44"></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

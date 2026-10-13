@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { ActiveUser, StudentProfile, TeacherProfile } from "@/types/auth";
+import { ActiveUser, StudentProfile, TeacherProfile, StudentGroup } from "@/types/auth";
 import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
@@ -31,6 +31,7 @@ interface AuthContextType {
     studentName: string;
     classGrade: string;
     classNumber: number;
+    group?: StudentGroup;
     pin: string;
   }) => Promise<{ success: boolean; error?: string }>;
   loginStudent: (data: { teacherId: string; studentName: string; pin: string }) => Promise<{ success: boolean; error?: string }>;
@@ -39,6 +40,7 @@ interface AuthContextType {
     studentName: string;
     classGrade: string;
     classNumber: number;
+    group?: StudentGroup;
     pin: string;
   }) => Promise<{ success: boolean; student?: StudentProfile; error?: string }>;
   updateStudent: (studentId: string, updates: Partial<StudentProfile>) => Promise<{ success: boolean; error?: string }>;
@@ -344,6 +346,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     studentName: string;
     classGrade: string;
     classNumber: number;
+    group?: StudentGroup;
     pin: string;
   }): Promise<{ success: boolean; error?: string }> => {
     const trimmedName = data.studentName.trim();
@@ -379,6 +382,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       classGrade: data.classGrade,
       classNumber: data.classNumber,
       fullClass: fullClass,
+      group: data.group,
       createdAt: new Date().toISOString(),
     };
 
@@ -417,6 +421,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       classGrade: data.classGrade,
       classNumber: data.classNumber,
       fullClass: fullClass,
+      group: data.group,
     };
 
     setUser(activeUser);
@@ -508,6 +513,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       classGrade: foundStudent.classGrade,
       classNumber: foundStudent.classNumber,
       fullClass: foundStudent.fullClass,
+      group: foundStudent.group,
     };
 
     setUser(activeUser);
@@ -566,6 +572,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     studentName: string;
     classGrade: string;
     classNumber: number;
+    group?: StudentGroup;
     pin: string;
   }): Promise<{ success: boolean; student?: StudentProfile; error?: string }> => {
     if (!user || user.role !== "teacher") {
@@ -597,6 +604,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       classGrade: data.classGrade,
       classNumber: data.classNumber,
       fullClass: fullClass,
+      group: data.group,
       createdAt: new Date().toISOString(),
     };
 

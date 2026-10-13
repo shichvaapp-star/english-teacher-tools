@@ -26,7 +26,9 @@ export interface SubmissionItem {
   teacherId: string;
   teacherName: string;
   studentClass?: string;
+  studentGroup?: string; // e.g. "א1" | "א2" | "ב"
   studentNote?: string;
+  assignmentId?: string; // ID of the TeacherAssignment if submitted as part of one
   taskId: string;
   taskTitle: string;
   hebrewTitle: string;

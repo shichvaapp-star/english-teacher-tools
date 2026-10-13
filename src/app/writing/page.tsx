@@ -65,7 +65,9 @@ interface SubmissionRecord {
   teacherId: string;
   teacherName: string;
   studentClass?: string;
+  studentGroup?: string;
   studentNote?: string;
+  assignmentId?: string;
   taskId: string;
   taskTitle: string;
   hebrewTitle: string;
@@ -167,6 +169,8 @@ export default function WritingPracticePage() {
   const [customGroqKey, setCustomGroqKey] = useState("");
   const [customGeminiKey, setCustomGeminiKey] = useState("");
   const [hasAiKeys, setHasAiKeys] = useState(false);
+  const [assignedNotice, setAssignedNotice] = useState<string | null>(null);
+  const [currentAssignmentId, setCurrentAssignmentId] = useState<string | null>(null);
 
   useEffect(() => {
     setSavedWords(loadSavedWords(user?.id));
@@ -176,6 +180,26 @@ export default function WritingPracticePage() {
       setCustomGroqKey(groq);
       setCustomGeminiKey(gemini);
       setHasAiKeys(Boolean(groq || gemini));
+
+      const params = new URLSearchParams(window.location.search);
+      const taskIdParam = params.get("task");
+      const assignIdParam = params.get("assignmentId");
+      if (taskIdParam && taskIdParam !== "free_choice") {
+        const found = ALL_WRITING_TASKS.find((t) => t.id === taskIdParam);
+        if (found) {
+          setSelectedLevel(found.level);
+          setSelectedTaskId(found.id);
+          setStage("writing");
+        }
+      }
+      if (assignIdParam) {
+        setCurrentAssignmentId(assignIdParam);
+        if (!taskIdParam || taskIdParam === "free_choice") {
+          setAssignedNotice("✨ משימת בחירה חופשית מהמורה שלך: בחרו כל נושא שתרצו (או צרו נושא עם ה-AI), כתבו והגישו לבדיקה!");
+        } else {
+          setAssignedNotice("משימה זו הוקצתה על ידי המורה שלך. בסיום הכתיבה, הגישו את המשימה לבדיקה.");
+        }
+      }
     }
   }, [user?.id]);
 
@@ -592,7 +616,9 @@ export default function WritingPracticePage() {
       teacherId: teacherObj ? teacherObj.id : (teachers[0]?.id || ""),
       teacherName: teacherObj ? teacherObj.name : (teachers[0]?.name || "מורה לאנגלית"),
       studentClass: studentClass,
+      studentGroup: user?.group || undefined,
       studentNote: studentNote.trim(),
+      assignmentId: currentAssignmentId || undefined,
       taskId: currentTask.id,
       taskTitle: currentTask.title,
       hebrewTitle: currentTask.hebrewTitle,
@@ -798,6 +824,23 @@ export default function WritingPracticePage() {
           ========================================================================= */}
       {stage === "settings" && (
         <main className="container mx-auto flex-1 px-3 sm:px-8 py-4 sm:py-8 max-w-4xl space-y-4 sm:space-y-6 print:hidden">
+          {/* Teacher Assignment Notification Banner */}
+          {assignedNotice && (
+            <div className="p-3.5 rounded-2xl bg-purple-500/10 border-2 border-purple-500/30 flex items-center justify-between gap-3 text-xs text-purple-900 dark:text-purple-200 shadow-xs" dir="rtl">
+              <div className="flex items-center gap-2.5 font-bold">
+                <Sparkles className="h-4 w-4 text-purple-600 dark:text-purple-400 shrink-0" />
+                <span>{assignedNotice}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAssignedNotice(null)}
+                className="text-purple-600 hover:text-purple-800 dark:hover:text-purple-100 p-1 cursor-pointer rounded-md"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          )}
+
           {/* Settings Hero Card */}
           <div
             className="bg-card border-2 border-primary/20 rounded-2xl p-4 sm:p-6 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-right"
@@ -1244,6 +1287,23 @@ export default function WritingPracticePage() {
               </Button>
             </div>
           </div>
+
+          {/* Teacher Assignment Notification Banner */}
+          {assignedNotice && (
+            <div className="p-3 rounded-xl bg-purple-500/10 border border-purple-500/30 flex items-center justify-between gap-3 text-xs text-purple-900 dark:text-purple-200" dir="rtl">
+              <div className="flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-purple-600 dark:text-purple-400 shrink-0" />
+                <span className="font-semibold">{assignedNotice}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAssignedNotice(null)}
+                className="text-purple-600 hover:text-purple-800 dark:hover:text-purple-100 p-1 cursor-pointer"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          )}
 
           {/* Clean Task Card */}
           <Card className="border border-border/80 shadow-xs">

@@ -1,4 +1,5 @@
 export type UserRole = "teacher" | "student" | null;
+export type StudentGroup = "א1" | "א2" | "ב";
 
 export interface TeacherProfile {
   id: string;
@@ -18,6 +19,7 @@ export interface StudentProfile {
   classGrade?: string; // e.g. "ז" | "ח" | "ט"
   classNumber?: number; // 1-6
   fullClass?: string; // e.g. "ז׳2"
+  group?: StudentGroup; // e.g. "א1" | "א2" | "ב"
   createdAt: string;
 }
 
@@ -33,4 +35,5 @@ export interface ActiveUser {
   classGrade?: string;
   classNumber?: number;
   fullClass?: string;
+  group?: StudentGroup;
 }

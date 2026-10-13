@@ -25,6 +25,7 @@ import {
   ArrowLeft,
   LayoutDashboard,
 } from "lucide-react";
+import { StudentAssignedTaskPrompt } from "@/components/student/student-assigned-task-prompt";
 
 export default function Home() {
   const router = useRouter();
@@ -272,9 +273,11 @@ export default function Home() {
           )}
         </div>
 
-        {/* Student Submissions Status Section (When logged in as a student) */}
+        {/* Student Assigned Tasks Prompt & Submissions Section */}
         {user?.role === "student" && (
-          <div className="max-w-6xl mx-auto space-y-4" dir="rtl">
+          <div className="max-w-6xl mx-auto space-y-5" dir="rtl">
+            <StudentAssignedTaskPrompt />
+
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">

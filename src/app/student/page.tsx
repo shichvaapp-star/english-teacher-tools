@@ -33,6 +33,7 @@ import {
   AlertCircle,
   HelpCircle,
 } from "lucide-react";
+import { StudentAssignedTaskPrompt } from "@/components/student/student-assigned-task-prompt";
 
 const LOCAL_SUBMISSIONS_KEY = "ett_writing_submissions";
 
@@ -268,6 +269,9 @@ export default function StudentPortalPage() {
             </Button>
           )}
         </div>
+
+        {/* Active Assigned Tasks Alert Prompt */}
+        <StudentAssignedTaskPrompt />
 
         {/* Stats Row */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4" dir="rtl">
