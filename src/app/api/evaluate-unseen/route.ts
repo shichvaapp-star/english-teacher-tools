@@ -93,21 +93,11 @@ function evaluateCopyHeuristic(
   const cleanTarget = normalizeString(targetSentence);
 
   if (cleanUser === cleanTarget) {
-    const hasCapital = /^[A-Z]/.test(userAns.trim());
-    const hasPunctuation = /[.?!]$/.test(userAns.trim());
-    if (hasCapital && hasPunctuation) {
-      return {
-        points: 10,
-        isCorrect: true,
-        feedbackHebrew: "העתקה מושלמת ומדויקת כולל אות גדולה וסימן פיסוק! כל הכבוד!",
-      };
-    } else {
-      return {
-        points: 9,
-        isCorrect: true,
-        feedbackHebrew: "המשפט הנכון הועתק במדויק! שימו לב להקפיד על אות גדולה בתחילת המשפט ונקודה בסופו.",
-      };
-    }
+    return {
+      points: 10,
+      isCorrect: true,
+      feedbackHebrew: "העתקה מושלמת ומדויקת מתוך הפסקה! כל הכבוד!",
+    };
   }
 
   // Token Jaccard overlap
@@ -118,25 +108,33 @@ function evaluateCopyHeuristic(
 
   if (cleanTarget.includes(cleanUser) && userTokens.size >= 4) {
     return {
+      points: 9,
+      isCorrect: true,
+      feedbackHebrew: "העתקת את החלק המרכזי והנכון מתוך המשפט! להבא כדאי להעתיק את המשפט המלא מתחילתו ועד סופו.",
+    };
+  }
+
+  if (overlapRatio >= 0.65) {
+    return {
+      points: 9,
+      isCorrect: true,
+      feedbackHebrew: "המשפט הנכון זוהה והועתק בהצלחה!",
+    };
+  }
+
+  if (overlapRatio >= 0.45) {
+    return {
       points: 8,
       isCorrect: true,
-      feedbackHebrew: "הועתק חלק משמעותי ונכון מהמשפט. להבא מומלץ להעתיק את המשפט השלם.",
+      feedbackHebrew: "זיהוי יפה של האזור הנכון בטקסט ורוב המשפט הנדרש.",
     };
   }
 
-  if (overlapRatio >= 0.7) {
+  if (overlapRatio >= 0.3) {
     return {
-      points: 7,
-      isCorrect: true,
-      feedbackHebrew: "המשפט קרוב מאוד למשפט היעד עם שינויים קלים בניסוח.",
-    };
-  }
-
-  if (overlapRatio >= 0.4) {
-    return {
-      points: 4,
+      points: 5,
       isCorrect: false,
-      feedbackHebrew: "הועתק חלק מהרעיון, אך המשפט המלא והמדויק הנדרש שונה.",
+      feedbackHebrew: "הועתק חלק קטן מהרעיון, אך המשפט המלא והמדויק שונה.",
     };
   }
 
@@ -166,11 +164,11 @@ function evaluateOpenHeuristic(
 
   // Check for gibberish / single letters / spam
   const words = cleanUser.split(" ").filter(Boolean);
-  if (words.length <= 1 && userAns.length < 5) {
+  if (words.length <= 1 && userAns.length < 4) {
     return {
       points: 2,
       isCorrect: false,
-      feedbackHebrew: "התשובה קצרה מדי. יש לכתוב משפט שלם או רעיון מנוסח באנגלית.",
+      feedbackHebrew: "התשובה קצרה מדי. יש לכתוב תשובה ברורה באנגלית.",
     };
   }
 
@@ -190,7 +188,7 @@ function evaluateOpenHeuristic(
     expectedKeywords.length > 0 ? matchedKeywords / expectedKeywords.length : 0;
 
   // Exact or near-exact match to model answer
-  if (cleanModel && (cleanUser === cleanModel || cleanModel.includes(cleanUser))) {
+  if (cleanModel && (cleanUser === cleanModel || cleanModel.includes(cleanUser) || cleanUser.includes(cleanModel))) {
     return {
       points: 10,
       isCorrect: true,
@@ -198,27 +196,27 @@ function evaluateOpenHeuristic(
     };
   }
 
-  if (keywordRatio >= 0.75 || (matchedKeywords >= 2 && words.length >= 4)) {
+  if (keywordRatio >= 0.6 || (matchedKeywords >= 2 && words.length >= 3)) {
     return {
       points: 10,
       isCorrect: true,
-      feedbackHebrew: "תשובה נכונה מאוד! כללת את כל פרטי המפתח הנדרשים.",
+      feedbackHebrew: "תשובה נכונה מאוד! כללת את כל פרטי המפתח הנדרשים מהטקסט.",
     };
   }
 
-  if (keywordRatio >= 0.5 || matchedKeywords >= 1) {
+  if (keywordRatio >= 0.35 || matchedKeywords >= 1) {
     return {
-      points: 7,
+      points: 8,
       isCorrect: true,
-      feedbackHebrew: "תשובה טובה! זיהית את הרעיון המרכזי אך ניתן להרחיב ולהסביר באופן מפורט יותר.",
+      feedbackHebrew: "תשובה טובה! הבנת את הרעיון המרכזי בפסקה.",
     };
   }
 
-  if (words.length >= 5) {
+  if (words.length >= 4) {
     return {
-      points: 4,
+      points: 5,
       isCorrect: false,
-      feedbackHebrew: "ניסחת משפט באנגלית, אך המידע אינו עונה במדויק על השאלה לפי הטקסט.",
+      feedbackHebrew: "ניסחת תשובה באנגלית, אך המידע אינו עונה במדויק על השאלה לפי הטקסט.",
     };
   }
 
@@ -299,7 +297,8 @@ function generateHeuristicEvaluation(
   });
 
   const totalPointsEarned = breakdown.reduce((sum, item) => sum + item.points, 0);
-  const totalScore = Math.min(100, Math.max(0, totalPointsEarned));
+  const maxPossible = breakdown.reduce((sum, item) => sum + (item.maxPoints || 10), 0) || 100;
+  const totalScore = Math.min(100, Math.max(0, Math.round((totalPointsEarned / maxPossible) * 100)));
 
   // Partition rubric scores according to 4 MoE reading comprehension pillars
   // 1. Explicit Details (max 35)
@@ -502,22 +501,32 @@ ${(paragraphs || []).slice(0, 3).join("\n\n")}
 OPEN-ENDED & SENTENCE-COPYING QUESTIONS TO EVALUATE:
 ${JSON.stringify(openQuestionsSummary, null, 2)}
 
-PEDAGOGICAL GRADING GUIDELINES:
-1. For 'copy' questions:
-   - Verify if student copied the correct target sentence or key clause from the text.
-   - Reward 10 points for exact match with proper capitalization & period.
-   - Reward 7-9 points if correct sentence with minor punctuation/case mistakes or key clause.
-   - Reward 0-4 points if wrong sentence or completely irrelevant.
-2. For 'open' questions:
-   - Evaluate comprehension of the text and presence of expected ideas/keywords.
-   - Partial credit is encouraged: 0 to 10 points (e.g. 5 for partial understanding, 8 for correct idea with minor grammar/clarity issue, 10 for complete answer).
-   - Write 'feedbackHebrew': A supportive, 1-2 sentence explanation in Hebrew for each question explaining what was good and how to improve.
-3. HOLISTIC FEEDBACK & 4-PILLAR RUBRIC:
-   - 'encouragement': Warm inspiring Hebrew headline.
-   - 'teacherNote': A warm personal 2-3 sentence paragraph in Hebrew from the teacher summarizing their reading skills.
-   - 'strengths': 2 specific reading comprehension strengths in Hebrew.
-   - 'tips': 2 actionable tips in Hebrew for the next comprehension exam.
-   - 'rubric': Break down reading skills into the 4 official Ministry of Education pillars:
+PEDAGOGICAL GRADING GUIDELINES (OFFICIAL ISRAELI MOE READING COMPREHENSION STANDARDS):
+1. READING COMPREHENSION OVER LANGUAGE FORM:
+   - In Israeli Bagrut and school English exams, reading comprehension (Unseen) evaluates whether the student understood the text and retrieved the correct factual information.
+   - Grammatical errors, phonetic spelling slips, missing capital letters, or minor punctuation slips that DO NOT alter the factual meaning MUST NOT BE PENALIZED!
+   - Award FULL CREDIT (9–10 points) if the student understood the question and gave the correct factual answer from the passage, even if their sentence is simple or has a typo (e.g. "Because he want to see dolphin" -> 10/10 points!).
+
+2. ACCEPT CONCISE & ALTERNATIVE PHRASINGS:
+   - Students are NOT required to match the model answer verbatim or write long academic sentences.
+   - Concise answers (e.g. "To see dolphins", "in the morning", "they ate pizza") and natural conversational phrasings that correctly answer the question receive 10 points!
+
+3. FAIR SCORING FOR 'copy' QUESTIONS:
+   - If the student identified and copied the correct sentence or the key clause containing the answer from the passage, award 9–10 points.
+   - Do NOT deduct points down to 7 or 8 for minor quotation mark or capitalization slips.
+   - Award 0–4 points ONLY if the sentence copied is completely irrelevant or factually incorrect.
+
+4. GENEROUS PARTIAL CREDIT FOR 'open' QUESTIONS:
+   - 9–10 points: Correct answer answering the prompt, regardless of minor grammar/spelling slips.
+   - 7–8 points: Correct main idea, slightly incomplete or missing one secondary detail.
+   - 5–6 points: Partial understanding of the relevant passage with some correct information.
+   - 0–4 points: Blank, gibberish, or factually wrong information from the text.
+   - In 'feedbackHebrew', write an encouraging, constructive 1-2 sentence explanation in Hebrew.
+
+5. HOLISTIC MOE RUBRIC DISTRIBUTION (Sum to 100):
+   - A student who answers questions correctly should achieve an overall score in the 80–95 range.
+   - Scores in the 50s are reserved ONLY for students who missed most questions or left them blank.
+   - Break down reading skills into the 4 official Ministry of Education pillars:
      * explicitDetails: max 35 (איתור מידע מפורש)
      * inferenceAndContext: max 25 (הסקת מסקנות ורמזי הקשר)
      * globalUnderstanding: max 25 (הבנה כוללת ורעיון מרכזי)
@@ -700,8 +709,37 @@ Return ONLY a raw, valid JSON object matching this schema (NO MARKDOWN CODE FENC
                 }
 
                 const aiOpen = openEvalMap.get(q.id);
-                const points = aiOpen ? aiOpen.points : 5;
-                const isCorrect = aiOpen ? aiOpen.isCorrect : points >= 6;
+                let points = aiOpen ? aiOpen.points : 5;
+                let isCorrect = aiOpen ? aiOpen.isCorrect : points >= 6;
+
+                // MOE Pedagogical Guardrails:
+                // 1. For sentence-copying questions: If student copied the target sentence (normalized) or key portion,
+                // ensure points are not unfairly deducted for minor mechanics or formatting slips.
+                if (q.type === "copy" && q.targetSentence && ans) {
+                  const cleanUser = normalizeString(String(ans));
+                  const cleanTarget = normalizeString(q.targetSentence);
+                  if (cleanUser && (cleanUser === cleanTarget || (cleanTarget.includes(cleanUser) && cleanUser.split(" ").length >= 4))) {
+                    points = Math.max(points, 9);
+                    isCorrect = true;
+                  }
+                }
+
+                // 2. For open-ended questions: If student provided expected keywords or matches model answer idea,
+                // do not allow LLM to penalize for simple sentence structure or minor grammar slips.
+                if (q.type === "open" && ans) {
+                  const cleanUser = normalizeString(String(ans));
+                  const cleanModel = q.modelAnswer ? normalizeString(q.modelAnswer) : "";
+                  if (cleanModel && (cleanUser === cleanModel || cleanModel.includes(cleanUser) || cleanUser.includes(cleanModel))) {
+                    points = Math.max(points, 9);
+                    isCorrect = true;
+                  } else if (q.keywords && q.keywords.length > 0) {
+                    const matched = q.keywords.filter((kw) => cleanUser.includes(kw.toLowerCase().trim()));
+                    if (matched.length >= 2 || (q.keywords.length === 1 && matched.length === 1)) {
+                      points = Math.max(points, 8);
+                      isCorrect = true;
+                    }
+                  }
+                }
 
                 return {
                   id: q.id,
@@ -720,7 +758,9 @@ Return ONLY a raw, valid JSON object matching this schema (NO MARKDOWN CODE FENC
                 };
               });
 
-              const totalScore = fullBreakdown.reduce((sum, item) => sum + item.points, 0);
+              const totalPointsEarned = fullBreakdown.reduce((sum, item) => sum + item.points, 0);
+              const maxPossible = fullBreakdown.reduce((sum, item) => sum + (item.maxPoints || 10), 0) || 100;
+              const totalScore = Math.min(100, Math.max(0, Math.round((totalPointsEarned / maxPossible) * 100)));
 
               // Normalize rubric scores
               const r = parsed.rubric || {};

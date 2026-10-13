@@ -563,11 +563,6 @@ export default function UnseenPracticePage() {
     window.speechSynthesis.speak(utterance);
   };
 
-  // Copy sentence into input
-  const handleCopySentence = (sentence: string) => {
-    if (!activeQuestion || activeQuestion.type !== "copy") return;
-    setUserAnswers((prev) => ({ ...prev, [activeQuestion.id]: sentence.trim() }));
-  };
 
   // Practice mode: check single answer
   const handleCheckPracticeAnswer = (qId: string) => {
@@ -1619,13 +1614,6 @@ export default function UnseenPracticePage() {
                           <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
                             Paragraph [{pIdx + 1}]
                           </span>
-
-                          {activeQuestion?.type === "copy" && (
-                            <span className="text-[10px] text-primary flex items-center gap-1 print:hidden">
-                              <Copy className="h-3 w-3" />
-                              <span>לחץ על &ldquo;הדבק משפט&rdquo; בשאלה להעתקה</span>
-                            </span>
-                          )}
                         </div>
 
                         <p className={`${textSizeClass} text-foreground/90 font-sans tracking-wide leading-relaxed`}>
@@ -1925,23 +1913,9 @@ export default function UnseenPracticePage() {
                     {/* Copy Sentence Question */}
                     {activeQuestion.type === "copy" && (
                       <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <label className="text-xs text-muted-foreground block">
-                            הקלד את המשפט המדויק מהפסקה, או העתק אותו ישירות:
-                          </label>
-                          {activeQuestion.targetSentence && (
-                            <Button
-                              type="button"
-                              variant="secondary"
-                              size="sm"
-                              onClick={() => handleCopySentence(activeQuestion.targetSentence || "")}
-                              className="h-6 text-[11px] gap-1 cursor-pointer"
-                            >
-                              <Copy className="h-3 w-3" />
-                              <span>הדבק משפט</span>
-                            </Button>
-                          )}
-                        </div>
+                        <label className="text-xs text-muted-foreground block">
+                          הקלד את המשפט המדויק מתוך הפסקה:
+                        </label>
                         <textarea
                           rows={3}
                           placeholder="Type the exact sentence from the story..."
