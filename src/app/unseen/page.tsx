@@ -101,8 +101,8 @@ export default function UnseenPracticePage() {
     speech.stop();
   }, [currentStory.id]);
 
-  // Story selector tabs: "library" vs "ai_generator" (default to Library)
-  const [storySourceTab, setStorySourceTab] = useState<"library" | "ai_generator">("library");
+  // Story selector tabs: "library" vs "ai_generator" (default to AI generator)
+  const [storySourceTab, setStorySourceTab] = useState<"library" | "ai_generator">("ai_generator");
 
   // AI Story Generation State
   const [aiTopicInput, setAiTopicInput] = useState("");
@@ -307,6 +307,7 @@ export default function UnseenPracticePage() {
     setShowPracticeCompleteModal(false);
     setShowPracticeConfetti(false);
     setActiveQuestionIndex(0);
+    setMobileTab("text");
     setStories((prev) =>
       prev.map((s) =>
         s.id === currentStory.id
@@ -315,6 +316,9 @@ export default function UnseenPracticePage() {
       )
     );
     setStage("exercise");
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+    }
   };
 
   // Generate with AI
@@ -837,6 +841,17 @@ export default function UnseenPracticePage() {
     }
   }, [userAnswers, mode, stage, currentStory.questions, hasCelebratedPractice]);
 
+  // Ensure page scrolls to top whenever switching stages (settings <-> exercise)
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+      const timer = setTimeout(() => {
+        window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+      }, 40);
+      return () => clearTimeout(timer);
+    }
+  }, [stage]);
+
   return (
     <div className="flex flex-col min-h-screen bg-background text-foreground print:bg-white print:text-black overflow-x-hidden">
       {/* Top Navbar */}
@@ -846,7 +861,12 @@ export default function UnseenPracticePage() {
             {stage === "exercise" ? (
               <button
                 type="button"
-                onClick={() => setStage("settings")}
+                onClick={() => {
+                  setStage("settings");
+                  if (typeof window !== "undefined") {
+                    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+                  }
+                }}
                 className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground p-1.5 px-2 sm:px-2.5 rounded-lg border border-border/60 hover:bg-muted/40 transition cursor-pointer shrink-0"
                 title="שנה הגדרות / בחר קטע אחר"
               >
@@ -918,7 +938,7 @@ export default function UnseenPracticePage() {
           STAGE 1: SETTINGS / SETUP VIEW
           ========================================================================= */}
       {stage === "settings" && (
-        <main className="container mx-auto flex-1 px-3 sm:px-8 py-4 sm:py-8 max-w-4xl space-y-4 sm:space-y-6 print:hidden">
+        <main className="container mx-auto flex-1 px-3 sm:px-8 py-4 sm:py-8 max-w-4xl space-y-4 sm:space-y-6 print:hidden" dir="rtl">
           {/* Settings Hero Card with Immediate Start Button */}
           <div className="bg-card border-2 border-primary/20 rounded-2xl p-4 sm:p-6 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-right" dir="rtl">
             <div className="space-y-1 w-full sm:w-auto">
@@ -942,16 +962,17 @@ export default function UnseenPracticePage() {
               className="w-full sm:w-auto cursor-pointer gap-2 text-sm font-black px-6 shadow-md h-11 bg-primary text-primary-foreground hover:bg-primary/90 shrink-0"
             >
               <span>התחל קריאה ותרגול</span>
-              <ArrowRight className="h-4 w-4" />
+              <ArrowRight className="h-4 w-4 rtl:rotate-180" />
             </Button>
           </div>
 
           {/* Setting 1: Level Selection */}
-          <div className="bg-card border border-border/60 rounded-xl p-3.5 sm:p-4 shadow-xs space-y-2.5 sm:space-y-3">
-            <div className="flex items-center justify-between">
+          <div className="bg-card border border-border/60 rounded-xl p-3.5 sm:p-4 shadow-xs space-y-2.5 sm:space-y-3" dir="rtl">
+            <div className="flex items-center justify-between" dir="rtl">
               <span className="text-xs font-bold uppercase tracking-wider text-foreground flex items-center gap-1.5">
-                <Target className="h-4 w-4 text-primary" />
-                <span>1. רמת קריאה (Reading Level)</span>
+                <Target className="h-4 w-4 text-primary shrink-0" />
+                <span>1. רמת קריאה</span>
+                <span className="text-muted-foreground font-normal lowercase tracking-normal" dir="ltr">(Reading Level)</span>
               </span>
               <span className="text-[11px] text-muted-foreground hidden sm:inline">ללא תלות בשכבת גיל</span>
             </div>
@@ -998,7 +1019,7 @@ export default function UnseenPracticePage() {
                         {lvl.sub}
                       </span>
                     </div>
-                    <p className="text-[11px] text-muted-foreground leading-relaxed hidden md:block">{lvl.desc}</p>
+                    <p className="text-[11px] text-muted-foreground leading-relaxed hidden md:block text-right" dir="ltr">{lvl.desc}</p>
                   </button>
                 );
               })}
@@ -1006,11 +1027,12 @@ export default function UnseenPracticePage() {
           </div>
 
           {/* Setting 2: Practice Mode vs. Graded Mode */}
-          <div className="bg-card border border-border/60 rounded-xl p-3.5 sm:p-4 shadow-xs space-y-2.5 sm:space-y-3">
-            <div className="flex items-center justify-between">
+          <div className="bg-card border border-border/60 rounded-xl p-3.5 sm:p-4 shadow-xs space-y-2.5 sm:space-y-3" dir="rtl">
+            <div className="flex items-center justify-between" dir="rtl">
               <span className="text-xs font-bold uppercase tracking-wider text-foreground flex items-center gap-1.5">
-                <FileCheck className="h-4 w-4 text-primary" />
-                <span>2. מצב פעילות (Practice vs. Assignment)</span>
+                <FileCheck className="h-4 w-4 text-primary shrink-0" />
+                <span>2. מצב פעילות</span>
+                <span className="text-muted-foreground font-normal lowercase tracking-normal" dir="ltr">(Practice vs. Assignment)</span>
               </span>
             </div>
 
@@ -1041,8 +1063,9 @@ export default function UnseenPracticePage() {
                   <Target className="h-4 w-4 sm:h-5 sm:w-5" />
                 </div>
                 <div className="space-y-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <h4 className="text-sm font-bold text-foreground">אימון חופשי (Practice Mode)</h4>
+                  <div className="flex items-center gap-1.5">
+                    <h4 className="text-sm font-bold text-foreground">אימון חופשי</h4>
+                    <span className="text-xs text-muted-foreground font-normal" dir="ltr">(Practice Mode)</span>
                     {mode === "practice" && (
                       <span className="text-[10px] px-1.5 py-0.2 bg-primary text-primary-foreground rounded-full font-bold">
                         נבחר
@@ -1071,8 +1094,9 @@ export default function UnseenPracticePage() {
                   <Award className="h-4 w-4 sm:h-5 sm:w-5" />
                 </div>
                 <div className="space-y-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <h4 className="text-sm font-bold text-foreground">מטלה להגשה למורה / מבחן (Assignment Mode)</h4>
+                  <div className="flex items-center gap-1.5">
+                    <h4 className="text-sm font-bold text-foreground">מטלה להגשה למורה / מבחן</h4>
+                    <span className="text-xs text-muted-foreground font-normal" dir="ltr">(Assignment Mode)</span>
                     {mode === "graded" ? (
                       <span className="text-[10px] px-1.5 py-0.2 bg-emerald-600 text-white rounded-full font-bold">
                         נבחר
@@ -1095,14 +1119,14 @@ export default function UnseenPracticePage() {
           </div>
 
           {/* Setting 3: Choose Story or Generate with AI */}
-          <div className="bg-card border border-border/60 rounded-xl p-4 shadow-xs space-y-3">
-            <div className="flex items-center justify-between border-b border-border/50 pb-2.5">
+          <div className="bg-card border border-border/60 rounded-xl p-4 shadow-xs space-y-3" dir="rtl">
+            <div className="flex items-center justify-between border-b border-border/50 pb-2.5" dir="rtl">
               <span className="text-xs font-bold uppercase tracking-wider text-foreground flex items-center gap-1.5">
-                <BookMarked className="h-4 w-4 text-primary" />
+                <BookMarked className="h-4 w-4 text-primary shrink-0" />
                 <span>3. בחר קטע קריאה או צור עם AI</span>
               </span>
 
-              <div className="flex items-center gap-1 bg-muted p-0.5 rounded-lg">
+              <div className="flex items-center gap-1 bg-muted p-0.5 rounded-lg" dir="rtl">
                 <button
                   type="button"
                   onClick={() => setStorySourceTab("ai_generator")}
@@ -1300,7 +1324,7 @@ export default function UnseenPracticePage() {
           </div>
 
           {/* Bottom Action Bar: Sticky on Mobile so it is NEVER lost */}
-          <div className="sticky bottom-0 z-30 -mx-3 sm:mx-0 p-3 sm:p-4 bg-background/95 backdrop-blur-md border-t-2 sm:border sm:rounded-2xl border-primary/30 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="sticky bottom-0 z-30 -mx-3 sm:mx-0 p-3 sm:p-4 bg-background/95 backdrop-blur-md border-t-2 sm:border sm:rounded-2xl border-primary/30 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-3" dir="rtl">
             <div className="text-right rtl space-y-0.5 w-full sm:w-auto flex sm:flex-col justify-between items-center sm:items-start">
               <div className="flex items-center gap-1.5 sm:gap-2">
                 <span className="text-xs sm:text-sm font-bold text-foreground">קטע:</span>
@@ -1338,7 +1362,7 @@ export default function UnseenPracticePage() {
                 }`}
               >
                 <span>{mode === "graded" ? "התחל מטלה להגשה למורה 🚀" : "התחל אימון חופשי ✍️"}</span>
-                <ArrowRight className="h-4 w-4" />
+                <ArrowRight className="h-4 w-4 rtl:rotate-180" />
               </Button>
             </div>
           </div>
@@ -1352,7 +1376,12 @@ export default function UnseenPracticePage() {
             <div className="flex flex-wrap items-center gap-2 min-w-0">
               <button
                 type="button"
-                onClick={() => setStage("settings")}
+                onClick={() => {
+                  setStage("settings");
+                  if (typeof window !== "undefined") {
+                    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+                  }
+                }}
                 className="text-xs font-semibold text-primary hover:underline flex items-center gap-1 cursor-pointer shrink-0"
               >
                 <Sliders className="h-3.5 w-3.5" />
