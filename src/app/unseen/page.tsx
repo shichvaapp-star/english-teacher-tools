@@ -926,7 +926,7 @@ export default function UnseenPracticePage() {
   }, [stage]);
 
   return (
-    <div className="flex flex-col min-h-screen bg-background text-foreground print:bg-white print:text-black overflow-x-hidden">
+    <div className="flex flex-col min-h-screen bg-background text-foreground print:bg-white print:text-black">
       {/* Top Navbar */}
       <header className="sticky top-0 z-40 border-b border-border/60 bg-background/95 backdrop-blur print:hidden">
         <div className="container mx-auto flex h-16 items-center justify-between px-3 sm:px-8 gap-2">
@@ -1387,7 +1387,7 @@ export default function UnseenPracticePage() {
       )}
 
       {stage === "exercise" && (
-        <main className="container mx-auto flex-1 px-3 sm:px-8 py-4 sm:py-6 space-y-4 sm:space-y-6 max-w-6xl animate-in fade-in-0 print:hidden">
+        <main className="container mx-auto flex-1 px-3 sm:px-8 py-4 sm:py-6 space-y-4 sm:space-y-6 max-w-6xl print:hidden">
           {/* Active Context Ribbon */}
           <div className="flex flex-wrap items-center justify-between bg-card border border-border/60 rounded-xl p-2.5 sm:p-3 shadow-xs print:hidden gap-2.5">
             <div className="flex flex-wrap items-center gap-2 min-w-0">
@@ -1522,7 +1522,7 @@ export default function UnseenPracticePage() {
           </div>
 
           {/* Reading Passage (Left) + 10 Questions (Right) */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             {/* Reading Passage Column (7 Cols on desktop, conditioned on mobile) */}
             <div className={`lg:col-span-7 space-y-4 ${mobileTab === "text" ? "block" : "hidden lg:block"}`}>
               <Card className="border-border/60 shadow-xs">
@@ -1761,11 +1761,8 @@ export default function UnseenPracticePage() {
             </div>
 
             {/* 10 Questions Column (5 Cols on desktop, conditioned on mobile) */}
-            <div
-              className={`lg:col-span-5 space-y-4 print:hidden lg:sticky lg:top-20 lg:self-start lg:max-h-[calc(100vh-5.5rem)] lg:overflow-y-auto lg:pr-1 ${
-                mobileTab === "questions" ? "block" : "hidden lg:block"
-              }`}
-            >
+            <div className={`lg:col-span-5 print:hidden ${mobileTab === "questions" ? "block" : "hidden lg:block"}`}>
+              <div className="lg:sticky lg:top-20 space-y-4 lg:max-h-[calc(100vh-5.5rem)] lg:overflow-y-auto lg:pr-1">
               {/* Mobile quick link to return to text */}
               <div className="lg:hidden flex items-center justify-between px-1">
                 <button
@@ -2492,6 +2489,7 @@ export default function UnseenPracticePage() {
                   )}
                 </Card>
               )}
+              </div>
             </div>
           </div>
         </main>
