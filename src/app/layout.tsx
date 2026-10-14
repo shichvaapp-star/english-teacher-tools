@@ -5,6 +5,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/lib/auth-context";
 import { Analytics } from "@vercel/analytics/next";
+import { SuggestEditButton } from "@/components/suggestions/suggest-edit-button";
 
 const clarityCity = localFont({
   src: [
@@ -95,6 +96,7 @@ export default function RootLayout({
           <AuthProvider>
             <TooltipProvider>
               {children}
+              <SuggestEditButton />
             </TooltipProvider>
           </AuthProvider>
           <Analytics />

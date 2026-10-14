@@ -4,16 +4,18 @@ import React, { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
-import { GraduationCap, User, LogOut, ChevronDown, School, RefreshCw, LayoutDashboard, CheckCircle2 } from "lucide-react";
+import { GraduationCap, User, LogOut, ChevronDown, School, RefreshCw, LayoutDashboard, CheckCircle2, MessageSquarePlus } from "lucide-react";
 import { TeacherAuthModal } from "./teacher-auth-modal";
 import { StudentLoginModal } from "./student-login-modal";
 import { HeaderTooltip } from "@/components/ui/header-tooltip";
+import { SuggestEditDialog } from "@/components/suggestions/suggest-edit-dialog";
 
 export function UserNav() {
   const { user, logout } = useAuth();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [teacherModalOpen, setTeacherModalOpen] = useState(false);
   const [studentModalOpen, setStudentModalOpen] = useState(false);
+  const [suggestModalOpen, setSuggestModalOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   // Close dropdown on click outside or escape key
@@ -121,14 +123,28 @@ export function UserNav() {
 
           <div className="py-1">
             {isTeacher && (
-              <Link
-                href="/teacher/dashboard"
-                onClick={() => setDropdownOpen(false)}
-                className="w-full flex items-center gap-2 px-3 py-2 text-xs text-primary hover:bg-primary/10 rounded-lg transition text-left cursor-pointer font-bold mb-1 border border-primary/20 bg-primary/5"
-              >
-                <LayoutDashboard className="h-3.5 w-3.5 text-primary" />
-                <span>לוח בקרת מורה (Dashboard)</span>
-              </Link>
+              <>
+                <Link
+                  href="/teacher/dashboard"
+                  onClick={() => setDropdownOpen(false)}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-xs text-primary hover:bg-primary/10 rounded-lg transition text-left cursor-pointer font-bold mb-1 border border-primary/20 bg-primary/5"
+                >
+                  <LayoutDashboard className="h-3.5 w-3.5 text-primary" />
+                  <span>לוח בקרת מורה (Dashboard)</span>
+                </Link>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDropdownOpen(false);
+                    setSuggestModalOpen(true);
+                  }}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-xs text-foreground hover:bg-accent rounded-lg transition text-left cursor-pointer mb-1"
+                >
+                  <MessageSquarePlus className="h-3.5 w-3.5 text-primary" />
+                  <span>Suggest Edit / Report Bug (משוב ועריכה)</span>
+                </button>
+              </>
             )}
 
             {!isTeacher && (
@@ -172,6 +188,7 @@ export function UserNav() {
 
       <TeacherAuthModal open={teacherModalOpen} onOpenChange={setTeacherModalOpen} />
       <StudentLoginModal open={studentModalOpen} onOpenChange={setStudentModalOpen} />
+      <SuggestEditDialog open={suggestModalOpen} onOpenChange={setSuggestModalOpen} />
     </div>
   );
 }

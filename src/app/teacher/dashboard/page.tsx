@@ -51,11 +51,13 @@ import {
   Shuffle,
   Layers,
   Plus,
+  MessageSquarePlus,
 } from "lucide-react";
 
 import { SubmissionItem } from "@/types/submission";
 import { StudentProfile, StudentGroup } from "@/types/auth";
 import { TeacherAssignment } from "@/types/assignment";
+import { SiteSuggestion } from "@/types/suggestion";
 import { ALL_WRITING_TASKS } from "@/data/writing-tasks";
 import type { WritingEvaluationResult } from "@/app/api/evaluate-writing/route";
 
@@ -63,9 +65,11 @@ import { TurnInsTable, parseSubmissionTimestamp } from "./turn-ins-table";
 import { ReviewDialog } from "./review-dialog";
 import { AssignTaskModal } from "./assign-task-modal";
 import { AssignedTasksView } from "./assigned-tasks-view";
+import { AdminSuggestionsView } from "./admin-suggestions-view";
 
 const LOCAL_SUBMISSIONS_KEY = "ett_writing_submissions";
 const LOCAL_ASSIGNMENTS_KEY = "ett_teacher_assignments";
+const LOCAL_SUGGESTIONS_KEY = "ett_site_suggestions";
 
 export default function TeacherDashboardPage() {
   const {
@@ -77,7 +81,11 @@ export default function TeacherDashboardPage() {
   } = useAuth();
 
   // Active navigation view tab
-  const [activeTab, setActiveTab] = useState<"submissions" | "assignments" | "students">("submissions");
+  const [activeTab, setActiveTab] = useState<"submissions" | "assignments" | "students" | "suggestions">("submissions");
+
+  // Site Suggestions State (Admin)
+  const [suggestions, setSuggestions] = useState<SiteSuggestion[]>([]);
+  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(true);
 
   // Submissions State
   const [submissions, setSubmissions] = useState<SubmissionItem[]>([]);
@@ -243,13 +251,146 @@ export default function TeacherDashboardPage() {
     setAssignments(list);
   };
 
+  // Fetch Site Suggestions (Admin)
+  const fetchSuggestions = async () => {
+    setIsLoadingSuggestions(true);
+    let list: SiteSuggestion[] = [];
+
+    // 1. From local storage
+    try {
+      const localRaw = localStorage.getItem(LOCAL_SUGGESTIONS_KEY);
+      if (localRaw) {
+        list = JSON.parse(localRaw);
+      }
+    } catch {
+      list = [];
+    }
+
+    // 2. From Firestore
+    if (db) {
+      try {
+        const snap = await getDocs(collection(db, "site_suggestions"));
+        const fbItems: SiteSuggestion[] = [];
+        snap.forEach((docSnap) => {
+          fbItems.push({
+            ...(docSnap.data() as Omit<SiteSuggestion, "id">),
+            id: docSnap.id,
+          });
+        });
+        if (fbItems.length > 0) {
+          const map = new Map<string, SiteSuggestion>();
+          list.forEach((i) => map.set(i.id, i));
+          fbItems.forEach((i) => map.set(i.id, i));
+          list = Array.from(map.values());
+        }
+      } catch (err) {
+        console.warn("Firestore fetch suggestions notice:", err);
+      }
+    }
+
+    list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    setSuggestions(list);
+    setIsLoadingSuggestions(false);
+  };
+
+  const handleUpdateSuggestion = async (id: string, updates: Partial<SiteSuggestion>) => {
+    setSuggestions((prev) =>
+      prev.map((s) => (s.id === id ? { ...s, ...updates } : s))
+    );
+
+    // Local storage
+    try {
+      const localRaw = localStorage.getItem(LOCAL_SUGGESTIONS_KEY);
+      if (localRaw) {
+        const list: SiteSuggestion[] = JSON.parse(localRaw);
+        const updated = list.map((s) => (s.id === id ? { ...s, ...updates } : s));
+        localStorage.setItem(LOCAL_SUGGESTIONS_KEY, JSON.stringify(updated));
+      }
+    } catch {}
+
+    // Firestore
+    if (db) {
+      try {
+        await updateDoc(doc(db, "site_suggestions", id), updates);
+      } catch (err) {
+        console.warn("Firestore update suggestion notice:", err);
+      }
+    }
+  };
+
+  const handleDeleteSuggestion = async (id: string) => {
+    setSuggestions((prev) => prev.filter((s) => s.id !== id));
+
+    // Local storage
+    try {
+      const localRaw = localStorage.getItem(LOCAL_SUGGESTIONS_KEY);
+      if (localRaw) {
+        const list: SiteSuggestion[] = JSON.parse(localRaw);
+        const updated = list.filter((s) => s.id !== id);
+        localStorage.setItem(LOCAL_SUGGESTIONS_KEY, JSON.stringify(updated));
+      }
+    } catch {}
+
+    // Firestore
+    if (db) {
+      try {
+        await deleteDoc(doc(db, "site_suggestions", id));
+      } catch (err) {
+        console.warn("Firestore delete suggestion notice:", err);
+      }
+    }
+  };
+
   // Initial load
   useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const tabParam = params.get("tab");
+      if (tabParam === "suggestions") {
+        setActiveTab("suggestions");
+      }
+    }
+
     if (user && user.role === "teacher") {
       fetchSubmissions();
       fetchStudents();
       fetchAssignments();
+      fetchSuggestions();
     }
+  }, [user]);
+
+  // Real-time listener for suggestions
+  useEffect(() => {
+    if (!db || !user || user.role !== "teacher") return;
+
+    const unsub = onSnapshot(
+      collection(db, "site_suggestions"),
+      (snap) => {
+        const fbItems: SiteSuggestion[] = [];
+        snap.forEach((docSnap) => {
+          fbItems.push({
+            ...(docSnap.data() as Omit<SiteSuggestion, "id">),
+            id: docSnap.id,
+          });
+        });
+
+        if (fbItems.length > 0) {
+          setSuggestions((prev) => {
+            const map = new Map<string, SiteSuggestion>();
+            prev.forEach((i) => map.set(i.id, i));
+            fbItems.forEach((i) => map.set(i.id, i));
+            const merged = Array.from(map.values());
+            merged.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+            return merged;
+          });
+        }
+      },
+      (err) => {
+        console.warn("Real-time suggestions listener notice:", err);
+      }
+    );
+
+    return () => unsub();
   }, [user]);
 
   // Real-time listener for incoming submissions
@@ -1041,6 +1182,29 @@ export default function TeacherDashboardPage() {
                 {students.length}
               </span>
             </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab("suggestions")}
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer shrink-0 ${
+                activeTab === "suggestions"
+                  ? "bg-primary text-primary-foreground shadow-xs"
+                  : "bg-muted/40 text-muted-foreground hover:text-foreground hover:bg-muted"
+              }`}
+            >
+              <MessageSquarePlus className="h-4 w-4" />
+              <span>הצעות ומשוב (Admin)</span>
+              <span className={`px-2 py-0.2 rounded-full text-[11px] font-bold ${
+                activeTab === "suggestions" ? "bg-primary-foreground/20 text-primary-foreground" : "bg-muted text-muted-foreground"
+              }`}>
+                {suggestions.length}
+              </span>
+              {suggestions.filter((s) => s.status === "new").length > 0 && (
+                <span className="px-1.5 py-0.2 rounded-full text-[10px] font-black bg-amber-500 text-white">
+                  {suggestions.filter((s) => s.status === "new").length} חדשות
+                </span>
+              )}
+            </button>
           </div>
 
           {activeTab === "students" && (
@@ -1376,6 +1540,21 @@ export default function TeacherDashboardPage() {
                 })}
               </div>
             )}
+          </div>
+        )}
+
+        {/* -------------------------------------------------------------------
+            TAB 4: SITE SUGGESTIONS & EDITS (ADMIN VIEW)
+            ------------------------------------------------------------------- */}
+        {activeTab === "suggestions" && (
+          <div className="print:hidden">
+            <AdminSuggestionsView
+              suggestions={suggestions}
+              onRefresh={fetchSuggestions}
+              isLoading={isLoadingSuggestions}
+              onUpdateSuggestion={handleUpdateSuggestion}
+              onDeleteSuggestion={handleDeleteSuggestion}
+            />
           </div>
         )}
       </main>
