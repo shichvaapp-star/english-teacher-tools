@@ -108,11 +108,10 @@ export function UserNav() {
             {isTeacher && user.email && (
               <p className="text-xs text-muted-foreground truncate mt-0.5">{user.email}</p>
             )}
-            {isTeacher && user.teacherCode && (
-              <div className="mt-2 p-1.5 bg-primary/5 rounded-md border border-primary/15 text-xs text-primary font-mono flex items-center justify-between">
-                <span>Class Code:</span>
-                <span className="font-bold tracking-wider">{user.teacherCode}</span>
-              </div>
+            {isTeacher && user.schoolName && (
+              <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+                <School className="h-3 w-3 shrink-0" /> {user.schoolName}
+              </p>
             )}
             {!isTeacher && user.teacherName && (
               <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">

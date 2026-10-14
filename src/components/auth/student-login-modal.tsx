@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/lib/auth-context";
-import { StudentProfile } from "@/types/auth";
+import { StudentProfile, formatTeacherDisplayName } from "@/types/auth";
 import {
   Dialog,
   DialogContent,
@@ -275,7 +275,7 @@ export function StudentLoginModal({ open, onOpenChange }: StudentLoginModalProps
                 {teachers.length === 0 && <option value="">אין מורים רשומים עדיין</option>}
                 {teachers.map((t) => (
                   <option key={t.id} value={t.id}>
-                    {t.name} &bull; {t.schoolName} ({t.teacherCode})
+                    {formatTeacherDisplayName(t, teachers)}
                   </option>
                 ))}
               </select>
@@ -374,7 +374,7 @@ export function StudentLoginModal({ open, onOpenChange }: StudentLoginModalProps
                 {teachers.length === 0 && <option value="">אין מורים רשומים עדיין</option>}
                 {teachers.map((t) => (
                   <option key={t.id} value={t.id}>
-                    {t.name} &bull; {t.schoolName} ({t.teacherCode})
+                    {formatTeacherDisplayName(t, teachers)}
                   </option>
                 ))}
               </select>

@@ -129,9 +129,6 @@ export default function TeacherDashboardPage() {
   const [isEvaluatingAi, setIsEvaluatingAi] = useState(false);
   const [writingAiResult, setWritingAiResult] = useState<WritingEvaluationResult | null>(null);
 
-  // Teacher Code Copied Toast
-  const [copiedCode, setCopiedCode] = useState(false);
-
   // Auth modal for unauthorized users
   const [authModalOpen, setAuthModalOpen] = useState(false);
 
@@ -444,13 +441,6 @@ export default function TeacherDashboardPage() {
     await Promise.all([fetchSubmissions(), fetchStudents(), fetchAssignments()]);
   };
 
-  // Copy teacher code
-  const handleCopyCode = () => {
-    if (!user?.teacherCode) return;
-    navigator.clipboard.writeText(user.teacherCode);
-    setCopiedCode(true);
-    setTimeout(() => setCopiedCode(false), 2000);
-  };
 
   // Copy student PIN
   const handleCopyPin = (student: StudentProfile) => {
@@ -983,19 +973,6 @@ export default function TeacherDashboardPage() {
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-            {/* Teacher Code Chip */}
-            {user.teacherCode && (
-              <button
-                type="button"
-                onClick={handleCopyCode}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-border/80 bg-muted/40 hover:bg-muted text-xs font-mono font-bold transition-colors cursor-pointer"
-                title="לחץ להעתקת קוד המורה לתלמידים"
-              >
-                <span className="text-[11px] text-muted-foreground font-sans font-normal hidden md:inline">קוד מורה:</span>
-                <span className="text-primary">{user.teacherCode}</span>
-                {copiedCode ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3 text-muted-foreground" />}
-              </button>
-            )}
 
             <HeaderTooltip label="רענון נתונים">
               <Button
@@ -1421,7 +1398,7 @@ export default function TeacherDashboardPage() {
                   {students.length === 0 ? "טרם נרשמו תלמידים" : "לא נמצאו תלמידים תואמים"}
                 </h3>
                 <p className="text-xs text-muted-foreground max-w-sm mx-auto">
-                  תוכל/י להוסיף תלמידים ידנית או שהם ירשמו בעצמם עם קוד המורה שלך.
+                  תוכל/י להוסיף תלמידים ידנית או שהם יתחברו ויבחרו בך כמורה שלהם.
                 </p>
                 {students.length === 0 && (
                   <Button
@@ -1852,8 +1829,8 @@ export default function TeacherDashboardPage() {
             </p>
           </div>
           <div className="text-left" dir="ltr">
-            <span className="text-xs text-gray-500 block">Teacher Code:</span>
-            <span className="font-mono text-lg font-bold">{user.teacherCode}</span>
+            <span className="text-xs text-gray-500 block">Class Roster</span>
+            <span className="text-sm font-semibold text-gray-700">English Dept.</span>
           </div>
         </div>
 

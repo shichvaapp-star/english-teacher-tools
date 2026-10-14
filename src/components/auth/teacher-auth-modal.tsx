@@ -93,7 +93,7 @@ export function TeacherAuthModal({ open, onOpenChange }: TeacherAuthModalProps) 
     setLoading(false);
 
     if (res.success && res.teacher) {
-      setSuccessMsg(`Teacher account created! Your teacher code is: ${res.teacher.teacherCode}`);
+      setSuccessMsg("Teacher account created successfully! Welcome to English Teacher Tools.");
       setTimeout(() => {
         onOpenChange(false);
         setSuccessMsg(null);

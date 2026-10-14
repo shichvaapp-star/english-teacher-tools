@@ -10,6 +10,7 @@ import { db } from "@/lib/firebase";
 import { collection, addDoc, doc, setDoc } from "firebase/firestore";
 import { cleanForFirestore } from "@/lib/utils";
 import { SubmissionItem, SubmissionQuestionBreakdown } from "@/types/submission";
+import { formatTeacherDisplayName } from "@/types/auth";
 import { UnseenEvaluationResult } from "@/types/unseen";
 import { MIDDLE_SCHOOL_UNSEENS, MSUnseenStory, MSUnseenQuestion, randomizeQuestionsOptions } from "@/data/unseen-middle-school";
 import { lookupBuiltInTranslation } from "@/data/built-in-dictionary";
@@ -1760,7 +1761,11 @@ export default function UnseenPracticePage() {
             </div>
 
             {/* 10 Questions Column (5 Cols on desktop, conditioned on mobile) */}
-            <div className={`lg:col-span-5 space-y-4 print:hidden ${mobileTab === "questions" ? "block" : "hidden lg:block"}`}>
+            <div
+              className={`lg:col-span-5 space-y-4 print:hidden lg:sticky lg:top-20 lg:self-start lg:max-h-[calc(100vh-5.5rem)] lg:overflow-y-auto lg:pr-1 ${
+                mobileTab === "questions" ? "block" : "hidden lg:block"
+              }`}
+            >
               {/* Mobile quick link to return to text */}
               <div className="lg:hidden flex items-center justify-between px-1">
                 <button
@@ -2707,9 +2712,11 @@ export default function UnseenPracticePage() {
                         <span className="font-bold text-foreground truncate">
                           {selectedTeacher.name}
                         </span>
-                        <span className="text-[10px] text-muted-foreground shrink-0">
-                          ({selectedTeacher.teacherCode})
-                        </span>
+                        {selectedTeacher.schoolName && (
+                          <span className="text-[10px] text-muted-foreground shrink-0">
+                            &bull; {selectedTeacher.schoolName}
+                          </span>
+                        )}
                       </div>
                       <button
                         type="button"
@@ -2732,7 +2739,7 @@ export default function UnseenPracticePage() {
                     >
                       {teachers.map((t) => (
                         <option key={t.id} value={t.id}>
-                          {t.name} ({t.teacherCode})
+                          {formatTeacherDisplayName(t, teachers)}
                         </option>
                       ))}
                     </select>

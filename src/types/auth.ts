@@ -37,3 +37,30 @@ export interface ActiveUser {
   fullClass?: string;
   group?: StudentGroup;
 }
+
+export function formatTeacherDisplayName(
+  teacher: { name: string; schoolName?: string; teacherCode?: string },
+  allTeachers: { name: string; schoolName?: string; teacherCode?: string }[] = []
+): string {
+  const teacherName = (teacher.name || "").trim();
+  const sameNameCount = allTeachers.filter(
+    (t) => (t.name || "").trim().toLowerCase() === teacherName.toLowerCase()
+  ).length;
+
+  if (sameNameCount <= 1) {
+    return teacher.schoolName ? `${teacherName} • ${teacher.schoolName}` : teacherName;
+  }
+
+  const teacherSchool = (teacher.schoolName || "").trim();
+  const sameNameAndSchoolCount = allTeachers.filter(
+    (t) =>
+      (t.name || "").trim().toLowerCase() === teacherName.toLowerCase() &&
+      (t.schoolName || "").trim().toLowerCase() === teacherSchool.toLowerCase()
+  ).length;
+
+  if (sameNameAndSchoolCount > 1 && teacher.teacherCode) {
+    return `${teacherName}${teacherSchool ? ` • ${teacherSchool}` : ""} (${teacher.teacherCode})`;
+  }
+
+  return teacherSchool ? `${teacherName} • ${teacherSchool}` : `${teacherName}${teacher.teacherCode ? ` (${teacher.teacherCode})` : ""}`;
+}

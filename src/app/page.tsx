@@ -210,9 +210,9 @@ export default function Home() {
                   מורה: {user.teacherName}
                 </Badge>
               )}
-              {user.role === "teacher" && user.teacherCode && (
-                <Badge variant="outline" className="text-[10px] font-mono">
-                  קוד כיתה: {user.teacherCode}
+              {user.role === "teacher" && user.schoolName && (
+                <Badge variant="outline" className="text-[10px]">
+                  {user.schoolName}
                 </Badge>
               )}
             </div>
