@@ -18,6 +18,7 @@ import {
   Compass,
   CheckCircle2,
   Clock,
+  GraduationCap,
 } from "lucide-react";
 
 interface TutorProgressCardProps {
@@ -35,8 +36,8 @@ export function TutorProgressCard({ profile, onResetDiagnostic }: TutorProgressC
         <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent p-4 sm:p-5 border-b border-border/40">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary text-primary-foreground font-black text-lg shadow-xs shrink-0">
-                👨‍🏫
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-tr from-sky-500 via-indigo-500 to-purple-500 text-white shadow-xs shrink-0">
+                <GraduationCap className="h-6 w-6" />
               </div>
               <div>
                 <h3 className="font-bold text-foreground text-base sm:text-lg flex items-center gap-2">

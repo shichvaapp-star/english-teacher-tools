@@ -1,15 +1,12 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Sparkles, MessageSquare, X, ArrowRight } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Sparkles, Bot, GraduationCap } from "lucide-react";
 
 export function TutorFloatingButton() {
   const pathname = usePathname();
-  const [isOpen, setIsOpen] = useState(false);
-  const [hasPrompted, setHasPrompted] = useState(false);
 
   // Don't show floating button on the /tutor page itself
   if (pathname === "/tutor") {
@@ -17,50 +14,48 @@ export function TutorFloatingButton() {
   }
 
   return (
-    <div className="fixed bottom-5 left-5 z-40 flex flex-col items-start gap-2">
-      {/* Speech bubble prompt */}
-      {!hasPrompted && (
-        <div className="relative bg-card text-foreground border border-border/80 rounded-2xl p-3 shadow-lg max-w-xs animate-in fade-in slide-in-from-bottom-2 duration-300">
-          <button
-            onClick={() => setHasPrompted(true)}
-            className="absolute -top-2 -right-2 bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground h-5 w-5 rounded-full flex items-center justify-center text-xs shadow-xs"
-            title="סגור"
-          >
-            <X className="h-3 w-3" />
-          </button>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-sm">👨‍🏫</span>
-            <span className="font-bold text-xs text-primary">דוד (David) - המורה הפרטי</span>
-          </div>
-          <p className="text-xs text-muted-foreground leading-relaxed mb-2">
-            היי! רוצה משימת תרגול מותאמת אישית או עזרה באנגלית? בוא נתחיל!
-          </p>
-          <Link href="/tutor" onClick={() => setHasPrompted(true)}>
-            <Button size="sm" className="w-full text-xs h-7 gap-1 font-bold">
-              <span>דבר עם דוד עכשיו</span>
-              <ArrowRight className="h-3 w-3" />
-            </Button>
-          </Link>
-        </div>
-      )}
-
-      {/* Floating launcher button */}
+    <div className="fixed bottom-5 left-5 z-40">
       <Link href="/tutor">
         <button
-          className="group flex items-center gap-2.5 bg-primary text-primary-foreground px-4 py-2.5 rounded-full shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 transition-all duration-200 border border-primary-foreground/20 cursor-pointer"
-          title="פתח את המורה הפרטי דוד (David)"
+          className="group flex items-center gap-3 bg-[#0d0e12] hover:bg-[#16181f] text-zinc-100 pl-4 pr-3.5 py-2.5 rounded-full shadow-2xl border border-white/10 hover:border-white/20 hover:shadow-primary/10 hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 cursor-pointer backdrop-blur-md"
+          title="דוד (David) - המורה הפרטי האישי שלך לאנגלית"
+          aria-label="פתח את המורה הפרטי דוד"
         >
-          <div className="relative flex items-center justify-center">
-            <span className="text-lg">👨‍🏫</span>
-            <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
+          {/* Logo Badge */}
+          <div className="relative flex items-center justify-center h-8 w-8 rounded-full bg-gradient-to-tr from-sky-500 via-indigo-500 to-purple-500 text-white shadow-xs shrink-0 group-hover:scale-105 transition-transform">
+            <svg
+              className="h-4 w-4"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              {/* Modern graduation cap + AI spark emblem */}
+              <path d="M22 10v6M2 10l10-5 10 5-10 5z" />
+              <path d="M6 12v5c3 3 9 3 12 0v-5" />
+            </svg>
+
+            {/* Online Indicator Dot */}
+            <span className="absolute -top-0.5 -right-0.5 flex h-2.5 w-2.5">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500 ring-2 ring-[#0d0e12]" />
             </span>
           </div>
-          <span className="font-bold text-xs sm:text-sm tracking-tight">
-            המורה הפרטי שלי
-          </span>
-          <Sparkles className="h-3.5 w-3.5 text-amber-300 group-hover:rotate-12 transition-transform" />
+
+          {/* Text */}
+          <div className="flex flex-col items-start leading-tight">
+            <div className="flex items-center gap-1.5 font-bold text-xs sm:text-sm tracking-tight text-white">
+              <span>המורה הפרטי שלי</span>
+              <span className="text-[10px] text-zinc-400 font-medium">(דוד)</span>
+            </div>
+            <span className="text-[10px] text-emerald-400/90 font-medium">
+              זמין כעת לתרגול אישי
+            </span>
+          </div>
+
+          <Sparkles className="h-3.5 w-3.5 text-amber-400/80 group-hover:text-amber-300 group-hover:rotate-12 transition-all ml-0.5" />
         </button>
       </Link>
     </div>

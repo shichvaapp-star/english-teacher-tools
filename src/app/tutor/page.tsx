@@ -78,8 +78,8 @@ export default function PrivateTutorPage() {
             <span className="text-border">|</span>
 
             <div className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary text-primary-foreground font-black text-sm shadow-xs">
-                👨‍🏫
+              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-tr from-sky-500 via-indigo-500 to-purple-500 text-white shadow-xs">
+                <GraduationCap className="h-4 w-4" />
               </div>
               <span className="font-bold text-sm sm:text-base text-foreground">
                 המורה הפרטי שלי (David)

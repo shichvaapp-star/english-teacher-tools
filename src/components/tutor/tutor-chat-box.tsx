@@ -31,6 +31,7 @@ import {
   User,
   Clock,
   CheckCircle2,
+  GraduationCap,
 } from "lucide-react";
 
 interface TutorChatBoxProps {
@@ -298,8 +299,8 @@ export function TutorChatBox({
       <div className="flex items-center justify-between p-3.5 sm:p-4 border-b border-border/40 bg-muted/30">
         <div className="flex items-center gap-3">
           <div className="relative">
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary text-primary-foreground font-black text-base shadow-xs">
-              👨‍🏫
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-tr from-sky-500 via-indigo-500 to-purple-500 text-white shadow-xs">
+              <GraduationCap className="h-5 w-5" />
             </div>
             <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-emerald-500 ring-2 ring-background" />
           </div>
@@ -358,10 +359,10 @@ export function TutorChatBox({
                 className={`flex h-7 w-7 rounded-xl items-center justify-center text-xs shrink-0 mt-1 shadow-xs ${
                   msg.sender === "student"
                     ? "bg-primary text-primary-foreground"
-                    : "bg-muted text-foreground border border-border/50"
+                    : "bg-gradient-to-tr from-sky-500 via-indigo-500 to-purple-500 text-white"
                 }`}
               >
-                {msg.sender === "student" ? <User className="h-3.5 w-3.5" /> : "👨‍🏫"}
+                {msg.sender === "student" ? <User className="h-3.5 w-3.5" /> : <GraduationCap className="h-3.5 w-3.5" />}
               </div>
 
               <div
@@ -476,8 +477,8 @@ export function TutorChatBox({
         {/* Loading Indicator */}
         {isSending && (
           <div className="flex items-center gap-2 text-xs text-muted-foreground ml-9">
-            <div className="flex h-7 w-7 rounded-xl items-center justify-center bg-muted text-foreground shrink-0 shadow-xs">
-              👨‍🏫
+            <div className="flex h-7 w-7 rounded-xl items-center justify-center bg-gradient-to-tr from-sky-500 via-indigo-500 to-purple-500 text-white shrink-0 shadow-xs">
+              <GraduationCap className="h-3.5 w-3.5" />
             </div>
             <div className="bg-muted/60 px-3.5 py-2 rounded-2xl border border-border/40 flex items-center gap-1.5">
               <span className="animate-pulse">דוד כותב לך...</span>
