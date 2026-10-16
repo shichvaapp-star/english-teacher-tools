@@ -24,6 +24,7 @@ import {
   Users,
   ArrowLeft,
   LayoutDashboard,
+  Bot,
 } from "lucide-react";
 import { StudentAssignedTaskPrompt } from "@/components/student/student-assigned-task-prompt";
 
@@ -188,6 +189,16 @@ export default function Home() {
                 </Link>
               </HeaderTooltip>
             )}
+
+            <HeaderTooltip label="המורה הפרטי שלי (דוד)">
+              <Link
+                href="/tutor"
+                className="inline-flex items-center justify-center h-9 w-9 rounded-lg border border-sky-500/30 bg-sky-500/10 hover:bg-sky-500/20 text-sky-700 dark:text-sky-300 transition shadow-2xs shrink-0"
+                aria-label="המורה הפרטי שלי (דוד)"
+              >
+                <Bot className="h-4 w-4 text-sky-600 dark:text-sky-400" />
+              </Link>
+            </HeaderTooltip>
 
             <ThemeToggle />
             <div className="h-4 w-[1px] bg-border hidden sm:block" />
