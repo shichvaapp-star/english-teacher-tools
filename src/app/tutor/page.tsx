@@ -122,20 +122,20 @@ export default function PrivateTutorPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-            {/* Right Column in RTL: Student Progress, Radar & Next Mission */}
-            <div className="lg:col-span-4 space-y-4">
-              <TutorProgressCard
-                profile={profile}
-                onResetDiagnostic={handleResetDiagnostic}
-              />
-            </div>
-
-            {/* Left Column in RTL: Interactive Tutor Chat with David */}
+            {/* Right Column in RTL: Interactive Tutor Chat with David */}
             <div className="lg:col-span-8">
               <TutorChatBox
                 profile={profile}
                 onProfileUpdate={handleProfileUpdate}
                 studentName={user?.name || "Student"}
+              />
+            </div>
+
+            {/* Left Column in RTL: Student Progress, Radar & Next Mission */}
+            <div className="lg:col-span-4 space-y-4">
+              <TutorProgressCard
+                profile={profile}
+                onResetDiagnostic={handleResetDiagnostic}
               />
             </div>
           </div>
