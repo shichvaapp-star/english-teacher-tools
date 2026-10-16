@@ -189,6 +189,18 @@ export default function Home() {
               </HeaderTooltip>
             )}
 
+            <Link href="/tutor" className="inline-flex">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-9 px-3 gap-1.5 border-primary/40 bg-primary/10 hover:bg-primary/20 text-foreground font-semibold rounded-lg shadow-2xs"
+                title="המורה הפרטי שלי - דוד"
+              >
+                <span>👨‍🏫</span>
+                <span className="hidden sm:inline text-xs">המורה הפרטי (דוד)</span>
+              </Button>
+            </Link>
+
             <ThemeToggle />
             <div className="h-4 w-[1px] bg-border hidden sm:block" />
             <UserNav />
@@ -250,27 +262,42 @@ export default function Home() {
             ברוכים הבאים למרחב התרגול באנגלית. בחרו באחד התחומים למטה כדי להתחיל לתרגל קריאת אנסין, שינון אוצר מילים וכתיבה!
           </p>
 
-          {!user && (
-            <div className="flex flex-wrap items-center justify-center gap-3 pt-4" dir="rtl">
+          <div className="flex flex-wrap items-center justify-center gap-3 pt-4" dir="rtl">
+            <Link href="/tutor">
               <Button
                 size="default"
-                onClick={() => setStudentModalOpen(true)}
-                className="cursor-pointer gap-2 font-normal h-10 px-5"
+                className="cursor-pointer gap-2 font-bold h-11 px-6 shadow-md bg-gradient-to-r from-primary to-primary/85 hover:opacity-95"
               >
-                <Users className="h-4 w-4" />
-                <span>כניסת תלמידים (ללא אימייל)</span>
+                <span>👨‍🏫</span>
+                <span>המורה הפרטי שלי (דוד)</span>
+                <Badge variant="secondary" className="bg-background/20 text-primary-foreground text-[10px] px-1.5 py-0 border-0">
+                  AI Tutor
+                </Badge>
               </Button>
-              <Button
-                variant="outline"
-                size="default"
-                onClick={() => setTeacherModalOpen(true)}
-                className="cursor-pointer gap-2 font-normal h-10 px-5"
-              >
-                <GraduationCap className="h-4 w-4 text-primary" />
-                <span>כניסת מורים</span>
-              </Button>
-            </div>
-          )}
+            </Link>
+
+            {!user && (
+              <>
+                <Button
+                  size="default"
+                  onClick={() => setStudentModalOpen(true)}
+                  className="cursor-pointer gap-2 font-normal h-11 px-5"
+                >
+                  <Users className="h-4 w-4" />
+                  <span>כניסת תלמידים (ללא אימייל)</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="default"
+                  onClick={() => setTeacherModalOpen(true)}
+                  className="cursor-pointer gap-2 font-normal h-11 px-5"
+                >
+                  <GraduationCap className="h-4 w-4 text-primary" />
+                  <span>כניסת מורים</span>
+                </Button>
+              </>
+            )}
+          </div>
         </div>
 
         {/* Student Assigned Tasks Prompt & Submissions Section */}
@@ -370,6 +397,39 @@ export default function Home() {
             )}
           </div>
         )}
+
+        {/* AI Private Tutor David Banner */}
+        <div className="max-w-6xl mx-auto" dir="rtl">
+          <Card className="border-2 border-primary/30 bg-gradient-to-r from-primary/10 via-primary/5 to-card p-5 sm:p-6 rounded-2xl shadow-sm hover:shadow-md transition-all">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-4 text-right">
+                <div className="flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-2xl bg-primary text-primary-foreground text-2xl sm:text-3xl shadow-sm shrink-0">
+                  👨‍🏫
+                </div>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-lg sm:text-xl font-bold text-foreground">
+                      דוד (David) - המורה הפרטי האישי שלך
+                    </h3>
+                    <Badge className="bg-primary/20 text-primary border-primary/30 text-[10px] py-0.5">
+                      מותאם אישית
+                    </Badge>
+                  </div>
+                  <p className="text-xs sm:text-sm text-muted-foreground max-w-xl leading-relaxed">
+                    דוד מאבחן את רמתך באנגלית (Level 1-3), מציע לך משימות מותאמות אישית בקריאה, אוצר מילים וכתיבה, ומלווה אותך צעד אחר צעד לשיפור הציונים!
+                  </p>
+                </div>
+              </div>
+
+              <Link href="/tutor" className="shrink-0 w-full sm:w-auto">
+                <Button className="w-full sm:w-auto font-bold h-11 px-6 gap-2 shadow-xs cursor-pointer">
+                  <span>בוא נתחיל ללמוד</span>
+                  <ArrowLeft className="h-4 w-4" />
+                </Button>
+              </Link>
+            </div>
+          </Card>
+        </div>
 
         {/* 3 Core Section Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5 lg:gap-6 max-w-6xl mx-auto">

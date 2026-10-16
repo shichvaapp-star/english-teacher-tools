@@ -23,6 +23,7 @@ import {
 } from "@/data/writing-tasks";
 import { lookupBuiltInTranslation } from "@/data/built-in-dictionary";
 import { loadSavedWords, saveWordToBuilder, VocabItem } from "@/lib/vocab-storage";
+import { recordTaskCompletion } from "@/lib/tutor-engine";
 import type { WritingEvaluationResult } from "@/app/api/evaluate-writing/route";
 import type { ScaffoldingResult } from "@/app/api/scaffold-writing/route";
 import {
@@ -649,6 +650,13 @@ export default function WritingPracticePage() {
         } catch (fbErr) {
           console.warn("Firestore submission fallback:", fbErr);
         }
+      }
+
+      // Update AI Tutor David's Progress Tracking
+      try {
+        recordTaskCompletion(user?.id || "guest", "writing", 85, newSubmission.taskTitle);
+      } catch (e) {
+        console.warn("Tutor task completion tracking notice:", e);
       }
 
       setSubmissionSuccess(newSubmission);

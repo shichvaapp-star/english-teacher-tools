@@ -15,6 +15,7 @@ import { UnseenEvaluationResult } from "@/types/unseen";
 import { MIDDLE_SCHOOL_UNSEENS, MSUnseenStory, MSUnseenQuestion, randomizeQuestionsOptions } from "@/data/unseen-middle-school";
 import { lookupBuiltInTranslation } from "@/data/built-in-dictionary";
 import { saveWordToBuilder, VocabItem, loadSavedWords } from "@/lib/vocab-storage";
+import { recordTaskCompletion } from "@/lib/tutor-engine";
 import { useSpeechPlayer } from "@/lib/use-speech-player";
 import { UnseenAudioDock } from "@/components/unseen/unseen-audio-dock";
 import { Confetti } from "@/components/confetti";
@@ -869,6 +870,13 @@ export default function UnseenPracticePage() {
       } catch (fbErr) {
         console.warn("Firestore unseen submission fallback to local storage:", fbErr);
       }
+    }
+
+    // Update AI Tutor David's Progress Tracking
+    try {
+      recordTaskCompletion(user?.id || "guest", "unseen", earned, newSubmission.taskTitle);
+    } catch (e) {
+      console.warn("Tutor task completion tracking notice:", e);
     }
 
     setIsSubmitting(false);

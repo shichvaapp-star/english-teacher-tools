@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/lib/auth-context";
 import { Analytics } from "@vercel/analytics/next";
 import { SuggestEditButton } from "@/components/suggestions/suggest-edit-button";
+import { TutorFloatingButton } from "@/components/tutor/tutor-floating-button";
 
 const clarityCity = localFont({
   src: [
@@ -97,6 +98,7 @@ export default function RootLayout({
             <TooltipProvider>
               {children}
               <SuggestEditButton />
+              <TutorFloatingButton />
             </TooltipProvider>
           </AuthProvider>
           <Analytics />

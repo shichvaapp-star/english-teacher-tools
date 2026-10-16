@@ -273,6 +273,34 @@ export default function StudentPortalPage() {
         {/* Active Assigned Tasks Alert Prompt */}
         <StudentAssignedTaskPrompt />
 
+        {/* Private Tutor David Banner */}
+        <Card className="p-4 sm:p-5 border-2 border-primary/30 bg-gradient-to-r from-primary/10 via-primary/5 to-card flex flex-col sm:flex-row items-center justify-between gap-4" dir="rtl">
+          <div className="flex items-center gap-3.5">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-primary-foreground text-2xl shadow-xs shrink-0">
+              👨‍🏫
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="font-bold text-sm sm:text-base text-foreground">
+                  דוד (David) - המורה הפרטי שלך
+                </h3>
+                <Badge variant="outline" className="text-[10px] bg-background">
+                  מעקב התקדמות ומשימות
+                </Badge>
+              </div>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                דוד עוקב אחר המבחנים והחיבורים שהגשת, מאבחן את נקודות החוזק ומציע לך משימות מותאמות אישית.
+              </p>
+            </div>
+          </div>
+          <Link href="/tutor" className="shrink-0 w-full sm:w-auto">
+            <Button size="sm" className="w-full sm:w-auto gap-2 font-bold h-9 px-4 cursor-pointer">
+              <span>פתח את המורה הפרטי</span>
+              <ArrowLeft className="h-3.5 w-3.5" />
+            </Button>
+          </Link>
+        </Card>
+
         {/* Stats Row */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4" dir="rtl">
           <Card className="p-4 flex items-center justify-between border-border/70 shadow-xs">
