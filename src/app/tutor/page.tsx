@@ -136,6 +136,7 @@ export default function PrivateTutorPage() {
               <TutorProgressCard
                 profile={profile}
                 onResetDiagnostic={handleResetDiagnostic}
+                onProfileUpdate={handleProfileUpdate}
               />
             </div>
           </div>

@@ -1,8 +1,9 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import { StudentTutorProfile } from "@/types/tutor";
+import { updateMissionTopic, saveTutorProfile } from "@/lib/tutor-engine";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -19,15 +20,41 @@ import {
   CheckCircle2,
   Clock,
   GraduationCap,
+  SlidersHorizontal,
 } from "lucide-react";
 
 interface TutorProgressCardProps {
   profile: StudentTutorProfile;
   onResetDiagnostic?: () => void;
+  onProfileUpdate?: (newProfile: StudentTutorProfile) => void;
 }
 
-export function TutorProgressCard({ profile, onResetDiagnostic }: TutorProgressCardProps) {
+export function TutorProgressCard({ profile, onResetDiagnostic, onProfileUpdate }: TutorProgressCardProps) {
   const { skills, level, vocabBand, streakDays, totalTasksCompleted, currentMission } = profile;
+  const [showTopicPicker, setShowTopicPicker] = useState(false);
+
+  const handleTopicSelect = (topicId: string | "default") => {
+    if (!currentMission || !onProfileUpdate) return;
+    let updatedRec = currentMission;
+
+    if (topicId === "default") {
+      const firstTopic = currentMission.availableTopics?.[0];
+      if (firstTopic) {
+        updatedRec = updateMissionTopic(currentMission, firstTopic.id);
+        updatedRec.selectedTopicId = "default";
+        updatedRec.selectedTopicNameHebrew = "בחירת דוד";
+      }
+    } else {
+      updatedRec = updateMissionTopic(currentMission, topicId);
+    }
+
+    const updatedProfile: StudentTutorProfile = {
+      ...profile,
+      currentMission: updatedRec,
+    };
+    onProfileUpdate(updatedProfile);
+    saveTutorProfile(updatedProfile);
+  };
 
   return (
     <div className="space-y-4" dir="rtl">
@@ -158,15 +185,83 @@ export function TutorProgressCard({ profile, onResetDiagnostic }: TutorProgressC
                 כ-{currentMission.estimatedMinutes} דק׳
               </span>
             </div>
-            <CardTitle className="text-base font-bold text-foreground mt-1">
-              {currentMission.hebrewTitle}
-            </CardTitle>
+            <div className="flex flex-wrap items-center justify-between gap-1.5 mt-1">
+              <CardTitle className="text-base font-bold text-foreground">
+                {currentMission.hebrewTitle}
+              </CardTitle>
+              {currentMission.availableTopics && currentMission.availableTopics.length > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowTopicPicker(!showTopicPicker)}
+                  className="h-6 px-2 text-[11px] font-medium text-primary hover:text-primary hover:bg-primary/10 gap-1 cursor-pointer"
+                >
+                  <SlidersHorizontal className="h-3 w-3" />
+                  <span>{showTopicPicker ? "סגור נושאים" : "החלף נושא"}</span>
+                </Button>
+              )}
+            </div>
+            {currentMission.selectedTopicNameHebrew && (
+              <div className="pt-0.5">
+                <Badge variant="secondary" className="text-[11px] font-normal px-2 py-0.5 bg-primary/10 text-primary border-primary/20">
+                  נושא: {currentMission.selectedTopicNameHebrew}
+                </Badge>
+              </div>
+            )}
           </CardHeader>
 
           <CardContent className="p-4 pt-3 space-y-3">
             <p className="text-xs text-muted-foreground leading-relaxed">
               {currentMission.descriptionHebrew}
             </p>
+
+            {/* Expandable Topic Selection Tray */}
+            {showTopicPicker && currentMission.availableTopics && currentMission.availableTopics.length > 0 && (
+              <div className="p-2.5 rounded-xl bg-card border border-border/60 space-y-2 animate-in fade-in duration-200">
+                <div className="text-[11px] font-bold text-foreground">
+                  בחרו נושא מועדף (או לחצו על בחירת דוד):
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  <button
+                    type="button"
+                    onClick={() => handleTopicSelect("default")}
+                    className={`text-[11px] px-2 py-1 rounded-md border transition-all cursor-pointer flex items-center gap-1 ${
+                      currentMission.selectedTopicId === "default" ||
+                      (!currentMission.selectedTopicId &&
+                        currentMission.taskId === currentMission.availableTopics[0]?.taskId)
+                        ? "border-primary bg-primary text-primary-foreground font-bold"
+                        : "border-border/60 bg-muted/40 hover:border-primary/50 text-foreground"
+                    }`}
+                  >
+                    <span>🎲</span>
+                    <span>דוד, בחר עבורי</span>
+                  </button>
+
+                  {currentMission.availableTopics.map((top) => {
+                    const isSelected =
+                      currentMission.selectedTopicId === top.id ||
+                      (currentMission.selectedTopicId !== "default" &&
+                        currentMission.taskId === top.taskId);
+
+                    return (
+                      <button
+                        key={top.id}
+                        type="button"
+                        onClick={() => handleTopicSelect(top.id)}
+                        className={`text-[11px] px-2 py-1 rounded-md border transition-all cursor-pointer flex items-center gap-1 ${
+                          isSelected && currentMission.selectedTopicId !== "default"
+                            ? "border-primary bg-primary text-primary-foreground font-bold"
+                            : "border-border/60 bg-muted/40 hover:border-primary/50 text-foreground"
+                        }`}
+                      >
+                        <span>{top.emoji}</span>
+                        <span>{top.nameHebrew}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             <Link href={currentMission.targetUrl} className="block w-full">
               <Button className="w-full gap-2 font-bold shadow-xs cursor-pointer">

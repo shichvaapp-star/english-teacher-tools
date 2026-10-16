@@ -30,10 +30,23 @@ function generateDeterministicTutorResponse(
     };
   }
 
+  if (
+    lower.includes("תבחר אתה") ||
+    lower.includes("בחר עבורי") ||
+    lower.includes("choose for me") ||
+    lower.includes("תבחר בשבילי") ||
+    lower.includes("סמוך עליך")
+  ) {
+    return {
+      message: `No problem at all! Leave it to me. I've selected the best matching assignment for your current level (${profile.level}). You can start whenever you are ready! (סמוך עליי, בחרתי עבורך את המשימה המומלצת ביותר. בהצלחה!)`,
+      quickReplies: ["בוא נתחיל את המשימה!", "תן לי משימת קריאה (Unseen)", "בוא נתרגל אוצר מילים"],
+    };
+  }
+
   if (lower.includes("unseen") || lower.includes("reading") || lower.includes("אנסין") || lower.includes("קריאה")) {
     return {
-      message: `Great choice! Reading comprehension is key to Bagrut success. At your current level (${profile.level}), always remember to read the title and first paragraph first, and scan for keywords before answering questions! Ready for a reading mission?`,
-      quickReplies: ["כן, פתח משימת קריאה!", "איך עונים על שאלת העתקת משפט?", "חזור לתפריט"],
+      message: `Great choice! Reading comprehension is key to Bagrut success. At your current level (${profile.level}), I've prepared a reading mission for you. You can pick your favorite topic (animals, space, adventures, marine life, etc.) or let me choose for you! Ready to start?`,
+      quickReplies: ["כן, פתח משימת קריאה!", "דוד, בחר עבורי", "איך עונים על שאלת העתקת משפט?"],
     };
   }
 
@@ -46,14 +59,21 @@ function generateDeterministicTutorResponse(
 
   if (lower.includes("writing") || lower.includes("essay") || lower.includes("כתיבה") || lower.includes("חיבור")) {
     return {
-      message: `Writing is an art! Always use connectors like 'However', 'Furthermore', 'For example', and 'In conclusion'. Check the connector bank in the Writing Workshop for extra inspiration!`,
-      quickReplies: ["פתח סדנת כתיבה", "איזה מילות קישור מומלצות?", "תן לי טיפ למבחן"],
+      message: `Writing is an art! I've set up a writing exercise for you. You can pick any topic you're passionate about (phones, sports, adventures, letters) or keep my recommendation!`,
+      quickReplies: ["פתח סדנת כתיבה", "דוד, בחר עבורי", "איזה מילות קישור מומלצות?"],
+    };
+  }
+
+  if (lower.includes("topic") || lower.includes("נושא")) {
+    return {
+      message: `You can always choose the topic you prefer for any reading or writing mission! Simply tap one of the topic chips on the mission card, or tell me which subject you'd like to explore.`,
+      quickReplies: ["דוד, בחר עבורי", "תן לי משימת קריאה (Unseen)", "פתח סדנת כתיבה"],
     };
   }
 
   return {
     message: `I hear you, ${studentName}! Keep practicing consistently every day. Every unseen you read and every word you add to your word bank strengthens your English skills! What would you like to focus on next?`,
-    quickReplies: ["בוא נמשיך במשימה שלי", "בדוק את הרמה שלי", "ספר לי על מילת השבוע"],
+    quickReplies: ["בוא נמשיך במשימה שלי", "דוד, בחר עבורי", "בדוק את הרמה שלי"],
   };
 }
 
@@ -107,6 +127,7 @@ PEDAGOGICAL TEACHING STYLE:
 - Language: Speak primarily in clear, natural English calibrated to ${currentLevel}.
 - Helpful Hebrew Scaffolding: Add friendly Hebrew explanations or Hebrew words in parentheses (בעברית) for difficult concepts, but keep the core conversation in English to immerse the student!
 - Socratic Method: When a student asks about an answer, guide them with hints rather than just giving away the solution.
+- Student Topic Choice: When presenting or discussing an Unseen or Writing assignment, invite the student to select a topic they enjoy (such as Animals, Space, Technology, Sports, Travel, Adventure), or let them know they can ask you to choose for them ('דוד, בחר עבורי').
 - Be concise (2-4 sentences per response) so the student doesn't feel overwhelmed with text.
 - Suggest 2-3 short, actionable quick-reply chips in Hebrew or English that the student can tap.
 

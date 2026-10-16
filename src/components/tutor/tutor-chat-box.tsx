@@ -8,6 +8,7 @@ import {
   calculateDiagnosticPlacement,
   saveTutorProfile,
   generateNextMission,
+  updateMissionTopic,
   loadTutorChat,
   saveTutorChat,
 } from "@/lib/tutor-engine";
@@ -291,10 +292,10 @@ export function TutorChatBox({
       const completionMessage: TutorMessage = {
         id: `msg-${Date.now() + 2}`,
         sender: "tutor",
-        text: `Excellent job ${studentName}! I have calibrated your learning plan. You are starting at **${updatedProfile.level}** (${updatedProfile.vocabBand}). I've picked a tailored mission for you to start right now!`,
+        text: `Excellent job ${studentName}! I have calibrated your learning plan. You are starting at **${updatedProfile.level}** (${updatedProfile.vocabBand}). I've picked a tailored mission for you! You can choose your favorite topic below, or keep my recommendation.`,
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         taskRecommendation: updatedProfile.currentMission,
-        quickReplies: ["בוא נתחיל את המשימה!", "איך מתקדמים לרמה 3?", "שאל אותי שאלה נוספת"],
+        quickReplies: ["בוא נתחיל את המשימה!", "דוד, בחר עבורי", "שאל אותי שאלה נוספת"],
       };
 
       const updatedMsgs = [...messages, studentReply, completionMessage];
@@ -302,6 +303,47 @@ export function TutorChatBox({
       saveTutorChat(updatedMsgs, profile.studentId);
       speakText(completionMessage.text);
     }
+  };
+
+  // Student selects a topic for their assigned mission
+  const handleSelectMissionTopic = (messageId: string, topicId: string | "default") => {
+    const msgIdx = messages.findIndex((m) => m.id === messageId);
+    if (msgIdx === -1 || !messages[msgIdx].taskRecommendation) return;
+
+    const currentRec = messages[msgIdx].taskRecommendation!;
+    let updatedRec = currentRec;
+
+    if (topicId === "default") {
+      const firstTopic = currentRec.availableTopics?.[0];
+      if (firstTopic) {
+        updatedRec = updateMissionTopic(currentRec, firstTopic.id);
+        updatedRec.selectedTopicId = "default";
+        updatedRec.selectedTopicNameHebrew = "בחירת דוד";
+      }
+    } else {
+      updatedRec = updateMissionTopic(currentRec, topicId);
+    }
+
+    const newMsgs = [...messages];
+    newMsgs[msgIdx] = {
+      ...newMsgs[msgIdx],
+      taskRecommendation: updatedRec,
+    };
+    setMessages(newMsgs);
+    saveTutorChat(newMsgs, profile.studentId);
+
+    const updatedProfile: StudentTutorProfile = {
+      ...profile,
+      currentMission: updatedRec,
+    };
+    onProfileUpdate(updatedProfile);
+    saveTutorProfile(updatedProfile);
+
+    const feedbackVoice =
+      topicId === "default"
+        ? `Great, leave it to me! I've set my top recommendation: ${updatedRec.title}. You're ready to go!`
+        : `Awesome choice! I updated your mission to ${updatedRec.selectedTopicNameHebrew || ""}. Enjoy the exercise!`;
+    speakText(feedbackVoice);
   };
 
   // Send student message to David
@@ -339,13 +381,43 @@ export function TutorChatBox({
       const tutorText = data?.message || "Great question! Let's practice together.";
       const quickReplies = data?.quickReplies || ["בוא נמשיך", "תן לי משימה"];
 
-      // Check if user asked for a new mission
+      // Check if user asked for a new mission or topic choice
       let attachedMission = undefined;
-      if (
-        text.toLowerCase().includes("mission") ||
-        text.toLowerCase().includes("משימה") ||
-        text.toLowerCase().includes("תרגול") ||
-        text.toLowerCase().includes("task")
+      const lower = text.toLowerCase();
+      const isAskingForMission =
+        lower.includes("mission") ||
+        lower.includes("משימה") ||
+        lower.includes("תרגול") ||
+        lower.includes("task") ||
+        lower.includes("unseen") ||
+        lower.includes("reading") ||
+        lower.includes("אנסין") ||
+        lower.includes("קריאה") ||
+        lower.includes("writing") ||
+        lower.includes("essay") ||
+        lower.includes("כתיבה") ||
+        lower.includes("חיבור");
+
+      if (isAskingForMission) {
+        if (lower.includes("unseen") || lower.includes("reading") || lower.includes("אנסין") || lower.includes("קריאה")) {
+          attachedMission = generateNextMission(profile, "unseen");
+        } else if (lower.includes("writing") || lower.includes("essay") || lower.includes("כתיבה") || lower.includes("חיבור")) {
+          attachedMission = generateNextMission(profile, "writing");
+        } else if (lower.includes("vocab") || lower.includes("words") || lower.includes("מילים") || lower.includes("אוצר")) {
+          attachedMission = generateNextMission(profile, "vocab");
+        } else {
+          attachedMission = profile.currentMission || generateNextMission(profile);
+        }
+
+        const updatedProf = { ...profile, currentMission: attachedMission };
+        onProfileUpdate(updatedProf);
+        saveTutorProfile(updatedProf);
+      } else if (
+        lower.includes("תבחר אתה") ||
+        lower.includes("בחר עבורי") ||
+        lower.includes("choose for me") ||
+        lower.includes("תבחר בשבילי") ||
+        lower.includes("סמוך עליך")
       ) {
         attachedMission = profile.currentMission || generateNextMission(profile);
       }
@@ -626,29 +698,95 @@ export function TutorChatBox({
 
             {/* Attached Actionable Task Card */}
             {msg.taskRecommendation && (
-              <div className="mt-2.5 mr-11 max-w-[88%] sm:max-w-[78%] text-right">
-                <Card className="border-2 border-primary/40 bg-primary/5 p-4 rounded-xl shadow-xs text-right">
-                  <div className="flex items-center justify-between gap-2 mb-1.5">
-                    <span className="flex items-center gap-1.5 text-sm font-bold text-primary">
+              <div className="mt-2.5 mr-11 max-w-[92%] sm:max-w-[85%] text-right font-sans">
+                <Card className="border-2 border-primary/40 bg-card p-4 sm:p-5 rounded-2xl shadow-sm text-right space-y-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="flex items-center gap-1.5 text-xs sm:text-sm font-bold text-primary">
                       {msg.taskRecommendation.type === "unseen" && <BookOpen className="h-4 w-4" />}
                       {msg.taskRecommendation.type === "vocab" && <BookA className="h-4 w-4" />}
                       {msg.taskRecommendation.type === "writing" && <PenTool className="h-4 w-4" />}
-                      משימה מותאמת עבורך
+                      משימה מותאמת אישית מדוד
                     </span>
-                    <Badge variant="outline" className="text-xs py-0.5 px-2 bg-background">
+                    <Badge variant="outline" className="text-xs py-0.5 px-2 bg-muted/40 border-border/70">
                       {msg.taskRecommendation.level}
                     </Badge>
                   </div>
 
-                  <h4 className="font-bold text-base sm:text-lg text-foreground mb-1 font-sans">
-                    {msg.taskRecommendation.hebrewTitle}
-                  </h4>
-                  <p className="text-xs sm:text-sm text-muted-foreground mb-3 leading-relaxed font-sans">
-                    {msg.taskRecommendation.descriptionHebrew}
-                  </p>
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2 mb-1.5">
+                      <h4 className="font-bold text-base sm:text-lg text-foreground font-sans">
+                        {msg.taskRecommendation.hebrewTitle}
+                      </h4>
+                      {msg.taskRecommendation.selectedTopicNameHebrew && (
+                        <Badge variant="secondary" className="text-[11px] font-semibold px-2 py-0.5 bg-primary/10 text-primary border-primary/20">
+                          נושא: {msg.taskRecommendation.selectedTopicNameHebrew}
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed font-sans">
+                      {msg.taskRecommendation.descriptionHebrew}
+                    </p>
+                  </div>
 
-                  <Link href={msg.taskRecommendation.targetUrl} className="block w-full">
-                    <Button size="sm" className="w-full gap-2 font-bold h-9 text-sm cursor-pointer">
+                  {/* Topic Selection Chips (Unless student chooses not to, they can pick a topic) */}
+                  {msg.taskRecommendation.availableTopics && msg.taskRecommendation.availableTopics.length > 0 && (
+                    <div className="p-3 bg-muted/40 rounded-xl border border-border/50 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                          <Sparkles className="h-3.5 w-3.5 text-primary" />
+                          בחירת נושא לקטע / משימה (Topic Choice):
+                        </span>
+                        <span className="text-[11px] text-muted-foreground">
+                          בחרו נושא או המשיכו עם הבחירה של דוד
+                        </span>
+                      </div>
+
+                      <div className="flex flex-wrap gap-1.5 pt-0.5">
+                        {/* David's Choice Default Option */}
+                        <button
+                          type="button"
+                          onClick={() => handleSelectMissionTopic(msg.id, "default")}
+                          className={`text-xs px-2.5 py-1.5 rounded-lg border transition-all cursor-pointer flex items-center gap-1.5 ${
+                            msg.taskRecommendation.selectedTopicId === "default" ||
+                            (!msg.taskRecommendation.selectedTopicId &&
+                              msg.taskRecommendation.taskId === msg.taskRecommendation.availableTopics[0]?.taskId)
+                              ? "border-primary bg-primary text-primary-foreground font-bold shadow-xs"
+                              : "border-border/70 bg-card hover:border-primary/50 text-foreground"
+                          }`}
+                        >
+                          <span>🎲</span>
+                          <span>דוד, בחר עבורי (ברירת מחדל)</span>
+                        </button>
+
+                        {/* Curated Topic Chips */}
+                        {msg.taskRecommendation.availableTopics.map((top) => {
+                          const isSelected =
+                            msg.taskRecommendation?.selectedTopicId === top.id ||
+                            (msg.taskRecommendation?.selectedTopicId !== "default" &&
+                              msg.taskRecommendation?.taskId === top.taskId);
+
+                          return (
+                            <button
+                              key={top.id}
+                              type="button"
+                              onClick={() => handleSelectMissionTopic(msg.id, top.id)}
+                              className={`text-xs px-2.5 py-1.5 rounded-lg border transition-all cursor-pointer flex items-center gap-1.5 ${
+                                isSelected && msg.taskRecommendation?.selectedTopicId !== "default"
+                                  ? "border-primary bg-primary text-primary-foreground font-bold shadow-xs"
+                                  : "border-border/70 bg-card hover:border-primary/50 text-foreground"
+                              }`}
+                            >
+                              <span>{top.emoji}</span>
+                              <span className="font-medium">{top.nameHebrew}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  <Link href={msg.taskRecommendation.targetUrl} className="block w-full pt-1">
+                    <Button size="sm" className="w-full gap-2 font-bold h-10 text-sm sm:text-base cursor-pointer shadow-xs">
                       <span>התחל משימה עכשיו</span>
                       <ArrowLeft className="h-4 w-4" />
                     </Button>

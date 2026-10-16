@@ -7,6 +7,18 @@ export interface SkillMastery {
   writing: number; // 0 - 100
 }
 
+export interface TaskTopicOption {
+  id: string;
+  nameHebrew: string;
+  nameEnglish: string;
+  emoji: string;
+  taskId: string;
+  titleHebrew: string;
+  titleEnglish: string;
+  descriptionHebrew?: string;
+  targetUrl: string;
+}
+
 export interface TutorTaskRecommendation {
   id: string;
   type: "unseen" | "vocab" | "writing";
@@ -17,6 +29,9 @@ export interface TutorTaskRecommendation {
   taskId?: string;
   targetUrl: string;
   estimatedMinutes: number;
+  selectedTopicId?: string;
+  selectedTopicNameHebrew?: string;
+  availableTopics?: TaskTopicOption[];
 }
 
 export interface StudentTutorProfile {

@@ -119,7 +119,7 @@ export default function UnseenPracticePage() {
       if (params.get("stage") === "exercise") {
         setStage("exercise");
       }
-      const passageParam = params.get("passageId");
+      const passageParam = params.get("passageId") || params.get("story");
       const assignIdParam = params.get("assignmentId");
       if (passageParam && passageParam !== "free_choice") {
         const found = MIDDLE_SCHOOL_UNSEENS.find((s) => s.id === passageParam);

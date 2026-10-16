@@ -5,6 +5,7 @@ import {
   TutorLevel,
   VocabBandLevel,
   TutorTaskRecommendation,
+  TaskTopicOption,
   TutorMessage,
 } from "@/types/tutor";
 import { MIDDLE_SCHOOL_UNSEENS } from "@/data/unseen-middle-school";
@@ -301,32 +302,439 @@ export function calculateDiagnosticPlacement(
 }
 
 /**
- * Dynamically picks the next best assignment from the site's rich library
+ * Curated high-interest topics per level for Unseen (Reading Comprehension)
  */
-export function generateNextMission(profile: StudentTutorProfile): TutorTaskRecommendation {
+export function getUnseenTopicsForLevel(level: TutorLevel): TaskTopicOption[] {
+  if (level === "Level 1") {
+    return [
+      {
+        id: "animals",
+        nameHebrew: "בעלי חיים",
+        nameEnglish: "Animals & Pets",
+        emoji: "🐶",
+        taskId: "story-level1-1",
+        titleEnglish: "Max the Small Dog",
+        titleHebrew: "מקס הכלב הקטן",
+        descriptionHebrew: "קראו על מקס הכלב הקטן, שגרתו היומית ומשחקיו בגינה.",
+        targetUrl: "/unseen?passageId=story-level1-1",
+      },
+      {
+        id: "space_robots",
+        nameHebrew: "רובוטים וחלל",
+        nameEnglish: "Space & Robots",
+        emoji: "🚀",
+        taskId: "story-level1-2",
+        titleEnglish: "Maya's Space Robot",
+        titleHebrew: "רובוט החלל של מיה",
+        descriptionHebrew: "קראו על מיה והרובוט החכם שהיא בנתה לתחרות החלל.",
+        targetUrl: "/unseen?passageId=story-level1-2",
+      },
+      {
+        id: "adventure_nature",
+        nameHebrew: "הרפתקאות וטבע",
+        nameEnglish: "Adventures in Nature",
+        emoji: "🌲",
+        taskId: "story-level1-3",
+        titleEnglish: "The Secret Treehouse",
+        titleHebrew: "בית העץ הסודי",
+        descriptionHebrew: "קראו על החברים שמגלים בית עץ סודי עמוק בתוך היער.",
+        targetUrl: "/unseen?passageId=story-level1-3",
+      },
+      {
+        id: "baking_food",
+        nameHebrew: "אפייה ובישול",
+        nameEnglish: "Baking & Food",
+        emoji: "🥐",
+        taskId: "story-level1-4",
+        titleEnglish: "Leo the Little Baker",
+        titleHebrew: "ליאו האופה הצעיר",
+        descriptionHebrew: "קראו על ליאו שלומד לאפות עוגיות טעימות ומאפים מיוחדים.",
+        targetUrl: "/unseen?passageId=story-level1-4",
+      },
+      {
+        id: "ocean_marine",
+        nameHebrew: "עולם הים ודולפינים",
+        nameEnglish: "Marine Life & Reef",
+        emoji: "🐬",
+        taskId: "story-level1-5",
+        titleEnglish: "A Day at Dolphin Reef",
+        titleHebrew: "יום בריף הדולפינים",
+        descriptionHebrew: "קראו על יום קסום בריף הדולפינים באילת ושחייה לצד דולפינים.",
+        targetUrl: "/unseen?passageId=story-level1-5",
+      },
+    ];
+  } else if (level === "Level 2") {
+    return [
+      {
+        id: "desert_nature",
+        nameHebrew: "מדבר ועצי הנגב",
+        nameEnglish: "Desert & Ecology",
+        emoji: "🏜️",
+        taskId: "story-level2-1",
+        titleEnglish: "The Negev Desert Tree",
+        titleHebrew: "עץ השיטה בנגב",
+        descriptionHebrew: "קראו על עצי השיטה הייחודיים השורדים את תנאי המדבר הקשים.",
+        targetUrl: "/unseen?passageId=story-level2-1",
+      },
+      {
+        id: "history_mystery",
+        nameHebrew: "היסטוריה ותעלומות",
+        nameEnglish: "History & Mystery",
+        emoji: "🏛️",
+        taskId: "story-level2-2",
+        titleEnglish: "The Mystery of the Roman Coin",
+        titleHebrew: "תעלומת המטבע הרומי",
+        descriptionHebrew: "קראו על תגלית ארכיאולוגית מסתורית של מטבע רומי עתיק.",
+        targetUrl: "/unseen?passageId=story-level2-2",
+      },
+      {
+        id: "bees_ecology",
+        nameHebrew: "דבורים ואקולוגיה",
+        nameEnglish: "Honeybees & Nature",
+        emoji: "🐝",
+        taskId: "story-level2-3",
+        titleEnglish: "The Great Honeybee Rescue",
+        titleHebrew: "מבצע הצלת דבורי הדבש",
+        descriptionHebrew: "קראו על החשיבות האקולוגית של דבורי הדבש והמאמץ להצילן.",
+        targetUrl: "/unseen?passageId=story-level2-3",
+      },
+      {
+        id: "heroism_rescue",
+        nameHebrew: "גבורה וכלבי הצלה",
+        nameEnglish: "Rescue & Heroism",
+        emoji: "🐕",
+        taskId: "story-level2-4",
+        titleEnglish: "The Young Mountain Rescue Dog",
+        titleHebrew: "כלב ההצלה הצעיר בהרים",
+        descriptionHebrew: "קראו על כלב הצלה אמיץ שסייע לחלץ מטיילים בשלג.",
+        targetUrl: "/unseen?passageId=story-level2-4",
+      },
+      {
+        id: "solar_tech",
+        nameHebrew: "מכוניות סולאריות ומדע",
+        nameEnglish: "Solar Energy & Tech",
+        emoji: "☀️",
+        taskId: "story-level2-5",
+        titleEnglish: "The Solar Car Challenge",
+        titleHebrew: "אתגר מכונית השמש",
+        descriptionHebrew: "קראו על תחרות הנדסית מרתקת לפיתוח רכבים המונעים מאנרגיית השמש.",
+        targetUrl: "/unseen?passageId=story-level2-5",
+      },
+    ];
+  } else {
+    // Level 3
+    return [
+      {
+        id: "whales_ocean",
+        nameHebrew: "לווייתנים ומעמקי הים",
+        nameEnglish: "Whales & Deep Ocean",
+        emoji: "🐋",
+        taskId: "story-level3-1",
+        titleEnglish: "The Voice of the Whales",
+        titleHebrew: "שירת הלווייתנים במעמקים",
+        descriptionHebrew: "קראו על שיטות התקשורת המתוחכמות של לווייתנים באוקיינוס.",
+        targetUrl: "/unseen?passageId=story-level3-1",
+      },
+      {
+        id: "coral_science",
+        nameHebrew: "שוניות אלמוגים ומדע",
+        nameEnglish: "Coral Reefs & Science",
+        emoji: "🪸",
+        taskId: "story-level3-2",
+        titleEnglish: "The Secrets of the Deep Coral Reefs",
+        titleHebrew: "סודות שוניות האלמוגים העמוקות",
+        descriptionHebrew: "קראו על מחקרים חדשים החושפים שוניות אלמוגים נסתרות במעמקים.",
+        targetUrl: "/unseen?passageId=story-level3-2",
+      },
+      {
+        id: "archaeology_rosetta",
+        nameHebrew: "ארכיאולוגיה וכתב עתיק",
+        nameEnglish: "Archaeology & Rosetta Stone",
+        emoji: "📜",
+        taskId: "story-level3-3",
+        titleEnglish: "The Rediscovery of the Rosetta Stone",
+        titleHebrew: "גילוי אבן הרוזטה מחדש",
+        descriptionHebrew: "קראו על פענוח כתב החרטומים המצרי באמצעות אבן הרוזטה.",
+        targetUrl: "/unseen?passageId=story-level3-3",
+      },
+      {
+        id: "bionic_medicine",
+        nameHebrew: "רפואה ואיברים ביוניים",
+        nameEnglish: "Bionics & Medicine",
+        emoji: "🦾",
+        taskId: "story-level3-4",
+        titleEnglish: "The Revolution of Bionic Prosthetics",
+        titleHebrew: "מהפכת האיברים הביוניים",
+        descriptionHebrew: "קראו על פריצות דרך ביו-רפואיות המאפשרות תנועה מדויקת באמצעות מחשבה.",
+        targetUrl: "/unseen?passageId=story-level3-4",
+      },
+      {
+        id: "mars_space",
+        nameHebrew: "חקר מאדים ורובוטיקה",
+        nameEnglish: "Mars Exploration & AI",
+        emoji: "🚀",
+        taskId: "story-level3-5",
+        titleEnglish: "Autonomous Exploration of Mars",
+        titleHebrew: "חקר מאדים בעזרת רובוטים אוטונומיים",
+        descriptionHebrew: "קראו על הרובוטים האוטונומיים הסורקים את פני מאדים ומחפשים עדויות למים.",
+        targetUrl: "/unseen?passageId=story-level3-5",
+      },
+    ];
+  }
+}
+
+/**
+ * Curated high-interest topics per level for Writing Workshop
+ */
+export function getWritingTopicsForLevel(level: TutorLevel): TaskTopicOption[] {
+  if (level === "Level 1") {
+    return [
+      {
+        id: "friends_letter",
+        nameHebrew: "מכתב לחבר/ה",
+        nameEnglish: "Note to a Friend",
+        emoji: "💌",
+        taskId: "task-letter-l1-1",
+        titleEnglish: "A Sweet Note to a Friend",
+        titleHebrew: "פתק קצר לחבר/ה: בוא נשחק!",
+        descriptionHebrew: "כתבו פתק קצרצר לחבר/ה המזמין אותם לבוא לשחק יחד.",
+        targetUrl: "/writing?task=task-letter-l1-1",
+      },
+      {
+        id: "pets_opinion",
+        nameHebrew: "חיות מחמד",
+        nameEnglish: "Dogs or Cats",
+        emoji: "🐶",
+        taskId: "task-opinion-l1-3",
+        titleEnglish: "Dogs or Cats: Which is Better?",
+        titleHebrew: "כלבים או חתולים: מי חיית מחמד טובה יותר?",
+        descriptionHebrew: "הסבירו איזו חיה אתם מעדיפים בתור חיית מחמד ומדוע.",
+        targetUrl: "/writing?task=task-opinion-l1-3",
+      },
+      {
+        id: "food_opinion",
+        nameHebrew: "אוכל אהוב",
+        nameEnglish: "Pizza or Ice Cream",
+        emoji: "🍕",
+        taskId: "task-opinion-l1-1",
+        titleEnglish: "Pizza or Ice Cream?",
+        titleHebrew: "מה עדיף: פיצה או גלידה?",
+        descriptionHebrew: "כתבו מה המאכל שאתם הכי אוהבים ולמה.",
+        targetUrl: "/writing?task=task-opinion-l1-1",
+      },
+      {
+        id: "home_desc",
+        nameHebrew: "החדר שלי",
+        nameEnglish: "My Bedroom",
+        emoji: "🏠",
+        taskId: "task-desc-l1-1",
+        titleEnglish: "My Bedroom",
+        titleHebrew: "החדר שלי: המקום האהוב בבית",
+        descriptionHebrew: "תארו את החדר שלכם והדברים האהובים עליכם בו.",
+        targetUrl: "/writing?task=task-desc-l1-1",
+      },
+      {
+        id: "birthday_card",
+        nameHebrew: "כרטיס יום הולדת",
+        nameEnglish: "Birthday Card",
+        emoji: "🎂",
+        taskId: "task-letter-l1-2",
+        titleEnglish: "Happy Birthday Card",
+        titleHebrew: "כרטיס ברכה ליום הולדת",
+        descriptionHebrew: "כתבו ברכת יום הולדת משמחת עם איחולים חמים.",
+        targetUrl: "/writing?task=task-letter-l1-2",
+      },
+    ];
+  } else if (level === "Level 2") {
+    return [
+      {
+        id: "tech_phones",
+        nameHebrew: "סמארטפונים בביה\"ס",
+        nameEnglish: "Smartphones in School",
+        emoji: "📱",
+        taskId: "task-opinion-l2-1",
+        titleEnglish: "Smartphones in the Classroom",
+        titleHebrew: "האם יש לאפשר סמארטפונים במהלך השיעור?",
+        descriptionHebrew: "הביעו את עמדתכם לגבי שימוש בטלפונים ניידים בזמן שיעורים.",
+        targetUrl: "/writing?task=task-opinion-l2-1",
+      },
+      {
+        id: "summer_trip",
+        nameHebrew: "חופשת הקיץ ונסיעות",
+        nameEnglish: "Summer Vacation",
+        emoji: "🏖️",
+        taskId: "task-letter-l2-1",
+        titleEnglish: "Summer Vacation Letter",
+        titleHebrew: "מכתב לחבר על חופשת הקיץ",
+        descriptionHebrew: "ספרו לחבר/ה על חוויות מהחופש הגדול ופעילויות מיוחדות.",
+        targetUrl: "/writing?task=task-letter-l2-1",
+      },
+      {
+        id: "sports_health",
+        nameHebrew: "ספורט ובריאות",
+        nameEnglish: "Sports & Health",
+        emoji: "⚽",
+        taskId: "task-opinion-l2-2",
+        titleEnglish: "Daily Physical Education",
+        titleHebrew: "האם שיעורי ספורט צריכים להיות חובה יומית?",
+        descriptionHebrew: "כתבו דעה מנומקת על חשיבות הפעילות הגופנית לתלמידים.",
+        targetUrl: "/writing?task=task-opinion-l2-2",
+      },
+      {
+        id: "adventure_story",
+        nameHebrew: "סיפור אישי והרפתקה",
+        nameEnglish: "Personal Adventure",
+        emoji: "🎒",
+        taskId: "task-story-l2-1",
+        titleEnglish: "The Strangest Day This Year",
+        titleHebrew: "היום המוזר ביותר שקרה לי השנה",
+        descriptionHebrew: "שתפו בסיפור קצר על יום מפתיע ויוצא דופן שחוויתם.",
+        targetUrl: "/writing?task=task-story-l2-1",
+      },
+      {
+        id: "favorite_pet",
+        nameHebrew: "בעלי חיים וחיות מחמד",
+        nameEnglish: "Favorite Pet",
+        emoji: "🐾",
+        taskId: "task-desc-l2-1",
+        titleEnglish: "My Favorite Pet",
+        titleHebrew: "חיית המחמד האהובה עליי",
+        descriptionHebrew: "תארו חיית מחמד וכיצד מטפלים בה באהבה ובאחריות.",
+        targetUrl: "/writing?task=task-desc-l2-1",
+      },
+    ];
+  } else {
+    // Level 3
+    return [
+      {
+        id: "ai_future",
+        nameHebrew: "בינה מלאכותית ועתיד",
+        nameEnglish: "AI & Future of Work",
+        emoji: "🤖",
+        taskId: "task-opinion-l3-1",
+        titleEnglish: "AI and the Future of Careers",
+        titleHebrew: "האם בינה מלאכותית תשנה את מקצועות העתיד?",
+        descriptionHebrew: "נתחו את השפעת הבינה המלאכותית על שוק העבודה והחברה.",
+        targetUrl: "/writing?task=task-opinion-l3-1",
+      },
+      {
+        id: "youth_community",
+        nameHebrew: "אזרחות ומרכז נוער",
+        nameEnglish: "Youth Community Center",
+        emoji: "🏛️",
+        taskId: "task-letter-l3-1",
+        titleEnglish: "Formal Letter for a Youth Center",
+        titleHebrew: "מכתב רשמי לראש העיר להקמת מרכז נוער",
+        descriptionHebrew: "כתבו מכתב רשמי משכנע ומנומק לראש העיר עם הצעות לפעילות נוער.",
+        targetUrl: "/writing?task=task-letter-l3-1",
+      },
+      {
+        id: "green_spaces",
+        nameHebrew: "איכות הסביבה ושטחים ירוקים",
+        nameEnglish: "Urban Green Spaces",
+        emoji: "🌳",
+        taskId: "task-letter-l3-3",
+        titleEnglish: "Protecting Urban Green Spaces",
+        titleHebrew: "הגנה על השטחים הירוקים בעיר",
+        descriptionHebrew: "כתבו מכתב למערכת עיתון הקורא לשמירה על הפארקים והטבע העירוני.",
+        targetUrl: "/writing?task=task-letter-l3-3",
+      },
+      {
+        id: "mentor_role_model",
+        nameHebrew: "דמות מופת והשראה",
+        nameEnglish: "Inspirational Role Model",
+        emoji: "🏆",
+        taskId: "task-desc-l3-1",
+        titleEnglish: "An Inspirational Mentor",
+        titleHebrew: "דמות מופת שהשפיעה על חיי",
+        descriptionHebrew: "תארו דמות מיוחדת שמהווה עבורכם מודל לחיקוי והשראה.",
+        targetUrl: "/writing?task=task-desc-l3-1",
+      },
+      {
+        id: "social_media",
+        nameHebrew: "רשתות חברתיות ונוער",
+        nameEnglish: "Social Media & Connection",
+        emoji: "📲",
+        taskId: "task-opinion-l3-2",
+        titleEnglish: "Social Media: Connection or Isolation?",
+        titleHebrew: "רשתות חברתיות: מקרבות או מבודדות?",
+        descriptionHebrew: "בחנו את שני הצדדים של הרשתות החברתיות בחיי בני הנוער בימינו.",
+        targetUrl: "/writing?task=task-opinion-l3-2",
+      },
+    ];
+  }
+}
+
+/**
+ * Updates a recommended mission to a newly selected topic
+ */
+export function updateMissionTopic(
+  currentMission: TutorTaskRecommendation,
+  topicId: string
+): TutorTaskRecommendation {
+  if (!currentMission.availableTopics || currentMission.availableTopics.length === 0) {
+    return currentMission;
+  }
+  const found = currentMission.availableTopics.find((t) => t.id === topicId);
+  if (!found) return currentMission;
+
+  return {
+    ...currentMission,
+    id: `mission-${currentMission.type}-${found.taskId}`,
+    taskId: found.taskId,
+    title: found.titleEnglish,
+    hebrewTitle: found.titleHebrew,
+    descriptionHebrew: found.descriptionHebrew || currentMission.descriptionHebrew,
+    targetUrl: found.targetUrl,
+    selectedTopicId: found.id,
+    selectedTopicNameHebrew: found.nameHebrew,
+  };
+}
+
+/**
+ * Dynamically picks the next best assignment from the site's rich library,
+ * providing students with curated topic options for reading & writing.
+ */
+export function generateNextMission(
+  profile: StudentTutorProfile,
+  preferredType?: "unseen" | "vocab" | "writing",
+  preferredTopicId?: string
+): TutorTaskRecommendation {
   const { reading, vocabulary, writing } = profile.skills;
   const level = profile.level;
 
-  // Find lowest skill
-  if (reading <= vocabulary && reading <= writing) {
-    // Recommend Unseen
-    const candidateUnseens = MIDDLE_SCHOOL_UNSEENS.filter((u) => u.level === level);
-    const chosen = candidateUnseens.length > 0
-      ? candidateUnseens[Math.floor(Math.random() * candidateUnseens.length)]
-      : MIDDLE_SCHOOL_UNSEENS[0];
+  let selectedType = preferredType;
+  if (!selectedType) {
+    if (reading <= vocabulary && reading <= writing) {
+      selectedType = "unseen";
+    } else if (vocabulary <= writing) {
+      selectedType = "vocab";
+    } else {
+      selectedType = "writing";
+    }
+  }
+
+  if (selectedType === "unseen") {
+    const topics = getUnseenTopicsForLevel(level);
+    const chosenTopic = preferredTopicId
+      ? topics.find((t) => t.id === preferredTopicId) || topics[0]
+      : topics[0];
 
     return {
-      id: `mission-unseen-${chosen.id}`,
+      id: `mission-unseen-${chosenTopic.taskId}`,
       type: "unseen",
-      title: chosen.title,
-      hebrewTitle: chosen.hebrewTitle,
-      descriptionHebrew: `קראו את קטע הקריאה "${chosen.hebrewTitle}" וענו על השאלות. דוד יעקוב אחר התשובות שלכם ויעניק לכם משוב!`,
+      title: chosenTopic.titleEnglish,
+      hebrewTitle: chosenTopic.titleHebrew,
+      descriptionHebrew: `קראו את קטע הקריאה "${chosenTopic.titleHebrew}" וענו על השאלות. דוד יעקוב אחר התשובות שלכם ויעניק לכם משוב!`,
       level: level,
-      taskId: chosen.id,
-      targetUrl: `/unseen?story=${chosen.id}`,
+      taskId: chosenTopic.taskId,
+      targetUrl: chosenTopic.targetUrl,
       estimatedMinutes: 12,
+      selectedTopicId: chosenTopic.id,
+      selectedTopicNameHebrew: chosenTopic.nameHebrew,
+      availableTopics: topics,
     };
-  } else if (vocabulary <= writing) {
+  } else if (selectedType === "vocab") {
     // Recommend Vocabulary
     return {
       id: `mission-vocab-${profile.vocabBand}`,
@@ -340,21 +748,24 @@ export function generateNextMission(profile: StudentTutorProfile): TutorTaskReco
     };
   } else {
     // Recommend Writing
-    const candidateTasks = ALL_WRITING_TASKS.filter((t) => t.level === level);
-    const chosen = candidateTasks.length > 0
-      ? candidateTasks[Math.floor(Math.random() * candidateTasks.length)]
-      : ALL_WRITING_TASKS[0];
+    const topics = getWritingTopicsForLevel(level);
+    const chosenTopic = preferredTopicId
+      ? topics.find((t) => t.id === preferredTopicId) || topics[0]
+      : topics[0];
 
     return {
-      id: `mission-writing-${chosen.id}`,
+      id: `mission-writing-${chosenTopic.taskId}`,
       type: "writing",
-      title: chosen.title,
-      hebrewTitle: chosen.hebrewTitle,
-      descriptionHebrew: `כתבו פסקה קצרה בנושא "${chosen.hebrewTitle}". השתמשו במילות הקישור ובבנק המילים המובנה בסדנה!`,
+      title: chosenTopic.titleEnglish,
+      hebrewTitle: chosenTopic.titleHebrew,
+      descriptionHebrew: `כתבו פסקה קצרה בנושא "${chosenTopic.titleHebrew}". השתמשו במילות הקישור ובבנק המילים המובנה בסדנה!`,
       level: level,
-      taskId: chosen.id,
-      targetUrl: `/writing?task=${chosen.id}`,
+      taskId: chosenTopic.taskId,
+      targetUrl: chosenTopic.targetUrl,
       estimatedMinutes: 15,
+      selectedTopicId: chosenTopic.id,
+      selectedTopicNameHebrew: chosenTopic.nameHebrew,
+      availableTopics: topics,
     };
   }
 }
