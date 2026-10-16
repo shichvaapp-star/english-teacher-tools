@@ -22,7 +22,7 @@ import {
   Mic,
   MicOff,
   Sparkles,
-  ArrowRight,
+  ArrowLeft,
   BookOpen,
   BookA,
   PenTool,
@@ -294,7 +294,7 @@ export function TutorChatBox({
   };
 
   return (
-    <Card className="flex flex-col h-[650px] sm:h-[700px] border border-border/60 bg-card/60 backdrop-blur-xs shadow-xs overflow-hidden">
+    <Card className="flex flex-col h-[650px] sm:h-[700px] border border-border/60 bg-card/60 backdrop-blur-xs shadow-xs overflow-hidden" dir="rtl">
       {/* Tutor Chat Header */}
       <div className="flex items-center justify-between p-3.5 sm:p-4 border-b border-border/40 bg-muted/30">
         <div className="flex items-center gap-3">
@@ -302,10 +302,10 @@ export function TutorChatBox({
             <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-tr from-sky-500 via-indigo-500 to-purple-500 text-white shadow-xs">
               <GraduationCap className="h-5 w-5" />
             </div>
-            <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-emerald-500 ring-2 ring-background" />
+            <span className="absolute bottom-0 left-0 h-3 w-3 rounded-full bg-emerald-500 ring-2 ring-background" />
           </div>
 
-          <div>
+          <div className="text-right">
             <div className="font-bold text-sm sm:text-base text-foreground flex items-center gap-2">
               David (דוד)
               <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
@@ -315,7 +315,7 @@ export function TutorChatBox({
             <div className="text-[11px] text-muted-foreground flex items-center gap-1.5">
               <span>מורה פרטי אישי לאנגלית</span>
               <span>•</span>
-              <span className="text-emerald-600 dark:text-emerald-400 font-medium">זמין כעת</span>
+              <span className="text-emerald-600 dark:text-emerald-400 font-medium">זמין כעת לתרגול</span>
             </div>
           </div>
         </div>
@@ -325,7 +325,7 @@ export function TutorChatBox({
             variant="ghost"
             size="icon"
             onClick={() => setSpeechEnabled(!speechEnabled)}
-            className={`h-8 w-8 rounded-lg ${speechEnabled ? "text-primary" : "text-muted-foreground"}`}
+            className={`h-8 w-8 rounded-lg cursor-pointer ${speechEnabled ? "text-primary" : "text-muted-foreground"}`}
             title={speechEnabled ? "השתק הקראה קולית" : "הפעל הקראה קולית באנגלית"}
           >
             {speechEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
@@ -335,7 +335,7 @@ export function TutorChatBox({
             variant="ghost"
             size="icon"
             onClick={handleRestartDiagnostic}
-            className="h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground"
+            className="h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground cursor-pointer"
             title="בצע מבדק אבחון מחדש"
           >
             <RotateCcw className="h-4 w-4" />
@@ -351,7 +351,7 @@ export function TutorChatBox({
             className={`flex flex-col ${msg.sender === "student" ? "items-end" : "items-start"}`}
           >
             <div
-              className={`flex items-start gap-2.5 max-w-[85%] sm:max-w-[78%] ${
+              className={`flex items-start gap-2.5 max-w-[88%] sm:max-w-[80%] ${
                 msg.sender === "student" ? "flex-row-reverse" : "flex-row"
               }`}
             >
@@ -368,13 +368,13 @@ export function TutorChatBox({
               <div
                 className={`rounded-2xl px-4 py-2.5 text-xs sm:text-sm shadow-xs leading-relaxed ${
                   msg.sender === "student"
-                    ? "bg-primary text-primary-foreground rounded-tr-xs"
-                    : "bg-muted/70 text-foreground border border-border/40 rounded-tl-xs"
+                    ? "bg-primary text-primary-foreground rounded-tl-xs"
+                    : "bg-muted/70 text-foreground border border-border/40 rounded-tr-xs"
                 }`}
               >
-                <p className="whitespace-pre-line">{msg.text}</p>
+                <p className="whitespace-pre-line text-right" dir="auto">{msg.text}</p>
                 <span
-                  className={`block text-[10px] mt-1.5 ${
+                  className={`block text-[10px] mt-1.5 text-right ${
                     msg.sender === "student" ? "text-primary-foreground/70" : "text-muted-foreground"
                   }`}
                 >
@@ -385,8 +385,8 @@ export function TutorChatBox({
 
             {/* Attached Actionable Task Card */}
             {msg.taskRecommendation && (
-              <div className="mt-2.5 ml-9 max-w-[85%] sm:max-w-[75%]">
-                <Card className="border-2 border-primary/40 bg-primary/5 p-3.5 rounded-xl shadow-xs">
+              <div className="mt-2.5 mr-9 max-w-[88%] sm:max-w-[78%] text-right">
+                <Card className="border-2 border-primary/40 bg-primary/5 p-3.5 rounded-xl shadow-xs text-right">
                   <div className="flex items-center justify-between gap-2 mb-1.5">
                     <span className="flex items-center gap-1.5 text-xs font-bold text-primary">
                       {msg.taskRecommendation.type === "unseen" && <BookOpen className="h-3.5 w-3.5" />}
@@ -394,7 +394,7 @@ export function TutorChatBox({
                       {msg.taskRecommendation.type === "writing" && <PenTool className="h-3.5 w-3.5" />}
                       משימה מותאמת עבורך
                     </span>
-                    <Badge variant="outline" className="text-[10px] py-0 px-1.5">
+                    <Badge variant="outline" className="text-[10px] py-0 px-1.5 bg-background">
                       {msg.taskRecommendation.level}
                     </Badge>
                   </div>
@@ -407,9 +407,9 @@ export function TutorChatBox({
                   </p>
 
                   <Link href={msg.taskRecommendation.targetUrl} className="block w-full">
-                    <Button size="sm" className="w-full gap-2 font-bold h-8 text-xs">
+                    <Button size="sm" className="w-full gap-2 font-bold h-8 text-xs cursor-pointer">
                       <span>התחל משימה עכשיו</span>
-                      <ArrowRight className="h-3.5 w-3.5" />
+                      <ArrowLeft className="h-3.5 w-3.5" />
                     </Button>
                   </Link>
                 </Card>
@@ -420,14 +420,14 @@ export function TutorChatBox({
 
         {/* Diagnostic Question Interactive Widget */}
         {diagnosticIndex !== null && DIAGNOSTIC_STEPS[diagnosticIndex] && (
-          <div className="ml-9 max-w-[90%] sm:max-w-[82%] animate-in fade-in slide-in-from-bottom-2 duration-300">
+          <div className="mr-9 max-w-[92%] sm:max-w-[85%] animate-in fade-in slide-in-from-bottom-2 duration-300 text-right">
             <Card className="border-2 border-primary/40 bg-card p-4 rounded-2xl shadow-sm space-y-3">
               <div className="flex items-center justify-between text-xs text-primary font-bold">
                 <span className="flex items-center gap-1.5">
                   <Sparkles className="h-4 w-4" />
                   מבדק התאמה אישי מדוד (שאלה {diagnosticIndex + 1} מתוך {DIAGNOSTIC_STEPS.length})
                 </span>
-                <span className="text-muted-foreground text-[11px]">
+                <span className="text-muted-foreground text-[11px]" dir="ltr">
                   {Math.round(((diagnosticIndex + 1) / DIAGNOSTIC_STEPS.length) * 100)}%
                 </span>
               </div>
@@ -441,31 +441,31 @@ export function TutorChatBox({
               </div>
 
               {DIAGNOSTIC_STEPS[diagnosticIndex].passage && (
-                <div className="p-3 bg-muted/60 rounded-xl text-xs sm:text-sm font-serif italic text-foreground border border-border/40">
+                <div className="p-3 bg-muted/60 rounded-xl text-xs sm:text-sm font-serif italic text-foreground border border-border/40 text-left" dir="ltr">
                   {DIAGNOSTIC_STEPS[diagnosticIndex].passage}
                 </div>
               )}
 
-              <div className="space-y-1">
-                <div className="text-xs sm:text-sm font-semibold text-foreground whitespace-pre-line">
+              <div className="space-y-1.5 text-right">
+                <div className="text-xs sm:text-sm font-semibold text-foreground whitespace-pre-line text-left leading-relaxed" dir="ltr">
                   {DIAGNOSTIC_STEPS[diagnosticIndex].question}
                 </div>
-                <div className="text-xs text-muted-foreground">
+                <div className="text-xs text-muted-foreground text-right" dir="rtl">
                   {DIAGNOSTIC_STEPS[diagnosticIndex].questionHebrew}
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1" dir="rtl">
                 {DIAGNOSTIC_STEPS[diagnosticIndex].options.map((opt, oIdx) => (
                   <Button
                     key={oIdx}
                     variant="outline"
                     onClick={() => handleDiagnosticOptionSelect(opt.value)}
-                    className="justify-start text-left h-auto py-2.5 px-3 border-border/70 hover:border-primary hover:bg-primary/5 transition-all text-xs sm:text-sm flex flex-col items-start gap-0.5 whitespace-normal"
+                    className="justify-start text-right h-auto py-2.5 px-3 border-border/70 hover:border-primary hover:bg-primary/5 transition-all text-xs sm:text-sm flex flex-col items-start gap-0.5 whitespace-normal cursor-pointer"
                   >
-                    <span className="font-semibold text-foreground">{opt.text}</span>
+                    <span className="font-semibold text-foreground text-left" dir="ltr">{opt.text}</span>
                     {opt.textHebrew && (
-                      <span className="text-[11px] text-muted-foreground">{opt.textHebrew}</span>
+                      <span className="text-[11px] text-muted-foreground text-right" dir="rtl">{opt.textHebrew}</span>
                     )}
                   </Button>
                 ))}
@@ -476,12 +476,12 @@ export function TutorChatBox({
 
         {/* Loading Indicator */}
         {isSending && (
-          <div className="flex items-center gap-2 text-xs text-muted-foreground ml-9">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground mr-9">
             <div className="flex h-7 w-7 rounded-xl items-center justify-center bg-gradient-to-tr from-sky-500 via-indigo-500 to-purple-500 text-white shrink-0 shadow-xs">
               <GraduationCap className="h-3.5 w-3.5" />
             </div>
             <div className="bg-muted/60 px-3.5 py-2 rounded-2xl border border-border/40 flex items-center gap-1.5">
-              <span className="animate-pulse">דוד כותב לך...</span>
+              <span className="animate-pulse">דוד מקליד תשובה...</span>
               <span className="inline-block h-1.5 w-1.5 rounded-full bg-primary animate-bounce [animation-delay:-0.3s]" />
               <span className="inline-block h-1.5 w-1.5 rounded-full bg-primary animate-bounce [animation-delay:-0.15s]" />
               <span className="inline-block h-1.5 w-1.5 rounded-full bg-primary animate-bounce" />
@@ -494,13 +494,13 @@ export function TutorChatBox({
 
       {/* Quick Replies Tray */}
       {messages.length > 0 && messages[messages.length - 1].quickReplies && !isSending && (
-        <div className="px-4 py-2 border-t border-border/30 bg-muted/10 flex items-center gap-2 overflow-x-auto no-scrollbar">
+        <div className="px-4 py-2 border-t border-border/30 bg-muted/10 flex items-center gap-2 overflow-x-auto no-scrollbar" dir="rtl">
           <span className="text-[11px] text-muted-foreground shrink-0 font-medium">הצעות מהירות:</span>
           {messages[messages.length - 1].quickReplies?.map((reply, rIdx) => (
             <button
               key={rIdx}
               onClick={() => handleSendMessage(reply)}
-              className="text-xs bg-muted/60 hover:bg-primary/10 hover:text-primary hover:border-primary/40 border border-border/50 text-foreground px-2.5 py-1 rounded-full whitespace-nowrap transition-all shrink-0"
+              className="text-xs bg-muted/60 hover:bg-primary/10 hover:text-primary hover:border-primary/40 border border-border/50 text-foreground px-2.5 py-1 rounded-full whitespace-nowrap transition-all shrink-0 cursor-pointer"
             >
               {reply}
             </button>
@@ -509,22 +509,7 @@ export function TutorChatBox({
       )}
 
       {/* Input Bar */}
-      <div className="p-3 sm:p-4 border-t border-border/40 bg-background flex items-center gap-2">
-        <Button
-          type="button"
-          variant="outline"
-          size="icon"
-          onClick={toggleListening}
-          className={`h-10 w-10 shrink-0 rounded-xl transition-colors ${
-            isListening
-              ? "bg-rose-500 text-white border-rose-500 animate-pulse"
-              : "text-muted-foreground hover:text-foreground"
-          }`}
-          title={isListening ? "עצור הקלטה" : "דבר באנגלית עם דוד (Voice)"}
-        >
-          {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
-        </Button>
-
+      <div className="p-3 sm:p-4 border-t border-border/40 bg-background flex items-center gap-2" dir="rtl">
         <Input
           value={inputText}
           onChange={(e) => setInputText(e.target.value)}
@@ -535,17 +520,34 @@ export function TutorChatBox({
             }
           }}
           placeholder="כתבו הודעה או שאלה לדוד (אפשר באנגלית או בעברית)..."
-          className="flex-1 text-xs sm:text-sm h-10 rounded-xl bg-muted/40"
+          className="flex-1 text-xs sm:text-sm h-10 rounded-xl bg-muted/40 text-right"
+          dir="rtl"
           disabled={isSending}
         />
+
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          onClick={toggleListening}
+          className={`h-10 w-10 shrink-0 rounded-xl transition-colors cursor-pointer ${
+            isListening
+              ? "bg-rose-500 text-white border-rose-500 animate-pulse"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+          title={isListening ? "עצור הקלטה" : "דבר באנגלית עם דוד (Voice)"}
+        >
+          {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+        </Button>
 
         <Button
           onClick={() => handleSendMessage()}
           disabled={!inputText.trim() || isSending}
           size="icon"
-          className="h-10 w-10 shrink-0 rounded-xl shadow-xs"
+          className="h-10 w-10 shrink-0 rounded-xl shadow-xs cursor-pointer"
+          title="שלח הודעה לדוד"
         >
-          <Send className="h-4 w-4" />
+          <Send className="h-4 w-4 rotate-180" />
         </Button>
       </div>
     </Card>

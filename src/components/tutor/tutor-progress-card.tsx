@@ -13,7 +13,7 @@ import {
   PenTool,
   Flame,
   Award,
-  ArrowRight,
+  ArrowLeft,
   RotateCcw,
   Compass,
   CheckCircle2,
@@ -30,7 +30,7 @@ export function TutorProgressCard({ profile, onResetDiagnostic }: TutorProgressC
   const { skills, level, vocabBand, streakDays, totalTasksCompleted, currentMission } = profile;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" dir="rtl">
       {/* Student Level & Badges Card */}
       <Card className="border border-border/60 bg-card/60 backdrop-blur-xs shadow-xs overflow-hidden">
         <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent p-4 sm:p-5 border-b border-border/40">
@@ -169,9 +169,9 @@ export function TutorProgressCard({ profile, onResetDiagnostic }: TutorProgressC
             </p>
 
             <Link href={currentMission.targetUrl} className="block w-full">
-              <Button className="w-full gap-2 font-bold shadow-xs">
+              <Button className="w-full gap-2 font-bold shadow-xs cursor-pointer">
                 <span>התחל משימה עכשיו</span>
-                <ArrowRight className="h-4 w-4" />
+                <ArrowLeft className="h-4 w-4" />
               </Button>
             </Link>
           </CardContent>

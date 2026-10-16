@@ -64,14 +64,14 @@ export default function PrivateTutorPage() {
   return (
     <div className="flex flex-col min-h-screen bg-background text-foreground overflow-x-hidden">
       {/* Top Navbar */}
-      <header className="sticky top-0 z-40 border-b border-border/50 bg-background/90 backdrop-blur-md">
+      <header className="sticky top-0 z-40 border-b border-border/50 bg-background/90 backdrop-blur-md" dir="rtl">
         <div className="container mx-auto flex h-16 items-center justify-between px-3 sm:px-8 gap-2">
           <div className="flex items-center gap-3">
             <Link
               href="/"
               className="flex items-center gap-2 text-xs sm:text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
             >
-              <ArrowLeft className="h-4 w-4" />
+              <ArrowLeft className="h-4 w-4 rotate-180" />
               <span>חזרה לדף הבית</span>
             </Link>
 
@@ -114,7 +114,7 @@ export default function PrivateTutorPage() {
       </header>
 
       {/* Main Workspace */}
-      <main className="flex-1 container mx-auto px-3 sm:px-8 py-6 max-w-7xl">
+      <main className="flex-1 container mx-auto px-3 sm:px-8 py-6 max-w-7xl" dir="rtl">
         {isLoading || !profile ? (
           <div className="flex flex-col items-center justify-center min-h-[50vh] gap-3">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -122,16 +122,16 @@ export default function PrivateTutorPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-            {/* Left Column: Student Progress, Radar & Next Mission */}
-            <div className="lg:col-span-4 order-2 lg:order-1 space-y-4">
+            {/* Right Column in RTL: Student Progress, Radar & Next Mission */}
+            <div className="lg:col-span-4 space-y-4">
               <TutorProgressCard
                 profile={profile}
                 onResetDiagnostic={handleResetDiagnostic}
               />
             </div>
 
-            {/* Right Column: Interactive Tutor Chat with David */}
-            <div className="lg:col-span-8 order-1 lg:order-2">
+            {/* Left Column in RTL: Interactive Tutor Chat with David */}
+            <div className="lg:col-span-8">
               <TutorChatBox
                 profile={profile}
                 onProfileUpdate={handleProfileUpdate}
