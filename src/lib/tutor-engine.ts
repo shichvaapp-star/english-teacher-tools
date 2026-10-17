@@ -34,6 +34,7 @@ export interface DiagnosticAnswer {
   vocabScore?: number;
   writingStrengths?: string[];
   writingTips?: string[];
+  neededHelp?: boolean;
 }
 
 export interface DiagnosticQuestionDef {
@@ -98,12 +99,134 @@ export function getInitialOnboardingGreeting(studentName: string): {
       "I like playing video games and sports",
       "I love listening to music and hanging out with friends",
       "I really enjoy animals and nature",
+      "אני לא מבין, תסביר בעברית 🙏",
     ],
   };
 }
 
+const ONBOARDING_WORD_GLOSSARY: Record<string, string> = {
+  "free time": "זמן פנוי",
+  "enjoy": "נהנה / אוהב",
+  "cousin": "בן דוד",
+  "bake": "לאפות",
+  "accidentally": "בטעות",
+  "salt": "מלח",
+  "sugar": "סוכר",
+  "instead": "במקום",
+  "jars": "צנצנות",
+  "identical": "זהות (נראות אותו דבר)",
+  "bite": "ביס / נגיסה",
+  "tasted": "טעמו",
+  "turn red": "האדימו",
+  "turned bright red": "האדימו מאוד",
+  "order": "להזמין",
+  "ordering": "להזמין",
+  "imagination": "דמיון",
+  "travel": "לטייל / לטוס",
+  "anywhere": "לכל מקום",
+  "invent": "להמציא",
+  "gadget": "גאדג'ט / מכשיר חכם",
+  "choose": "לבחור",
+  "practice": "לתרגל",
+  "improve": "לשפר",
+};
+
 /**
- * Generates David's natural English response for each turn of the 4-turn onboarding conversation.
+ * Checks if the student is saying they don't understand, asking for translation/help,
+ * or replying in Hebrew instead of English during the onboarding conversation.
+ */
+function checkOnboardingHelpOrHebrew(
+  turnIndex: number,
+  studentReply: string
+): {
+  isConfusionOrHelpRequest: boolean;
+  isHebrewContentAnswer: boolean;
+  requestedWordTranslation?: { word: string; hebrew: string };
+} {
+  const trimmed = studentReply.trim();
+  const lower = trimmed.toLowerCase();
+
+  // Check if student asked about a specific word from David's message
+  let requestedWordTranslation: { word: string; hebrew: string } | undefined;
+  for (const [eng, heb] of Object.entries(ONBOARDING_WORD_GLOSSARY)) {
+    if (
+      lower.includes(`מה זה ${eng}`) ||
+      lower.includes(`מה הפירוש של ${eng}`) ||
+      lower.includes(`what is ${eng}`) ||
+      lower.includes(`what does ${eng}`) ||
+      lower === eng
+    ) {
+      requestedWordTranslation = { word: eng, hebrew: heb };
+      break;
+    }
+  }
+
+  const confusionPatterns = [
+    "לא מבין",
+    "לא מבינה",
+    "לא הבנתי",
+    "אין לי מושג",
+    "לא יודע",
+    "לא יודעת",
+    "מה?",
+    "מה זה",
+    "מה שאלת",
+    "מה כתבת",
+    "מה אמרת",
+    "מה הפירוש",
+    "תסביר",
+    "בעברית",
+    "תרגם",
+    "תרגום",
+    "קשה לי",
+    "עזרה",
+    "איך אומרים",
+    "i don't understand",
+    "i dont understand",
+    "dont understand",
+    "don't understand",
+    "i don't get it",
+    "what?",
+    "what do you mean",
+    "what does that mean",
+    "translate",
+    "in hebrew",
+    "explain in hebrew",
+    "i don't know",
+    "i dont know",
+    "too hard",
+    "help",
+  ];
+
+  const isExplicitConfusion =
+    trimmed === "?" ||
+    trimmed === "??" ||
+    Boolean(requestedWordTranslation) ||
+    confusionPatterns.some((pat) => lower.includes(pat));
+
+  // Count Hebrew vs English letters
+  const hebrewChars = (trimmed.match(/[\u0590-\u05FF]/g) || []).length;
+  const englishChars = (trimmed.match(/[a-zA-Z]/g) || []).length;
+
+  // On turns 0, 1, 2 we want the student to practice replying in English.
+  // If they answered in Hebrew (without saying "I don't understand"), we can validate their Hebrew answer and help them say it in English!
+  const isHebrewContentAnswer =
+    !isExplicitConfusion &&
+    turnIndex < 3 &&
+    hebrewChars >= 2 &&
+    englishChars < 3;
+
+  return {
+    isConfusionOrHelpRequest: isExplicitConfusion,
+    isHebrewContentAnswer,
+    requestedWordTranslation,
+  };
+}
+
+/**
+ * Generates David's natural response for each turn of the 4-turn onboarding conversation.
+ * If the student doesn't understand or asks for help in Hebrew, David stays on the current turn
+ * (`advanceTurn: false`), explains warmly in Hebrew + simple English, and lets them try again.
  */
 export function generateOnboardingTurnResponse(
   completedTurnIndex: number,
@@ -112,9 +235,119 @@ export function generateOnboardingTurnResponse(
 ): {
   text: string;
   quickReplies?: string[];
+  advanceTurn: boolean;
+  neededHelp?: boolean;
 } {
   const lower = studentReply.toLowerCase();
+  const {
+    isConfusionOrHelpRequest,
+    isHebrewContentAnswer,
+    requestedWordTranslation,
+  } = checkOnboardingHelpOrHebrew(completedTurnIndex, studentReply);
 
+  const wordPrefix = requestedWordTranslation
+    ? `הפירוש של **${requestedWordTranslation.word}** הוא: **${requestedWordTranslation.hebrew}** 💡\n\n`
+    : "";
+
+  // 1. Handle when the student says "אני לא מבין" / asks for Hebrew / asks what a word means
+  if (isConfusionOrHelpRequest) {
+    if (completedTurnIndex === 0) {
+      return {
+        advanceTurn: false,
+        neededHelp: true,
+        text: `${wordPrefix}אין שום בעיה, ${studentName}! אני כאן בדיוק כדי לעזור. 😊\n\nשאלתי באנגלית:\n**"What do you like doing in your free time?"**\nכלומר: **מה את/ה אוהב/ת לעשות בזמן הפנוי שלך?**\n\nאוצר מילים שיעזור לך:\n• **I like...** = אני אוהב/ת...\n• **sports** = ספורט | **video games** = משחקי מחשב\n• **music** = מוזיקה | **animals** = בעלי חיים\n\nנסה/י לכתוב משפט קצר באנגלית (למשל: *I like video games*), או לחצ/י על אחת התשובות המוכנות למטה:`,
+        quickReplies: [
+          "I like playing video games",
+          "I like playing sports",
+          "I love listening to music",
+          "I love animals and nature",
+        ],
+      };
+    }
+
+    if (completedTurnIndex === 1) {
+      return {
+        advanceTurn: false,
+        neededHelp: true,
+        text: `${wordPrefix}אין שום בעיה, אסביר בשמחה בעברית! 😊\n\n**מה היה בסיפור הקצר שסיפרתי?**\nבן דוד שלי ליאו אפה עוגת שוקולד ליום ההולדת של אמא שלו, אבל בטעות הוא שם **מלח (salt)** במקום **סוכר (sugar)** כי הצנצנות נראו אותו דבר! כשכולם טעמו מהעוגה הפנים שלהם האדימו, ובסוף הם הזמינו פיצה. 🍕\n\n**השאלה שלי אליך היא:**\nלמה הפנים של כולם האדימו כשהם טעמו מהעוגה, ומה היית עושה במקומם?\n\nנסה/י לענות באנגלית פשוטה (אפשר להיעזר במילים: **because** = כי, **salt** = מלח, **sugar** = סוכר, **order pizza** = להזמין פיצה), או בחר/י באחת התשובות למטה:`,
+        quickReplies: [
+          "Because he put salt instead of sugar!",
+          "The cake was too salty, so I would order pizza.",
+          "I would laugh and buy ice cream instead.",
+        ],
+      };
+    }
+
+    if (completedTurnIndex === 2) {
+      return {
+        advanceTurn: false,
+        neededHelp: true,
+        text: `${wordPrefix}בשמחה, ${studentName}! בוא נפרק את השאלה בעברית: 😊\n\nשאלתי:\n**אם היית יכול/ה לטוס מחר לכל מקום בעולם (travel anywhere) – או להמציא גאדג'ט מגניב לבית הספר (invent a cool gadget) – מה היית בוחר/ת ולמה?**\n\nנסה/י לכתוב משפט אחד או שניים באנגלית! אפשר להעתיק ולהשלים את ההתחלה הזו:\n• **I want to travel to... because...** (אני רוצה לטוס ל... כי...)\n• **I would invent a... because...** (הייתי ממציא/ה... כי...)\n\nאו בחר/י דוגמה מוכנה למטה:`,
+        quickReplies: [
+          "I want to travel to Japan because I love the food and culture.",
+          "I want to visit New York because it looks exciting.",
+          "I would invent a robot that helps students with homework.",
+        ],
+      };
+    }
+
+    // Turn 3 confusion
+    return {
+      advanceTurn: false,
+      neededHelp: true,
+      text: `${wordPrefix}אסביר בשמחה בעברית! 😊\nשאלתי במה הכי תרצה/י שנתמקד עכשיו בתרגול הראשון שלנו:\n• **Reading stories** = קריאת סיפורים (Unseen)\n• **Learning new vocabulary words** = לימוד אוצר מילים\n• **Writing in English** = כתיבה באנגלית\n\nבחר/י באחת האפשרויות למטה:`,
+      quickReplies: [
+        "I'd like to practice reading stories",
+        "I want to learn new vocabulary words",
+        "I want to improve my writing in English",
+        "Let's practice a bit of everything!",
+      ],
+    };
+  }
+
+  // 2. Handle when the student understood and answered the question, but wrote their answer in Hebrew on Turns 0-2
+  if (isHebrewContentAnswer) {
+    if (completedTurnIndex === 0) {
+      return {
+        advanceTurn: false,
+        neededHelp: true,
+        text: `איזה יופי, ${studentName}! נשמע תחביב מעולה 😊\nכדי שנתרגל קצת אנגלית יחד, איך היית כותב/ת את זה במשפט קצר באנגלית?\nאפשר להתחיל במילים: **I like...** (למשל: *I like football* / *I like video games* / *I like music*).\n\nנסה/י לכתוב באנגלית או לבחור למטה:`,
+        quickReplies: [
+          "I like playing sports and football",
+          "I like playing video games",
+          "I love listening to music",
+          "I really enjoy animals",
+        ],
+      };
+    }
+
+    if (completedTurnIndex === 1) {
+      return {
+        advanceTurn: false,
+        neededHelp: true,
+        text: `כל הכבוד ${studentName}, הבנת מעולה את הסיפור! 👏\nעכשיו בוא/י ננסה לכתוב את התשובה הזו במשפט קצר באנגלית!\nלמשל:\n• **Because he put salt instead of sugar!** (כי הוא שם מלח במקום סוכר)\n• **I would order pizza.** (הייתי מזמין/ה פיצה)\n\nנסה/י לכתוב את זה באנגלית או ללחוץ על אחת האפשרויות למטה:`,
+        quickReplies: [
+          "Because he put salt instead of sugar! I would order pizza.",
+          "The cake tasted salty, so I would buy ice cream.",
+        ],
+      };
+    }
+
+    if (completedTurnIndex === 2) {
+      return {
+        advanceTurn: false,
+        neededHelp: true,
+        text: `רעיון נהדר, ${studentName}! 🌟\nבוא/י ננסה לכתוב את הרעיון היפה שלך במשפט קצר באנגלית. אפשר להיעזר בתבנית הזו:\n• **I want to travel to... because it is fun.**\n• **I would invent a... for my school.**\n\nנסה/י לכתוב באנגלית או לבחור אחת מהאפשרויות למטה:`,
+        quickReplies: [
+          "I want to travel to USA because it is amazing.",
+          "I want to travel to Japan because I love technology.",
+          "I would invent a smart tablet that helps students learn.",
+        ],
+      };
+    }
+  }
+
+  // 3. Normal English progression: Advance to the next turn!
   // After Turn 0 (Student shared their hobbies/free time) -> Move to Turn 1 (Short story comprehension in conversation)
   if (completedTurnIndex === 0) {
     let hobbyReaction = `That sounds like a great way to spend your free time, ${studentName}!`;
@@ -129,10 +362,12 @@ export function generateOnboardingTurnResponse(
     }
 
     return {
+      advanceTurn: true,
       text: `${hobbyReaction}\n\nSpeaking of fun weekends, my cousin Leo tried to bake a chocolate cake for his mom's birthday yesterday. He accidentally used salt instead of sugar because the two jars looked identical! When everyone took a bite at the party, their faces turned bright red, and they ended up ordering pizza instead. 😄\n\nTell me in your own words — why did everyone's face turn red when they tasted Leo's cake, and what would you do if that happened at your party?`,
       quickReplies: [
         "Because he put salt instead of sugar! I would laugh and order pizza too.",
         "The cake tasted super salty! I would go buy ice cream instead.",
+        "אני לא מבין, תסביר בעברית 🙏",
       ],
     };
   }
@@ -152,13 +387,17 @@ export function generateOnboardingTurnResponse(
       : `Haha, totally! At least pizza saved the birthday party in the end!`;
 
     return {
+      advanceTurn: true,
       text: `${storyReaction}\n\nNow I'm curious about your imagination, ${studentName}: if you could travel anywhere in the world tomorrow — or invent one cool gadget for your school — what would you choose and why? Write 2 or 3 sentences in English!`,
-      quickReplies: [],
+      quickReplies: [
+        "אני לא מבין את השאלה, תסביר בעברית 🙏",
+      ],
     };
   }
 
   // After Turn 2 (Student wrote 2-3 sentences about travel or an invention) -> Move to Turn 3 (Preferred focus)
   return {
+    advanceTurn: true,
     text: `I really enjoyed reading your idea, ${studentName}! One last question before we pick our first activity together: what do you feel you'd like to practice most with me right now — reading interesting stories, learning new vocabulary words, or writing in English?`,
     quickReplies: [
       "I'd like to practice reading stories",
@@ -413,6 +652,14 @@ export function calculateDiagnosticPlacement(
       writingTips = ans.writingTips;
     }
   });
+
+  // If the student asked for Hebrew explanations ("אני לא מבין") during the conversation,
+  // calibrate their reading and vocabulary scores gently downward so they start at a comfortable level.
+  const helpTurnsCount = answers.filter((a) => a.neededHelp).length;
+  if (helpTurnsCount > 0) {
+    rScore = Math.max(50, rScore - helpTurnsCount * 10);
+    vScore = Math.max(50, vScore - helpTurnsCount * 8);
+  }
 
   // Calculate composite score from the three core pillars:
   // Reading 35%, Vocab 35%, AI Writing Rubric Evaluation 30%

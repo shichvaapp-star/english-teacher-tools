@@ -19,9 +19,42 @@ function extractJsonFromText(raw: string): any {
 function generateDeterministicTutorResponse(
   userText: string,
   profile: StudentTutorProfile,
-  studentName: string
+  studentName: string,
+  messages: Array<{ sender: string; text: string }> = []
 ): { message: string; quickReplies: string[] } {
   const lower = userText.toLowerCase().trim();
+
+  const isConfusion =
+    lower === "?" ||
+    lower === "??" ||
+    lower.includes("לא מבין") ||
+    lower.includes("לא מבינה") ||
+    lower.includes("לא הבנתי") ||
+    lower.includes("מה זה אומר") ||
+    lower.includes("מה שאלת") ||
+    lower.includes("מה כתבת") ||
+    lower.includes("מה אמרת") ||
+    lower.includes("תסביר") ||
+    lower.includes("בעברית") ||
+    lower.includes("תרגם") ||
+    lower.includes("קשה לי") ||
+    lower.includes("i don't understand") ||
+    lower.includes("i dont understand") ||
+    lower.includes("dont understand") ||
+    lower.includes("what do you mean") ||
+    lower.includes("translate") ||
+    lower.includes("in hebrew");
+
+  if (isConfusion) {
+    return {
+      message: `אין שום בעיה, ${studentName}! אסביר בעברית פשוטה 😊\nאני כאן כדי לעזור לך לתרגל אנגלית בקצב שלך (ברמת ${profile?.level || "Level 2"}).\nאפשר לבחור עכשיו לתרגל **קטע קריאה (Unseen)**, **אוצר מילים**, או **כתיבה באנגלית** – ואם יש מילה או משפט באנגלית שלא ברורים לך, פשוט כתוב/י לי "מה זה..." ואסביר מיד בעברית! במה נתחיל?`,
+      quickReplies: [
+        "תן לי משימת קריאה (Unseen) 📖",
+        "בוא נתרגל אוצר מילים 📚",
+        "בוא נתרגל כתיבה ✍️",
+      ],
+    };
+  }
 
   if (lower.includes("hello") || lower.includes("hi") || lower.includes("שלום") || lower.includes("היי")) {
     return {
@@ -80,7 +113,7 @@ function generateDeterministicTutorResponse(
 
   return {
     message: `I hear you, ${studentName}! Keep practicing consistently every day. Every unseen you read and every word you add to your word bank strengthens your English skills! What would you like to focus on next?`,
-    quickReplies: ["בוא נמשיך במשימה שלי", "דוד, בחר עבורי", "בדוק את הרמה שלי"],
+    quickReplies: ["בוא נמשיך במשימה שלי", "דוד, בחר עבורי", "תסביר לי בעברית"],
   };
 }
 
@@ -100,7 +133,7 @@ export async function POST(request: Request) {
 
     // If no API keys provided, immediately respond with high-quality deterministic response ($0 cost)
     if (!groqApiKey && !geminiApiKey && !openaiApiKey) {
-      const fallback = generateDeterministicTutorResponse(userMessage, profile, studentName);
+      const fallback = generateDeterministicTutorResponse(userMessage, profile, studentName, messages);
       return NextResponse.json({
         success: true,
         message: fallback.message,
@@ -132,7 +165,8 @@ STUDENT CONTEXT:
 PEDAGOGICAL TEACHING STYLE:
 - Tone: Friendly, patient, encouraging, like an exceptional private mentor.
 - Language: Speak primarily in clear, natural English calibrated to ${currentLevel}.
-- Helpful Hebrew Scaffolding: Add friendly Hebrew explanations or Hebrew words in parentheses (בעברית) for difficult concepts, but keep the core conversation in English to immerse the student!
+- CRITICAL RULE WHEN STUDENT DOES NOT UNDERSTAND: If the student says "אני לא מבין" / "לא הבנתי" / "מה?" / "תסביר בעברית" / "I don't understand", or asks what a word or question means, NEVER ignore it or just move on! Immediately explain your previous message/question in clear, warm Hebrew, break down the key English vocabulary words with their Hebrew translations, and then gently invite the student to try answering again in simple English.
+- Helpful Hebrew Scaffolding: Add friendly Hebrew explanations or Hebrew words in parentheses (בעברית) for difficult concepts, while keeping the student engaged in English!
 - Socratic Method: When a student asks about an answer, guide them with hints rather than just giving away the solution.
 - Student Topic Choice: When presenting or assigning an Unseen or Writing assignment, ALWAYS ask the student by default to select their favorite topic (such as Animals, Space, Technology, Sports, Travel, Adventure) from the options, or tell you / click 'דוד, בחר עבורי'. Never assume a topic without asking the student first.
 - Be concise (2-4 sentences per response) so the student doesn't feel overwhelmed with text.
@@ -140,7 +174,7 @@ PEDAGOGICAL TEACHING STYLE:
 
 Return ONLY a raw JSON object (NO markdown code fences, NO backticks) with this structure:
 {
-  "message": "Your warm, personalized pedagogical reply in English with helpful Hebrew notes",
+  "message": "Your warm, personalized pedagogical reply in English or Hebrew explanation when needed",
   "quickReplies": ["Quick reply 1", "Quick reply 2", "Quick reply 3"]
 }`;
 

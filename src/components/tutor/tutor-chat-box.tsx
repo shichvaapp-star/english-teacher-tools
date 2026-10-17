@@ -912,6 +912,30 @@ export function TutorChatBox({
     // Natural 4-Turn Conversational English Assessment
     if (diagnosticIndex !== null) {
       const currentTurn = diagnosticIndex;
+      const nextTurnData = generateOnboardingTurnResponse(currentTurn, text, studentName);
+
+      // If student said "אני לא מבין", asked what a word means, or answered in Hebrew on turns 0-2:
+      // Stay on the current turn, explain warmly in Hebrew + simple English, and let them try again!
+      if (!nextTurnData.advanceTurn) {
+        const nextAnswers: DiagnosticAnswer[] = [
+          ...diagnosticAnswers,
+          { questionIndex: currentTurn, selectedOption: text, neededHelp: true },
+        ];
+        setDiagnosticAnswers(nextAnswers);
+
+        const tutorHelpMsg: TutorMessage = {
+          id: `msg-${Date.now() + 1}`,
+          sender: "tutor",
+          text: nextTurnData.text,
+          timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          quickReplies: nextTurnData.quickReplies,
+        };
+
+        const updatedMsgs = [...messages, userMsg, tutorHelpMsg];
+        setMessages(updatedMsgs);
+        saveTutorChat(updatedMsgs, profile.studentId);
+        return;
+      }
 
       if (currentTurn < CONVERSATIONAL_ONBOARDING_TOTAL_TURNS - 1) {
         const nextAnswers: DiagnosticAnswer[] = [
@@ -920,7 +944,6 @@ export function TutorChatBox({
         ];
         setDiagnosticAnswers(nextAnswers);
 
-        const nextTurnData = generateOnboardingTurnResponse(currentTurn, text, studentName);
         const tutorFollowUp: TutorMessage = {
           id: `msg-${Date.now() + 1}`,
           sender: "tutor",
@@ -949,7 +972,7 @@ export function TutorChatBox({
       let writingTips: string[] = [];
 
       const combinedEnglishSample = [
-        ...diagnosticAnswers.map((a) => a.selectedOption),
+        ...diagnosticAnswers.filter((a) => !a.neededHelp).map((a) => a.selectedOption),
         text,
       ].join(" ");
 
