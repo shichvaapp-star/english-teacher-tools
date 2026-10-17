@@ -28,12 +28,20 @@ import {
 interface StudentLoginModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  initialMode?: "login" | "signup";
 }
 
-export function StudentLoginModal({ open, onOpenChange }: StudentLoginModalProps) {
+export function StudentLoginModal({ open, onOpenChange, initialMode = "login" }: StudentLoginModalProps) {
   const { teachers, registerStudent, loginStudent, getStudentsByTeacher } = useAuth();
 
-  const [mode, setMode] = useState<"login" | "signup">("login");
+  const [mode, setMode] = useState<"login" | "signup">(initialMode);
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (open !== prevOpen) {
+    setPrevOpen(open);
+    if (open) {
+      setMode(initialMode);
+    }
+  }
   const [selectedTeacherId, setSelectedTeacherId] = useState<string>("");
 
   // Login form fields

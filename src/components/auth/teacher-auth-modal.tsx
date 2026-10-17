@@ -11,11 +11,19 @@ import { GraduationCap, Sparkles, CheckCircle2, AlertCircle, Eye, EyeOff, Lock }
 interface TeacherAuthModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  initialTab?: "login" | "register";
 }
 
-export function TeacherAuthModal({ open, onOpenChange }: TeacherAuthModalProps) {
+export function TeacherAuthModal({ open, onOpenChange, initialTab = "login" }: TeacherAuthModalProps) {
   const { loginTeacher, registerTeacher } = useAuth();
-  const [activeTab, setActiveTab] = useState<"login" | "register">("login");
+  const [activeTab, setActiveTab] = useState<"login" | "register">(initialTab);
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (open !== prevOpen) {
+    setPrevOpen(open);
+    if (open) {
+      setActiveTab(initialTab);
+    }
+  }
 
   // Login form state
   const [loginEmail, setLoginEmail] = useState("");

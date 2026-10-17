@@ -195,7 +195,7 @@ export function StudentAssignedTaskPrompt() {
                 🔔 משימה חדשה להגשה מהמורה {assignment.teacherName || "לאנגלית"}!
               </span>
 
-              <Badge variant="secondary" className="text-[10px] gap-1 font-semibold">
+              <Badge variant="secondary" className="text-3xs gap-1 font-semibold">
                 {assignment.type === "writing" ? (
                   <>
                     <PenTool className="h-2.5 w-2.5 text-purple-500" />
@@ -210,19 +210,19 @@ export function StudentAssignedTaskPrompt() {
               </Badge>
 
               {assignment.targetClass && (
-                <Badge variant="outline" className="text-[10px] font-bold border-purple-500/40 text-purple-700 dark:text-purple-300">
+                <Badge variant="outline" className="text-3xs font-bold border-purple-500/40 text-purple-700 dark:text-purple-300">
                   כיתה {assignment.targetClass}
                   {assignment.targetGroup ? ` • הקבצה ${assignment.targetGroup}` : ""}
                 </Badge>
               )}
               {!assignment.targetClass && assignment.targetGroup && (
-                <Badge variant="outline" className="text-[10px] font-bold border-purple-500/40 text-purple-700 dark:text-purple-300">
+                <Badge variant="outline" className="text-3xs font-bold border-purple-500/40 text-purple-700 dark:text-purple-300">
                   הקבצה {assignment.targetGroup}
                 </Badge>
               )}
 
               {isFreeChoice && (
-                <Badge variant="outline" className="text-[10px] font-bold border-amber-500/40 text-amber-700 dark:text-amber-300 bg-amber-500/10 gap-1">
+                <Badge variant="outline" className="text-3xs font-bold border-amber-500/40 text-amber-700 dark:text-amber-300 bg-amber-500/10 gap-1">
                   <Sparkles className="h-2.5 w-2.5 text-amber-500" />
                   <span>בחירה חופשית</span>
                 </Badge>
@@ -240,7 +240,7 @@ export function StudentAssignedTaskPrompt() {
             )}
 
             {assignment.dueDate && (
-              <div className="flex items-center gap-1.5 text-[11px] text-amber-700 dark:text-amber-300 font-bold pt-0.5">
+              <div className="flex items-center gap-1.5 text-2xs text-amber-700 dark:text-amber-300 font-bold pt-0.5">
                 <Calendar className="h-3 w-3" />
                 <span>יעד להגשה: {assignment.dueDate}</span>
               </div>

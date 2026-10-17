@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useSyncExternalStore } from "react";
 import { ActiveUser, StudentProfile, TeacherProfile, StudentGroup } from "@/types/auth";
 import {
   signInWithEmailAndPassword,
@@ -20,6 +20,8 @@ import {
   updateDoc,
 } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
+
+const emptySubscribe = () => () => {};
 
 interface AuthContextType {
   user: ActiveUser | null;
@@ -100,7 +102,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   });
 
-  const [isLoading] = useState(false);
+  const isHydrated = useSyncExternalStore(
+    emptySubscribe,
+    () => true,
+    () => false
+  );
+  const isLoading = !isHydrated;
 
   // Sync real teachers from Firestore if available
   useEffect(() => {

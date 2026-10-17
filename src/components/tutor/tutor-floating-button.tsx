@@ -5,12 +5,14 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Bot } from "lucide-react";
 import { HeaderTooltip } from "@/components/ui/header-tooltip";
+import { useAuth } from "@/lib/auth-context";
 
 export function TutorFloatingButton() {
   const pathname = usePathname();
+  const { user } = useAuth();
 
-  // Don't show floating button on the /tutor page itself
-  if (pathname === "/tutor") {
+  // Only show to authenticated users and not on the /tutor page itself
+  if (!user || pathname === "/tutor") {
     return null;
   }
 

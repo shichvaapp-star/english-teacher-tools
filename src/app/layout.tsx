@@ -4,6 +4,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/lib/auth-context";
+import { AuthGate } from "@/components/auth/auth-gate";
 import { Analytics } from "@vercel/analytics/next";
 import { SuggestEditButton } from "@/components/suggestions/suggest-edit-button";
 import { TutorFloatingButton } from "@/components/tutor/tutor-floating-button";
@@ -96,9 +97,11 @@ export default function RootLayout({
         >
           <AuthProvider>
             <TooltipProvider>
-              {children}
-              <SuggestEditButton />
-              <TutorFloatingButton />
+              <AuthGate>
+                {children}
+                <SuggestEditButton />
+                <TutorFloatingButton />
+              </AuthGate>
             </TooltipProvider>
           </AuthProvider>
           <Analytics />

@@ -2,18 +2,14 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { db } from "@/lib/firebase";
 import { collection, getDocs } from "firebase/firestore";
 import { SubmissionItem } from "@/types/submission";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { UserNav } from "@/components/auth/user-nav";
-import { StudentLoginModal } from "@/components/auth/student-login-modal";
-import { TeacherAuthModal } from "@/components/auth/teacher-auth-modal";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { HeaderTooltip } from "@/components/ui/header-tooltip";
 import {
   Search,
@@ -21,7 +17,6 @@ import {
   PenTool,
   GraduationCap,
   CheckCircle2,
-  Users,
   ArrowLeft,
   LayoutDashboard,
   Bot,
@@ -29,29 +24,17 @@ import {
 import { StudentAssignedTaskPrompt } from "@/components/student/student-assigned-task-prompt";
 
 export default function Home() {
-  const router = useRouter();
   const { user } = useAuth();
-  const [teacherModalOpen, setTeacherModalOpen] = useState(false);
-  const [studentModalOpen, setStudentModalOpen] = useState(false);
   const [studentSubmissions, setStudentSubmissions] = useState<SubmissionItem[]>([]);
   const [loadingSubmissions, setLoadingSubmissions] = useState(false);
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const params = new URLSearchParams(window.location.search);
-      const modal = params.get("modal");
-      if (modal === "teacher") setTeacherModalOpen(true);
-      else if (modal === "student") setStudentModalOpen(true);
-    }
-  }, []);
 
   useEffect(() => {
     if (!user || user.role !== "student") return;
 
     let isMounted = true;
-    setLoadingSubmissions(true);
 
     const loadData = async () => {
+      setLoadingSubmissions(true);
       let list: SubmissionItem[] = [];
       try {
         const localRaw = localStorage.getItem("ett_writing_submissions");
@@ -142,7 +125,7 @@ export default function Home() {
   ];
 
   return (
-    <div className="flex flex-col min-h-screen bg-background text-foreground overflow-x-hidden">
+    <div className="home-font-scale flex flex-col min-h-screen bg-background text-foreground overflow-x-hidden">
       {/* Top Navbar */}
       <header className="sticky top-0 z-40 border-b border-border/50 bg-background/90 backdrop-blur-md">
         <div className="container mx-auto flex h-16 items-center justify-between px-3 sm:px-8 gap-2">
@@ -155,11 +138,11 @@ export default function Home() {
                 <span className="font-normal tracking-tight text-foreground text-sm sm:text-xl truncate">
                   English Practice
                 </span>
-                <span className="text-[11px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium hidden sm:inline-block">
+                <span className="text-2xs px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium hidden sm:inline-block">
                   חטיבת ביניים
                 </span>
               </div>
-              <span className="text-[10px] sm:text-xs text-muted-foreground font-medium hidden sm:block truncate" dir="rtl">
+              <span className="text-3xs sm:text-xs text-muted-foreground font-medium hidden sm:block truncate" dir="rtl">
                 חטיבת ביניים בן גוריון &bull; Ben Gurion Middle School
               </span>
             </div>
@@ -217,12 +200,12 @@ export default function Home() {
                 שלום <span className="font-normal">{user.name}</span> ({user.role === "teacher" ? "מורה מנהל/ת" : "תלמיד/ה"})
               </span>
               {user.role === "student" && user.teacherName && (
-                <Badge variant="secondary" className="text-[10px]">
+                <Badge variant="secondary" className="text-3xs">
                   מורה: {user.teacherName}
                 </Badge>
               )}
               {user.role === "teacher" && user.schoolName && (
-                <Badge variant="outline" className="text-[10px]">
+                <Badge variant="outline" className="text-3xs">
                   {user.schoolName}
                 </Badge>
               )}
@@ -260,28 +243,39 @@ export default function Home() {
           <p className="text-sm sm:text-base text-muted-foreground max-w-xl mx-auto leading-relaxed pt-1" dir="rtl">
             ברוכים הבאים למרחב התרגול באנגלית. בחרו באחד התחומים למטה כדי להתחיל לתרגל קריאת אנסין, שינון אוצר מילים וכתיבה!
           </p>
+        </div>
 
-          {!user && (
-            <div className="flex flex-wrap items-center justify-center gap-3 pt-4" dir="rtl">
-              <Button
-                size="default"
-                onClick={() => setStudentModalOpen(true)}
-                className="cursor-pointer gap-2 font-normal h-10 px-5"
+        {/* 3 Core Section Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5 lg:gap-6 max-w-6xl mx-auto">
+          {sections.map((sec) => {
+            return (
+              <Link
+                key={sec.englishTitle}
+                href={sec.href}
+                className={`group flex flex-col items-center text-center justify-between p-5 sm:p-6 lg:p-7 rounded-2xl border border-border/70 bg-card hover:bg-card/90 hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200 cursor-pointer ${sec.borderColor}`}
               >
-                <Users className="h-4 w-4" />
-                <span>כניסת תלמידים (ללא אימייל)</span>
-              </Button>
-              <Button
-                variant="outline"
-                size="default"
-                onClick={() => setTeacherModalOpen(true)}
-                className="cursor-pointer gap-2 font-normal h-10 px-5"
-              >
-                <GraduationCap className="h-4 w-4 text-primary" />
-                <span>כניסת מורים</span>
-              </Button>
-            </div>
-          )}
+                <div className="flex justify-center mb-5 sm:mb-6">
+                  <div className="h-16 w-16 sm:h-20 sm:w-20 rounded-2xl overflow-hidden border border-border/80 bg-[#121214] shadow-md transition-transform group-hover:scale-105 shrink-0 flex items-center justify-center">
+                    <img
+                      src={sec.logo}
+                      alt={sec.englishTitle}
+                      className="w-full h-full object-cover rounded-2xl"
+                      loading="eager"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1 w-full text-center">
+                  <h3 className="text-xl sm:text-2xl md:text-xl lg:text-2xl font-normal text-foreground font-sans tracking-tight whitespace-nowrap">
+                    {sec.englishTitle}
+                  </h3>
+                  <p className="text-xs sm:text-sm font-normal text-primary truncate" dir="rtl" title={sec.hebrewTitle}>
+                    {sec.hebrewTitle}
+                  </p>
+                </div>
+              </Link>
+            );
+          })}
         </div>
 
         {/* Student Assigned Tasks Prompt & Submissions Section */}
@@ -332,17 +326,17 @@ export default function Home() {
                     >
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
-                          <Badge variant="secondary" className="text-[10px]">
+                          <Badge variant="secondary" className="text-3xs">
                             {sub.type === "unseen" ? "📖 אנסין" : "✍️ כתיבה"}
                           </Badge>
                           {isReviewed ? (
-                            <Badge className="text-[10px] bg-emerald-600 text-white font-normal">
+                            <Badge className="text-3xs bg-emerald-600 text-white font-normal">
                               ✓ נבדק (ציון: {displayGrade})
                             </Badge>
                           ) : (
                             <Badge
                               variant="outline"
-                              className="text-[10px] text-amber-600 border-amber-500/40 bg-amber-500/10 font-normal"
+                              className="text-3xs text-amber-600 border-amber-500/40 bg-amber-500/10 font-normal"
                             >
                               ⏳ ממתין לבדיקה
                             </Badge>
@@ -358,13 +352,13 @@ export default function Home() {
 
                         {sub.teacherFeedback && (
                           <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-950 dark:text-emerald-100">
-                            <span className="font-normal block text-[11px]">משוב המורה:</span>
+                            <span className="font-normal block text-2xs">משוב המורה:</span>
                             <p className="line-clamp-2 mt-0.5">{sub.teacherFeedback}</p>
                           </div>
                         )}
                       </div>
 
-                      <div className="pt-2 border-t border-border/40 flex items-center justify-between text-[11px] text-muted-foreground">
+                      <div className="pt-2 border-t border-border/40 flex items-center justify-between text-2xs text-muted-foreground">
                         <span>{sub.submittedAt}</span>
                         <Link
                           href="/student"
@@ -381,39 +375,6 @@ export default function Home() {
             )}
           </div>
         )}
-
-        {/* 3 Core Section Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5 lg:gap-6 max-w-6xl mx-auto">
-          {sections.map((sec) => {
-            return (
-              <Link
-                key={sec.englishTitle}
-                href={sec.href}
-                className={`group flex flex-col items-center text-center justify-between p-5 sm:p-6 lg:p-7 rounded-2xl border border-border/70 bg-card hover:bg-card/90 hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200 cursor-pointer ${sec.borderColor}`}
-              >
-                <div className="flex justify-center mb-5 sm:mb-6">
-                  <div className="h-16 w-16 sm:h-20 sm:w-20 rounded-2xl overflow-hidden border border-border/80 bg-[#121214] shadow-md transition-transform group-hover:scale-105 shrink-0 flex items-center justify-center">
-                    <img
-                      src={sec.logo}
-                      alt={sec.englishTitle}
-                      className="w-full h-full object-cover rounded-2xl"
-                      loading="eager"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-1 w-full text-center">
-                  <h3 className="text-xl sm:text-2xl md:text-xl lg:text-2xl font-normal text-foreground font-sans tracking-tight whitespace-nowrap">
-                    {sec.englishTitle}
-                  </h3>
-                  <p className="text-xs sm:text-sm font-normal text-primary truncate" dir="rtl" title={sec.hebrewTitle}>
-                    {sec.hebrewTitle}
-                  </p>
-                </div>
-              </Link>
-            );
-          })}
-        </div>
       </main>
 
       {/* Footer */}
@@ -426,7 +387,7 @@ export default function Home() {
             <span>חטיבת ביניים בן גוריון</span>
           </div>
 
-          <div className="flex items-center gap-4 text-[11px]">
+          <div className="flex items-center gap-4 text-2xs">
             <Link href="/unseen" className="hover:text-foreground transition">
               בלשי האנסין
             </Link>
@@ -439,9 +400,6 @@ export default function Home() {
           </div>
         </div>
       </footer>
-
-      <StudentLoginModal open={studentModalOpen} onOpenChange={setStudentModalOpen} />
-      <TeacherAuthModal open={teacherModalOpen} onOpenChange={setTeacherModalOpen} />
     </div>
   );
 }
