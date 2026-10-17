@@ -17,7 +17,7 @@ export function SuggestEditButton() {
 
   return (
     <>
-      <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-40 print:hidden animate-in fade-in slide-in-from-bottom-2 duration-300">
+      <div className="fixed bottom-16 right-4 sm:bottom-20 sm:right-6 z-40 print:hidden animate-in fade-in slide-in-from-bottom-2 duration-300">
         <HeaderTooltip label="Suggest an edit or report a bug (הצעת עריכה או דיווח באג)">
           <button
             type="button"
