@@ -23,7 +23,8 @@ import {
 } from "@/data/writing-tasks";
 import { lookupBuiltInTranslation } from "@/data/built-in-dictionary";
 import { loadSavedWords, saveWordToBuilder, VocabItem } from "@/lib/vocab-storage";
-import { recordTaskCompletion } from "@/lib/tutor-engine";
+import { recordTaskCompletion, submitTaskToDavid } from "@/lib/tutor-engine";
+import { TutorVocabReviewItem } from "@/types/tutor";
 import type { WritingEvaluationResult } from "@/app/api/evaluate-writing/route";
 import type { ScaffoldingResult } from "@/app/api/scaffold-writing/route";
 import {
@@ -172,6 +173,8 @@ export default function WritingPracticePage() {
   const [hasAiKeys, setHasAiKeys] = useState(false);
   const [assignedNotice, setAssignedNotice] = useState<string | null>(null);
   const [currentAssignmentId, setCurrentAssignmentId] = useState<string | null>(null);
+  const [isFromDavid, setIsFromDavid] = useState(false);
+  const [isTurningInToDavid, setIsTurningInToDavid] = useState(false);
 
   useEffect(() => {
     setSavedWords(loadSavedWords(user?.id));
@@ -185,6 +188,9 @@ export default function WritingPracticePage() {
       const params = new URLSearchParams(window.location.search);
       const taskIdParam = params.get("task");
       const assignIdParam = params.get("assignmentId");
+      if (params.get("from") === "david") {
+        setIsFromDavid(true);
+      }
       if (taskIdParam && taskIdParam !== "free_choice") {
         const found = ALL_WRITING_TASKS.find((t) => t.id === taskIdParam);
         if (found) {
@@ -537,6 +543,99 @@ export default function WritingPracticePage() {
       alert("לא ניתן היה להתחבר לשירות בדיקת החיבור. אנא בדקו את החיבור לאינטרנט ונסו שוב.");
     } finally {
       setIsEvaluating(false);
+    }
+  };
+
+  // Turn in completed writing assignment directly to David (Private Tutor Flow)
+  const handleTurnInToDavid = async (existingEval?: WritingEvaluationResult) => {
+    const trimmed = essayText.trim();
+    if (!trimmed || trimmed.split(/\s+/).filter(Boolean).length < 3) {
+      alert("אנא כתבו לפחות משפט או שניים באנגלית לפני ההגשה לדוד.");
+      return;
+    }
+
+    setIsTurningInToDavid(true);
+    try {
+      let evalData = existingEval || feedback;
+
+      if (!evalData) {
+        const headers: Record<string, string> = { "Content-Type": "application/json" };
+        if (typeof window !== "undefined") {
+          const groq = localStorage.getItem("ett_groq_api_key");
+          const gemini = localStorage.getItem("ett_gemini_api_key");
+          const openai = localStorage.getItem("ett_openai_api_key");
+          if (groq) headers["x-groq-api-key"] = groq;
+          if (gemini) headers["x-gemini-api-key"] = gemini;
+          if (openai) headers["x-openai-api-key"] = openai;
+        }
+
+        const res = await fetch("/api/evaluate-writing", {
+          method: "POST",
+          headers,
+          body: JSON.stringify({
+            essayText: trimmed,
+            taskTitle: currentTask.title,
+            prompt: currentTask.prompt,
+            category: currentTask.category,
+            level: currentTask.level,
+            minWords: currentTask.minWords,
+            maxWords: currentTask.maxWords,
+          }),
+        });
+        const data = await res.json();
+        if (data.success && data.evaluation) {
+          evalData = data.evaluation;
+          setFeedback(data.evaluation);
+        }
+      }
+
+      const vocabCandidates: TutorVocabReviewItem[] = [];
+      if (evalData?.vocabularyUpgrades) {
+        for (const upg of evalData.vocabularyUpgrades) {
+          if (upg.enriched && upg.explanationHebrew) {
+            vocabCandidates.push({
+              word: upg.enriched,
+              hebrew: upg.explanationHebrew,
+              exampleSentence: `Instead of "${upg.original}" → use "${upg.enriched}"`,
+            });
+          }
+        }
+      }
+      if (currentTask.wordBank) {
+        for (const wb of currentTask.wordBank) {
+          vocabCandidates.push({
+            word: wb.word,
+            hebrew: wb.hebrew,
+          });
+        }
+      }
+
+      await submitTaskToDavid(user?.id || "guest", {
+        id: `turnin-writing-${Date.now()}`,
+        type: "writing",
+        taskId: currentTask.id,
+        taskTitle: currentTask.title,
+        taskTitleHebrew: currentTask.hebrewTitle,
+        score: evalData?.score ?? 80,
+        completedAt: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        strengths:
+          evalData?.strengths && evalData.strengths.length > 0
+            ? evalData.strengths
+            : ["השלמת את משימת הכתיבה בהצלחה והבעת את הרעיון באנגלית!"],
+        improvements: (evalData?.corrections || []).slice(0, 3).map((c) => ({
+          original: c.original,
+          suggestion: c.suggestion,
+          explanationHebrew: c.explanationHebrew || "שיפור הניסוח והדקדוק במשפט",
+        })),
+        vocabToReview: vocabCandidates,
+      });
+
+      window.location.href = "/tutor?turnIn=1";
+    } catch (e) {
+      console.error("Turn in to David error:", e);
+      window.location.href = "/tutor?turnIn=1";
+    } finally {
+      setIsTurningInToDavid(false);
     }
   };
 
@@ -1279,6 +1378,29 @@ export default function WritingPracticePage() {
             </div>
           )}
 
+          {/* Active Private Lesson with David Banner */}
+          {isFromDavid && (
+            <div className="p-3.5 rounded-2xl bg-sky-500/10 border-2 border-sky-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs sm:text-sm" dir="rtl">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-8 w-8 rounded-xl bg-sky-600 text-white items-center justify-center shrink-0 shadow-xs">
+                  <GraduationCap className="h-4 w-4" />
+                </div>
+                <div>
+                  <span className="font-bold text-foreground block">משימה בשיעור פרטי עם דוד המורה האישי 🎓</span>
+                  <span className="text-xs text-muted-foreground">
+                    כתבו את החיבור שלכם ובסיום לחצו על <strong>&ldquo;הגש משימה לדוד&rdquo;</strong> כדי לקבל משוב, לתרגל אוצר מילים ולהמשיך בשיעור!
+                  </span>
+                </div>
+              </div>
+              <Link href="/tutor" className="shrink-0">
+                <Button variant="outline" size="sm" className="h-8 text-xs font-bold gap-1.5 border-sky-500/40 cursor-pointer">
+                  <span>חזרה לדוד</span>
+                  <ArrowLeft className="h-3.5 w-3.5" />
+                </Button>
+              </Link>
+            </div>
+          )}
+
           {/* Clean Task Card */}
           <Card className="border border-border/80 shadow-xs">
             <CardHeader className="pb-3 border-b border-border/40">
@@ -1945,7 +2067,7 @@ export default function WritingPracticePage() {
               <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-3">
                 <Button
                   onClick={handleEvaluate}
-                  disabled={isEvaluating}
+                  disabled={isEvaluating || isTurningInToDavid}
                   className="flex-1 h-11 text-xs sm:text-sm font-bold cursor-pointer gap-2 bg-primary hover:bg-primary/90 text-primary-foreground shadow-xs"
                 >
                   <Sparkles className="h-4 w-4" />
@@ -1955,12 +2077,27 @@ export default function WritingPracticePage() {
                 </Button>
 
                 <Button
+                  onClick={() => handleTurnInToDavid(feedback || undefined)}
+                  disabled={isEvaluating || isTurningInToDavid}
+                  className="flex-1 h-11 text-xs sm:text-sm font-bold cursor-pointer gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs"
+                >
+                  <GraduationCap className="h-4 w-4" />
+                  <span>
+                    {isTurningInToDavid
+                      ? "מגיש לדוד ומכין משוב..."
+                      : feedback
+                      ? "הגש משימה לדוד והמשך בשיעור 🎓"
+                      : "בדוק והגש משימה לדוד 🎓"}
+                  </span>
+                </Button>
+
+                <Button
                   onClick={() => setActiveMode("submit")}
                   variant="outline"
                   className="flex-1 h-11 text-xs sm:text-sm font-bold cursor-pointer gap-2 border-purple-500/50 bg-purple-500/10 hover:bg-purple-500/20 text-purple-700 dark:text-purple-300 shadow-xs"
                 >
-                  <GraduationCap className="h-4 w-4 text-purple-600 dark:text-purple-400" />
-                  <span>הגש חיבור למורה (Turn In) 📤</span>
+                  <Send className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                  <span>הגש למורה בכיתה 📤</span>
                 </Button>
               </div>
 
@@ -2006,6 +2143,28 @@ export default function WritingPracticePage() {
                         </Badge>
                       </div>
                     </div>
+                  </div>
+
+                  {/* Prominent Turn In to David Callout */}
+                  <div className="p-4 rounded-xl bg-emerald-500/10 border-2 border-emerald-500/35 flex flex-col sm:flex-row items-center justify-between gap-3 text-right">
+                    <div className="space-y-0.5">
+                      <h5 className="text-xs sm:text-sm font-bold text-foreground flex items-center gap-1.5">
+                        <GraduationCap className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                        <span>סיימת את החיבור? הגש/י אותו לדוד להמשך השיעור הפרטי!</span>
+                      </h5>
+                      <p className="text-[11px] sm:text-xs text-muted-foreground">
+                        דוד יעבור איתך על החיבור, יתרגל איתך 5–8 מילים חשובות מהמשימה (וישמור במילון האישי מילים חדשות), ויוביל אותך לתרגול הבא.
+                      </p>
+                    </div>
+                    <Button
+                      size="sm"
+                      disabled={isTurningInToDavid}
+                      onClick={() => handleTurnInToDavid(feedback)}
+                      className="h-10 px-5 text-xs sm:text-sm font-bold bg-emerald-600 hover:bg-emerald-700 text-white shrink-0 cursor-pointer gap-1.5 shadow-xs"
+                    >
+                      <span>{isTurningInToDavid ? "מגיש לדוד..." : "הגש משימה לדוד 🎓"}</span>
+                      <ArrowLeft className="h-4 w-4" />
+                    </Button>
                   </div>
 
                   {/* Teacher Personal Note */}
@@ -2286,25 +2445,37 @@ export default function WritingPracticePage() {
                     </div>
                   )}
 
-                  {/* Turn in to teacher from practice after feedback */}
-                  <div className="p-3.5 rounded-xl bg-purple-500/10 border border-purple-500/25 flex flex-col sm:flex-row items-center justify-between gap-3 text-right">
+                  {/* Turn in to David or Classroom Teacher after feedback */}
+                  <div className="p-3.5 rounded-xl bg-muted/40 border border-border flex flex-col sm:flex-row items-center justify-between gap-3 text-right">
                     <div className="space-y-0.5">
                       <h5 className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                        <GraduationCap className="h-4 w-4 text-purple-600 dark:text-purple-400" />
-                        <span>רוצים להגיש את החיבור למורה עכשיו?</span>
+                        <GraduationCap className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                        <span>מוכנים להמשיך בשיעור עם דוד או להגיש למורה בכיתה?</span>
                       </h5>
                       <p className="text-[11px] text-muted-foreground">
-                        החיבור שלכם מוכן! תוכלו להגיש אותו ישירות למורה שלכם לקבלת ציון רשמי ואישור הגשה.
+                        הגישו לדוד כדי לעבור על אוצר המילים (5–8 מילים) ולהמשיך למשימה הבאה, או שלחו למורה שלכם.
                       </p>
                     </div>
-                    <Button
-                      size="sm"
-                      onClick={() => setActiveMode("submit")}
-                      className="h-9 px-4 text-xs font-bold bg-purple-600 hover:bg-purple-700 text-white shrink-0 cursor-pointer gap-1.5 shadow-xs"
-                    >
-                      <Send className="h-3.5 w-3.5" />
-                      <span>הגש למורה עכשיו 📤</span>
-                    </Button>
+                    <div className="flex flex-wrap items-center gap-2 shrink-0 w-full sm:w-auto">
+                      <Button
+                        size="sm"
+                        disabled={isTurningInToDavid}
+                        onClick={() => handleTurnInToDavid(feedback)}
+                        className="flex-1 sm:flex-initial h-9 px-4 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shrink-0 cursor-pointer gap-1.5 shadow-xs"
+                      >
+                        <GraduationCap className="h-3.5 w-3.5" />
+                        <span>{isTurningInToDavid ? "מגיש לדוד..." : "הגש לדוד והמשך בשיעור 🎓"}</span>
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setActiveMode("submit")}
+                        className="flex-1 sm:flex-initial h-9 px-3.5 text-xs font-bold border-purple-500/40 text-purple-700 dark:text-purple-300 hover:bg-purple-500/10 shrink-0 cursor-pointer gap-1.5"
+                      >
+                        <Send className="h-3.5 w-3.5" />
+                        <span>הגש למורה בכיתה 📤</span>
+                      </Button>
+                    </div>
                   </div>
                 </div>
               )}

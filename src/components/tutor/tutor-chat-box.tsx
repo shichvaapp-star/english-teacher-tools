@@ -1,19 +1,33 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import Link from "next/link";
-import { TutorMessage, StudentTutorProfile, TutorTaskRecommendation } from "@/types/tutor";
+import {
+  TutorMessage,
+  StudentTutorProfile,
+  TutorTaskRecommendation,
+  TutorTurnInPayload,
+  TutorVocabReviewItem,
+} from "@/types/tutor";
 import {
   DIAGNOSTIC_STEPS,
   calculateDiagnosticPlacement,
   saveTutorProfile,
+  getOrInitTutorProfile,
   generateNextMission,
   updateMissionTopic,
   syncMissionWithDatabase,
   loadTutorChat,
   saveTutorChat,
+  consumePendingTurnIn,
   DiagnosticAnswer,
 } from "@/lib/tutor-engine";
+import {
+  saveWordToBuilder,
+  MIDDLE_SCHOOL_EASY,
+  MIDDLE_SCHOOL_MEDIUM,
+  MIDDLE_SCHOOL_HARD,
+} from "@/lib/vocab-storage";
 import { getCuratedTutorVoices, TutorVoiceOption } from "@/lib/tutor-voice";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -48,6 +62,9 @@ import {
   MoreVertical,
   RefreshCw,
   Loader2,
+  CheckCircle2,
+  BookMarked,
+  HelpCircle,
 } from "lucide-react";
 
 interface TutorChatBoxProps {
@@ -58,6 +75,434 @@ interface TutorChatBoxProps {
 }
 
 const VOICE_STORAGE_KEY = "ett_tutor_selected_voice";
+
+const ALL_DISTRACTOR_WORDS = [
+  ...MIDDLE_SCHOOL_EASY,
+  ...MIDDLE_SCHOOL_MEDIUM,
+  ...MIDDLE_SCHOOL_HARD,
+];
+
+function TurnInLessonFlowCard({
+  turnIn,
+  studentId,
+  onSpeak,
+  onStartNextMission,
+}: {
+  turnIn: TutorTurnInPayload;
+  studentId: string;
+  onSpeak: (text: string) => void;
+  onStartNextMission: () => void;
+}) {
+  const [step, setStep] = useState<"feedback" | "vocab" | "summary">("feedback");
+  const [wordIndex, setWordIndex] = useState(0);
+  const [selectedChoice, setSelectedChoice] = useState<string | null>(null);
+  const [didNotKnow, setDidNotKnow] = useState(false);
+  const [savedWordsMap, setSavedWordsMap] = useState<Record<string, boolean>>({});
+  const [knownCount, setKnownCount] = useState(0);
+  const [nextMissionTriggered, setNextMissionTriggered] = useState(false);
+
+  const words = useMemo(() => {
+    return (turnIn.vocabToReview || []).slice(0, 8);
+  }, [turnIn.vocabToReview]);
+
+  const currentWord: TutorVocabReviewItem | null = words[wordIndex] || null;
+
+  const options = useMemo(() => {
+    if (!currentWord) return [];
+    const distractorCandidates = ALL_DISTRACTOR_WORDS.filter(
+      (d) =>
+        d.english.toLowerCase() !== currentWord.word.toLowerCase() &&
+        d.hebrew.trim() !== currentWord.hebrew.trim()
+    );
+    const seed = currentWord.word.charCodeAt(0) + wordIndex * 7;
+    const picked: string[] = [];
+    for (let i = 0; i < distractorCandidates.length && picked.length < 3; i++) {
+      const idx = (seed + i * 11) % distractorCandidates.length;
+      const heb = distractorCandidates[idx].hebrew;
+      if (!picked.includes(heb) && heb !== currentWord.hebrew) {
+        picked.push(heb);
+      }
+    }
+    const allOpts = [currentWord.hebrew, ...picked];
+    return allOpts.sort((a, b) => {
+      const scoreA = (a.charCodeAt(0) * 5 + seed) % 13;
+      const scoreB = (b.charCodeAt(0) * 5 + seed) % 13;
+      return scoreA - scoreB;
+    });
+  }, [currentWord, wordIndex]);
+
+  const handleSaveCurrentWord = (wordObj: TutorVocabReviewItem) => {
+    const key = wordObj.word.toLowerCase();
+    saveWordToBuilder(
+      {
+        english: wordObj.word,
+        hebrew: wordObj.hebrew,
+        partOfSpeech:
+          (wordObj.pos as "noun" | "verb" | "adjective" | "adverb" | "phrase") ||
+          "noun",
+        example:
+          wordObj.exampleSentence ||
+          `We practiced the word "${wordObj.word}" in our lesson with David.`,
+        level: "Personal Word",
+      },
+      studentId && studentId !== "guest" ? studentId : undefined
+    );
+    setSavedWordsMap((prev) => ({ ...prev, [key]: true }));
+  };
+
+  const handleSelectOption = (choice: string) => {
+    if (!currentWord || selectedChoice !== null || didNotKnow) return;
+    setSelectedChoice(choice);
+    const isCorrect = choice === currentWord.hebrew;
+    if (isCorrect) {
+      setKnownCount((c) => c + 1);
+      onSpeak(`Correct! ${currentWord.word}`);
+    } else {
+      // Automatically add missed word to Personal Dictionary!
+      handleSaveCurrentWord(currentWord);
+      onSpeak(currentWord.word);
+    }
+  };
+
+  const handleDontKnow = () => {
+    if (!currentWord || selectedChoice !== null || didNotKnow) return;
+    setDidNotKnow(true);
+    // Automatically add unknown word to Personal Dictionary!
+    handleSaveCurrentWord(currentWord);
+    onSpeak(currentWord.word);
+  };
+
+  const handleNextWord = () => {
+    if (wordIndex < words.length - 1) {
+      const nextIdx = wordIndex + 1;
+      setWordIndex(nextIdx);
+      setSelectedChoice(null);
+      setDidNotKnow(false);
+      if (words[nextIdx]) {
+        onSpeak(words[nextIdx].word);
+      }
+    } else {
+      setStep("summary");
+      onSpeak("Fantastic job completing the vocabulary check! You are ready for your next practice.");
+    }
+  };
+
+  const savedWordsList = words.filter((w) => savedWordsMap[w.word.toLowerCase()]);
+
+  return (
+    <div className="mt-2.5 mr-11 max-w-[94%] sm:max-w-[88%] text-right font-sans">
+      <Card className="border-2 border-indigo-500/40 bg-card p-4 sm:p-5 rounded-2xl shadow-md space-y-4">
+        {/* Step Progress Header */}
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/50 pb-3">
+          <div className="flex items-center gap-2">
+            <Badge className="bg-indigo-600 text-white text-xs font-bold px-2.5 py-0.5">
+              {step === "feedback" && "שלב 1 מתוך 3: משוב על העבודה שלך"}
+              {step === "vocab" && `שלב 2 מתוך 3: מבדק אוצר מילים (${wordIndex + 1}/${words.length})`}
+              {step === "summary" && "שלב 3 מתוך 3: סיכום ומעבר למשימה הבאה"}
+            </Badge>
+          </div>
+          <Badge
+            variant="outline"
+            className={`text-xs font-black px-2.5 py-0.5 ${
+              turnIn.score >= 85
+                ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                : turnIn.score >= 70
+                ? "border-sky-500/50 bg-sky-500/10 text-sky-700 dark:text-sky-300"
+                : "border-amber-500/50 bg-amber-500/10 text-amber-700 dark:text-amber-300"
+            }`}
+          >
+            ציון משימה: {turnIn.score}/100
+          </Badge>
+        </div>
+
+        {/* STEP 1: WORK REVIEW */}
+        {step === "feedback" && (
+          <div className="space-y-3.5 animate-in fade-in duration-200">
+            <div>
+              <h4 className="font-bold text-base sm:text-lg text-foreground">
+                סיכום ביצוע: {turnIn.taskTitleHebrew || turnIn.taskTitle}
+              </h4>
+              <p className="text-xs text-muted-foreground font-sans" dir="ltr">
+                {turnIn.taskTitle}
+              </p>
+            </div>
+
+            {turnIn.strengths && turnIn.strengths.length > 0 && (
+              <div className="p-3 rounded-xl border border-emerald-500/30 bg-emerald-500/5 space-y-1.5">
+                <div className="text-xs font-bold text-emerald-700 dark:text-emerald-300 flex items-center gap-1.5">
+                  <CheckCircle2 className="h-4 w-4 shrink-0" />
+                  <span>נקודות חוזק בעבודה שלך:</span>
+                </div>
+                <ul className="space-y-1 text-xs sm:text-sm text-foreground/90 pr-4 list-disc">
+                  {turnIn.strengths.map((s, i) => (
+                    <li key={i}>{s}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {turnIn.improvements && turnIn.improvements.length > 0 && (
+              <div className="p-3 rounded-xl border border-amber-500/30 bg-amber-500/5 space-y-1.5">
+                <div className="text-xs font-bold text-amber-700 dark:text-amber-300 flex items-center gap-1.5">
+                  <Sparkles className="h-4 w-4 shrink-0" />
+                  <span>תיקונים ודגשים חשובים מדוד:</span>
+                </div>
+                <ul className="space-y-2 text-xs sm:text-sm text-foreground/90 pr-1">
+                  {turnIn.improvements.map((imp, i) => (
+                    <li key={i} className="p-2 rounded-lg bg-background/60 border border-border/50 space-y-0.5">
+                      {imp.original && (
+                        <div className="text-xs text-muted-foreground font-sans" dir="ltr">
+                          <span className="line-through text-rose-500/80 mr-1.5">{imp.original}</span>
+                          <span className="text-emerald-600 dark:text-emerald-400 font-bold">
+                            &rarr; {imp.suggestion}
+                          </span>
+                        </div>
+                      )}
+                      {!imp.original && imp.suggestion && (
+                        <div className="text-xs font-bold text-emerald-700 dark:text-emerald-300 font-sans" dir="ltr">
+                          {imp.suggestion}
+                        </div>
+                      )}
+                      <div className="text-xs text-foreground/90">{imp.explanationHebrew}</div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            <Button
+              type="button"
+              onClick={() => {
+                if (words.length > 0) {
+                  setStep("vocab");
+                  onSpeak(words[0].word);
+                } else {
+                  setStep("summary");
+                }
+              }}
+              className="w-full h-11 text-sm sm:text-base font-bold bg-indigo-600 hover:bg-indigo-700 text-white gap-2 cursor-pointer shadow-xs"
+            >
+              <BookA className="h-4 w-4" />
+              <span>המשך לשלב 2: מבדק אוצר מילים ({words.length} מילים) 📚</span>
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
+
+        {/* STEP 2: 5-8 WORD VOCABULARY QUIZ + AUTO PERSONAL DICTIONARY */}
+        {step === "vocab" && currentWord && (
+          <div className="space-y-4 animate-in fade-in duration-200">
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span>
+                מילה <strong className="text-foreground">{wordIndex + 1}</strong> מתוך{" "}
+                <strong className="text-foreground">{words.length}</strong>
+              </span>
+              <span className="text-[11px] text-indigo-600 dark:text-indigo-400 font-semibold">
+                📌 מילה שלא תדע/י תישמר אוטומטית במילון האישי שלך!
+              </span>
+            </div>
+
+            {/* Word Display Box */}
+            <div className="p-4 rounded-xl bg-muted/40 border border-border/70 flex items-center justify-between gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => onSpeak(currentWord.word)}
+                className="h-9 px-3 gap-1.5 text-xs font-bold cursor-pointer shrink-0"
+              >
+                <Volume2 className="h-4 w-4 text-primary" />
+                <span>השמע מילה</span>
+              </Button>
+
+              <div className="text-left" dir="ltr">
+                <span className="text-xl sm:text-2xl font-black tracking-tight text-foreground font-sans">
+                  {currentWord.word}
+                </span>
+                {currentWord.pos && (
+                  <span className="ml-2 text-xs text-muted-foreground italic">
+                    ({currentWord.pos})
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <p className="text-xs sm:text-sm font-bold text-foreground">
+                מה הפירוש של המילה &ldquo;<span dir="ltr" className="font-sans">{currentWord.word}</span>&rdquo; בעברית?
+              </p>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {options.map((opt, idx) => {
+                  const isAnswered = selectedChoice !== null || didNotKnow;
+                  const isThisCorrect = opt === currentWord.hebrew;
+                  const isThisSelected = selectedChoice === opt;
+
+                  let btnStyle = "border-border/70 bg-card hover:border-primary/60 hover:bg-muted/40 text-foreground";
+                  if (isAnswered) {
+                    if (isThisCorrect) {
+                      btnStyle = "border-emerald-500 bg-emerald-500/15 text-emerald-800 dark:text-emerald-200 font-bold";
+                    } else if (isThisSelected) {
+                      btnStyle = "border-rose-500 bg-rose-500/15 text-rose-800 dark:text-rose-200";
+                    } else {
+                      btnStyle = "border-border/40 bg-muted/20 text-muted-foreground opacity-60";
+                    }
+                  }
+
+                  return (
+                    <button
+                      key={idx}
+                      type="button"
+                      disabled={isAnswered}
+                      onClick={() => handleSelectOption(opt)}
+                      className={`p-3 rounded-xl border text-right text-sm transition-all flex items-center justify-between gap-2 ${btnStyle} ${
+                        !isAnswered ? "cursor-pointer" : "cursor-default"
+                      }`}
+                    >
+                      <span>{opt}</span>
+                      {isAnswered && isThisCorrect && <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Explicit "I don't know - save to Personal Dictionary" button */}
+              {selectedChoice === null && !didNotKnow && (
+                <button
+                  type="button"
+                  onClick={handleDontKnow}
+                  className="w-full mt-1 py-2 px-3 rounded-xl border border-dashed border-indigo-500/50 bg-indigo-500/5 hover:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+                >
+                  <HelpCircle className="h-3.5 w-3.5" />
+                  <span>לא יודע/ת עדיין – הצג פירוש ושמור במילון האישי שלי 📌</span>
+                </button>
+              )}
+            </div>
+
+            {/* Post-Answer Feedback & Personal Dictionary Status */}
+            {(selectedChoice !== null || didNotKnow) && (
+              <div className="p-3.5 rounded-xl border border-border/70 bg-muted/30 space-y-2.5 animate-in fade-in duration-150">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  {selectedChoice === currentWord.hebrew ? (
+                    <span className="text-xs sm:text-sm font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+                      <CheckCircle2 className="h-4 w-4" />
+                      <span>תשובה נכונה! {currentWord.word} = {currentWord.hebrew} 🎉</span>
+                    </span>
+                  ) : (
+                    <span className="text-xs sm:text-sm font-bold text-indigo-700 dark:text-indigo-300">
+                      הפירוש הנכון: <strong dir="ltr">{currentWord.word}</strong> = <strong>{currentWord.hebrew}</strong>
+                    </span>
+                  )}
+
+                  {savedWordsMap[currentWord.word.toLowerCase()] ? (
+                    <Badge className="bg-emerald-600 text-white text-[11px] font-bold gap-1">
+                      <BookMarked className="h-3 w-3" />
+                      <span>נשמר אוטומטית במילון האישי שלך! 📌</span>
+                    </Badge>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleSaveCurrentWord(currentWord)}
+                      className="h-7 text-[11px] font-bold gap-1 cursor-pointer border-primary/40 text-primary hover:bg-primary/10"
+                    >
+                      <BookMarked className="h-3 w-3" />
+                      <span>➕ שמור במילון האישי</span>
+                    </Button>
+                  )}
+                </div>
+
+                {currentWord.exampleSentence && (
+                  <p className="text-xs text-muted-foreground italic text-left font-sans" dir="ltr">
+                    Example: &ldquo;{currentWord.exampleSentence}&rdquo;
+                  </p>
+                )}
+
+                <Button
+                  type="button"
+                  onClick={handleNextWord}
+                  className="w-full h-10 text-xs sm:text-sm font-bold bg-indigo-600 hover:bg-indigo-700 text-white gap-1.5 cursor-pointer"
+                >
+                  <span>
+                    {wordIndex < words.length - 1
+                      ? `למילה הבאה (${wordIndex + 2}/${words.length})`
+                      : "סיכום אוצר מילים והמשך למשימה הבאה 🚀"}
+                  </span>
+                  <ArrowLeft className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* STEP 3: SUMMARY & NEXT PRACTICE LAUNCH */}
+        {step === "summary" && (
+          <div className="space-y-4 animate-in fade-in duration-200">
+            <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-sm text-emerald-800 dark:text-emerald-200 flex items-center gap-1.5">
+                  <Award className="h-4 w-4 text-emerald-600" />
+                  <span>סיימת את מבדק אוצר המילים!</span>
+                </span>
+                <Badge className="bg-emerald-600 text-white text-xs font-bold">
+                  ידעת {knownCount} מתוך {words.length} מילים
+                </Badge>
+              </div>
+
+              {savedWordsList.length > 0 ? (
+                <div className="space-y-1.5 pt-1 border-t border-emerald-500/20">
+                  <p className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                    <BookMarked className="h-3.5 w-3.5 text-indigo-600" />
+                    <span>
+                      {savedWordsList.length} מילים חדשות נשמרו אוטומטית במילון האישי שלך לתרגול חוזר:
+                    </span>
+                  </p>
+                  <div className="flex flex-wrap gap-1.5 pt-0.5">
+                    {savedWordsList.map((sw, i) => (
+                      <Badge
+                        key={i}
+                        variant="outline"
+                        className="bg-card border-indigo-500/30 text-xs font-semibold py-0.5 px-2"
+                      >
+                        <span dir="ltr" className="font-bold">{sw.word}</span>
+                        <span className="mx-1 text-muted-foreground">=</span>
+                        <span>{sw.hebrew}</span>
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  כל הכבוד! שלטת בכל המילים במבדק הזה.
+                </p>
+              )}
+            </div>
+
+            {!nextMissionTriggered ? (
+              <Button
+                type="button"
+                onClick={() => {
+                  setNextMissionTriggered(true);
+                  onStartNextMission();
+                }}
+                className="w-full h-11 text-sm sm:text-base font-bold bg-indigo-600 hover:bg-indigo-700 text-white gap-2 cursor-pointer shadow-sm"
+              >
+                <Sparkles className="h-4 w-4" />
+                <span>המשך לתרגול הבא עם דוד 🚀</span>
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+            ) : (
+              <div className="text-xs font-bold text-emerald-600 dark:text-emerald-400 text-center py-1">
+                ✓ המשימה הבאה מוכנה עבורך בהודעה למטה!
+              </div>
+            )}
+          </div>
+        )}
+      </Card>
+    </div>
+  );
+}
 
 export function TutorChatBox({
   profile,
@@ -154,11 +599,13 @@ export function TutorChatBox({
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isSending, diagnosticIndex]);
 
-  // Load chat history or create clean initial greeting
+  // Load chat history or create clean initial greeting, and consume any pending turn-in from an assignment
   useEffect(() => {
     const saved = loadTutorChat(profile.studentId);
+    let baseMessages: TutorMessage[] = [];
+
     if (saved && saved.length > 0) {
-      const synced = saved.map((m) => {
+      baseMessages = saved.map((m) => {
         if (m.taskRecommendation) {
           return {
             ...m,
@@ -167,7 +614,6 @@ export function TutorChatBox({
         }
         return m;
       });
-      setMessages(synced);
     } else {
       const initialGreeting: TutorMessage = {
         id: `msg-${Date.now()}`,
@@ -180,11 +626,80 @@ export function TutorChatBox({
           ? ["תן לי משימת קריאה (Unseen)", "תרגל אוצר מילים", "בוא נכתוב חיבור"]
           : ["בוא נתחיל!", "ספר לי עוד על דוד"],
       };
-
-      setMessages([initialGreeting]);
-      saveTutorChat([initialGreeting], profile.studentId);
+      baseMessages = [initialGreeting];
     }
+
+    const pendingTurnIn = consumePendingTurnIn(profile.studentId);
+    if (pendingTurnIn) {
+      // Refresh profile from storage so currentMission and skill stats reflect the completed task
+      getOrInitTutorProfile(
+        profile.studentId === "guest" ? undefined : profile.studentId,
+        studentName
+      ).then((refreshedProfile: StudentTutorProfile) => {
+        onProfileUpdate(refreshedProfile);
+      });
+
+      // Avoid duplicate turn-in message if already appended
+      const alreadyAppended = baseMessages.some(
+        (m) => m.turnInReview && m.turnInReview.id === pendingTurnIn.id
+      );
+
+      if (!alreadyAppended) {
+        const turnInMsg: TutorMessage = {
+          id: `msg-turnin-${Date.now()}`,
+          sender: "tutor",
+          text: `Well done ${studentName}! You scored ${pendingTurnIn.score}/100 on "${pendingTurnIn.taskTitle}". Let's review your work together, test ${pendingTurnIn.vocabToReview.length} vocabulary words (any word you don't know will be saved automatically to your Personal Dictionary), and then continue to your next practice!`,
+          timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          turnInReview: pendingTurnIn,
+          quickReplies: ["תן לי משימה חדשה 🚀", "תרגל אוצר מילים"],
+        };
+        baseMessages = [...baseMessages, turnInMsg];
+        setTimeout(() => {
+          speakText(
+            `Well done ${studentName}! You scored ${pendingTurnIn.score} out of 100. Let's review your work and test your vocabulary!`
+          );
+        }, 400);
+      }
+
+      if (typeof window !== "undefined" && window.location.search.includes("turnIn=1")) {
+        window.history.replaceState({}, "", "/tutor");
+      }
+    }
+
+    setMessages(baseMessages);
+    saveTutorChat(baseMessages, profile.studentId);
   }, [profile.studentId, profile.diagnosticCompleted]);
+
+  // Launch Step 3 (Next Practice Mission) after completing Step 2 (Vocabulary Test)
+  const handleStartNextMissionAfterTurnIn = (completedType: "unseen" | "writing" | "vocab") => {
+    const nextSkill: "unseen" | "writing" = completedType === "unseen" ? "writing" : "unseen";
+    const nextMission = generateNextMission(profile, nextSkill);
+
+    const updatedProf: StudentTutorProfile = {
+      ...profile,
+      currentMission: nextMission,
+    };
+    onProfileUpdate(updatedProf);
+    saveTutorProfile(updatedProf);
+
+    const missionTypeHebrew = nextMission.type === "unseen" ? "קריאה (Unseen)" : "כתיבה (Writing)";
+    const nextMsg: TutorMessage = {
+      id: `msg-next-${Date.now()}`,
+      sender: "tutor",
+      text: `Awesome work on your vocabulary check! Now let's move to your next practice: a **${missionTypeHebrew}** task. Pick a topic below that interests you, or click 'דוד, בחר עבורי':`,
+      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      taskRecommendation: nextMission,
+      quickReplies: [
+        "🎲 דוד, בחר עבורי",
+        ...(nextMission.availableTopics?.slice(0, 3).map((t) => `${t.emoji} ${t.nameHebrew}`) || []),
+      ],
+    };
+
+    const updatedMsgs = [...messages, nextMsg];
+    setMessages(updatedMsgs);
+    saveTutorChat(updatedMsgs, profile.studentId);
+    speakText(`Awesome work! Now let's move to your next practice. Pick a topic you like, or let me choose for you.`);
+  };
 
   // Preview Voice Sample
   const handlePlayVoicePreview = (opt: TutorVoiceOption) => {
@@ -940,6 +1455,18 @@ export function TutorChatBox({
                 </span>
               </div>
             </div>
+
+            {/* Post-Task 3-Step Review & 5-8 Word Vocabulary Test Card */}
+            {msg.turnInReview && (
+              <TurnInLessonFlowCard
+                turnIn={msg.turnInReview}
+                studentId={profile.studentId}
+                onSpeak={speakText}
+                onStartNextMission={() =>
+                  handleStartNextMissionAfterTurnIn(msg.turnInReview!.type)
+                }
+              />
+            )}
 
             {/* Attached Actionable Task Card */}
             {msg.taskRecommendation && (

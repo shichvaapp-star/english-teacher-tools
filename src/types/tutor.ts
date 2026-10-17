@@ -57,6 +57,30 @@ export interface StudentTutorProfile {
   };
 }
 
+export interface TutorVocabReviewItem {
+  word: string;
+  hebrew: string;
+  pos?: "noun" | "verb" | "adjective" | "adverb" | "phrase";
+  exampleSentence?: string;
+}
+
+export interface TutorTurnInPayload {
+  id: string;
+  type: "unseen" | "writing" | "vocab";
+  taskId: string;
+  taskTitle: string;
+  taskTitleHebrew: string;
+  score: number;
+  completedAt: string;
+  strengths: string[];
+  improvements: {
+    original?: string;
+    suggestion: string;
+    explanationHebrew: string;
+  }[];
+  vocabToReview: TutorVocabReviewItem[];
+}
+
 export interface TutorMessage {
   id: string;
   sender: "tutor" | "student" | "system";
@@ -64,6 +88,7 @@ export interface TutorMessage {
   timestamp: string;
   quickReplies?: string[];
   taskRecommendation?: TutorTaskRecommendation;
+  turnInReview?: TutorTurnInPayload;
   diagnosticQuestion?: {
     step: number;
     totalSteps: number;
@@ -77,3 +102,4 @@ export interface DiagnosticAnswer {
   questionIndex: number;
   selectedOption: string;
 }
+

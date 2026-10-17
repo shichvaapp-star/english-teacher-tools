@@ -15,7 +15,8 @@ import { UnseenEvaluationResult } from "@/types/unseen";
 import { MIDDLE_SCHOOL_UNSEENS, MSUnseenStory, MSUnseenQuestion, randomizeQuestionsOptions } from "@/data/unseen-middle-school";
 import { lookupBuiltInTranslation } from "@/data/built-in-dictionary";
 import { saveWordToBuilder, VocabItem, loadSavedWords } from "@/lib/vocab-storage";
-import { recordTaskCompletion } from "@/lib/tutor-engine";
+import { recordTaskCompletion, submitTaskToDavid } from "@/lib/tutor-engine";
+import { TutorVocabReviewItem } from "@/types/tutor";
 import { useSpeechPlayer } from "@/lib/use-speech-player";
 import { UnseenAudioDock } from "@/components/unseen/unseen-audio-dock";
 import { Confetti } from "@/components/confetti";
@@ -113,10 +114,16 @@ export default function UnseenPracticePage() {
 
   const [assignedNotice, setAssignedNotice] = useState<string | null>(null);
   const [currentAssignmentId, setCurrentAssignmentId] = useState<string | null>(null);
+  const [isFromDavid, setIsFromDavid] = useState(false);
+  const [isTurningInToDavid, setIsTurningInToDavid] = useState(false);
 
   React.useEffect(() => {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
+      const fromDavid = params.get("from") === "david";
+      if (fromDavid) {
+        setIsFromDavid(true);
+      }
       if (params.get("stage") === "exercise") {
         setStage("exercise");
       }
@@ -128,7 +135,7 @@ export default function UnseenPracticePage() {
           setSelectedLevel(found.level);
           setSelectedStoryId(found.id);
           setStage("exercise");
-          setMode("graded");
+          setMode(fromDavid ? "practice" : "graded");
         }
       }
       if (assignIdParam) {
@@ -927,6 +934,120 @@ export default function UnseenPracticePage() {
     }
   };
 
+  const handleTurnInToDavid = async () => {
+    setIsTurningInToDavid(true);
+
+    let earned = 0;
+    const missedQuestions: { prompt: string; correctText: string; explanation: string }[] = [];
+
+    currentStory.questions.forEach((q) => {
+      const ans = userAnswers[q.id];
+      let isCorrect = false;
+      let points = 0;
+
+      if (q.type === "mcq") {
+        isCorrect = ans === q.correctIndex;
+        points = isCorrect ? 10 : 0;
+        if (!isCorrect) {
+          const correctOpt = q.options?.[q.correctIndex ?? 0] || "";
+          missedQuestions.push({
+            prompt: q.prompt,
+            correctText: correctOpt,
+            explanation: q.explanationHebrew || `התשובה הנכונה מתוך הפסקה היא: "${correctOpt}".`,
+          });
+        }
+      } else if (q.type === "copy") {
+        const cleanUser = String(ans || "").trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+        const cleanTarget = (q.targetSentence || "").trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+        if (cleanUser === cleanTarget || (cleanTarget.includes(cleanUser) && cleanUser.length > 8)) {
+          isCorrect = true;
+          points = 10;
+        } else {
+          missedQuestions.push({
+            prompt: q.prompt,
+            correctText: q.targetSentence || "",
+            explanation: q.explanationHebrew || `המשפט שיש להעתיק מהטקסט הוא: "${q.targetSentence}".`,
+          });
+        }
+      } else if (q.type === "open") {
+        const cleanUser = String(ans || "").toLowerCase();
+        const matches = (q.keywords || []).filter((kw) => cleanUser.includes(kw.toLowerCase()));
+        if (matches.length >= 1 || cleanUser.length > 12) {
+          isCorrect = true;
+          points = matches.length >= 2 ? 10 : 8;
+        } else {
+          missedQuestions.push({
+            prompt: q.prompt,
+            correctText: q.modelAnswer || "",
+            explanation: q.explanationHebrew || `תשובה מומלצת: "${q.modelAnswer}".`,
+          });
+        }
+      }
+
+      earned += points;
+    });
+
+    const finalScore = isSubmitted && gradedScore !== null ? gradedScore : earned;
+
+    const strengths: string[] = [];
+    if (finalScore >= 80) {
+      strengths.push("הבנת הנקרא מצוינת! איתרת מידע מפורש והסקת מסקנות בצורה מדויקת.");
+    } else if (finalScore >= 60) {
+      strengths.push("הבנת את הרעיון המרכזי של הקטע וענית נכון על רוב השאלות.");
+    } else {
+      strengths.push("כל הכבוד על ההתמדה בקריאת הטקסט והמענה על השאלות באנגלית!");
+    }
+
+    const improvements: { original?: string; suggestion: string; explanationHebrew: string }[] =
+      missedQuestions.slice(0, 3).map((m) => ({
+        original: m.prompt,
+        suggestion: m.correctText,
+        explanationHebrew: m.explanation,
+      }));
+    if (improvements.length === 0) {
+      improvements.push({
+        suggestion: "Great comprehension!",
+        explanationHebrew: "עבודה נקייה ומדויקת! המשך לשים לב למילות קישור ורמזי הקשר בפסקאות.",
+      });
+    }
+
+    const vocabToReview: TutorVocabReviewItem[] = [];
+    if (currentStory.vocabularyHints) {
+      for (const h of currentStory.vocabularyHints) {
+        vocabToReview.push({
+          word: h.word,
+          hebrew: h.translation,
+        });
+      }
+    }
+    for (const sw of savedWords.slice(0, 4)) {
+      if (!vocabToReview.some((v) => v.word.toLowerCase() === sw.english.toLowerCase())) {
+        vocabToReview.push({
+          word: sw.english,
+          hebrew: sw.hebrew,
+          exampleSentence: sw.example,
+        });
+      }
+    }
+
+    await submitTaskToDavid(user?.id || "guest", {
+      id: `turnin-unseen-${Date.now()}`,
+      type: "unseen",
+      taskId: currentStory.id,
+      taskTitle: currentStory.title,
+      taskTitleHebrew: currentStory.hebrewTitle,
+      score: finalScore,
+      completedAt: new Date().toISOString(),
+      strengths,
+      improvements,
+      vocabToReview,
+    });
+
+    if (typeof window !== "undefined") {
+      window.location.href = "/tutor?turnIn=1";
+    }
+  };
+
   // Total answered questions count
   const answeredCount = Object.keys(userAnswers).filter(
     (k) => userAnswers[k] !== undefined && userAnswers[k] !== ""
@@ -1581,6 +1702,18 @@ export default function UnseenPracticePage() {
             </div>
 
             <div className="flex items-center gap-2 mr-auto sm:mr-0 shrink-0">
+              {!isSubmitted && (
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={handleTurnInToDavid}
+                  disabled={isTurningInToDavid}
+                  className="h-7 text-[11px] font-bold bg-indigo-600 hover:bg-indigo-700 text-white cursor-pointer gap-1 shadow-xs"
+                >
+                  <GraduationCap className="h-3.5 w-3.5" />
+                  <span>{isTurningInToDavid ? "מגיש לדוד..." : `הגש משימה לדוד (${answeredCount}/10)`}</span>
+                </Button>
+              )}
               {mode === "practice" && !isSubmitted && (
                 <Button
                   type="button"
@@ -1611,6 +1744,28 @@ export default function UnseenPracticePage() {
               )}
             </div>
           </div>
+
+          {/* Active Private Lesson with David Banner */}
+          {isFromDavid && (
+            <div className="p-3 rounded-xl bg-indigo-500/10 border border-indigo-500/30 flex flex-wrap items-center justify-between gap-3 text-xs text-indigo-900 dark:text-indigo-200" dir="rtl">
+              <div className="flex items-center gap-2">
+                <GraduationCap className="h-4 w-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
+                <span className="font-semibold">
+                  שיעור פרטי עם המורה דוד: קראו את הקטע וענו על השאלות. בסיום לחצו על <strong>&ldquo;הגש משימה לדוד 🎓&rdquo;</strong> כדי שדוד יבדוק את העבודה שלכם ויבחן אתכם על אוצר מילים!
+                </span>
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                onClick={handleTurnInToDavid}
+                disabled={isTurningInToDavid}
+                className="h-8 text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white cursor-pointer gap-1.5 shrink-0"
+              >
+                <GraduationCap className="h-3.5 w-3.5" />
+                <span>{isTurningInToDavid ? "מגיש לדוד..." : `הגש משימה לדוד 🎓 (${answeredCount}/10)`}</span>
+              </Button>
+            </div>
+          )}
 
           {/* Teacher Assignment Notification Banner */}
           {assignedNotice && (
@@ -2220,35 +2375,50 @@ export default function UnseenPracticePage() {
                       </Button>
                     </div>
 
-                    {mode === "practice" ? (
-                      activeQuestion.type !== "mcq" && (
+                    <div className="flex flex-wrap items-center gap-2">
+                      {mode === "practice" ? (
+                        activeQuestion.type !== "mcq" && (
+                          <Button
+                            variant="default"
+                            size="sm"
+                            onClick={() => handleCheckPracticeAnswer(activeQuestion.id)}
+                            className="cursor-pointer gap-1.5 text-xs"
+                          >
+                            <Check className="h-3.5 w-3.5" />
+                            <span>בדוק תשובה</span>
+                          </Button>
+                        )
+                      ) : (
                         <Button
                           variant="default"
                           size="sm"
-                          onClick={() => handleCheckPracticeAnswer(activeQuestion.id)}
-                          className="cursor-pointer gap-1.5 text-xs"
+                          onClick={() => {
+                            setIsChangingTeacher(false);
+                            if (user?.teacherId) {
+                              setSelectedTeacherId(user.teacherId);
+                            }
+                            setShowSubmitModal(true);
+                          }}
+                          className="cursor-pointer gap-1.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
                         >
-                          <Check className="h-3.5 w-3.5" />
-                          <span>בדוק תשובה</span>
+                          <Send className="h-3.5 w-3.5" />
+                          <span>הגש מבחן ({answeredCount}/10)</span>
                         </Button>
-                      )
-                    ) : (
-                      <Button
-                        variant="default"
-                        size="sm"
-                        onClick={() => {
-                          setIsChangingTeacher(false);
-                          if (user?.teacherId) {
-                            setSelectedTeacherId(user.teacherId);
-                          }
-                          setShowSubmitModal(true);
-                        }}
-                        className="cursor-pointer gap-1.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
-                      >
-                        <Send className="h-3.5 w-3.5" />
-                        <span>הגש מבחן ({answeredCount}/10)</span>
-                      </Button>
-                    )}
+                      )}
+
+                      {(isFromDavid || answeredCount > 0) && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={handleTurnInToDavid}
+                          disabled={isTurningInToDavid}
+                          className="cursor-pointer gap-1.5 text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-bold shadow-xs"
+                        >
+                          <GraduationCap className="h-3.5 w-3.5" />
+                          <span>{isTurningInToDavid ? "מגיש לדוד..." : `הגש משימה לדוד 🎓 (${answeredCount}/10)`}</span>
+                        </Button>
+                      )}
+                    </div>
                   </CardFooter>
                 </Card>
               )}
@@ -2476,6 +2646,16 @@ export default function UnseenPracticePage() {
 
                   {/* Actions */}
                   <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
+                    <Button
+                      size="sm"
+                      onClick={handleTurnInToDavid}
+                      disabled={isTurningInToDavid}
+                      className="cursor-pointer text-xs gap-1.5 font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs"
+                    >
+                      <GraduationCap className="h-4 w-4" />
+                      <span>{isTurningInToDavid ? "מגיש לדוד..." : "הגש משימה לדוד והמשך בשיעור 🎓"}</span>
+                    </Button>
+
                     <Button
                       variant="outline"
                       size="sm"
@@ -3243,6 +3423,16 @@ export default function UnseenPracticePage() {
               <Button
                 variant="default"
                 size="sm"
+                onClick={handleTurnInToDavid}
+                disabled={isTurningInToDavid}
+                className="cursor-pointer text-xs font-bold gap-1.5 h-10 bg-indigo-600 hover:bg-indigo-700 text-white sm:col-span-2 shadow-sm"
+              >
+                <GraduationCap className="h-4 w-4" />
+                <span>{isTurningInToDavid ? "מגיש לדוד..." : "הגש משימה לדוד והמשך בשיעור 🎓"}</span>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={() => {
                   setShowPracticeCompleteModal(false);
                   setIsChangingTeacher(false);
@@ -3251,10 +3441,10 @@ export default function UnseenPracticePage() {
                   }
                   setShowSubmitModal(true);
                 }}
-                className="cursor-pointer text-xs font-bold gap-1.5 h-10 bg-emerald-600 hover:bg-emerald-700 text-white sm:col-span-2 shadow-xs"
+                className="cursor-pointer text-xs font-bold gap-1.5 h-9 border-emerald-500/40 text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 sm:col-span-2"
               >
                 <Send className="h-4 w-4" />
-                <span>הגש תוצאות למורה לבדיקה ({answeredCount}/10)</span>
+                <span>הגש תוצאות למורה בכיתה ({answeredCount}/10)</span>
               </Button>
               <Button
                 variant="outline"

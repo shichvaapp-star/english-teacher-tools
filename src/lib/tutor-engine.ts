@@ -7,10 +7,17 @@ import {
   TutorTaskRecommendation,
   TaskTopicOption,
   TutorMessage,
+  TutorTurnInPayload,
+  TutorVocabReviewItem,
 } from "@/types/tutor";
 import { MIDDLE_SCHOOL_UNSEENS } from "@/data/unseen-middle-school";
 import { ALL_WRITING_TASKS } from "@/data/writing-tasks";
-import { loadSavedWords } from "@/lib/vocab-storage";
+import {
+  loadSavedWords,
+  MIDDLE_SCHOOL_EASY,
+  MIDDLE_SCHOOL_MEDIUM,
+  MIDDLE_SCHOOL_HARD,
+} from "@/lib/vocab-storage";
 import { SubmissionItem } from "@/types/submission";
 
 export const TUTOR_NAME = "David";
@@ -18,6 +25,7 @@ export const TUTOR_TITLE_HE = "דוד - המורה הפרטי שלך לאנגל�
 
 const PROFILE_STORAGE_KEY_PREFIX = "ett_tutor_profile";
 const CHAT_STORAGE_KEY_PREFIX = "ett_tutor_chat";
+const TURNIN_STORAGE_KEY_PREFIX = "ett_tutor_pending_turnin";
 
 export interface DiagnosticAnswer {
   questionIndex: number;
@@ -369,7 +377,7 @@ function createUnseenTopicOption(
     titleEnglish: story.title,
     titleHebrew: story.hebrewTitle,
     descriptionHebrew: `קראו את קטע הקריאה "${story.hebrewTitle}" וענו על השאלות. דוד יעקוב אחר התשובות שלכם ויעניק לכם משוב!`,
-    targetUrl: `/unseen?passageId=${story.id}`,
+    targetUrl: `/unseen?passageId=${story.id}&from=david`,
   };
 }
 
@@ -393,7 +401,7 @@ function createWritingTopicOption(
     titleEnglish: task.title,
     titleHebrew: task.hebrewTitle,
     descriptionHebrew: task.hebrewInstructions,
-    targetUrl: `/writing?task=${task.id}`,
+    targetUrl: `/writing?task=${task.id}&from=david`,
   };
 }
 
@@ -525,7 +533,7 @@ export function syncMissionWithDatabase(
         title: matchingTask.title,
         hebrewTitle: matchingTask.hebrewTitle,
         descriptionHebrew: matchingTask.hebrewInstructions,
-        targetUrl: `/writing?task=${matchingTask.id}`,
+        targetUrl: `/writing?task=${matchingTask.id}&from=david`,
         availableTopics: freshTopics,
         selectedTopicId: matchedTopic ? matchedTopic.id : mission.selectedTopicId,
         selectedTopicNameHebrew: matchedTopic ? matchedTopic.nameHebrew : mission.selectedTopicNameHebrew,
@@ -573,7 +581,7 @@ export function syncMissionWithDatabase(
         title: matchingStory.title,
         hebrewTitle: matchingStory.hebrewTitle,
         descriptionHebrew: `קראו את קטע הקריאה "${matchingStory.hebrewTitle}" וענו על השאלות. דוד יעקוב אחר התשובות שלכם ויעניק לכם משוב!`,
-        targetUrl: `/unseen?passageId=${matchingStory.id}`,
+        targetUrl: `/unseen?passageId=${matchingStory.id}&from=david`,
         availableTopics: freshTopics,
         selectedTopicId: matchedTopic ? matchedTopic.id : mission.selectedTopicId,
         selectedTopicNameHebrew: matchedTopic ? matchedTopic.nameHebrew : mission.selectedTopicNameHebrew,
@@ -584,7 +592,7 @@ export function syncMissionWithDatabase(
     return {
       ...mission,
       level: targetLevel,
-      targetUrl: `/vocabulary?band=${encodeURIComponent(band)}`,
+      targetUrl: `/vocabulary?band=${encodeURIComponent(band)}&from=david`,
     };
   }
 
@@ -673,7 +681,7 @@ export function generateNextMission(
       hebrewTitle: `אימון אוצר מילים מהיר - ${profile.vocabBand}`,
       descriptionHebrew: `תרגלו 10 מילים מרכזיות בבנק המילים באמצעות משחק התאמה מהיר (Speed Match) או כרטיסיות.`,
       level: level,
-      targetUrl: `/vocabulary?band=${encodeURIComponent(profile.vocabBand)}`,
+      targetUrl: `/vocabulary?band=${encodeURIComponent(profile.vocabBand)}&from=david`,
       estimatedMinutes: 6,
       needsTopicSelection: false,
     };
@@ -689,7 +697,7 @@ export function generateNextMission(
       type: "writing",
       title: chosenTopic.titleEnglish,
       hebrewTitle: chosenTopic.titleHebrew,
-      descriptionHebrew: `כתבו פסקה קצרה בנושא "${chosenTopic.titleHebrew}". השתמשו במילות הקישור ובבנק המילים המובנה בסדנה!`,
+      descriptionHebrew: chosenTopic.descriptionHebrew || `כתבו פסקה קצרה בנושא "${chosenTopic.titleHebrew}". השתמשו במילות הקישור ובבנק המילים המובנה בסדנה!`,
       level: level,
       taskId: chosenTopic.taskId,
       targetUrl: chosenTopic.targetUrl,
@@ -703,8 +711,60 @@ export function generateNextMission(
 }
 
 /**
+ * Ensures we always have between 5 and 8 rich vocabulary words to test after a task.
+ * Deduplicates task-specific words and supplements from the level's core word bank if < 6.
+ */
+export function buildVocabPoolForTask(
+  baseWords: TutorVocabReviewItem[],
+  level: TutorLevel = "Level 2"
+): TutorVocabReviewItem[] {
+  const seen = new Set<string>();
+  const result: TutorVocabReviewItem[] = [];
+
+  for (const w of baseWords) {
+    const clean = w.word.trim().toLowerCase();
+    if (clean && w.hebrew.trim() && !seen.has(clean)) {
+      seen.add(clean);
+      result.push({
+        word: w.word.trim(),
+        hebrew: w.hebrew.trim(),
+        pos: w.pos || "noun",
+        exampleSentence: w.exampleSentence,
+      });
+    }
+  }
+
+  // Supplement from level pool if fewer than 6 words so we always test 5-8 words
+  if (result.length < 6) {
+    const fallbackPool =
+      level === "Level 1"
+        ? MIDDLE_SCHOOL_EASY
+        : level === "Level 3"
+        ? MIDDLE_SCHOOL_HARD
+        : MIDDLE_SCHOOL_MEDIUM;
+
+    for (const item of fallbackPool) {
+      if (result.length >= 7) break;
+      const clean = item.english.trim().toLowerCase();
+      if (!seen.has(clean)) {
+        seen.add(clean);
+        result.push({
+          word: item.english,
+          hebrew: item.hebrew,
+          pos: item.partOfSpeech,
+          exampleSentence: item.example,
+        });
+      }
+    }
+  }
+
+  return result.slice(0, 8);
+}
+
+/**
  * Called when an unseen or writing task is finished by the student.
- * Awards XP, updates skill mastery, updates streak, and returns David's reaction message.
+ * Awards XP, updates skill mastery, updates streak, rotates to a complementary next mission,
+ * and returns David's reaction message.
  */
 export async function recordTaskCompletion(
   studentId: string,
@@ -746,7 +806,17 @@ export async function recordTaskCompletion(
     lastActiveDate: new Date().toISOString().split("T")[0],
   };
 
-  updated.currentMission = generateNextMission(updated);
+  // Pick complementary next practice type so the private lesson alternates naturally
+  const nextPreferredType: "unseen" | "writing" | "vocab" =
+    type === "unseen"
+      ? "writing"
+      : type === "writing"
+      ? "unseen"
+      : newSkills.reading <= newSkills.writing
+      ? "unseen"
+      : "writing";
+
+  updated.currentMission = generateNextMission(updated, nextPreferredType);
   await saveTutorProfile(updated);
 
   let tutorNote = "";
@@ -759,6 +829,63 @@ export async function recordTaskCompletion(
   }
 
   return { updatedProfile: updated, tutorNote };
+}
+
+/**
+ * Turns in a completed assignment to David, storing the detailed evaluation and 5-8 vocabulary
+ * words so David can review the student's work, test vocabulary, and continue the private lesson.
+ */
+export async function submitTaskToDavid(
+  studentId: string,
+  payload: TutorTurnInPayload
+): Promise<StudentTutorProfile> {
+  const { updatedProfile } = await recordTaskCompletion(
+    studentId,
+    payload.type,
+    payload.score,
+    payload.taskTitle
+  );
+
+  const enrichedPayload: TutorTurnInPayload = {
+    ...payload,
+    vocabToReview: buildVocabPoolForTask(payload.vocabToReview, updatedProfile.level),
+  };
+
+  if (typeof window !== "undefined") {
+    try {
+      const key = studentId && studentId !== "guest"
+        ? `${TURNIN_STORAGE_KEY_PREFIX}_${studentId}`
+        : `${TURNIN_STORAGE_KEY_PREFIX}_guest`;
+      localStorage.setItem(key, JSON.stringify(enrichedPayload));
+      // Also write to guest key as fallback in case auth resolves slightly after mount
+      localStorage.setItem(`${TURNIN_STORAGE_KEY_PREFIX}_latest`, JSON.stringify(enrichedPayload));
+    } catch {}
+  }
+
+  return updatedProfile;
+}
+
+/**
+ * Consumes any pending turn-in assignment when the student returns to David's page (/tutor).
+ */
+export function consumePendingTurnIn(userId?: string): TutorTurnInPayload | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const userKey = userId && userId !== "guest"
+      ? `${TURNIN_STORAGE_KEY_PREFIX}_${userId}`
+      : `${TURNIN_STORAGE_KEY_PREFIX}_guest`;
+    const latestKey = `${TURNIN_STORAGE_KEY_PREFIX}_latest`;
+
+    const raw = localStorage.getItem(userKey) || localStorage.getItem(latestKey);
+    if (!raw) return null;
+
+    localStorage.removeItem(userKey);
+    localStorage.removeItem(latestKey);
+    localStorage.removeItem(`${TURNIN_STORAGE_KEY_PREFIX}_guest`);
+    return JSON.parse(raw) as TutorTurnInPayload;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -784,3 +911,4 @@ export function saveTutorChat(messages: TutorMessage[], userId?: string): void {
     localStorage.setItem(getChatStorageKey(userId), JSON.stringify(messages));
   } catch {}
 }
+

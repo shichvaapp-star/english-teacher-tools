@@ -15,6 +15,7 @@ import {
   removeWordFromBuilder,
   VocabItem,
 } from "@/lib/vocab-storage";
+import { submitTaskToDavid } from "@/lib/tutor-engine";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -38,6 +39,7 @@ import {
   Sparkles,
   Check,
   BookOpen,
+  GraduationCap,
 } from "lucide-react";
 
 // Pure deterministic shuffle helper
@@ -65,6 +67,8 @@ export default function VocabularyPage() {
   const [activeCategory, setActiveCategory] = useState<"saved" | "grade7" | "grade8" | "grade9">(
     "saved"
   );
+  const [isFromDavid, setIsFromDavid] = useState(false);
+  const [isTurningInToDavid, setIsTurningInToDavid] = useState(false);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -72,6 +76,9 @@ export default function VocabularyPage() {
       const cat = params.get("category");
       if (cat === "grade7" || cat === "grade8" || cat === "grade9") {
         setActiveCategory(cat);
+      }
+      if (params.get("from") === "david") {
+        setIsFromDavid(true);
       }
     }
   }, []);
@@ -294,6 +301,44 @@ export default function VocabularyPage() {
     }
   };
 
+  const handleTurnInToDavid = async () => {
+    setIsTurningInToDavid(true);
+    const pool = activePool.length > 0 ? activePool : MIDDLE_SCHOOL_EASY;
+    const vocabToReview = pool.slice(0, 8).map((w) => ({
+      word: w.english,
+      hebrew: w.hebrew,
+      pos: w.partOfSpeech,
+      exampleSentence: w.example,
+    }));
+
+    const finalScore = studyMode === "quiz" && quizScore > 0 ? Math.min(100, Math.max(75, quizScore)) : 90;
+
+    await submitTaskToDavid(user?.id || "guest", {
+      id: `turnin-vocab-${Date.now()}`,
+      type: "vocab",
+      taskId: activeCategory,
+      taskTitle: `Vocabulary Practice (${activeCategory === "saved" ? "Personal Dictionary" : activeCategory})`,
+      taskTitleHebrew: "אימון אוצר מילים ממוקד",
+      score: finalScore,
+      completedAt: new Date().toISOString(),
+      strengths: [
+        `תרגלת ${Math.max(masteredIds.size, matchedPairs.size, 6)} מילים חדשות בכרטיסיות ובמשחקי הזיכרון!`,
+        "חיזקת את הזיכרון החזותי ואת ההקשר של המילים בתוך משפטים.",
+      ],
+      improvements: [
+        {
+          suggestion: "Active Recall Practice",
+          explanationHebrew: "כעת דוד יבחן אותך על 5-8 מילים מתוך התרגול כדי לוודא שהן יושבות היטב בזיכרון.",
+        },
+      ],
+      vocabToReview,
+    });
+
+    if (typeof window !== "undefined") {
+      window.location.href = "/tutor?turnIn=1";
+    }
+  };
+
   return (
     <div className="flex flex-col min-h-screen bg-background text-foreground print:bg-white print:text-black overflow-x-hidden">
       {/* Top Navbar */}
@@ -322,6 +367,18 @@ export default function VocabularyPage() {
           </div>
 
           <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
+            <Button
+              type="button"
+              size="sm"
+              onClick={handleTurnInToDavid}
+              disabled={isTurningInToDavid}
+              className="h-9 text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white cursor-pointer gap-1.5 shadow-xs shrink-0"
+              dir="rtl"
+            >
+              <GraduationCap className="h-4 w-4" />
+              <span>{isTurningInToDavid ? "מגיש לדוד..." : "סיימתי תרגול – חזור לדוד 🎓"}</span>
+            </Button>
+
             {/* Quick Add Word Button in Navbar */}
             <HeaderTooltip label="הוספת מילה חדשה לפנקס">
               <Button
@@ -346,6 +403,27 @@ export default function VocabularyPage() {
 
       {/* Main Container */}
       <main className="flex-1 container mx-auto px-3 sm:px-8 py-5 sm:py-8 space-y-5 sm:space-y-6 print:p-0 print:m-0">
+        {isFromDavid && (
+          <div className="p-3.5 rounded-xl bg-indigo-500/10 border border-indigo-500/30 flex flex-wrap items-center justify-between gap-3 text-xs text-indigo-900 dark:text-indigo-200" dir="rtl">
+            <div className="flex items-center gap-2">
+              <GraduationCap className="h-4 w-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
+              <span className="font-semibold">
+                שיעור פרטי עם המורה דוד: תרגלו את המילים בכרטיסיות או במשחק ההתאמה, ובסיום לחצו על <strong>&ldquo;סיימתי תרגול – חזור לדוד 🎓&rdquo;</strong> כדי לעבור למבדק המילים ולמשימה הבאה!
+              </span>
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              onClick={handleTurnInToDavid}
+              disabled={isTurningInToDavid}
+              className="h-8 text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white cursor-pointer gap-1.5 shrink-0"
+            >
+              <GraduationCap className="h-3.5 w-3.5" />
+              <span>{isTurningInToDavid ? "מגיש לדוד..." : "סיימתי תרגול – חזור לדוד 🎓"}</span>
+            </Button>
+          </div>
+        )}
+
         {/* Success Toast Banner */}
         {successToast && (
           <div
