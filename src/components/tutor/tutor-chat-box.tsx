@@ -1689,12 +1689,9 @@ export function TutorChatBox({
                   </div>
                 )}
 
-                <div className="space-y-1 text-right font-sans">
-                  <div className="text-sm sm:text-base font-semibold text-foreground whitespace-pre-line text-left leading-relaxed font-sans" dir="ltr">
+                <div className="space-y-1 text-left font-sans" dir="ltr">
+                  <div className="text-sm sm:text-base font-semibold text-foreground whitespace-pre-line text-left leading-relaxed font-sans">
                     {step.question}
-                  </div>
-                  <div className="text-xs sm:text-sm text-muted-foreground text-right font-hebrew" dir="rtl">
-                    {step.questionHebrew}
                   </div>
                 </div>
 
@@ -1705,7 +1702,7 @@ export function TutorChatBox({
                       onChange={(e) => setDiagnosticWritingText(e.target.value)}
                       placeholder={
                         step.placeholderHebrew ||
-                        "כתבו כאן באנגלית (למשל: I like to learn new things because...)"
+                        "Write 1-2 sentences in English here..."
                       }
                       className="min-h-[85px] text-sm sm:text-base p-3 rounded-xl bg-muted/20 border-border/70 text-left font-sans"
                       dir="ltr"
@@ -1736,18 +1733,17 @@ export function TutorChatBox({
                     </Button>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1" dir="rtl">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1" dir="ltr">
                     {step.options?.map((opt, oIdx) => (
                       <Button
                         key={oIdx}
                         variant="outline"
                         onClick={() => handleDiagnosticOptionSelect(opt.value)}
-                        className="justify-start text-right h-auto py-2.5 px-3 border-border/70 hover:border-primary hover:bg-primary/5 transition-all text-sm flex flex-col items-start gap-0.5 whitespace-normal cursor-pointer rounded-xl"
+                        className="justify-start text-left h-auto py-2.5 px-3 border-border/70 hover:border-primary hover:bg-primary/5 transition-all text-sm flex items-center whitespace-normal cursor-pointer rounded-xl"
                       >
-                        <span className="font-semibold text-foreground text-left font-sans text-sm" dir="ltr">{opt.text}</span>
-                        {opt.textHebrew && (
-                          <span className="text-xs text-muted-foreground text-right font-hebrew" dir="rtl">{opt.textHebrew}</span>
-                        )}
+                        <span className="font-semibold text-foreground text-left font-sans text-sm" dir="ltr">
+                          {opt.text}
+                        </span>
                       </Button>
                     ))}
                   </div>
