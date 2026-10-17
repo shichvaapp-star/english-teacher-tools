@@ -38,15 +38,15 @@ function generateDeterministicTutorResponse(
     lower.includes("סמוך עליך")
   ) {
     return {
-      message: `No problem at all! Leave it to me. I've selected the best matching assignment for your current level (${profile.level}). You can start whenever you are ready! (סמוך עליי, בחרתי עבורך את המשימה המומלצת ביותר. בהצלחה!)`,
-      quickReplies: ["בוא נתחיל את המשימה!", "תן לי משימת קריאה (Unseen)", "בוא נתרגל אוצר מילים"],
+      message: `סמוך עליי! בחרתי עבורך את המשימה המומלצת ביותר לרמתך (${profile.level}). המשימה מוכנה עבורך, שיהיה בהצלחה!`,
+      quickReplies: ["בוא נתחיל עכשיו 🚀", "החלף נושא", "בוא נתרגל אוצר מילים"],
     };
   }
 
   if (lower.includes("unseen") || lower.includes("reading") || lower.includes("אנסין") || lower.includes("קריאה")) {
     return {
-      message: `Great choice! Reading comprehension is key to Bagrut success. At your current level (${profile.level}), I've prepared a reading mission for you. You can pick your favorite topic (animals, space, adventures, marine life, etc.) or let me choose for you! Ready to start?`,
-      quickReplies: ["כן, פתח משימת קריאה!", "דוד, בחר עבורי", "איך עונים על שאלת העתקת משפט?"],
+      message: `בחרתי עבורך משימת קריאה (Unseen) ברמת ${profile.level}! באיזה נושא תרצה/י לתרגל? בחר/י נושא מתוך האפשרויות למטה, או לחצ/י 'דוד, בחר עבורי':`,
+      quickReplies: ["🎲 דוד, בחר עבורי", "בעלי חיים 🐶", "רובוטים וחלל 🚀", "הרפתקאות וטבע 🌲"],
     };
   }
 
@@ -59,15 +59,22 @@ function generateDeterministicTutorResponse(
 
   if (lower.includes("writing") || lower.includes("essay") || lower.includes("כתיבה") || lower.includes("חיבור")) {
     return {
-      message: `Writing is an art! I've set up a writing exercise for you. You can pick any topic you're passionate about (phones, sports, adventures, letters) or keep my recommendation!`,
-      quickReplies: ["פתח סדנת כתיבה", "דוד, בחר עבורי", "איזה מילות קישור מומלצות?"],
+      message: `בחרתי עבורך משימת כתיבה מותאמת לרמת ${profile.level}! באיזה נושא תרצה/י לכתוב? בחר/י נושא מהאפשרויות למטה, או לחצ/י 'דוד, בחר עבורי':`,
+      quickReplies: ["🎲 דוד, בחר עבורי", "סמארטפונים בביה\"ס 📱", "חופשת הקיץ 🏖️", "חיית מחמד 🐶"],
+    };
+  }
+
+  if (lower.includes("mission") || lower.includes("משימה") || lower.includes("task") || lower.includes("תרגול")) {
+    return {
+      message: `הכנתי עבורך משימה מותאמת אישית לרמת ${profile.level}! באיזה נושא תרצה/י שנתמקד? בחר/י נושא מהאפשרויות למטה, או לחצ/י 'דוד, בחר עבורי':`,
+      quickReplies: ["🎲 דוד, בחר עבורי", "קריאה (Unseen)", "כתיבה", "אוצר מילים"],
     };
   }
 
   if (lower.includes("topic") || lower.includes("נושא")) {
     return {
-      message: `You can always choose the topic you prefer for any reading or writing mission! Simply tap one of the topic chips on the mission card, or tell me which subject you'd like to explore.`,
-      quickReplies: ["דוד, בחר עבורי", "תן לי משימת קריאה (Unseen)", "פתח סדנת כתיבה"],
+      message: `באפשרותך תמיד לבחור את הנושא שמעניין אותך לכל משימת קריאה או כתיבה! לחצ/י על אחד מכרטיסי הנושא למטה, או בקש/י ממני לבחור עבורך.`,
+      quickReplies: ["🎲 דוד, בחר עבורי", "קריאה (Unseen)", "סדנת כתיבה"],
     };
   }
 
@@ -127,7 +134,7 @@ PEDAGOGICAL TEACHING STYLE:
 - Language: Speak primarily in clear, natural English calibrated to ${currentLevel}.
 - Helpful Hebrew Scaffolding: Add friendly Hebrew explanations or Hebrew words in parentheses (בעברית) for difficult concepts, but keep the core conversation in English to immerse the student!
 - Socratic Method: When a student asks about an answer, guide them with hints rather than just giving away the solution.
-- Student Topic Choice: When presenting or discussing an Unseen or Writing assignment, invite the student to select a topic they enjoy (such as Animals, Space, Technology, Sports, Travel, Adventure), or let them know they can ask you to choose for them ('דוד, בחר עבורי').
+- Student Topic Choice: When presenting or assigning an Unseen or Writing assignment, ALWAYS ask the student by default to select their favorite topic (such as Animals, Space, Technology, Sports, Travel, Adventure) from the options, or tell you / click 'דוד, בחר עבורי'. Never assume a topic without asking the student first.
 - Be concise (2-4 sentences per response) so the student doesn't feel overwhelmed with text.
 - Suggest 2-3 short, actionable quick-reply chips in Hebrew or English that the student can tap.
 

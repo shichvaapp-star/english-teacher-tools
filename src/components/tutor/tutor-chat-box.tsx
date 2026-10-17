@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { TutorMessage, StudentTutorProfile } from "@/types/tutor";
+import { TutorMessage, StudentTutorProfile, TutorTaskRecommendation } from "@/types/tutor";
 import {
   DIAGNOSTIC_STEPS,
   calculateDiagnosticPlacement,
@@ -43,6 +43,7 @@ import {
   Flame,
   Award,
   MoreVertical,
+  RefreshCw,
 } from "lucide-react";
 
 interface TutorChatBoxProps {
@@ -315,13 +316,22 @@ export function TutorChatBox({
       onProfileUpdate(updatedProfile);
       saveTutorProfile(updatedProfile);
 
+      const mission = updatedProfile.currentMission;
+      const isUnseenOrWriting = mission && (mission.type === "unseen" || mission.type === "writing");
+
       const completionMessage: TutorMessage = {
         id: `msg-${Date.now() + 2}`,
         sender: "tutor",
-        text: `Excellent job ${studentName}! I have calibrated your learning plan. You are starting at **${updatedProfile.level}** (${updatedProfile.vocabBand}). I've picked a tailored mission for you! You can choose your favorite topic below, or keep my recommendation.`,
+        text: `Excellent job ${studentName}! I have calibrated your learning plan. You are starting at **${updatedProfile.level}** (${updatedProfile.vocabBand}). ${
+          isUnseenOrWriting
+            ? "I prepared your first assignment! Please pick a topic you'd like to practice from the options below, or click 'דוד, בחר עבורי': (בחר/י נושא לתרגול שמעניין אותך, או לחצ/י 'דוד, בחר עבורי')"
+            : "I've picked a tailored mission for you! You are ready to start."
+        }`,
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         taskRecommendation: updatedProfile.currentMission,
-        quickReplies: ["בוא נתחיל את המשימה!", "דוד, בחר עבורי", "שאל אותי שאלה נוספת"],
+        quickReplies: isUnseenOrWriting && mission?.availableTopics
+          ? ["🎲 דוד, בחר עבורי", ...mission.availableTopics.slice(0, 3).map((t) => `${t.emoji} ${t.nameHebrew}`)]
+          : ["בוא נתחיל את המשימה!", "דוד, בחר עבורי", "שאל אותי שאלה נוספת"],
       };
 
       const updatedMsgs = [...messages, studentReply, completionMessage];
@@ -349,14 +359,34 @@ export function TutorChatBox({
     } else {
       updatedRec = updateMissionTopic(currentRec, topicId);
     }
+    updatedRec.needsTopicSelection = false;
+
+    const topicLabel =
+      topicId === "default"
+        ? `בחירת דוד (${updatedRec.hebrewTitle})`
+        : updatedRec.selectedTopicNameHebrew || updatedRec.hebrewTitle;
+
+    const feedbackVoice =
+      topicId === "default"
+        ? `Great, leave it to me! I've chosen ${updatedRec.title} for you. Let's start!`
+        : `Awesome choice! We'll practice ${updatedRec.selectedTopicNameHebrew || ""}. You are all set!`;
+
+    const confirmationMsg: TutorMessage = {
+      id: `msg-${Date.now()}`,
+      sender: "tutor",
+      text: `מעולה! בחרנו בנושא: **${topicLabel}**. המשימה מוכנה עבורך למטה – אפשר להתחיל!`,
+      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      quickReplies: ["בוא נתחיל עכשיו 🚀", "בחר נושא אחר"],
+    };
 
     const newMsgs = [...messages];
     newMsgs[msgIdx] = {
       ...newMsgs[msgIdx],
       taskRecommendation: updatedRec,
     };
-    setMessages(newMsgs);
-    saveTutorChat(newMsgs, profile.studentId);
+    const finalMsgs = [...newMsgs, confirmationMsg];
+    setMessages(finalMsgs);
+    saveTutorChat(finalMsgs, profile.studentId);
 
     const updatedProfile: StudentTutorProfile = {
       ...profile,
@@ -365,11 +395,27 @@ export function TutorChatBox({
     onProfileUpdate(updatedProfile);
     saveTutorProfile(updatedProfile);
 
-    const feedbackVoice =
-      topicId === "default"
-        ? `Great, leave it to me! I've set my top recommendation: ${updatedRec.title}. You're ready to go!`
-        : `Awesome choice! I updated your mission to ${updatedRec.selectedTopicNameHebrew || ""}. Enjoy the exercise!`;
     speakText(feedbackVoice);
+  };
+
+  // Reopen topic selection if student wants to change topic
+  const handleReopenTopicSelection = (messageId: string) => {
+    const msgIdx = messages.findIndex((m) => m.id === messageId);
+    if (msgIdx === -1 || !messages[msgIdx].taskRecommendation) return;
+
+    const currentRec = messages[msgIdx].taskRecommendation!;
+    const updatedRec: TutorTaskRecommendation = {
+      ...currentRec,
+      needsTopicSelection: true,
+    };
+
+    const newMsgs = [...messages];
+    newMsgs[msgIdx] = {
+      ...newMsgs[msgIdx],
+      taskRecommendation: updatedRec,
+    };
+    setMessages(newMsgs);
+    saveTutorChat(newMsgs, profile.studentId);
   };
 
   // Send student message to David
@@ -423,7 +469,49 @@ export function TutorChatBox({
         lower.includes("כתיבה") ||
         lower.includes("חיבור");
 
-      if (isAskingForMission) {
+      let finalTutorText = tutorText;
+      let finalQuickReplies = quickReplies;
+
+      if (
+        lower.includes("תבחר אתה") ||
+        lower.includes("בחר עבורי") ||
+        lower.includes("choose for me") ||
+        lower.includes("תבחר בשבילי") ||
+        lower.includes("סמוך עליך")
+      ) {
+        const baseMission = profile.currentMission || generateNextMission(profile);
+        if (baseMission.availableTopics && baseMission.availableTopics.length > 0) {
+          const firstTopic = baseMission.availableTopics[0];
+          attachedMission = updateMissionTopic(baseMission, firstTopic.id);
+          attachedMission.selectedTopicId = "default";
+          attachedMission.selectedTopicNameHebrew = "בחירת דוד";
+          attachedMission.needsTopicSelection = false;
+        } else {
+          attachedMission = { ...baseMission, needsTopicSelection: false };
+        }
+        finalTutorText = `סמוך עליי! בחרתי עבורך את המשימה המומלצת ביותר: "${attachedMission.hebrewTitle}". אפשר להתחיל עכשיו!`;
+        finalQuickReplies = ["התחל עכשיו 🚀", "החלף נושא", "בוא נתרגל אוצר מילים"];
+        const updatedProf = { ...profile, currentMission: attachedMission };
+        onProfileUpdate(updatedProf);
+        saveTutorProfile(updatedProf);
+      } else if (
+        lower.includes("בחר נושא אחר") ||
+        lower.includes("החלף נושא") ||
+        lower.includes("נושא אחר") ||
+        lower.includes("change topic")
+      ) {
+        if (profile.currentMission) {
+          attachedMission = { ...profile.currentMission, needsTopicSelection: true };
+          finalTutorText = `בשמחה! איזה נושא תרצה/י לתרגל במקום? בחר/י מהאפשרויות למטה:`;
+          finalQuickReplies = [
+            "🎲 דוד, בחר עבורי",
+            ...(attachedMission.availableTopics?.slice(0, 3).map((t) => `${t.emoji} ${t.nameHebrew}`) || []),
+          ];
+          const updatedProf = { ...profile, currentMission: attachedMission };
+          onProfileUpdate(updatedProf);
+          saveTutorProfile(updatedProf);
+        }
+      } else if (isAskingForMission) {
         if (lower.includes("unseen") || lower.includes("reading") || lower.includes("אנסין") || lower.includes("קריאה")) {
           attachedMission = generateNextMission(profile, "unseen");
         } else if (lower.includes("writing") || lower.includes("essay") || lower.includes("כתיבה") || lower.includes("חיבור")) {
@@ -431,35 +519,56 @@ export function TutorChatBox({
         } else if (lower.includes("vocab") || lower.includes("words") || lower.includes("מילים") || lower.includes("אוצר")) {
           attachedMission = generateNextMission(profile, "vocab");
         } else {
-          attachedMission = profile.currentMission || generateNextMission(profile);
+          attachedMission = generateNextMission(profile);
+        }
+
+        if (attachedMission.needsTopicSelection) {
+          const missionTypeHebrew = attachedMission.type === "unseen" ? "קריאה (Unseen)" : "כתיבה";
+          finalTutorText = `בחרתי עבורך משימת ${missionTypeHebrew}! באיזה נושא תרצה/י לתרגל? בחר/י נושא מתוך האפשרויות למטה, או לחצ/י 'דוד, בחר עבורי':`;
+          finalQuickReplies = [
+            "🎲 דוד, בחר עבורי",
+            ...(attachedMission.availableTopics?.slice(0, 3).map((t) => `${t.emoji} ${t.nameHebrew}`) || []),
+          ];
         }
 
         const updatedProf = { ...profile, currentMission: attachedMission };
         onProfileUpdate(updatedProf);
         saveTutorProfile(updatedProf);
-      } else if (
-        lower.includes("תבחר אתה") ||
-        lower.includes("בחר עבורי") ||
-        lower.includes("choose for me") ||
-        lower.includes("תבחר בשבילי") ||
-        lower.includes("סמוך עליך")
-      ) {
-        attachedMission = profile.currentMission || generateNextMission(profile);
+      } else {
+        // Check if student responded to a pending topic choice:
+        const candidateMission = profile.currentMission;
+        if (candidateMission && candidateMission.needsTopicSelection && candidateMission.availableTopics) {
+          const matchedTopic = candidateMission.availableTopics.find(
+            (t) =>
+              lower.includes(t.nameHebrew.toLowerCase()) ||
+              lower.includes(t.nameEnglish.toLowerCase()) ||
+              lower.includes(t.id.toLowerCase())
+          );
+          if (matchedTopic) {
+            attachedMission = updateMissionTopic(candidateMission, matchedTopic.id);
+            attachedMission.needsTopicSelection = false;
+            finalTutorText = `בחירה מצוינת! הכנתי עבורך את המשימה בנושא "${matchedTopic.nameHebrew}". אפשר להתחיל עכשיו!`;
+            finalQuickReplies = ["התחל עכשיו 🚀", "החלף נושא", "בוא נתרגל אוצר מילים"];
+            const updatedProf = { ...profile, currentMission: attachedMission };
+            onProfileUpdate(updatedProf);
+            saveTutorProfile(updatedProf);
+          }
+        }
       }
 
       const tutorMsg: TutorMessage = {
         id: `msg-${Date.now() + 1}`,
         sender: "tutor",
-        text: tutorText,
+        text: finalTutorText,
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-        quickReplies,
+        quickReplies: finalQuickReplies,
         taskRecommendation: attachedMission,
       };
 
       const finalHistory = [...newHistory, tutorMsg];
       setMessages(finalHistory);
       saveTutorChat(finalHistory, profile.studentId);
-      speakText(tutorText);
+      speakText(finalTutorText);
     } catch {
       const errorMsg: TutorMessage = {
         id: `msg-${Date.now() + 1}`,
@@ -706,88 +815,114 @@ export function TutorChatBox({
                       {msg.taskRecommendation.type === "unseen" && <BookOpen className="h-4 w-4" />}
                       {msg.taskRecommendation.type === "vocab" && <BookA className="h-4 w-4" />}
                       {msg.taskRecommendation.type === "writing" && <PenTool className="h-4 w-4" />}
-                      משימה מותאמת עבורך
+                      {msg.taskRecommendation.needsTopicSelection
+                        ? "שלב 1: בחירת נושא לתרגול"
+                        : "משימה מותאמת עבורך"}
                     </span>
                     <Badge variant="outline" className="text-xs py-0.5 px-2 bg-muted/40 border-border/70">
                       {msg.taskRecommendation.level}
                     </Badge>
                   </div>
 
-                  <div>
-                    <div className="flex flex-wrap items-center gap-2 mb-1.5">
-                      <h4 className="font-bold text-base sm:text-lg text-foreground font-sans">
-                        {msg.taskRecommendation.hebrewTitle}
-                      </h4>
-                      {msg.taskRecommendation.selectedTopicNameHebrew && (
-                        <Badge variant="secondary" className="text-[11px] font-semibold px-2 py-0.5 bg-primary/10 text-primary border-primary/20">
-                          נושא: {msg.taskRecommendation.selectedTopicNameHebrew}
+                  {msg.taskRecommendation.needsTopicSelection ? (
+                    /* Topic Selection Stage */
+                    <div className="space-y-3 pt-1">
+                      <div>
+                        <h4 className="font-bold text-base sm:text-lg text-foreground font-sans">
+                          {msg.taskRecommendation.type === "unseen"
+                            ? "באיזה נושא תרצה/י לקרוא?"
+                            : "באיזה נושא תרצה/י לכתוב?"}
+                        </h4>
+                        <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
+                          בחר/י נושא שמעניין אותך מתוך האפשרויות, או תן/י לדוד לבחור עבורך את ההמלצה הטובה ביותר:
+                        </p>
+                      </div>
+
+                      {/* David Pick For Me prominent card */}
+                      <button
+                        type="button"
+                        onClick={() => handleSelectMissionTopic(msg.id, "default")}
+                        className="w-full flex items-center justify-between p-3 sm:p-3.5 rounded-xl border border-primary/50 bg-primary/10 hover:bg-primary/20 text-foreground transition-all cursor-pointer font-sans text-right group"
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <span className="text-2xl group-hover:scale-110 transition-transform">🎲</span>
+                          <div className="flex flex-col text-right">
+                            <span className="font-bold text-sm text-foreground">דוד, בחר עבורי</span>
+                            <span className="text-xs text-muted-foreground">התאמה אוטומטית של המשימה המומלצת ביותר לרמה שלך</span>
+                          </div>
+                        </div>
+                        <Badge variant="secondary" className="text-xs font-semibold bg-primary/20 text-primary">
+                          מומלץ
                         </Badge>
+                      </button>
+
+                      {/* Topic Choices Grid */}
+                      {msg.taskRecommendation.availableTopics && (
+                        <div className="space-y-1.5 pt-1">
+                          <span className="text-xs font-semibold text-muted-foreground block text-right">
+                            או בחרו נושא מהרשימה:
+                          </span>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            {msg.taskRecommendation.availableTopics.map((top) => (
+                              <button
+                                key={top.id}
+                                type="button"
+                                onClick={() => handleSelectMissionTopic(msg.id, top.id)}
+                                className="flex items-center gap-2.5 p-3 rounded-xl border border-border/70 bg-muted/20 hover:border-primary/60 hover:bg-muted/50 transition-all cursor-pointer text-right group"
+                              >
+                                <span className="text-xl shrink-0 group-hover:scale-110 transition-transform">{top.emoji}</span>
+                                <div className="flex flex-col text-right overflow-hidden">
+                                  <span className="font-bold text-xs sm:text-sm text-foreground truncate">{top.nameHebrew}</span>
+                                  <span className="text-[11px] text-muted-foreground truncate">{top.nameEnglish}</span>
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
                       )}
                     </div>
-                    <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed font-sans">
-                      {msg.taskRecommendation.descriptionHebrew}
-                    </p>
-                  </div>
-
-                  {/* Clean Topic Choice Chips */}
-                  {msg.taskRecommendation.availableTopics && msg.taskRecommendation.availableTopics.length > 0 && (
-                    <div className="p-2.5 bg-muted/30 rounded-xl border border-border/40 space-y-1.5">
-                      <div className="flex items-center justify-between text-xs text-muted-foreground">
-                        <span className="font-semibold text-foreground flex items-center gap-1">
-                          <Sparkles className="h-3 w-3 text-primary" />
-                          באיזה נושא תרצו?
-                        </span>
-                        <span>(אפשר לבחור או להמשיך עם בחירת דוד)</span>
+                  ) : (
+                    /* Topic Confirmed - Ready to Launch */
+                    <div className="space-y-3">
+                      <div>
+                        <div className="flex flex-wrap items-center gap-2 mb-1.5">
+                          <h4 className="font-bold text-base sm:text-lg text-foreground font-sans">
+                            {msg.taskRecommendation.hebrewTitle}
+                          </h4>
+                          {msg.taskRecommendation.selectedTopicNameHebrew && (
+                            <Badge variant="secondary" className="text-[11px] font-semibold px-2 py-0.5 bg-primary/10 text-primary border-primary/20">
+                              נושא: {msg.taskRecommendation.selectedTopicNameHebrew}
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed font-sans">
+                          {msg.taskRecommendation.descriptionHebrew}
+                        </p>
                       </div>
 
-                      <div className="flex flex-wrap gap-1.5 pt-0.5">
-                        <button
-                          type="button"
-                          onClick={() => handleSelectMissionTopic(msg.id, "default")}
-                          className={`text-xs px-2.5 py-1 rounded-lg border transition-all cursor-pointer flex items-center gap-1 ${
-                            msg.taskRecommendation.selectedTopicId === "default" ||
-                            (!msg.taskRecommendation.selectedTopicId &&
-                              msg.taskRecommendation.taskId === msg.taskRecommendation.availableTopics[0]?.taskId)
-                              ? "border-primary bg-primary text-primary-foreground font-bold shadow-xs"
-                              : "border-border/60 bg-card hover:border-primary/50 text-foreground"
-                          }`}
-                        >
-                          <span>🎲</span>
-                          <span>דוד, בחר עבורי</span>
-                        </button>
+                      {/* Ready Action Button */}
+                      <Link href={msg.taskRecommendation.targetUrl} className="block w-full pt-1">
+                        <Button size="sm" className="w-full gap-2 font-bold h-10 text-sm sm:text-base cursor-pointer shadow-xs">
+                          <span>התחל משימה עכשיו 🚀</span>
+                          <ArrowLeft className="h-4 w-4" />
+                        </Button>
+                      </Link>
 
-                        {msg.taskRecommendation.availableTopics.map((top) => {
-                          const isSelected =
-                            msg.taskRecommendation?.selectedTopicId === top.id ||
-                            (msg.taskRecommendation?.selectedTopicId !== "default" &&
-                              msg.taskRecommendation?.taskId === top.taskId);
-
-                          return (
-                            <button
-                              key={top.id}
-                              type="button"
-                              onClick={() => handleSelectMissionTopic(msg.id, top.id)}
-                              className={`text-xs px-2.5 py-1 rounded-lg border transition-all cursor-pointer flex items-center gap-1 ${
-                                isSelected && msg.taskRecommendation?.selectedTopicId !== "default"
-                                  ? "border-primary bg-primary text-primary-foreground font-bold shadow-xs"
-                                  : "border-border/60 bg-card hover:border-primary/50 text-foreground"
-                              }`}
-                            >
-                              <span>{top.emoji}</span>
-                              <span className="font-medium">{top.nameHebrew}</span>
-                            </button>
-                          );
-                        })}
-                      </div>
+                      {/* Change Topic Link if topics exist */}
+                      {msg.taskRecommendation.availableTopics && msg.taskRecommendation.availableTopics.length > 0 && (
+                        <div className="text-center pt-0.5">
+                          <button
+                            type="button"
+                            onClick={() => handleReopenTopicSelection(msg.id)}
+                            className="text-xs text-muted-foreground hover:text-primary transition-colors cursor-pointer inline-flex items-center gap-1"
+                          >
+                            <RefreshCw className="h-3 w-3" />
+                            <span>רוצה להחליף נושא? לחץ/י כאן</span>
+                          </button>
+                        </div>
+                      )}
                     </div>
                   )}
-
-                  <Link href={msg.taskRecommendation.targetUrl} className="block w-full pt-1">
-                    <Button size="sm" className="w-full gap-2 font-bold h-10 text-sm sm:text-base cursor-pointer shadow-xs">
-                      <span>התחל משימה עכשיו</span>
-                      <ArrowLeft className="h-4 w-4" />
-                    </Button>
-                  </Link>
                 </Card>
               </div>
             )}

@@ -32,6 +32,7 @@ export interface TutorTaskRecommendation {
   selectedTopicId?: string;
   selectedTopicNameHebrew?: string;
   availableTopics?: TaskTopicOption[];
+  needsTopicSelection?: boolean;
 }
 
 export interface StudentTutorProfile {

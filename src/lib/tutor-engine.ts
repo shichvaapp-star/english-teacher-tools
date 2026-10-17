@@ -688,17 +688,20 @@ export function updateMissionTopic(
     targetUrl: found.targetUrl,
     selectedTopicId: found.id,
     selectedTopicNameHebrew: found.nameHebrew,
+    needsTopicSelection: false,
   };
 }
 
 /**
  * Dynamically picks the next best assignment from the site's rich library,
  * providing students with curated topic options for reading & writing.
+ * By default, asks students to pick their favorite topic unless already selected.
  */
 export function generateNextMission(
   profile: StudentTutorProfile,
   preferredType?: "unseen" | "vocab" | "writing",
-  preferredTopicId?: string
+  preferredTopicId?: string,
+  isTopicChosen?: boolean
 ): TutorTaskRecommendation {
   const { reading, vocabulary, writing } = profile.skills;
   const level = profile.level;
@@ -730,9 +733,10 @@ export function generateNextMission(
       taskId: chosenTopic.taskId,
       targetUrl: chosenTopic.targetUrl,
       estimatedMinutes: 12,
-      selectedTopicId: chosenTopic.id,
-      selectedTopicNameHebrew: chosenTopic.nameHebrew,
+      selectedTopicId: preferredTopicId || (isTopicChosen ? chosenTopic.id : undefined),
+      selectedTopicNameHebrew: preferredTopicId || isTopicChosen ? chosenTopic.nameHebrew : undefined,
       availableTopics: topics,
+      needsTopicSelection: !preferredTopicId && !isTopicChosen,
     };
   } else if (selectedType === "vocab") {
     // Recommend Vocabulary
@@ -745,6 +749,7 @@ export function generateNextMission(
       level: level,
       targetUrl: `/vocabulary?band=${encodeURIComponent(profile.vocabBand)}`,
       estimatedMinutes: 6,
+      needsTopicSelection: false,
     };
   } else {
     // Recommend Writing
@@ -763,9 +768,10 @@ export function generateNextMission(
       taskId: chosenTopic.taskId,
       targetUrl: chosenTopic.targetUrl,
       estimatedMinutes: 15,
-      selectedTopicId: chosenTopic.id,
-      selectedTopicNameHebrew: chosenTopic.nameHebrew,
+      selectedTopicId: preferredTopicId || (isTopicChosen ? chosenTopic.id : undefined),
+      selectedTopicNameHebrew: preferredTopicId || isTopicChosen ? chosenTopic.nameHebrew : undefined,
       availableTopics: topics,
+      needsTopicSelection: !preferredTopicId && !isTopicChosen,
     };
   }
 }
