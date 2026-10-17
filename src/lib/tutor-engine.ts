@@ -31,6 +31,7 @@ export interface DiagnosticAnswer {
   questionIndex: number;
   selectedOption: string;
   writingScore?: number;
+  vocabScore?: number;
   writingStrengths?: string[];
   writingTips?: string[];
 }
@@ -47,58 +48,126 @@ export interface DiagnosticQuestionDef {
   options?: { text: string; textHebrew?: string; value: string; isCorrect?: boolean; levelWeight?: TutorLevel }[];
 }
 
+export const CONVERSATIONAL_ONBOARDING_TOTAL_TURNS = 4;
+
 export const DIAGNOSTIC_STEPS: DiagnosticQuestionDef[] = [
   {
     step: 1,
     totalSteps: 4,
     skill: "vocabulary",
-    question: "Choose the word that best completes the sentence:\n\"It is an amazing ______ to visit London this summer!\"",
-    questionHebrew: "בחרו את המילה הנכונה ביותר להשלמת המשפט:",
-    options: [
-      { text: "opportunity", textHebrew: "הזדמנות (Band II)", value: "opportunity", isCorrect: true, levelWeight: "Level 2" },
-      { text: "garden", textHebrew: "גינה (Band I)", value: "garden", isCorrect: false, levelWeight: "Level 1" },
-      { text: "consequence", textHebrew: "השלכה (Band III)", value: "consequence", isCorrect: false, levelWeight: "Level 3" },
-      { text: "simple", textHebrew: "פשוט (Band I)", value: "simple", isCorrect: false, levelWeight: "Level 1" },
-    ],
+    isFreeText: true,
+    question: "What do you like doing in your free time? Do you enjoy sports, video games, music, animals, or something else?",
+    questionHebrew: "",
   },
   {
     step: 2,
     totalSteps: 4,
     skill: "reading",
-    passage: "\"Maya loved taking photographs of rare birds. Early every Saturday, she packed her camera and hiked quietly into the forest before sunrise so the birds wouldn't fly away.\"",
-    question: "Why did Maya go into the forest before sunrise?",
-    questionHebrew: "לפי הקטע הקצר, מדוע מיה הלכה ליער עוד לפני הזריחה?",
-    options: [
-      { text: "Because the forest was too hot in the afternoon.", textHebrew: "כי ביער היה חם מדי בצהריים.", value: "a", isCorrect: false },
-      { text: "To avoid scaring the birds away with noise or movement.", textHebrew: "כדי לא להבריח את הציפורים ברעש ותנועה.", value: "b", isCorrect: true, levelWeight: "Level 2" },
-      { text: "She wanted to meet her friends there.", textHebrew: "היא רצתה לפגוש שם את החברים שלה.", value: "c", isCorrect: false },
-      { text: "She had to buy a new camera.", textHebrew: "היא הייתה צריכה לקנות מצלמה חדשה.", value: "d", isCorrect: false },
-    ],
+    isFreeText: true,
+    question: "Why did everyone's face turn red when they tasted Leo's cake, and what would you do if that happened at your party?",
+    questionHebrew: "",
   },
   {
     step: 3,
     totalSteps: 4,
     skill: "writing",
     isFreeText: true,
-    question: "Translate into English (or write 1-2 sentences about yourself or your hobbies):\n\"אני אוהב ללמוד דברים חדשים עם חברים כי זה מעניין ועוזר לי להצליח.\"",
-    questionHebrew: "בדיקת כתיבה: תרגמו את המשפט לאנגלית, או כתבו 1-2 משפטים על עצמכם/התחביב שלכם:",
-    placeholderHebrew: "כתבו כאן 1-2 משפטים באנגלית (למשל: I like to learn new things because...)",
-    options: [],
+    question: "If you could travel anywhere in the world tomorrow — or invent one cool gadget for your school — what would you choose and why?",
+    questionHebrew: "",
   },
   {
     step: 4,
     totalSteps: 4,
     skill: "goal",
-    question: "What is your main goal with David?",
-    questionHebrew: "מהי המטרה העיקרית שלך בלמידה עם דוד?",
-    options: [
-      { text: "Reading Comprehension (Unseen & Bagrut)", textHebrew: "הבנת הנקרא ומבחני אנסין", value: "reading" },
-      { text: "Expanding My Vocabulary (Word Bands)", textHebrew: "הרחבת אוצר המילים ובנק מילים", value: "vocabulary" },
-      { text: "Writing Good Paragraphs & Essays", textHebrew: "כתיבת חיבורים, פסקאות ומכתבים", value: "writing" },
-      { text: "All-Around English Booster", textHebrew: "שיפור כולל בכל המיומנויות", value: "all" },
-    ],
+    isFreeText: true,
+    question: "What would you like to practice most with me right now — reading stories, learning new words, or writing in English?",
+    questionHebrew: "",
   },
 ];
+
+/**
+ * Generates David's warm initial English greeting that starts a natural conversation instead of a test.
+ */
+export function getInitialOnboardingGreeting(studentName: string): {
+  text: string;
+  quickReplies: string[];
+} {
+  return {
+    text: `Hi ${studentName}! I'm David, your personal English tutor. Instead of a boring test, let's just chat in English for a minute so I can get to know you! First — what do you like doing in your free time? Do you enjoy sports, video games, music, animals, or something else?`,
+    quickReplies: [
+      "I like playing video games and sports",
+      "I love listening to music and hanging out with friends",
+      "I really enjoy animals and nature",
+    ],
+  };
+}
+
+/**
+ * Generates David's natural English response for each turn of the 4-turn onboarding conversation.
+ */
+export function generateOnboardingTurnResponse(
+  completedTurnIndex: number,
+  studentReply: string,
+  studentName: string
+): {
+  text: string;
+  quickReplies?: string[];
+} {
+  const lower = studentReply.toLowerCase();
+
+  // After Turn 0 (Student shared their hobbies/free time) -> Move to Turn 1 (Short story comprehension in conversation)
+  if (completedTurnIndex === 0) {
+    let hobbyReaction = `That sounds like a great way to spend your free time, ${studentName}!`;
+    if (lower.includes("game") || lower.includes("gaming") || lower.includes("play")) {
+      hobbyReaction = `Nice! Video games and sports are awesome ways to unwind, ${studentName}!`;
+    } else if (lower.includes("music") || lower.includes("song") || lower.includes("sing") || lower.includes("dance")) {
+      hobbyReaction = `I love music too, ${studentName}! It always puts me in a good mood.`;
+    } else if (lower.includes("animal") || lower.includes("dog") || lower.includes("cat") || lower.includes("nature")) {
+      hobbyReaction = `Animals and nature are amazing, ${studentName}!`;
+    } else if (lower.includes("sport") || lower.includes("football") || lower.includes("soccer") || lower.includes("basketball")) {
+      hobbyReaction = `Sports are fantastic for staying active and having fun, ${studentName}!`;
+    }
+
+    return {
+      text: `${hobbyReaction}\n\nSpeaking of fun weekends, my cousin Leo tried to bake a chocolate cake for his mom's birthday yesterday. He accidentally used salt instead of sugar because the two jars looked identical! When everyone took a bite at the party, their faces turned bright red, and they ended up ordering pizza instead. 😄\n\nTell me in your own words — why did everyone's face turn red when they tasted Leo's cake, and what would you do if that happened at your party?`,
+      quickReplies: [
+        "Because he put salt instead of sugar! I would laugh and order pizza too.",
+        "The cake tasted super salty! I would go buy ice cream instead.",
+      ],
+    };
+  }
+
+  // After Turn 1 (Student explained the salty cake story) -> Move to Turn 2 (Expressive 2-3 sentence prompt)
+  if (completedTurnIndex === 1) {
+    const mentionedSaltOrSugar =
+      lower.includes("salt") ||
+      lower.includes("sugar") ||
+      lower.includes("salty") ||
+      lower.includes("mistake") ||
+      lower.includes("taste") ||
+      lower.includes("bad");
+
+    const storyReaction = mentionedSaltOrSugar
+      ? `Haha, spot on! A mouthful of salty chocolate cake is definitely an unforgettable birthday surprise!`
+      : `Haha, totally! At least pizza saved the birthday party in the end!`;
+
+    return {
+      text: `${storyReaction}\n\nNow I'm curious about your imagination, ${studentName}: if you could travel anywhere in the world tomorrow — or invent one cool gadget for your school — what would you choose and why? Write 2 or 3 sentences in English!`,
+      quickReplies: [],
+    };
+  }
+
+  // After Turn 2 (Student wrote 2-3 sentences about travel or an invention) -> Move to Turn 3 (Preferred focus)
+  return {
+    text: `I really enjoyed reading your idea, ${studentName}! One last question before we pick our first activity together: what do you feel you'd like to practice most with me right now — reading interesting stories, learning new vocabulary words, or writing in English?`,
+    quickReplies: [
+      "I'd like to practice reading stories",
+      "I want to learn new vocabulary words",
+      "I want to improve my writing in English",
+      "Let's practice a bit of everything!",
+    ],
+  };
+}
 
 export function getProfileStorageKey(userId?: string): string {
   return userId ? `${PROFILE_STORAGE_KEY_PREFIX}_${userId}` : `${PROFILE_STORAGE_KEY_PREFIX}_guest`;
@@ -264,45 +333,84 @@ export function calculateDiagnosticPlacement(
   currentProfile: StudentTutorProfile
 ): StudentTutorProfile {
   let selectedGoal = "all";
-  let writingScore = 65;
+  let writingScore = 70;
   let writingStrengths: string[] = [];
   let writingTips: string[] = [];
 
-  let vScore = 65;
-  let rScore = 65;
+  let vScore = 70;
+  let rScore = 70;
+
+  // Measure lexical richness across all student turns
+  const allWords = answers
+    .map((a) => a.selectedOption.toLowerCase())
+    .join(" ")
+    .replace(/[^a-z\s]/g, " ")
+    .split(/\s+/)
+    .filter((w) => w.length >= 2);
+  const uniqueWords = new Set(allWords);
+  const longWords = Array.from(uniqueWords).filter((w) => w.length >= 6);
+
+  if (uniqueWords.size >= 25 || longWords.length >= 6) {
+    vScore = 86;
+  } else if (uniqueWords.size >= 14 || longWords.length >= 3) {
+    vScore = 74;
+  } else {
+    vScore = 60;
+  }
 
   answers.forEach((ans) => {
     const q = DIAGNOSTIC_STEPS[ans.questionIndex];
     if (!q) return;
 
-    if (q.skill === "goal") {
-      selectedGoal = ans.selectedOption;
-      return;
+    if (q.skill === "goal" || ans.questionIndex === 3) {
+      const lower = ans.selectedOption.toLowerCase();
+      if (lower.includes("read") || lower.includes("stor") || lower.includes("קריאה") || lower.includes("סיפור")) {
+        selectedGoal = "reading";
+      } else if (lower.includes("word") || lower.includes("vocab") || lower.includes("מילים")) {
+        selectedGoal = "vocabulary";
+      } else if (lower.includes("writ") || lower.includes("essay") || lower.includes("כתיבה")) {
+        selectedGoal = "writing";
+      } else {
+        selectedGoal = "all";
+      }
     }
 
-    if (q.skill === "vocabulary" && q.options) {
-      const opt = q.options.find((o) => o.value === ans.selectedOption);
-      vScore = opt?.isCorrect ? 85 : 55;
-      return;
+    if (q.skill === "reading" || ans.questionIndex === 1) {
+      const lower = ans.selectedOption.toLowerCase();
+      const mentionsSaltyStory =
+        lower.includes("salt") ||
+        lower.includes("sugar") ||
+        lower.includes("mistake") ||
+        lower.includes("bad") ||
+        lower.includes("taste") ||
+        lower.includes("pizza") ||
+        lower.includes("order") ||
+        lower.includes("buy") ||
+        lower.includes("laugh") ||
+        lower.includes("מלח") ||
+        lower.includes("סוכר");
+      const wordCount = lower.trim().split(/\s+/).filter(Boolean).length;
+      if (mentionsSaltyStory && wordCount >= 7) {
+        rScore = 88;
+      } else if (mentionsSaltyStory || wordCount >= 5) {
+        rScore = 75;
+      } else {
+        rScore = 58;
+      }
     }
 
-    if (q.skill === "reading" && q.options) {
-      const opt = q.options.find((o) => o.value === ans.selectedOption);
-      rScore = opt?.isCorrect ? 85 : 55;
-      return;
+    if (typeof ans.vocabScore === "number") {
+      vScore = Math.round((vScore + ans.vocabScore) / 2);
     }
 
-    if (q.skill === "writing") {
-      if (typeof ans.writingScore === "number") {
-        writingScore = ans.writingScore;
-      }
-      if (ans.writingStrengths && ans.writingStrengths.length > 0) {
-        writingStrengths = ans.writingStrengths;
-      }
-      if (ans.writingTips && ans.writingTips.length > 0) {
-        writingTips = ans.writingTips;
-      }
-      return;
+    if (typeof ans.writingScore === "number") {
+      writingScore = ans.writingScore;
+    }
+    if (ans.writingStrengths && ans.writingStrengths.length > 0) {
+      writingStrengths = ans.writingStrengths;
+    }
+    if (ans.writingTips && ans.writingTips.length > 0) {
+      writingTips = ans.writingTips;
     }
   });
 
@@ -325,9 +433,9 @@ export function calculateDiagnosticPlacement(
   }
 
   const strengthsList = [
-    compositeScore >= 70 ? "בסיס טוב באוצר מילים והבנת הנקרא" : "רצון להשתפר ותרגול יסודי",
+    compositeScore >= 70 ? "יכולת הבעה טבעית בשיחה באנגלית" : "נכונות לשוחח ולהתבטא באנגלית",
     ...writingStrengths.slice(0, 2),
-    "השלמת מבדק האבחון המלא בהצלחה!",
+    "השלמת שיחת ההיכרות באנגלית בהצלחה!",
   ].filter(Boolean);
 
   const weaknessesList = [
@@ -352,7 +460,16 @@ export function calculateDiagnosticPlacement(
     weaknesses: weaknessesList,
   };
 
-  updated.currentMission = generateNextMission(updated);
+  const preferredMissionType: "unseen" | "vocab" | "writing" | undefined =
+    selectedGoal === "reading"
+      ? "unseen"
+      : selectedGoal === "vocabulary"
+      ? "vocab"
+      : selectedGoal === "writing"
+      ? "writing"
+      : undefined;
+
+  updated.currentMission = generateNextMission(updated, preferredMissionType);
   return updated;
 }
 
