@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -27,6 +27,7 @@ import {
   ArrowLeft,
   Search,
   BookMarked,
+  Dice5,
   Volume2,
   Pause,
   CheckCircle2,
@@ -173,8 +174,43 @@ export default function UnseenPracticePage() {
     speech.stop();
   }, [currentStory.id]);
 
+  // Auto-scroll active speech sentence into view smoothly as the user reads / listens
+  useEffect(() => {
+    if (!speech.isActive || !speech.isPlaying) return;
+    const el = document.getElementById(`unseen-speech-sentence-${speech.currentSentenceIndex}`);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+  }, [speech.currentSentenceIndex, speech.isActive, speech.isPlaying]);
+
   // Story selector tabs: "library" vs "ai_generator" (default to AI generator)
   const [storySourceTab, setStorySourceTab] = useState<"library" | "ai_generator">("ai_generator");
+
+  // Library Search Filter
+  const [librarySearchQuery, setLibrarySearchQuery] = useState("");
+
+  const filteredLibraryStories = useMemo(() => {
+    if (!librarySearchQuery.trim()) return levelStories;
+    const q = librarySearchQuery.toLowerCase().trim();
+    return levelStories.filter((s) => {
+      const matchEn = s.title.toLowerCase().includes(q);
+      const matchHe = s.hebrewTitle.includes(q);
+      const matchVocab = s.vocabularyHints.some(
+        (v) => v.word.toLowerCase().includes(q) || v.translation.includes(q)
+      );
+      return matchEn || matchHe || matchVocab;
+    });
+  }, [levelStories, librarySearchQuery]);
+
+  const handleRandomStorySelect = () => {
+    if (levelStories.length === 0) return;
+    const pool = filteredLibraryStories.length > 0 ? filteredLibraryStories : levelStories;
+    const randomIndex = Math.floor(Math.random() * pool.length);
+    const chosen = pool[randomIndex];
+    if (chosen) {
+      handleStorySelect(chosen.id);
+    }
+  };
 
   // AI Story Generation State
   const [aiTopicInput, setAiTopicInput] = useState("");
@@ -1202,32 +1238,128 @@ export default function UnseenPracticePage() {
 
             {/* Library Stories Grid */}
             {storySourceTab === "library" && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2 pt-1">
-                {levelStories.map((story) => {
-                  const isSelected = story.id === currentStory.id;
-                  return (
-                    <button
-                      key={story.id}
+              <div className="space-y-2.5 pt-1">
+                {/* Search & Actions Bar */}
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
+                  <div className="relative flex-1 sm:max-w-xs">
+                    <Search className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+                    <Input
+                      type="text"
+                      placeholder="חיפוש קטע קריאה לפי כותרת או מילים..."
+                      value={librarySearchQuery}
+                      onChange={(e) => setLibrarySearchQuery(e.target.value)}
+                      className="pr-8 text-xs h-8 text-right rtl font-hebrew bg-background/70 border-border/70"
+                    />
+                    {librarySearchQuery && (
+                      <button
+                        type="button"
+                        onClick={() => setLibrarySearchQuery("")}
+                        className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground text-xs"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2 justify-between sm:justify-end">
+                    <span className="text-[11px] text-muted-foreground font-hebrew">
+                      מוצגים {filteredLibraryStories.length} מתוך {levelStories.length} קטעים
+                    </span>
+                    <Button
                       type="button"
-                      onClick={() => handleStorySelect(story.id)}
-                      className={`p-3 rounded-xl border text-left transition cursor-pointer flex flex-col justify-between h-20 ${
-                        isSelected
-                          ? "border-primary bg-primary/10 shadow-2xs ring-1 ring-primary/40"
-                          : "border-border/60 hover:border-primary/40 hover:bg-muted/30"
-                      }`}
+                      variant="outline"
+                      size="sm"
+                      onClick={handleRandomStorySelect}
+                      className="h-8 text-xs gap-1.5 cursor-pointer border-primary/30 text-primary hover:bg-primary/10 font-hebrew shrink-0"
                     >
-                      <div className="min-w-0">
-                        <div className="flex items-center justify-between gap-1">
-                          <h4 className="text-xs font-medium text-foreground truncate font-sans">{story.title}</h4>
-                          {isSelected && <span className="h-1.5 w-1.5 rounded-full bg-primary shrink-0" />}
-                        </div>
-                      </div>
-                      <span className="text-[11px] text-muted-foreground truncate text-right rtl font-hebrew">
-                        {story.hebrewTitle}
-                      </span>
-                    </button>
-                  );
-                })}
+                      <Dice5 className="h-3.5 w-3.5" />
+                      <span>בחירה אקראית</span>
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Grid */}
+                {filteredLibraryStories.length === 0 ? (
+                  <div className="p-6 rounded-xl border border-dashed border-border/80 text-center space-y-2">
+                    <p className="text-xs text-muted-foreground font-hebrew">
+                      לא נמצאו קטעי קריאה התואמים לחיפוש "{librarySearchQuery}"
+                    </p>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setLibrarySearchQuery("")}
+                      className="text-xs text-primary font-hebrew h-7"
+                    >
+                      איפוס חיפוש
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-84 overflow-y-auto pr-1">
+                    {filteredLibraryStories.map((story) => {
+                      const isSelected = story.id === currentStory.id;
+                      const storyIndex = levelStories.findIndex((s) => s.id === story.id) + 1;
+                      const wordCount = story.paragraphs.join(" ").split(/\s+/).length;
+
+                      return (
+                        <button
+                          key={story.id}
+                          type="button"
+                          onClick={() => handleStorySelect(story.id)}
+                          className={`p-3 rounded-xl border transition cursor-pointer flex flex-col justify-between gap-2.5 text-right ${
+                            isSelected
+                              ? "border-primary bg-primary/10 shadow-xs ring-1 ring-primary/40"
+                              : "border-border/70 bg-card hover:border-primary/40 hover:bg-muted/30"
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-2 w-full">
+                            <div className="min-w-0 flex-1">
+                              {/* English Title with explicit LTR */}
+                              <div
+                                className="text-left font-sans font-semibold text-xs sm:text-sm text-foreground line-clamp-1"
+                                dir="ltr"
+                              >
+                                {story.title}
+                              </div>
+                              {/* Hebrew Subtitle */}
+                              <div
+                                className="text-right font-hebrew text-xs text-muted-foreground mt-0.5 line-clamp-1"
+                                dir="rtl"
+                              >
+                                {story.hebrewTitle}
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <Badge
+                                variant="outline"
+                                className="text-[10px] font-mono px-1.5 py-0 h-5 text-muted-foreground border-border/80"
+                              >
+                                #{storyIndex}
+                              </Badge>
+                              {isSelected && (
+                                <span className="h-5 w-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center">
+                                  <Check className="h-3 w-3 stroke-[3]" />
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Footer Meta */}
+                          <div
+                            className="flex items-center justify-between text-[10px] text-muted-foreground/80 pt-1.5 border-t border-border/40 font-hebrew"
+                            dir="rtl"
+                          >
+                            <span>
+                              {wordCount} מילים • {story.questions.length} שאלות
+                            </span>
+                            <span className="text-primary font-medium">100 נקודות</span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             )}
 
@@ -1395,7 +1527,7 @@ export default function UnseenPracticePage() {
       )}
 
       {stage === "exercise" && (
-        <main className="container mx-auto flex-1 px-3 sm:px-8 py-4 sm:py-6 space-y-4 sm:space-y-6 max-w-6xl print:hidden">
+        <main className={`container mx-auto flex-1 px-3 sm:px-8 py-4 sm:py-6 space-y-4 sm:space-y-6 max-w-6xl print:hidden ${speech.isActive ? "pb-32 sm:pb-36" : ""}`}>
           {/* Active Context Ribbon */}
           <div className="flex flex-wrap items-center justify-between bg-card border border-border/60 rounded-xl p-2.5 sm:p-3 shadow-xs print:hidden gap-2.5">
             <div className="flex flex-wrap items-center gap-2 min-w-0">
@@ -1588,9 +1720,9 @@ export default function UnseenPracticePage() {
                         title={
                           speech.isActive
                             ? speech.isPlaying
-                              ? "Pause dictation"
-                              : "Resume dictation"
-                            : "Listen to story with natural voice"
+                              ? "Pause dictation [Space] (השהה)"
+                              : "Resume dictation [Space] (המשך)"
+                            : "Listen to story with natural voice [Space] (האזן לקטע)"
                         }
                       >
                         {speech.isActive && speech.isPlaying ? (
@@ -1637,25 +1769,6 @@ export default function UnseenPracticePage() {
 
                 {/* Story Paragraphs */}
                 <CardContent className="pt-4 space-y-4 notranslate" translate="no" lang="en">
-                  {/* Floating Interactive Speech Dock */}
-                  {speech.isActive && (
-                    <UnseenAudioDock
-                      isPlaying={speech.isPlaying}
-                      isPaused={speech.isPaused}
-                      currentSentenceIndex={speech.currentSentenceIndex}
-                      totalSentences={speech.totalSentences}
-                      rate={speech.rate}
-                      voices={speech.voices}
-                      selectedVoiceURI={speech.selectedVoiceURI}
-                      onTogglePlayPause={speech.togglePlayPause}
-                      onSkipBack={speech.skipBack}
-                      onSkipForward={speech.skipForward}
-                      onChangeRate={speech.changeRate}
-                      onChangeVoice={speech.changeVoice}
-                      onClose={speech.stop}
-                    />
-                  )}
-
                   {currentStory.paragraphs.map((para, pIdx) => {
                     const isHighlighted =
                       activeQuestion &&
@@ -1696,6 +1809,7 @@ export default function UnseenPracticePage() {
                               return (
                                 <span
                                   key={sObj.id}
+                                  id={`unseen-speech-sentence-${sObj.globalIndex}`}
                                   onClick={() => {
                                     if (speech.isActive) {
                                       speech.seekSentence(sObj.globalIndex);
@@ -2503,9 +2617,28 @@ export default function UnseenPracticePage() {
         </main>
       )}
 
+      {/* Floating Audio Controls Dock for Reading Passage (scrolls along with user) */}
+      {stage === "exercise" && speech.isActive && (
+        <UnseenAudioDock
+          isPlaying={speech.isPlaying}
+          isPaused={speech.isPaused}
+          currentSentenceIndex={speech.currentSentenceIndex}
+          totalSentences={speech.totalSentences}
+          rate={speech.rate}
+          voices={speech.voices}
+          selectedVoiceURI={speech.selectedVoiceURI}
+          onTogglePlayPause={speech.togglePlayPause}
+          onSkipBack={speech.skipBack}
+          onSkipForward={speech.skipForward}
+          onChangeRate={speech.changeRate}
+          onChangeVoice={speech.changeVoice}
+          onClose={speech.stop}
+        />
+      )}
+
       {/* Instant Translation Toast / Popup */}
       {clickedWord && (
-        <div className="fixed bottom-4 left-3 right-3 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 z-50 animate-in fade-in-0 slide-in-from-bottom-4 print:hidden">
+        <div className={`fixed ${speech.isActive ? "bottom-24 sm:bottom-28" : "bottom-4"} left-3 right-3 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 z-50 animate-in fade-in-0 slide-in-from-bottom-4 print:hidden`}>
           <div className="bg-card/95 backdrop-blur border border-border/80 shadow-2xl rounded-2xl p-3.5 pr-4 pl-4 min-w-[280px] max-w-sm mx-auto flex flex-col gap-1.5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">

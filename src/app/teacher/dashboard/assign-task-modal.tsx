@@ -311,11 +311,27 @@ export function AssignTaskModal({
                     onChange={(e) => setSelectedTaskId(e.target.value)}
                     className="w-full h-9 rounded-lg border border-input bg-background px-3 text-xs shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring cursor-pointer"
                   >
-                    {MIDDLE_SCHOOL_UNSEENS.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.hebrewTitle} — {s.title} ({s.levelLabel})
-                      </option>
-                    ))}
+                    <optgroup label="רמה 1 - קוראים מתחילים (20 קטעים)">
+                      {MIDDLE_SCHOOL_UNSEENS.filter((s) => s.level === "Level 1").map((s, idx) => (
+                        <option key={s.id} value={s.id}>
+                          #{idx + 1} {s.hebrewTitle} — {s.title}
+                        </option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="רמה 2 - קוראים מתקדמים (20 קטעים)">
+                      {MIDDLE_SCHOOL_UNSEENS.filter((s) => s.level === "Level 2").map((s, idx) => (
+                        <option key={s.id} value={s.id}>
+                          #{idx + 1} {s.hebrewTitle} — {s.title}
+                        </option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="רמה 3 - קוראים מיומנים (20 קטעים)">
+                      {MIDDLE_SCHOOL_UNSEENS.filter((s) => s.level === "Level 3").map((s, idx) => (
+                        <option key={s.id} value={s.id}>
+                          #{idx + 1} {s.hebrewTitle} — {s.title}
+                        </option>
+                      ))}
+                    </optgroup>
                   </select>
                 )}
               </div>

@@ -9,6 +9,7 @@ import {
   saveTutorProfile,
   generateNextMission,
   updateMissionTopic,
+  syncMissionWithDatabase,
   loadTutorChat,
   saveTutorChat,
   DiagnosticAnswer,
@@ -157,7 +158,16 @@ export function TutorChatBox({
   useEffect(() => {
     const saved = loadTutorChat(profile.studentId);
     if (saved && saved.length > 0) {
-      setMessages(saved);
+      const synced = saved.map((m) => {
+        if (m.taskRecommendation) {
+          return {
+            ...m,
+            taskRecommendation: syncMissionWithDatabase(m.taskRecommendation, profile.level),
+          };
+        }
+        return m;
+      });
+      setMessages(synced);
     } else {
       const initialGreeting: TutorMessage = {
         id: `msg-${Date.now()}`,
@@ -526,8 +536,9 @@ export function TutorChatBox({
     if (msgIdx === -1 || !messages[msgIdx].taskRecommendation) return;
 
     const currentRec = messages[msgIdx].taskRecommendation!;
+    const syncedRec = syncMissionWithDatabase(currentRec, profile.level) || currentRec;
     const updatedRec: TutorTaskRecommendation = {
-      ...currentRec,
+      ...syncedRec,
       needsTopicSelection: true,
     };
 
