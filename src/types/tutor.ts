@@ -33,6 +33,11 @@ export interface TutorTaskRecommendation {
   selectedTopicNameHebrew?: string;
   availableTopics?: TaskTopicOption[];
   needsTopicSelection?: boolean;
+  assignmentId?: string;
+  teacherName?: string;
+  teacherInstructions?: string;
+  dueDate?: string;
+  teacherFocusWords?: string[];
 }
 
 export interface StudentTutorProfile {
@@ -79,6 +84,8 @@ export interface TutorTurnInPayload {
     explanationHebrew: string;
   }[];
   vocabToReview: TutorVocabReviewItem[];
+  assignmentId?: string;
+  teacherName?: string;
 }
 
 export interface TutorMessage {

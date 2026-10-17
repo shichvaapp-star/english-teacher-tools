@@ -99,6 +99,7 @@ export default function TeacherDashboardPage() {
   // Assignments State
   const [assignments, setAssignments] = useState<TeacherAssignment[]>([]);
   const [assignModalOpen, setAssignModalOpen] = useState(false);
+  const [assignPreselectedStudentId, setAssignPreselectedStudentId] = useState<string | null>(null);
 
   // Students Roster State
   const [students, setStudents] = useState<StudentProfile[]>([]);
@@ -1493,24 +1494,41 @@ export default function TeacherDashboardPage() {
                         </div>
                       </div>
 
-                      {/* Submissions Count & Average */}
-                      <div className="pt-2 border-t border-border/40 flex items-center justify-between text-xs">
-                        <button
-                          type="button"
-                          onClick={() => setHistoryStudent(student)}
-                          className="flex items-center gap-1.5 text-primary hover:underline cursor-pointer font-bold text-[11px]"
-                        >
-                          <FileText className="h-3.5 w-3.5" />
-                          <span>{stats.total > 0 ? `${stats.total} הגשות` : "אין הגשות"}</span>
-                        </button>
+                      {/* Submissions Count, Average & 1-Click Assign via David */}
+                      <div className="pt-2 border-t border-border/40 flex flex-wrap items-center justify-between gap-2 text-xs">
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setHistoryStudent(student)}
+                            className="flex items-center gap-1.5 text-primary hover:underline cursor-pointer font-bold text-[11px]"
+                          >
+                            <FileText className="h-3.5 w-3.5" />
+                            <span>{stats.total > 0 ? `${stats.total} הגשות` : "אין הגשות"}</span>
+                          </button>
 
-                        {stats.average !== null ? (
-                          <Badge className="text-[10px] bg-emerald-600 text-white font-black">
-                            ממוצע: {stats.average}
-                          </Badge>
-                        ) : (
-                          <span className="text-[10px] text-muted-foreground">טרם הוזן ציון</span>
-                        )}
+                          {stats.average !== null ? (
+                            <Badge className="text-[10px] bg-emerald-600 text-white font-black">
+                              ממוצע: {stats.average}
+                            </Badge>
+                          ) : (
+                            <span className="text-[10px] text-muted-foreground">טרם הוזן ציון</span>
+                          )}
+                        </div>
+
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setAssignPreselectedStudentId(student.id);
+                            setAssignModalOpen(true);
+                          }}
+                          className="h-7 px-2.5 text-[11px] font-bold gap-1 border-indigo-500/40 bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-500/20 cursor-pointer"
+                          title={`שלח משימה מותאמת עם דוד עבור ${student.name}`}
+                        >
+                          <GraduationCap className="h-3.5 w-3.5 text-indigo-500" />
+                          <span>שלח משימה עם דוד</span>
+                        </Button>
                       </div>
                     </div>
                   );
@@ -1809,12 +1827,16 @@ export default function TeacherDashboardPage() {
           ------------------------------------------------------------------- */}
       <AssignTaskModal
         open={assignModalOpen}
-        onOpenChange={setAssignModalOpen}
+        onOpenChange={(open) => {
+          setAssignModalOpen(open);
+          if (!open) setAssignPreselectedStudentId(null);
+        }}
         teacherId={user.id}
         teacherName={user.name}
         students={students}
         availableClasses={availableClasses}
         onTaskAssigned={handleTaskAssigned}
+        preselectedStudentId={assignPreselectedStudentId}
       />
 
       {/* -------------------------------------------------------------------

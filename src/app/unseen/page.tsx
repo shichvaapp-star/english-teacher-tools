@@ -15,8 +15,9 @@ import { UnseenEvaluationResult } from "@/types/unseen";
 import { MIDDLE_SCHOOL_UNSEENS, MSUnseenStory, MSUnseenQuestion, randomizeQuestionsOptions } from "@/data/unseen-middle-school";
 import { lookupBuiltInTranslation } from "@/data/built-in-dictionary";
 import { saveWordToBuilder, VocabItem, loadSavedWords } from "@/lib/vocab-storage";
-import { recordTaskCompletion, submitTaskToDavid } from "@/lib/tutor-engine";
+import { recordTaskCompletion, submitTaskToDavid, resolveFocusWordToReviewItem } from "@/lib/tutor-engine";
 import { TutorVocabReviewItem } from "@/types/tutor";
+import { TeacherAssignment } from "@/types/assignment";
 import { useSpeechPlayer } from "@/lib/use-speech-player";
 import { UnseenAudioDock } from "@/components/unseen/unseen-audio-dock";
 import { Confetti } from "@/components/confetti";
@@ -114,6 +115,7 @@ export default function UnseenPracticePage() {
 
   const [assignedNotice, setAssignedNotice] = useState<string | null>(null);
   const [currentAssignmentId, setCurrentAssignmentId] = useState<string | null>(null);
+  const [activeAssignment, setActiveAssignment] = useState<TeacherAssignment | null>(null);
   const [isFromDavid, setIsFromDavid] = useState(false);
   const [isTurningInToDavid, setIsTurningInToDavid] = useState(false);
 
@@ -129,7 +131,7 @@ export default function UnseenPracticePage() {
       }
       const passageParam = params.get("passageId") || params.get("story");
       const assignIdParam = params.get("assignmentId");
-      if (passageParam && passageParam !== "free_choice") {
+      if (passageParam && passageParam !== "free_choice" && passageParam !== "adaptive_david") {
         const found = MIDDLE_SCHOOL_UNSEENS.find((s) => s.id === passageParam);
         if (found) {
           setSelectedLevel(found.level);
@@ -140,7 +142,17 @@ export default function UnseenPracticePage() {
       }
       if (assignIdParam) {
         setCurrentAssignmentId(assignIdParam);
-        if (!passageParam || passageParam === "free_choice") {
+        try {
+          const rawAssigns = localStorage.getItem("ett_teacher_assignments");
+          if (rawAssigns) {
+            const parsed = JSON.parse(rawAssigns) as TeacherAssignment[];
+            const matchedAssign = parsed.find((a) => a.id === assignIdParam);
+            if (matchedAssign) {
+              setActiveAssignment(matchedAssign);
+            }
+          }
+        } catch {}
+        if (!passageParam || passageParam === "free_choice" || passageParam === "adaptive_david") {
           setAssignedNotice("✨ משימת אנסין בבחירה חופשית מהמורה שלך: בחרו כל קטע קריאה שתרצו (או צרו קטע עם ה-AI), ענו על השאלות והגישו לבדיקה!");
         } else {
           setAssignedNotice("מבחן אנסין זה הוקצה על ידי המורה שלך. בסיום המענה, הגישו לבדיקה.");
@@ -1012,12 +1024,22 @@ export default function UnseenPracticePage() {
     }
 
     const vocabToReview: TutorVocabReviewItem[] = [];
+    if (activeAssignment?.focusWords && activeAssignment.focusWords.length > 0) {
+      for (const fw of activeAssignment.focusWords) {
+        const resolved = resolveFocusWordToReviewItem(fw);
+        if (!vocabToReview.some((v) => v.word.toLowerCase() === resolved.word.toLowerCase())) {
+          vocabToReview.push(resolved);
+        }
+      }
+    }
     if (currentStory.vocabularyHints) {
       for (const h of currentStory.vocabularyHints) {
-        vocabToReview.push({
-          word: h.word,
-          hebrew: h.translation,
-        });
+        if (!vocabToReview.some((v) => v.word.toLowerCase() === h.word.toLowerCase())) {
+          vocabToReview.push({
+            word: h.word,
+            hebrew: h.translation,
+          });
+        }
       }
     }
     for (const sw of savedWords.slice(0, 4)) {
@@ -1027,6 +1049,51 @@ export default function UnseenPracticePage() {
           hebrew: sw.hebrew,
           exampleSentence: sw.example,
         });
+      }
+    }
+
+    // If this was a teacher assignment and hasn't been recorded in teacher submissions yet, save it!
+    if (currentAssignmentId && !isSubmitted) {
+      const teacherObj = teachers.find((t) => t.id === selectedTeacherId) || teachers[0];
+      const receiptCode = `ETT-UN-${Math.floor(100000 + Math.random() * 900000)}`;
+      const autoSub: SubmissionItem = {
+        id: `sub-${Date.now()}`,
+        type: "unseen",
+        studentId: user?.id || `guest-${Date.now()}`,
+        studentName: (studentNameInput.trim() || user?.name || "תלמיד/ה").trim(),
+        teacherId: activeAssignment?.teacherId || (teacherObj ? teacherObj.id : teachers[0]?.id || ""),
+        teacherName: activeAssignment?.teacherName || (teacherObj ? teacherObj.name : teachers[0]?.name || "מורה לאנגלית"),
+        studentClass: studentClassInput || user?.fullClass || "חטיבת ביניים",
+        studentGroup: user?.group || undefined,
+        studentNote: "הוגש בליווי המורה הפרטי דוד 🎓",
+        assignmentId: currentAssignmentId,
+        taskId: currentStory.id,
+        taskTitle: currentStory.title,
+        hebrewTitle: currentStory.hebrewTitle,
+        storyLevel: currentStory.level,
+        passageText: currentStory.paragraphs.join("\n\n"),
+        score: finalScore,
+        grade: finalScore,
+        encouragement: "סיימת בהצלחה את משימת האנסין בליווי דוד!",
+        strengths,
+        submittedAt: new Date().toLocaleString("he-IL"),
+        receiptCode,
+        status: "submitted",
+      };
+      try {
+        const existingJson = localStorage.getItem(LOCAL_SUBMISSIONS_KEY);
+        const list: SubmissionItem[] = existingJson ? JSON.parse(existingJson) : [];
+        list.unshift(autoSub);
+        localStorage.setItem(LOCAL_SUBMISSIONS_KEY, JSON.stringify(list));
+      } catch {}
+      if (db) {
+        try {
+          const payload = cleanForFirestore({
+            ...autoSub,
+            timestamp: new Date().toISOString(),
+          });
+          await setDoc(doc(db, "submissions", autoSub.id), payload, { merge: true });
+        } catch {}
       }
     }
 
@@ -1041,6 +1108,8 @@ export default function UnseenPracticePage() {
       strengths,
       improvements,
       vocabToReview,
+      assignmentId: currentAssignmentId || undefined,
+      teacherName: activeAssignment?.teacherName,
     });
 
     if (typeof window !== "undefined") {

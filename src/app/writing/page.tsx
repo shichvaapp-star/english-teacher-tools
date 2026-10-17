@@ -23,8 +23,9 @@ import {
 } from "@/data/writing-tasks";
 import { lookupBuiltInTranslation } from "@/data/built-in-dictionary";
 import { loadSavedWords, saveWordToBuilder, VocabItem } from "@/lib/vocab-storage";
-import { recordTaskCompletion, submitTaskToDavid } from "@/lib/tutor-engine";
+import { recordTaskCompletion, submitTaskToDavid, resolveFocusWordToReviewItem } from "@/lib/tutor-engine";
 import { TutorVocabReviewItem } from "@/types/tutor";
+import { TeacherAssignment } from "@/types/assignment";
 import type { WritingEvaluationResult } from "@/app/api/evaluate-writing/route";
 import type { ScaffoldingResult } from "@/app/api/scaffold-writing/route";
 import {
@@ -77,6 +78,8 @@ interface SubmissionRecord {
   level: WritingLevel;
   essayText: string;
   wordCount: number;
+  score?: number;
+  grade?: number;
   submittedAt: string;
   receiptCode: string;
   status: "submitted" | "reviewed";
@@ -173,6 +176,7 @@ export default function WritingPracticePage() {
   const [hasAiKeys, setHasAiKeys] = useState(false);
   const [assignedNotice, setAssignedNotice] = useState<string | null>(null);
   const [currentAssignmentId, setCurrentAssignmentId] = useState<string | null>(null);
+  const [activeAssignment, setActiveAssignment] = useState<TeacherAssignment | null>(null);
   const [isFromDavid, setIsFromDavid] = useState(false);
   const [isTurningInToDavid, setIsTurningInToDavid] = useState(false);
 
@@ -191,7 +195,7 @@ export default function WritingPracticePage() {
       if (params.get("from") === "david") {
         setIsFromDavid(true);
       }
-      if (taskIdParam && taskIdParam !== "free_choice") {
+      if (taskIdParam && taskIdParam !== "free_choice" && taskIdParam !== "adaptive_david") {
         const found = ALL_WRITING_TASKS.find((t) => t.id === taskIdParam);
         if (found) {
           setSelectedLevel(found.level);
@@ -201,7 +205,17 @@ export default function WritingPracticePage() {
       }
       if (assignIdParam) {
         setCurrentAssignmentId(assignIdParam);
-        if (!taskIdParam || taskIdParam === "free_choice") {
+        try {
+          const rawAssigns = localStorage.getItem("ett_teacher_assignments");
+          if (rawAssigns) {
+            const parsed = JSON.parse(rawAssigns) as TeacherAssignment[];
+            const matchedAssign = parsed.find((a) => a.id === assignIdParam);
+            if (matchedAssign) {
+              setActiveAssignment(matchedAssign);
+            }
+          }
+        } catch {}
+        if (!taskIdParam || taskIdParam === "free_choice" || taskIdParam === "adaptive_david") {
           setAssignedNotice("✨ משימת בחירה חופשית מהמורה שלך: בחרו כל נושא שתרצו (או צרו נושא עם ה-AI), כתבו והגישו לבדיקה!");
         } else {
           setAssignedNotice("משימה זו הוקצתה על ידי המורה שלך. בסיום הכתיבה, הגישו את המשימה לבדיקה.");
@@ -590,23 +604,82 @@ export default function WritingPracticePage() {
       }
 
       const vocabCandidates: TutorVocabReviewItem[] = [];
+      if (activeAssignment?.focusWords && activeAssignment.focusWords.length > 0) {
+        for (const fw of activeAssignment.focusWords) {
+          const resolved = resolveFocusWordToReviewItem(fw);
+          if (!vocabCandidates.some((v) => v.word.toLowerCase() === resolved.word.toLowerCase())) {
+            vocabCandidates.push(resolved);
+          }
+        }
+      }
       if (evalData?.vocabularyUpgrades) {
         for (const upg of evalData.vocabularyUpgrades) {
           if (upg.enriched && upg.explanationHebrew) {
-            vocabCandidates.push({
-              word: upg.enriched,
-              hebrew: upg.explanationHebrew,
-              exampleSentence: `Instead of "${upg.original}" → use "${upg.enriched}"`,
-            });
+            if (!vocabCandidates.some((v) => v.word.toLowerCase() === upg.enriched.toLowerCase())) {
+              vocabCandidates.push({
+                word: upg.enriched,
+                hebrew: upg.explanationHebrew,
+                exampleSentence: `Instead of "${upg.original}" → use "${upg.enriched}"`,
+              });
+            }
           }
         }
       }
       if (currentTask.wordBank) {
         for (const wb of currentTask.wordBank) {
-          vocabCandidates.push({
-            word: wb.word,
-            hebrew: wb.hebrew,
-          });
+          if (!vocabCandidates.some((v) => v.word.toLowerCase() === wb.word.toLowerCase())) {
+            vocabCandidates.push({
+              word: wb.word,
+              hebrew: wb.hebrew,
+            });
+          }
+        }
+      }
+
+      const finalScore = evalData?.score ?? 80;
+
+      // If this was a teacher assignment and hasn't been submitted to the teacher yet, record it!
+      if (currentAssignmentId && !submissionSuccess) {
+        const teacherObj = teachers.find((t) => t.id === selectedTeacherId) || teachers[0];
+        const receiptCode = `ETT-WR-${Math.floor(100000 + Math.random() * 900000)}`;
+        const autoSub: SubmissionRecord = {
+          id: `sub-${Date.now()}`,
+          type: "writing",
+          studentId: user?.id || `guest-${Date.now()}`,
+          studentName: (studentName.trim() || user?.name || "תלמיד/ה").trim(),
+          teacherId: activeAssignment?.teacherId || (teacherObj ? teacherObj.id : teachers[0]?.id || ""),
+          teacherName: activeAssignment?.teacherName || (teacherObj ? teacherObj.name : teachers[0]?.name || "מורה לאנגלית"),
+          studentClass: studentClass || user?.fullClass || "חטיבת ביניים",
+          studentGroup: user?.group || undefined,
+          studentNote: "הוגש בליווי המורה הפרטי דוד 🎓",
+          assignmentId: currentAssignmentId,
+          taskId: currentTask.id,
+          taskTitle: currentTask.title,
+          hebrewTitle: currentTask.hebrewTitle,
+          category: currentTask.category,
+          level: currentTask.level,
+          essayText: trimmed,
+          wordCount,
+          score: finalScore,
+          grade: finalScore,
+          submittedAt: new Date().toLocaleString("he-IL"),
+          receiptCode,
+          status: "submitted",
+        };
+        try {
+          const existingJson = localStorage.getItem(LOCAL_SUBMISSIONS_KEY);
+          const list: SubmissionRecord[] = existingJson ? JSON.parse(existingJson) : [];
+          list.unshift(autoSub);
+          localStorage.setItem(LOCAL_SUBMISSIONS_KEY, JSON.stringify(list));
+        } catch {}
+        if (db) {
+          try {
+            const payload = cleanForFirestore({
+              ...autoSub,
+              timestamp: new Date().toISOString(),
+            });
+            await setDoc(doc(db, "submissions", autoSub.id), payload, { merge: true });
+          } catch {}
         }
       }
 
@@ -616,7 +689,7 @@ export default function WritingPracticePage() {
         taskId: currentTask.id,
         taskTitle: currentTask.title,
         taskTitleHebrew: currentTask.hebrewTitle,
-        score: evalData?.score ?? 80,
+        score: finalScore,
         completedAt: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         strengths:
           evalData?.strengths && evalData.strengths.length > 0
@@ -628,6 +701,8 @@ export default function WritingPracticePage() {
           explanationHebrew: c.explanationHebrew || "שיפור הניסוח והדקדוק במשפט",
         })),
         vocabToReview: vocabCandidates,
+        assignmentId: currentAssignmentId || undefined,
+        teacherName: activeAssignment?.teacherName,
       });
 
       window.location.href = "/tutor?turnIn=1";

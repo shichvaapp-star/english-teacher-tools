@@ -1,5 +1,5 @@
 import { db } from "@/lib/firebase";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, query, setDoc, where } from "firebase/firestore";
 import {
   StudentTutorProfile,
   TutorLevel,
@@ -10,8 +10,11 @@ import {
   TutorTurnInPayload,
   TutorVocabReviewItem,
 } from "@/types/tutor";
+import { TeacherAssignment } from "@/types/assignment";
+import { ActiveUser } from "@/types/auth";
 import { MIDDLE_SCHOOL_UNSEENS } from "@/data/unseen-middle-school";
 import { ALL_WRITING_TASKS } from "@/data/writing-tasks";
+import { BUILT_IN_DICTIONARY } from "@/data/built-in-dictionary";
 import {
   loadSavedWords,
   MIDDLE_SCHOOL_EASY,
@@ -889,16 +892,20 @@ export function syncMissionWithDatabase(
     }
 
     if (matchingTask) {
+      const assignParam = mission.assignmentId ? `&assignmentId=${mission.assignmentId}` : "";
       return {
         ...mission,
-        id: `mission-writing-${matchingTask.id}`,
+        id: mission.assignmentId ? `mission-assign-${mission.assignmentId}` : `mission-writing-${matchingTask.id}`,
         taskId: matchingTask.id,
         level: targetLevel,
         title: matchingTask.title,
         hebrewTitle: matchingTask.hebrewTitle,
         descriptionHebrew: matchingTask.hebrewInstructions,
-        targetUrl: `/writing?task=${matchingTask.id}&from=david`,
-        availableTopics: freshTopics,
+        targetUrl: `/writing?task=${matchingTask.id}${assignParam}&from=david`,
+        availableTopics: freshTopics.map((t) => ({
+          ...t,
+          targetUrl: `${t.targetUrl}${assignParam}`,
+        })),
         selectedTopicId: matchedTopic ? matchedTopic.id : mission.selectedTopicId,
         selectedTopicNameHebrew: matchedTopic ? matchedTopic.nameHebrew : mission.selectedTopicNameHebrew,
       };
@@ -937,16 +944,20 @@ export function syncMissionWithDatabase(
     }
 
     if (matchingStory) {
+      const assignParam = mission.assignmentId ? `&assignmentId=${mission.assignmentId}` : "";
       return {
         ...mission,
-        id: `mission-unseen-${matchingStory.id}`,
+        id: mission.assignmentId ? `mission-assign-${mission.assignmentId}` : `mission-unseen-${matchingStory.id}`,
         taskId: matchingStory.id,
         level: targetLevel,
         title: matchingStory.title,
         hebrewTitle: matchingStory.hebrewTitle,
         descriptionHebrew: `קראו את קטע הקריאה "${matchingStory.hebrewTitle}" וענו על השאלות. דוד יעקוב אחר התשובות שלכם ויעניק לכם משוב!`,
-        targetUrl: `/unseen?passageId=${matchingStory.id}&from=david`,
-        availableTopics: freshTopics,
+        targetUrl: `/unseen?passageId=${matchingStory.id}${assignParam}&from=david`,
+        availableTopics: freshTopics.map((t) => ({
+          ...t,
+          targetUrl: `${t.targetUrl}${assignParam}`,
+        })),
         selectedTopicId: matchedTopic ? matchedTopic.id : mission.selectedTopicId,
         selectedTopicNameHebrew: matchedTopic ? matchedTopic.nameHebrew : mission.selectedTopicNameHebrew,
       };
@@ -976,14 +987,21 @@ export function updateMissionTopic(
   const found = currentMission.availableTopics.find((t) => t.id === topicId);
   if (!found) return currentMission;
 
+  const assignParam =
+    currentMission.assignmentId && !found.targetUrl.includes("assignmentId=")
+      ? `&assignmentId=${currentMission.assignmentId}`
+      : "";
+
   return {
     ...currentMission,
-    id: `mission-${currentMission.type}-${found.taskId}`,
+    id: currentMission.assignmentId
+      ? `mission-assign-${currentMission.assignmentId}`
+      : `mission-${currentMission.type}-${found.taskId}`,
     taskId: found.taskId,
     title: found.titleEnglish,
     hebrewTitle: found.titleHebrew,
     descriptionHebrew: found.descriptionHebrew || currentMission.descriptionHebrew,
-    targetUrl: found.targetUrl,
+    targetUrl: `${found.targetUrl}${assignParam}`,
     selectedTopicId: found.id,
     selectedTopicNameHebrew: found.nameHebrew,
     needsTopicSelection: false,
@@ -1275,4 +1293,362 @@ export function saveTutorChat(messages: TutorMessage[], userId?: string): void {
     localStorage.setItem(getChatStorageKey(userId), JSON.stringify(messages));
   } catch {}
 }
+
+/**
+ * Resolves a teacher-specified English focus word into a TutorVocabReviewItem
+ * with a Hebrew translation and optional example sentence.
+ */
+export function resolveFocusWordToReviewItem(rawWord: string): TutorVocabReviewItem {
+  const cleanWord = rawWord.trim();
+  const lower = cleanWord.toLowerCase();
+
+  // 1. Check Middle School vocab pools first (includes example sentences)
+  const allCurated = [...MIDDLE_SCHOOL_EASY, ...MIDDLE_SCHOOL_MEDIUM, ...MIDDLE_SCHOOL_HARD];
+  const curatedMatch = allCurated.find((item) => item.english.toLowerCase() === lower);
+  if (curatedMatch) {
+    return {
+      word: curatedMatch.english,
+      hebrew: curatedMatch.hebrew,
+      pos: curatedMatch.partOfSpeech,
+      exampleSentence: curatedMatch.example,
+    };
+  }
+
+  // 2. Check Unseen passages vocabulary lists
+  for (const passage of MIDDLE_SCHOOL_UNSEENS) {
+    if (passage.vocabularyHints) {
+      const passageMatch = passage.vocabularyHints.find(
+        (v) => v.word.toLowerCase() === lower
+      );
+      if (passageMatch) {
+        return {
+          word: passageMatch.word,
+          hebrew: passageMatch.translation,
+          pos: "noun",
+        };
+      }
+    }
+  }
+
+  // 3. Check built-in dictionary
+  const dictMeaning = BUILT_IN_DICTIONARY[lower];
+  if (dictMeaning) {
+    return {
+      word: cleanWord,
+      hebrew: dictMeaning,
+      pos: "noun",
+    };
+  }
+
+  // Fallback
+  return {
+    word: cleanWord,
+    hebrew: "מילת מפתח מהמורה (בדוק במילון בטקסט)",
+    pos: "noun",
+  };
+}
+
+/**
+ * Fetches active, unsubmitted TeacherAssignments targeted to the given student
+ * and converts them into David's TutorTaskRecommendation cards.
+ */
+export async function getPendingTeacherAssignmentsForStudent(
+  studentUser: ActiveUser | null | undefined,
+  studentLevel: TutorLevel
+): Promise<TutorTaskRecommendation[]> {
+  if (typeof window === "undefined") return [];
+
+  let allAssignments: TeacherAssignment[] = [];
+  let submittedIds: string[] = [];
+  let submittedTaskIds: string[] = [];
+
+  // 1. Load from localStorage
+  try {
+    const raw = localStorage.getItem("ett_teacher_assignments");
+    if (raw) {
+      allAssignments = JSON.parse(raw) as TeacherAssignment[];
+    }
+    const rawSubs = localStorage.getItem("ett_writing_submissions");
+    if (rawSubs && studentUser) {
+      const subs = JSON.parse(rawSubs) as Array<{
+        assignmentId?: string;
+        taskId?: string;
+        studentId?: string;
+        studentName?: string;
+      }>;
+      const mySubs = subs.filter(
+        (s) =>
+          s.studentId === studentUser.id ||
+          (s.studentName && s.studentName.toLowerCase() === studentUser.name.toLowerCase())
+      );
+      submittedIds = mySubs.filter((s) => s.assignmentId).map((s) => s.assignmentId!);
+      submittedTaskIds = mySubs.filter((s) => s.taskId).map((s) => s.taskId!);
+    }
+  } catch {}
+
+  // 2. Load from Firestore if configured
+  if (db) {
+    try {
+      const snap = await getDocs(collection(db, "assignments"));
+      const fsList: TeacherAssignment[] = [];
+      snap.forEach((d) => fsList.push({ ...(d.data() as TeacherAssignment), id: d.id }));
+
+      const merged = [...fsList];
+      for (const loc of allAssignments) {
+        if (!merged.some((m) => m.id === loc.id)) {
+          merged.push(loc);
+        }
+      }
+      allAssignments = merged;
+
+      if (studentUser) {
+        const subSnap = await getDocs(
+          query(collection(db, "submissions"), where("studentId", "==", studentUser.id))
+        );
+        subSnap.forEach((d) => {
+          const data = d.data() as { assignmentId?: string; taskId?: string };
+          if (data.assignmentId && !submittedIds.includes(data.assignmentId)) {
+            submittedIds.push(data.assignmentId);
+          }
+          if (data.taskId && !submittedTaskIds.includes(data.taskId)) {
+            submittedTaskIds.push(data.taskId);
+          }
+        });
+      }
+    } catch {}
+  }
+
+  // Filter active and targeted to student
+  const relevant = allAssignments.filter((a) => {
+    if (a.status === "archived") return false;
+    if (submittedIds.includes(a.id)) return false;
+
+    const isChoiceMode = Boolean(
+      a.isFreeChoice || a.isAdaptiveDavid || a.taskId === "free_choice" || a.taskId === "adaptive_david"
+    );
+    if (!isChoiceMode && a.taskId && submittedTaskIds.includes(a.taskId)) {
+      return false;
+    }
+
+    if (!studentUser) {
+      return a.targetType === "all";
+    }
+
+    const teacherMatch =
+      !a.teacherId ||
+      !studentUser.teacherId ||
+      a.teacherId === studentUser.teacherId ||
+      (studentUser.teacherName &&
+        a.teacherName.toLowerCase() === studentUser.teacherName.toLowerCase());
+    if (!teacherMatch) return false;
+
+    if (a.targetType === "all" || !a.targetType) return true;
+    if (a.targetType === "class") {
+      const classMatch =
+        !a.targetClass ||
+        a.targetClass === "all" ||
+        a.targetClass === studentUser.fullClass ||
+        a.targetClass === studentUser.classGrade ||
+        (studentUser.fullClass &&
+          a.targetClass &&
+          studentUser.fullClass.replace(/[׳']/g, "'") === a.targetClass.replace(/[׳']/g, "'"));
+      const groupMatch = !a.targetGroup || a.targetGroup === studentUser.group;
+      return Boolean(classMatch && groupMatch);
+    }
+    if (a.targetType === "group") {
+      return Boolean(studentUser.group && a.targetGroup === studentUser.group);
+    }
+    if (a.targetType === "students") {
+      return Boolean(a.targetStudentIds?.includes(studentUser.id));
+    }
+
+    return false;
+  });
+
+  relevant.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+  // Load any custom unseens or writings if needed
+  let allUnseens = [...MIDDLE_SCHOOL_UNSEENS];
+  let allWritings = [...ALL_WRITING_TASKS];
+  try {
+    const rawUnseens = localStorage.getItem("custom_unseen_passages");
+    if (rawUnseens) {
+      const parsed = JSON.parse(rawUnseens);
+      if (Array.isArray(parsed)) allUnseens = [...parsed, ...allUnseens];
+    }
+    const rawWritings = localStorage.getItem("custom_writing_prompts");
+    if (rawWritings) {
+      const parsed = JSON.parse(rawWritings);
+      if (Array.isArray(parsed)) allWritings = [...parsed, ...allWritings];
+    }
+  } catch {}
+
+  const recommendations: TutorTaskRecommendation[] = [];
+
+  for (const a of relevant) {
+    const targetLevel: TutorLevel = studentLevel;
+
+    if (a.type === "unseen") {
+      const levelTopics = getUnseenTopicsForLevel(targetLevel).map((t) => ({
+        ...t,
+        targetUrl: `/unseen?passageId=${t.taskId}&assignmentId=${a.id}&from=david`,
+      }));
+      const levelPassages = allUnseens.filter((p) => p.level === targetLevel);
+      const specificPassage =
+        !a.isFreeChoice && !a.isAdaptiveDavid
+          ? allUnseens.find((p) => p.id === a.taskId)
+          : undefined;
+      const chosenPassage =
+        specificPassage || levelPassages[0] || allUnseens[0];
+
+      const isChoiceMode = Boolean(a.isFreeChoice || a.isAdaptiveDavid);
+      const defaultTopic = levelTopics[0];
+
+      recommendations.push({
+        id: `mission-assign-${a.id}`,
+        type: "unseen",
+        taskId: chosenPassage.id,
+        title: chosenPassage.title,
+        hebrewTitle: chosenPassage.hebrewTitle || a.title,
+        descriptionHebrew:
+          a.instructions ||
+          (a.isAdaptiveDavid
+            ? `המורה ${a.teacherName} שלח/ה לך משימת קריאה מותאמת לרמה שלך (${targetLevel}) בליווי דוד! בחר/י נושא שמעניין אותך ונתחיל.`
+            : `קראו את הקטע "${chosenPassage.hebrewTitle}" וענו על השאלות בליווי דוד.`),
+        level: chosenPassage.level || targetLevel,
+        targetUrl: `/unseen?passageId=${chosenPassage.id}&assignmentId=${a.id}&from=david`,
+        estimatedMinutes: 12,
+        selectedTopicId: isChoiceMode ? defaultTopic?.id : undefined,
+        selectedTopicNameHebrew: isChoiceMode ? defaultTopic?.nameHebrew : undefined,
+        availableTopics: isChoiceMode ? levelTopics : undefined,
+        needsTopicSelection: isChoiceMode,
+        assignmentId: a.id,
+        teacherName: a.teacherName,
+        teacherInstructions: a.instructions,
+        dueDate: a.dueDate,
+        teacherFocusWords: a.focusWords,
+      });
+    } else if (a.type === "writing") {
+      const levelTopics = getWritingTopicsForLevel(targetLevel).map((t) => ({
+        ...t,
+        targetUrl: `/writing?task=${t.taskId}&assignmentId=${a.id}&from=david`,
+      }));
+      const levelPrompts = allWritings.filter((p) => p.level === targetLevel);
+      const specificPrompt =
+        !a.isFreeChoice && !a.isAdaptiveDavid
+          ? allWritings.find((p) => p.id === a.taskId)
+          : undefined;
+      const chosenPrompt =
+        specificPrompt || levelPrompts[0] || allWritings[0];
+
+      const isChoiceMode = Boolean(a.isFreeChoice || a.isAdaptiveDavid);
+      const defaultTopic = levelTopics[0];
+
+      recommendations.push({
+        id: `mission-assign-${a.id}`,
+        type: "writing",
+        taskId: chosenPrompt.id,
+        title: chosenPrompt.title,
+        hebrewTitle: chosenPrompt.hebrewTitle || a.title,
+        descriptionHebrew:
+          a.instructions ||
+          (a.isAdaptiveDavid
+            ? `המורה ${a.teacherName} ביקש/ה ממני ללוות אותך במשימת כתיבה מותאמת לרמה שלך (${targetLevel})! בחר/י נושא לכתיבה ונתחיל.`
+            : chosenPrompt.hebrewInstructions),
+        level: chosenPrompt.level || targetLevel,
+        targetUrl: `/writing?task=${chosenPrompt.id}&assignmentId=${a.id}&from=david`,
+        estimatedMinutes: 15,
+        selectedTopicId: isChoiceMode ? defaultTopic?.id : undefined,
+        selectedTopicNameHebrew: isChoiceMode ? defaultTopic?.nameHebrew : undefined,
+        availableTopics: isChoiceMode ? levelTopics : undefined,
+        needsTopicSelection: isChoiceMode,
+        assignmentId: a.id,
+        teacherName: a.teacherName,
+        teacherInstructions: a.instructions,
+        dueDate: a.dueDate,
+        teacherFocusWords: a.focusWords,
+      });
+    }
+  }
+
+  return recommendations;
+}
+
+/**
+ * Generates David's pre-task coaching message (key vocabulary + strategic tips)
+ * before the student starts a teacher-assigned mission.
+ */
+export function generateTeacherAssignmentPrepMessage(
+  mission: TutorTaskRecommendation,
+  studentName?: string
+): string {
+  const cleanName = studentName ? studentName.split(" ")[0] : "אלוף/ה";
+
+  // Gather 4-6 vocabulary words to pre-teach
+  const prepWords: TutorVocabReviewItem[] = [];
+  const seen = new Set<string>();
+
+  if (mission.teacherFocusWords && mission.teacherFocusWords.length > 0) {
+    for (const fw of mission.teacherFocusWords) {
+      const resolved = resolveFocusWordToReviewItem(fw);
+      const key = resolved.word.toLowerCase();
+      if (!seen.has(key)) {
+        seen.add(key);
+        prepWords.push(resolved);
+      }
+    }
+  }
+
+  if (prepWords.length < 4 && mission.type === "unseen") {
+    const passage = MIDDLE_SCHOOL_UNSEENS.find((p) => p.id === mission.taskId);
+    if (passage?.vocabularyHints) {
+      for (const v of passage.vocabularyHints) {
+        if (prepWords.length >= 5) break;
+        const key = v.word.toLowerCase();
+        if (!seen.has(key)) {
+          seen.add(key);
+          prepWords.push({ word: v.word, hebrew: v.translation, pos: "noun" });
+        }
+      }
+    }
+  }
+
+  if (prepWords.length < 4) {
+    const fallbackPool = buildVocabPoolForTask([], mission.level);
+    for (const item of fallbackPool) {
+      if (prepWords.length >= 5) break;
+      const key = item.word.toLowerCase();
+      if (!seen.has(key)) {
+        seen.add(key);
+        prepWords.push(item);
+      }
+    }
+  }
+
+  const wordsListText = prepWords
+    .slice(0, 6)
+    .map(
+      (w, idx) =>
+        `${idx + 1}. **${w.word}** — ${w.hebrew}${w.exampleSentence ? ` (*"${w.exampleSentence}"*)` : ""}`
+    )
+    .join("\n");
+
+  const strategyTip =
+    mission.type === "unseen"
+      ? `💡 **טיפ של דוד לקריאה (Unseen):**\nלפני שקוראים את כל הטקסט, קרא/י קודם את הכותרת ואת השאלה הראשונה כדי להבין מה לחפש. אם מילה לא מוכרת לך בטקסט – אפשר ללחוץ עליה ולקבל תרגום מיידי!`
+      : `💡 **טיפ של דוד לכתיבה (Writing):**\nנסה/י לשלב לפחות 2–3 מהמילים שלמעלה בתוך החיבור שלך, והשתמש/י במילות קישור כמו **First**, **In addition**, ו-**Finally** כדי שהכתיבה תהיה מסודרת וברורה.`;
+
+  const teacherNote = mission.teacherInstructions
+    ? `\n📌 **דגש חשוב מהמורה ${mission.teacherName || ""}:** "${mission.teacherInstructions}"\n`
+    : "";
+
+  return `בשמחה ${cleanName}! בוא/י נעשה הכנה קצרה של דקה לפני שאת/ה מתחיל/ה את המשימה **"${mission.hebrewTitle}" (${mission.title})** 🎓${teacherNote}
+🔑 **מילות מפתח שכדאי להכיר לפני שמתחילים (אבחן אותך עליהן בסיום!):**
+${wordsListText}
+
+${strategyTip}
+
+כשאת/ה מוכן/ה – לחץ/י על **"התחל במשימת המורה עכשיו"** בכרטיס שלמעלה, ובסיום אל תשכח/י ללחוץ על **"הגש משימה לדוד"** כדי שנעבור יחד על הציון והמילים! 🚀`;
+}
+
 

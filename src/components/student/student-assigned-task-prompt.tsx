@@ -17,6 +17,7 @@ import {
   ArrowLeft,
   X,
   Sparkles,
+  GraduationCap,
 } from "lucide-react";
 
 const LOCAL_ASSIGNMENTS_KEY = "ett_teacher_assignments";
@@ -135,7 +136,7 @@ export function StudentAssignedTaskPrompt() {
         if (!isTargeted) return false;
 
         // Check if student has ALREADY submitted this assignment
-        const isFreeChoice = assign.isFreeChoice || assign.taskId === "free_choice";
+        const isFreeChoice = assign.isFreeChoice || assign.isAdaptiveDavid || assign.taskId === "free_choice" || assign.taskId === "adaptive_david";
         const alreadySubmitted = studentSubmissions.some((sub) => {
           if (sub.studentId !== stUser.id && sub.studentName.toLowerCase() !== stUser.name.toLowerCase()) {
             return false;
@@ -167,15 +168,15 @@ export function StudentAssignedTaskPrompt() {
 
   // Focus on first pending assignment
   const assignment = pendingAssignments[0];
-  const isFreeChoice = assignment.isFreeChoice || assignment.taskId === "free_choice";
+  const isFreeChoice = assignment.isFreeChoice || assignment.isAdaptiveDavid || assignment.taskId === "free_choice" || assignment.taskId === "adaptive_david";
   const targetUrl =
     assignment.type === "writing"
       ? (isFreeChoice
-          ? `/writing?assignmentId=${assignment.id}`
-          : `/writing?task=${assignment.taskId || ""}&assignmentId=${assignment.id}`)
+          ? `/writing?assignmentId=${assignment.id}&from=david`
+          : `/writing?task=${assignment.taskId || ""}&assignmentId=${assignment.id}&from=david`)
       : (isFreeChoice
-          ? `/unseen?assignmentId=${assignment.id}`
-          : `/unseen?passageId=${assignment.taskId || ""}&assignmentId=${assignment.id}`);
+          ? `/unseen?assignmentId=${assignment.id}&from=david`
+          : `/unseen?passageId=${assignment.taskId || ""}&assignmentId=${assignment.id}&from=david`);
 
   return (
     <div
@@ -221,7 +222,14 @@ export function StudentAssignedTaskPrompt() {
                 </Badge>
               )}
 
-              {isFreeChoice && (
+              {assignment.isAdaptiveDavid && (
+                <Badge variant="outline" className="text-3xs font-bold border-indigo-500/40 text-indigo-700 dark:text-indigo-300 bg-indigo-500/10 gap-1">
+                  <GraduationCap className="h-2.5 w-2.5 text-indigo-500" />
+                  <span>מותאם אישית עם דוד</span>
+                </Badge>
+              )}
+
+              {isFreeChoice && !assignment.isAdaptiveDavid && (
                 <Badge variant="outline" className="text-3xs font-bold border-amber-500/40 text-amber-700 dark:text-amber-300 bg-amber-500/10 gap-1">
                   <Sparkles className="h-2.5 w-2.5 text-amber-500" />
                   <span>בחירה חופשית</span>
@@ -249,7 +257,7 @@ export function StudentAssignedTaskPrompt() {
         </div>
 
         {/* Right / CTA Actions */}
-        <div className="flex items-center gap-2 shrink-0 self-end md:self-center">
+        <div className="flex flex-wrap items-center gap-2 shrink-0 self-end md:self-center">
           <button
             type="button"
             onClick={() => setIsDismissed(true)}
@@ -258,12 +266,23 @@ export function StudentAssignedTaskPrompt() {
             הזכר לי אחר כך
           </button>
 
+          <Link href="/tutor">
+            <Button
+              size="sm"
+              variant="outline"
+              className="text-xs font-bold gap-1.5 cursor-pointer border-indigo-500/50 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 px-3"
+            >
+              <GraduationCap className="h-3.5 w-3.5" />
+              <span>פתור בליווי דוד 🎓</span>
+            </Button>
+          </Link>
+
           <Link href={targetUrl}>
             <Button
               size="sm"
               className="text-xs font-bold gap-1.5 cursor-pointer bg-purple-600 hover:bg-purple-700 text-white shadow-xs px-4"
             >
-              <span>התחל לבצע את המשימה כעת</span>
+              <span>התחל משימה כעת</span>
               <ArrowLeft className="h-3.5 w-3.5" />
             </Button>
           </Link>

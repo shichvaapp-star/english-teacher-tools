@@ -21,6 +21,8 @@ import {
   X,
   AlertCircle,
   Sparkles,
+  GraduationCap,
+  BookA,
 } from "lucide-react";
 
 interface AssignTaskModalProps {
@@ -31,6 +33,7 @@ interface AssignTaskModalProps {
   students: StudentProfile[];
   availableClasses: string[];
   onTaskAssigned: (assignment: TeacherAssignment) => void;
+  preselectedStudentId?: string | null;
 }
 
 export function AssignTaskModal({
@@ -41,9 +44,10 @@ export function AssignTaskModal({
   students,
   availableClasses,
   onTaskAssigned,
+  preselectedStudentId,
 }: AssignTaskModalProps) {
   const [taskType, setTaskType] = useState<"writing" | "unseen">("writing");
-  const [isFreeChoice, setIsFreeChoice] = useState(false);
+  const [selectionMode, setSelectionMode] = useState<"specific" | "adaptive_david" | "free_choice">("specific");
   const [selectedTaskId, setSelectedTaskId] = useState<string>(
     ALL_WRITING_TASKS[0]?.id || ""
   );
@@ -53,18 +57,25 @@ export function AssignTaskModal({
   const [selectedGroup, setSelectedGroup] = useState<StudentGroup | "all" | null>(null);
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
   const [instructions, setInstructions] = useState("");
+  const [focusWordsInput, setFocusWordsInput] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Reset selection on modal open so nothing is pre-selected by default
+  // Reset or pre-select student on modal open
   React.useEffect(() => {
     if (open) {
-      setSelectedClass("");
-      setSelectedGroup(null);
       setError(null);
+      if (preselectedStudentId) {
+        setTargetType("students");
+        setSelectedStudentIds([preselectedStudentId]);
+        setSelectionMode("adaptive_david");
+      } else {
+        setSelectedClass("");
+        setSelectedGroup(null);
+      }
     }
-  }, [open]);
+  }, [open, preselectedStudentId]);
 
   const classList = useMemo(() => {
     if (availableClasses && availableClasses.length > 0) return availableClasses;
@@ -109,10 +120,21 @@ export function AssignTaskModal({
     e.preventDefault();
     setError(null);
 
+    const isFreeChoice = selectionMode === "free_choice";
+    const isAdaptiveDavid = selectionMode === "adaptive_david";
+
     let title = "";
     let hebrewTitle = "";
 
-    if (isFreeChoice) {
+    if (isAdaptiveDavid) {
+      if (taskType === "writing") {
+        title = "Adaptive Writing Mission with David";
+        hebrewTitle = "משימת כתיבה מותאמת אישית עם דוד 🎓";
+      } else {
+        title = "Adaptive Unseen Reading with David";
+        hebrewTitle = "משימת קריאה (Unseen) מותאמת אישית עם דוד 🎓";
+      }
+    } else if (isFreeChoice) {
       if (taskType === "writing") {
         title = "Free Choice Essay";
         hebrewTitle = "חיבור בבחירה חופשית (נושא חופשי)";
@@ -146,6 +168,12 @@ export function AssignTaskModal({
       return;
     }
 
+    const parsedFocusWords = focusWordsInput
+      .split(/[,;\n]+/)
+      .map((w) => w.trim().replace(/[^a-zA-Z\s-]/g, ""))
+      .filter((w) => w.length >= 2)
+      .slice(0, 8);
+
     setIsSubmitting(true);
 
     const newAssignment: TeacherAssignment = {
@@ -155,8 +183,11 @@ export function AssignTaskModal({
       type: taskType,
       title,
       hebrewTitle,
-      taskId: isFreeChoice ? "free_choice" : selectedTaskId,
-      isFreeChoice,
+      taskId: isAdaptiveDavid ? "adaptive_david" : isFreeChoice ? "free_choice" : selectedTaskId,
+      isFreeChoice: isFreeChoice || isAdaptiveDavid,
+      isAdaptiveDavid,
+      focusWords: parsedFocusWords.length > 0 ? parsedFocusWords : undefined,
+      coachWithDavid: true,
       targetType,
       targetClass: targetType === "class" ? selectedClass : undefined,
       targetGroup: targetType === "class" && selectedGroup !== "all" ? (selectedGroup as StudentGroup) : undefined,
@@ -172,9 +203,10 @@ export function AssignTaskModal({
       onOpenChange(false);
       // Reset form
       setInstructions("");
+      setFocusWordsInput("");
       setDueDate("");
       setSelectedStudentIds([]);
-      setIsFreeChoice(false);
+      setSelectionMode("specific");
       setSelectedClass("");
       setSelectedGroup(null);
     } catch (err) {
@@ -192,14 +224,14 @@ export function AssignTaskModal({
         <DialogHeader className="text-right">
           <div className="flex items-center gap-2">
             <div className="p-2 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400">
-              <Send className="h-5 w-5" />
+              <GraduationCap className="h-5 w-5" />
             </div>
             <div>
               <DialogTitle className="text-base sm:text-lg font-black text-foreground">
-                הקצאת משימה חדשה לתלמידים
+                הקצאת משימה לתלמידים (בליווי דוד המורה הפרטי 🎓)
               </DialogTitle>
               <DialogDescription className="text-xs text-muted-foreground">
-                בחרו משימה והגדירו קהל יעד (כיתה, הקבצה או תלמידים ספציפיים). התלמידים יראו הודעה מיד עם כניסתם לאתר.
+                דוד יציג לתלמידים את המשימה, יערוך להם הכנה מוקדמת ומבדק אוצר מילים בסיום, ויעדכן את הציונים בלוח המורה.
               </DialogDescription>
             </div>
           </div>
@@ -245,41 +277,59 @@ export function AssignTaskModal({
             </div>
           </div>
 
-          {/* 2. Topic Selection Mode (Library vs Free Choice) */}
+          {/* 2. Topic Selection Mode (Library vs Adaptive David vs Free Choice) */}
           <div className="space-y-2">
-            <label className="font-bold text-foreground block">בחירת נושא / תוכן המשימה:</label>
+            <label className="font-bold text-foreground block">בחירת נושא / אופן התאמת המשימה:</label>
 
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               <button
                 type="button"
-                onClick={() => setIsFreeChoice(false)}
+                onClick={() => setSelectionMode("specific")}
                 className={`p-2.5 rounded-xl border text-right transition-all cursor-pointer flex flex-col justify-between ${
-                  !isFreeChoice
+                  selectionMode === "specific"
                     ? "border-primary bg-primary/10 text-primary font-bold shadow-2xs"
                     : "border-border text-muted-foreground hover:bg-muted/40"
                 }`}
               >
                 <div className="flex items-center gap-1.5 font-bold text-xs">
                   <Layers className="h-3.5 w-3.5 shrink-0" />
-                  <span>נושא ספציפי מהמאגר</span>
+                  <span>משימה ספציפית</span>
                 </div>
                 <p className="text-[10px] text-muted-foreground mt-1">
-                  {taskType === "writing" ? "בחירת כותרת מתוך רשימת המטלות" : "בחירת קטע אנסין מוגדר"}
+                  {taskType === "writing" ? "בחירת נושא קבוע מהמאגר" : "בחירת קטע אנסין מוגדר"}
                 </p>
               </button>
 
               <button
                 type="button"
-                onClick={() => setIsFreeChoice(true)}
+                onClick={() => setSelectionMode("adaptive_david")}
                 className={`p-2.5 rounded-xl border text-right transition-all cursor-pointer flex flex-col justify-between ${
-                  isFreeChoice
+                  selectionMode === "adaptive_david"
+                    ? "border-indigo-500 bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 font-bold shadow-2xs ring-1 ring-indigo-500/40"
+                    : "border-border text-muted-foreground hover:bg-muted/40"
+                }`}
+              >
+                <div className="flex items-center gap-1.5 font-bold text-xs">
+                  <GraduationCap className="h-3.5 w-3.5 text-indigo-500 shrink-0" />
+                  <span>מותאם רמה ע״י דוד</span>
+                </div>
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  דוד מתאים לכל תלמיד לפי רמתו האישית (Level 1-3)
+                </p>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setSelectionMode("free_choice")}
+                className={`p-2.5 rounded-xl border text-right transition-all cursor-pointer flex flex-col justify-between ${
+                  selectionMode === "free_choice"
                     ? "border-purple-500 bg-purple-500/10 text-purple-700 dark:text-purple-300 font-bold shadow-2xs"
                     : "border-border text-muted-foreground hover:bg-muted/40"
                 }`}
               >
                 <div className="flex items-center gap-1.5 font-bold text-xs">
                   <Sparkles className="h-3.5 w-3.5 text-purple-500 shrink-0" />
-                  <span>בחירה חופשית לתלמיד/ה</span>
+                  <span>בחירה חופשית</span>
                 </div>
                 <p className="text-[10px] text-muted-foreground mt-1">
                   התלמיד בוחר נושא בעצמו או יוצר ב-AI
@@ -287,8 +337,8 @@ export function AssignTaskModal({
               </button>
             </div>
 
-            {/* Dropdown if specific topic, or info callout if free choice */}
-            {!isFreeChoice ? (
+            {/* Dropdown if specific topic, or info callout if adaptive / free choice */}
+            {selectionMode === "specific" ? (
               <div className="space-y-1 pt-1">
                 <label className="text-[11px] text-muted-foreground block">
                   {taskType === "writing" ? "בחירת נושא החיבור מתוך המאגר:" : "בחירת קטע קריאה (Unseen):"}
@@ -334,6 +384,18 @@ export function AssignTaskModal({
                     </optgroup>
                   </select>
                 )}
+              </div>
+            ) : selectionMode === "adaptive_david" ? (
+              <div className="p-3 rounded-xl bg-indigo-500/10 border border-indigo-500/30 flex items-start gap-2.5 text-xs text-indigo-950 dark:text-indigo-200">
+                <GraduationCap className="h-4 w-4 text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <span className="font-bold block">
+                    דוד יתאים לכל תלמיד/ה {taskType === "writing" ? "משימת כתיבה" : "קטע קריאה (Unseen)"} בדיוק לפי רמתו/ה!
+                  </span>
+                  <p className="text-[11px] text-muted-foreground leading-relaxed">
+                    מתאים במיוחד לכיתות הטרוגניות: כל תלמיד יקבל מדוד משימה ברמה האישית שלו (Level 1, Level 2 או Level 3), יבחר נושא שמעניין אותו, יעבור מבדק אוצר מילים בסיום, והציון יופיע אוטומטית בלוח המורה.
+                  </p>
+                </div>
               </div>
             ) : (
               <div className="p-3 rounded-xl bg-purple-500/10 border border-purple-500/30 flex items-start gap-2.5 text-xs text-purple-900 dark:text-purple-200">
@@ -535,10 +597,28 @@ export function AssignTaskModal({
             )}
           </div>
 
-          {/* 4. Teacher Custom Instructions */}
+          {/* 4. Teacher Focus Words for David's Vocabulary Quiz */}
+          <div className="space-y-1">
+            <label className="font-bold text-foreground flex items-center gap-1.5">
+              <BookA className="h-3.5 w-3.5 text-indigo-500" />
+              <span>מילות מפתח באנגלית לתרגול ומבדק עם דוד (אופציונלי):</span>
+            </label>
+            <Input
+              placeholder="e.g., environment, pollute, recycle, solution, protect"
+              value={focusWordsInput}
+              onChange={(e) => setFocusWordsInput(e.target.value)}
+              className="h-8 text-xs font-sans text-left"
+              dir="ltr"
+            />
+            <span className="text-[10px] text-muted-foreground block">
+              דוד ילמד את התלמידים את המילים האלו לפני המשימה ויבחן אותם עליהן בסיום (מילים שלא ידעו יישמרו אוטומטית במילון האישי שלהם).
+            </span>
+          </div>
+
+          {/* 5. Teacher Custom Instructions */}
           <div className="space-y-1">
             <label className="font-bold text-foreground block">
-              הנחיות ודגשים מהמורה לתלמידים (אופציונלי):
+              הנחיות ודגשים מהמורה לתלמידים ולדוד (אופציונלי):
             </label>
             <Textarea
               placeholder="למשל: נא לכתוב לפחות 60 מילים, להקפיד על שימוש באותיות גדולות (Capital Letters) ובמילות קישור שלמדנו השבוע."
@@ -548,7 +628,7 @@ export function AssignTaskModal({
             />
           </div>
 
-          {/* 5. Due Date */}
+          {/* 6. Due Date */}
           <div className="space-y-1">
             <label className="font-bold text-foreground block">יעד להגשה (Due Date - אופציונלי):</label>
             <Input

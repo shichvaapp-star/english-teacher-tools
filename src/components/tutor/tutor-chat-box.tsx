@@ -22,8 +22,11 @@ import {
   loadTutorChat,
   saveTutorChat,
   consumePendingTurnIn,
+  getPendingTeacherAssignmentsForStudent,
+  generateTeacherAssignmentPrepMessage,
   DiagnosticAnswer,
 } from "@/lib/tutor-engine";
+import { useAuth } from "@/lib/auth-context";
 import {
   saveWordToBuilder,
   MIDDLE_SCHOOL_EASY,
@@ -67,6 +70,8 @@ import {
   CheckCircle2,
   BookMarked,
   HelpCircle,
+  Calendar,
+  Lightbulb,
 } from "lucide-react";
 
 interface TutorChatBoxProps {
@@ -512,6 +517,7 @@ export function TutorChatBox({
   studentName,
   onOpenStats,
 }: TutorChatBoxProps) {
+  const { user } = useAuth();
   const [messages, setMessages] = useState<TutorMessage[]>([]);
   const [inputText, setInputText] = useState("");
   const [isSending, setIsSending] = useState(false);
@@ -657,10 +663,13 @@ export function TutorChatBox({
       );
 
       if (!alreadyAppended) {
+        const teacherAck = pendingTurnIn.teacherName
+          ? ` (משימה מהמורה ${pendingTurnIn.teacherName})`
+          : "";
         const turnInMsg: TutorMessage = {
           id: `msg-turnin-${Date.now()}`,
           sender: "tutor",
-          text: `Well done ${studentName}! You scored ${pendingTurnIn.score}/100 on "${pendingTurnIn.taskTitle}". Let's review your work together, test ${pendingTurnIn.vocabToReview.length} vocabulary words (any word you don't know will be saved automatically to your Personal Dictionary), and then continue to your next practice!`,
+          text: `Well done ${studentName}! You scored ${pendingTurnIn.score}/100 on "${pendingTurnIn.taskTitle}"${teacherAck}. Let's review your work together, test ${pendingTurnIn.vocabToReview.length} vocabulary words (any word you don't know will be saved automatically to your Personal Dictionary), and then continue to your next practice!`,
           timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
           turnInReview: pendingTurnIn,
           quickReplies: ["תן לי משימה חדשה 🚀", "תרגל אוצר מילים"],
@@ -676,11 +685,87 @@ export function TutorChatBox({
       if (typeof window !== "undefined" && window.location.search.includes("turnIn=1")) {
         window.history.replaceState({}, "", "/tutor");
       }
+      setMessages(baseMessages);
+      saveTutorChat(baseMessages, profile.studentId);
+      return;
     }
 
     setMessages(baseMessages);
     saveTutorChat(baseMessages, profile.studentId);
-  }, [profile.studentId, profile.diagnosticCompleted]);
+
+    // If diagnostic is completed and no turn-in is in progress, check for pending teacher assignments!
+    if (profile.diagnosticCompleted) {
+      getPendingTeacherAssignmentsForStudent(user, profile.level).then(
+        (teacherMissions) => {
+          if (!teacherMissions || teacherMissions.length === 0) return;
+          const topMission = teacherMissions[0];
+          setMessages((prev) => {
+            const alreadyShown = prev.some(
+              (m) =>
+                m.taskRecommendation &&
+                m.taskRecommendation.assignmentId === topMission.assignmentId
+            );
+            if (alreadyShown) return prev;
+
+            const tName = topMission.teacherName || "שלך";
+            const typeHeb =
+              topMission.type === "unseen" ? "הבנת הנקרא (Unseen)" : "כתיבה (Writing)";
+            const teacherMsg: TutorMessage = {
+              id: `msg-teacher-assign-${topMission.assignmentId}`,
+              sender: "tutor",
+              text: `היי ${studentName}! 🎓 המורה **${tName}** שלח/ה לך משימת ${typeHeb} חדשה בליווי שלי!${
+                topMission.teacherInstructions
+                  ? `\n📌 **הנחיית המורה:** "${topMission.teacherInstructions}"`
+                  : ""
+              }\n\nאפשר לעשות איתי הכנה מהירה של מילות מפתח וטיפים לפני שמתחילים, או לצלול ישר למשימה:`,
+              timestamp: new Date().toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              }),
+              taskRecommendation: topMission,
+              quickReplies: [
+                "💡 הכנה מהירה עם דוד",
+                "🎲 דוד, בחר עבורי",
+              ],
+            };
+            const nextMsgs = [...prev, teacherMsg];
+            saveTutorChat(nextMsgs, profile.studentId);
+            return nextMsgs;
+          });
+        }
+      );
+    }
+  }, [profile.studentId, profile.diagnosticCompleted, user?.id]);
+
+  // Pre-teach vocabulary and strategy tips for a teacher assignment
+  const handlePrepTeacherAssignment = (mission: TutorTaskRecommendation) => {
+    const studentReqMsg: TutorMessage = {
+      id: `msg-prep-req-${Date.now()}`,
+      sender: "student",
+      text: "💡 דוד, אשמח להכנה מהירה לפני שאני מתחיל את משימת המורה!",
+      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+    };
+
+    const prepText = generateTeacherAssignmentPrepMessage(mission, studentName);
+    const tutorPrepMsg: TutorMessage = {
+      id: `msg-prep-res-${Date.now() + 1}`,
+      sender: "tutor",
+      text: prepText,
+      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      taskRecommendation: {
+        ...mission,
+        needsTopicSelection: false,
+      },
+      quickReplies: ["התחל עכשיו 🚀", "החלף נושא"],
+    };
+
+    const updatedMsgs = [...messages, studentReqMsg, tutorPrepMsg];
+    setMessages(updatedMsgs);
+    saveTutorChat(updatedMsgs, profile.studentId);
+    speakText(
+      `Great idea ${studentName}! Let's review the key vocabulary words and my top tip before you start your teacher's assignment.`
+    );
+  };
 
   // Launch Step 3 (Next Practice Mission) after completing Step 2 (Vocabulary Test)
   const handleStartNextMissionAfterTurnIn = (completedType: "unseen" | "writing" | "vocab") => {
@@ -901,6 +986,16 @@ export function TutorChatBox({
     if (!text || isSending) return;
 
     setInputText("");
+
+    if (text.includes("הכנה מהירה עם דוד")) {
+      const lastTeacherMission = [...messages]
+        .reverse()
+        .find((m) => m.taskRecommendation)?.taskRecommendation;
+      if (lastTeacherMission) {
+        handlePrepTeacherAssignment(lastTeacherMission);
+        return;
+      }
+    }
 
     const userMsg: TutorMessage = {
       id: `msg-${Date.now()}`,
@@ -1456,7 +1551,31 @@ export function TutorChatBox({
             {/* Attached Actionable Task Card */}
             {msg.taskRecommendation && (
               <div className="mt-2.5 mr-11 max-w-[92%] sm:max-w-[85%] text-right font-sans">
-                <Card className="border-2 border-primary/40 bg-card p-4 sm:p-5 rounded-2xl shadow-sm text-right space-y-3">
+                <Card
+                  className={`border-2 p-4 sm:p-5 rounded-2xl shadow-sm text-right space-y-3 ${
+                    msg.taskRecommendation.assignmentId
+                      ? "border-purple-500/50 bg-purple-500/5 dark:bg-purple-500/10"
+                      : "border-primary/40 bg-card"
+                  }`}
+                >
+                  {/* Teacher Mission Banner when assigned by a teacher */}
+                  {msg.taskRecommendation.assignmentId && (
+                    <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-purple-500/20">
+                      <Badge className="bg-purple-600 hover:bg-purple-600 text-white text-xs font-bold gap-1.5 px-2.5 py-0.5">
+                        <GraduationCap className="h-3.5 w-3.5" />
+                        <span>
+                          משימה מהמורה {msg.taskRecommendation.teacherName || ""}
+                        </span>
+                      </Badge>
+                      {msg.taskRecommendation.dueDate && (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-purple-700 dark:text-purple-300 bg-purple-500/10 px-2 py-0.5 rounded-full">
+                          <Calendar className="h-3 w-3" />
+                          <span>הגשה עד: {msg.taskRecommendation.dueDate}</span>
+                        </span>
+                      )}
+                    </div>
+                  )}
+
                   <div className="flex items-center justify-between gap-2">
                     <span className="flex items-center gap-1.5 text-xs sm:text-sm font-bold text-primary">
                       {msg.taskRecommendation.type === "unseen" && <BookOpen className="h-4 w-4" />}
@@ -1464,6 +1583,8 @@ export function TutorChatBox({
                       {msg.taskRecommendation.type === "writing" && <PenTool className="h-4 w-4" />}
                       {msg.taskRecommendation.needsTopicSelection
                         ? "שלב 1: בחירת נושא לתרגול"
+                        : msg.taskRecommendation.assignmentId
+                        ? "משימת כיתה בליווי דוד"
                         : "משימה מותאמת עבורך"}
                     </span>
                     <Badge variant="outline" className="text-xs py-0.5 px-2 bg-muted/40 border-border/70">
@@ -1527,6 +1648,20 @@ export function TutorChatBox({
                           </div>
                         </div>
                       )}
+
+                      {/* Pre-task coaching button even during topic selection for teacher assignments */}
+                      {msg.taskRecommendation.assignmentId && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handlePrepTeacherAssignment(msg.taskRecommendation!)}
+                          className="w-full gap-2 font-bold text-xs sm:text-sm border-purple-500/40 text-purple-700 dark:text-purple-300 hover:bg-purple-500/10 cursor-pointer h-9"
+                        >
+                          <Lightbulb className="h-4 w-4 text-amber-500" />
+                          <span>💡 הכנה מהירה עם דוד (מילים וטיפים לפני שמתחילים)</span>
+                        </Button>
+                      )}
                     </div>
                   ) : (
                     /* Topic Confirmed - Ready to Launch */
@@ -1547,10 +1682,35 @@ export function TutorChatBox({
                         </p>
                       </div>
 
+                      {/* Pre-task Coaching Button for Teacher Assignments */}
+                      {msg.taskRecommendation.assignmentId && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handlePrepTeacherAssignment(msg.taskRecommendation!)}
+                          className="w-full gap-2 font-bold text-xs sm:text-sm border-purple-500/40 text-purple-700 dark:text-purple-300 hover:bg-purple-500/10 cursor-pointer h-9"
+                        >
+                          <Lightbulb className="h-4 w-4 text-amber-500" />
+                          <span>💡 הכנה מהירה עם דוד (מילים וטיפים לפני שמתחילים)</span>
+                        </Button>
+                      )}
+
                       {/* Ready Action Button */}
                       <Link href={msg.taskRecommendation.targetUrl} className="block w-full pt-1">
-                        <Button size="sm" className="w-full gap-2 font-bold h-10 text-sm sm:text-base cursor-pointer shadow-xs">
-                          <span>התחל משימה עכשיו 🚀</span>
+                        <Button
+                          size="sm"
+                          className={`w-full gap-2 font-bold h-10 text-sm sm:text-base cursor-pointer shadow-xs ${
+                            msg.taskRecommendation.assignmentId
+                              ? "bg-purple-600 hover:bg-purple-700 text-white"
+                              : ""
+                          }`}
+                        >
+                          <span>
+                            {msg.taskRecommendation.assignmentId
+                              ? "התחל במשימת המורה עכשיו 🚀"
+                              : "התחל משימה עכשיו 🚀"}
+                          </span>
                           <ArrowLeft className="h-4 w-4" />
                         </Button>
                       </Link>
