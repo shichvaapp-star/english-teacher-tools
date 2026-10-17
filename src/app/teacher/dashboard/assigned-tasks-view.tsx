@@ -17,6 +17,7 @@ import {
   Trash2,
   Plus,
   Sparkles,
+  GraduationCap,
 } from "lucide-react";
 
 interface AssignedTasksViewProps {
@@ -25,6 +26,7 @@ interface AssignedTasksViewProps {
   students: StudentProfile[];
   onArchiveAssignment: (id: string) => Promise<void>;
   onOpenAssignModal: () => void;
+  onToggleDavid?: (id: string, enabled: boolean) => void;
 }
 
 export function AssignedTasksView({
@@ -33,6 +35,7 @@ export function AssignedTasksView({
   students,
   onArchiveAssignment,
   onOpenAssignModal,
+  onToggleDavid,
 }: AssignedTasksViewProps) {
   // Helper to compute turn-in count for an assignment
   const getAssignmentStats = (assignment: TeacherAssignment) => {
@@ -135,6 +138,7 @@ export function AssignedTasksView({
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
         {assignments.map((assignment) => {
           const stats = getAssignmentStats(assignment);
+          const isDavidEnabled = Boolean(assignment.coachWithDavid || assignment.isAdaptiveDavid);
           return (
             <div
               key={assignment.id}
@@ -234,6 +238,32 @@ export function AssignedTasksView({
                     <span>יעד להגשה: {assignment.dueDate}</span>
                   </div>
                 )}
+
+                {/* David Tutor Toggle Row */}
+                <div className="flex items-center justify-between pt-1">
+                  <span className="text-[11px] text-muted-foreground flex items-center gap-1.5 font-medium">
+                    <GraduationCap className={`h-3.5 w-3.5 ${isDavidEnabled ? "text-indigo-500" : "text-muted-foreground"}`} />
+                    <span>ליווי עם דוד (מורה פרטי):</span>
+                  </span>
+                  {onToggleDavid ? (
+                    <button
+                      type="button"
+                      onClick={() => onToggleDavid(assignment.id, !isDavidEnabled)}
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full border transition-all cursor-pointer ${
+                        isDavidEnabled
+                          ? "border-indigo-500/50 bg-indigo-500/15 text-indigo-700 dark:text-indigo-300"
+                          : "border-border bg-muted/40 text-muted-foreground hover:text-foreground"
+                      }`}
+                      title="לחץ להפעלה או כיבוי של ליווי דוד למשימה זו"
+                    >
+                      {isDavidEnabled ? "פעיל ✓" : "כבוי"}
+                    </button>
+                  ) : (
+                    <Badge variant="outline" className="text-[10px]">
+                      {isDavidEnabled ? "פעיל" : "כבוי"}
+                    </Badge>
+                  )}
+                </div>
               </div>
 
               {/* Progress Bar & Ratio */}

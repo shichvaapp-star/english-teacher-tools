@@ -168,15 +168,17 @@ export function StudentAssignedTaskPrompt() {
 
   // Focus on first pending assignment
   const assignment = pendingAssignments[0];
+  const useDavid = Boolean(assignment.coachWithDavid || assignment.isAdaptiveDavid);
+  const davidSuffix = useDavid ? "&from=david" : "";
   const isFreeChoice = assignment.isFreeChoice || assignment.isAdaptiveDavid || assignment.taskId === "free_choice" || assignment.taskId === "adaptive_david";
   const targetUrl =
     assignment.type === "writing"
       ? (isFreeChoice
-          ? `/writing?assignmentId=${assignment.id}&from=david`
-          : `/writing?task=${assignment.taskId || ""}&assignmentId=${assignment.id}&from=david`)
+          ? `/writing?assignmentId=${assignment.id}${davidSuffix}`
+          : `/writing?task=${assignment.taskId || ""}&assignmentId=${assignment.id}${davidSuffix}`)
       : (isFreeChoice
-          ? `/unseen?assignmentId=${assignment.id}&from=david`
-          : `/unseen?passageId=${assignment.taskId || ""}&assignmentId=${assignment.id}&from=david`);
+          ? `/unseen?assignmentId=${assignment.id}${davidSuffix}`
+          : `/unseen?passageId=${assignment.taskId || ""}&assignmentId=${assignment.id}${davidSuffix}`);
 
   return (
     <div
@@ -222,10 +224,10 @@ export function StudentAssignedTaskPrompt() {
                 </Badge>
               )}
 
-              {assignment.isAdaptiveDavid && (
+              {useDavid && (
                 <Badge variant="outline" className="text-3xs font-bold border-indigo-500/40 text-indigo-700 dark:text-indigo-300 bg-indigo-500/10 gap-1">
                   <GraduationCap className="h-2.5 w-2.5 text-indigo-500" />
-                  <span>מותאם אישית עם דוד</span>
+                  <span>{assignment.isAdaptiveDavid ? "מותאם אישית עם דוד" : "בליווי דוד"}</span>
                 </Badge>
               )}
 
@@ -266,16 +268,18 @@ export function StudentAssignedTaskPrompt() {
             הזכר לי אחר כך
           </button>
 
-          <Link href="/tutor">
-            <Button
-              size="sm"
-              variant="outline"
-              className="text-xs font-bold gap-1.5 cursor-pointer border-indigo-500/50 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 px-3"
-            >
-              <GraduationCap className="h-3.5 w-3.5" />
-              <span>פתור בליווי דוד 🎓</span>
-            </Button>
-          </Link>
+          {useDavid && (
+            <Link href="/tutor">
+              <Button
+                size="sm"
+                variant="outline"
+                className="text-xs font-bold gap-1.5 cursor-pointer border-indigo-500/50 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 px-3"
+              >
+                <GraduationCap className="h-3.5 w-3.5" />
+                <span>פתור בליווי דוד 🎓</span>
+              </Button>
+            </Link>
+          )}
 
           <Link href={targetUrl}>
             <Button

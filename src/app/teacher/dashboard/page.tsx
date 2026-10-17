@@ -493,6 +493,36 @@ export default function TeacherDashboardPage() {
     }
   };
 
+  const handleToggleAssignmentDavid = async (id: string, enabled: boolean) => {
+    const updated = assignments.map((a) =>
+      a.id === id
+        ? {
+            ...a,
+            coachWithDavid: enabled,
+            // If disabling David on an adaptive_david task, fall back to free_choice so the student can still pick a task
+            isAdaptiveDavid: enabled ? a.isAdaptiveDavid : false,
+          }
+        : a
+    );
+    setAssignments(updated);
+    try {
+      localStorage.setItem(LOCAL_ASSIGNMENTS_KEY, JSON.stringify(updated));
+    } catch {
+      // Ignore
+    }
+
+    if (db) {
+      try {
+        await updateDoc(doc(db, "assignments", id), {
+          coachWithDavid: enabled,
+          ...(enabled ? {} : { isAdaptiveDavid: false }),
+        });
+      } catch (err) {
+        console.warn("Firestore toggle assignment David notice:", err);
+      }
+    }
+  };
+
   // ---------------------------------------------------------------------------
   // REVIEW & GRADING ACTIONS
   // ---------------------------------------------------------------------------
@@ -1322,6 +1352,7 @@ export default function TeacherDashboardPage() {
               submissions={submissions}
               students={students}
               onArchiveAssignment={handleArchiveAssignment}
+              onToggleDavid={handleToggleAssignmentDavid}
               onOpenAssignModal={() => setAssignModalOpen(true)}
             />
           </div>
@@ -1523,11 +1554,11 @@ export default function TeacherDashboardPage() {
                             setAssignPreselectedStudentId(student.id);
                             setAssignModalOpen(true);
                           }}
-                          className="h-7 px-2.5 text-[11px] font-bold gap-1 border-indigo-500/40 bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-500/20 cursor-pointer"
-                          title={`שלח משימה מותאמת עם דוד עבור ${student.name}`}
+                          className="h-7 px-2.5 text-[11px] font-bold gap-1 border-purple-500/40 bg-purple-500/10 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20 cursor-pointer"
+                          title={`הקצה משימה אישית עבור ${student.name}`}
                         >
-                          <GraduationCap className="h-3.5 w-3.5 text-indigo-500" />
-                          <span>שלח משימה עם דוד</span>
+                          <Send className="h-3 w-3 text-purple-500" />
+                          <span>הקצה משימה</span>
                         </Button>
                       </div>
                     </div>

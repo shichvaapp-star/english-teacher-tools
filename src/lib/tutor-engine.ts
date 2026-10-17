@@ -1418,9 +1418,10 @@ export async function getPendingTeacherAssignmentsForStudent(
     } catch {}
   }
 
-  // Filter active and targeted to student
+  // Filter active and targeted to student (only assignments with David enabled)
   const relevant = allAssignments.filter((a) => {
     if (a.status === "archived") return false;
+    if (!a.coachWithDavid && !a.isAdaptiveDavid) return false;
     if (submittedIds.includes(a.id)) return false;
 
     const isChoiceMode = Boolean(
