@@ -522,9 +522,10 @@ export function TutorChatBox({
   const [showVoiceDialog, setShowVoiceDialog] = useState(false);
   const [previewingVoiceId, setPreviewingVoiceId] = useState<string | null>(null);
 
-  // Diagnostic state inside chat
-  const [diagnosticIndex, setDiagnosticIndex] = useState<number | null>(
-    profile.diagnosticCompleted ? null : 0
+  // Diagnostic state inside chat: wait for student's first reply before showing Question 1
+  const [diagnosticIndex, setDiagnosticIndex] = useState<number | null>(null);
+  const [awaitingDiagnosticStart, setAwaitingDiagnosticStart] = useState<boolean>(
+    !profile.diagnosticCompleted
   );
   const [diagnosticAnswers, setDiagnosticAnswers] = useState<DiagnosticAnswer[]>([]);
   const [diagnosticWritingText, setDiagnosticWritingText] = useState("");
@@ -594,9 +595,11 @@ export function TutorChatBox({
     };
   }, []);
 
-  // Scroll to bottom on new message
+  // Scroll to bottom on new message (only when conversation has progressed beyond the initial greeting)
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (messages.length > 1 || diagnosticIndex !== null || isSending) {
+      chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
   }, [messages, isSending, diagnosticIndex]);
 
   // Load chat history or create clean initial greeting, and consume any pending turn-in from an assignment
@@ -604,7 +607,7 @@ export function TutorChatBox({
     const saved = loadTutorChat(profile.studentId);
     let baseMessages: TutorMessage[] = [];
 
-    if (saved && saved.length > 0) {
+    if (saved && saved.length > 0 && profile.diagnosticCompleted) {
       baseMessages = saved.map((m) => {
         if (m.taskRecommendation) {
           return {
@@ -614,6 +617,7 @@ export function TutorChatBox({
         }
         return m;
       });
+      setAwaitingDiagnosticStart(false);
     } else {
       const initialGreeting: TutorMessage = {
         id: `msg-${Date.now()}`,
@@ -624,9 +628,11 @@ export function TutorChatBox({
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         quickReplies: profile.diagnosticCompleted
           ? ["תן לי משימת קריאה (Unseen)", "תרגל אוצר מילים", "בוא נכתוב חיבור"]
-          : ["בוא נתחיל!", "ספר לי עוד על דוד"],
+          : ["כן, בוא נתחיל! 🚀", "ספר לי עוד על דוד"],
       };
       baseMessages = [initialGreeting];
+      setAwaitingDiagnosticStart(!profile.diagnosticCompleted);
+      setDiagnosticIndex(null);
     }
 
     const pendingTurnIn = consumePendingTurnIn(profile.studentId);
@@ -1066,12 +1072,63 @@ export function TutorChatBox({
     saveTutorChat(newMsgs, profile.studentId);
   };
 
+  // Start the 4-question diagnostic after student replies to David's initial greeting
+  const handleStartDiagnosticFlow = (replyText = "כן, בוא נתחיל! 🚀") => {
+    const userMsg: TutorMessage = {
+      id: `msg-${Date.now()}`,
+      sender: "student",
+      text: replyText,
+      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+    };
+
+    const tutorIntro: TutorMessage = {
+      id: `msg-${Date.now() + 1}`,
+      sender: "tutor",
+      text: `Awesome, ${studentName}! Here is question 1 of ${DIAGNOSTIC_STEPS.length}:`,
+      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+    };
+
+    const nextHistory = [...messages, userMsg, tutorIntro];
+    setMessages(nextHistory);
+    saveTutorChat(nextHistory, profile.studentId);
+    setAwaitingDiagnosticStart(false);
+    setDiagnosticIndex(0);
+    speakText(`Awesome, ${studentName}! Let's start with question 1.`);
+  };
+
   // Send student message to David
   const handleSendMessage = async (textToSend?: string) => {
     const text = (textToSend || inputText).trim();
     if (!text || isSending) return;
 
     setInputText("");
+
+    // If David is waiting for the student's first reply before starting the level check:
+    if (awaitingDiagnosticStart && diagnosticIndex === null) {
+      const lowerReply = text.toLowerCase();
+      if (lowerReply.includes("ספר לי עוד") || lowerReply.includes("tell me more") || lowerReply.includes("מי אתה")) {
+        const userMsg: TutorMessage = {
+          id: `msg-${Date.now()}`,
+          sender: "student",
+          text,
+          timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        };
+        const explainMsg: TutorMessage = {
+          id: `msg-${Date.now() + 1}`,
+          sender: "tutor",
+          text: `בשמחה! אני דוד, המורה הפרטי שלך לאנגלית. נבצע עכשיו מבדק קצר של 4 שאלות (קריאה, אוצר מילים וכתיבת משפט קצר) כדי שאוכל להתאים לך קטעי קריאה, משימות כתיבה ואוצר מילים בדיוק לרמה שלך. מוכנ/ה להתחיל?`,
+          timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          quickReplies: ["כן, בוא נתחיל! 🚀"],
+        };
+        const nextHistory = [...messages, userMsg, explainMsg];
+        setMessages(nextHistory);
+        saveTutorChat(nextHistory, profile.studentId);
+        return;
+      }
+
+      handleStartDiagnosticFlow(text);
+      return;
+    }
 
     const userMsg: TutorMessage = {
       id: `msg-${Date.now()}`,
@@ -1233,15 +1290,17 @@ export function TutorChatBox({
 
   // Reset Diagnostic Check
   const handleRestartDiagnostic = () => {
-    setDiagnosticIndex(0);
+    setDiagnosticIndex(null);
+    setAwaitingDiagnosticStart(true);
     setDiagnosticAnswers([]);
     setDiagnosticWritingText("");
     setIsEvaluatingWriting(false);
     const resetGreeting: TutorMessage = {
       id: `msg-${Date.now()}`,
       sender: "tutor",
-      text: `No problem, ${studentName}! Let's re-calibrate your level with our 4-question check. Let's start with question 1!`,
+      text: `No problem, ${studentName}! Let's re-calibrate your level with our 4-question check. Ready to start?`,
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      quickReplies: ["כן, בוא נתחיל! 🚀", "ספר לי עוד על דוד"],
     };
     setMessages([resetGreeting]);
     saveTutorChat([resetGreeting], profile.studentId);
@@ -1590,6 +1649,27 @@ export function TutorChatBox({
             )}
           </div>
         ))}
+
+        {/* Student Reply Prompt Before Starting Diagnostic Check */}
+        {awaitingDiagnosticStart && diagnosticIndex === null && (
+          <div className="mr-11 max-w-[92%] sm:max-w-[85%] animate-in fade-in duration-300 flex flex-wrap items-center gap-2 pt-1">
+            <Button
+              type="button"
+              onClick={() => handleStartDiagnosticFlow("כן, בוא נתחיל! 🚀")}
+              className="gap-2 font-bold h-10 px-5 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 shadow-xs cursor-pointer text-sm sm:text-base"
+            >
+              <span>כן, בוא נתחיל! 🚀</span>
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => handleSendMessage("ספר לי עוד על דוד")}
+              className="h-10 px-4 rounded-xl border-border/70 text-foreground hover:bg-muted/50 cursor-pointer text-xs sm:text-sm"
+            >
+              <span>ספר לי עוד על דוד</span>
+            </Button>
+          </div>
+        )}
 
         {/* Minimal Conversational Diagnostic Check */}
         {diagnosticIndex !== null && DIAGNOSTIC_STEPS[diagnosticIndex] && (() => {
