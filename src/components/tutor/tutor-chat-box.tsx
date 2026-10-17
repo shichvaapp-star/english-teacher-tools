@@ -627,9 +627,14 @@ export function TutorChatBox({
       const initialGreeting: TutorMessage = {
         id: `msg-${Date.now()}`,
         sender: "tutor",
-        text: `Hello ${studentName}! I'm David, your English tutor. We are currently working on ${profile.level} (${profile.vocabBand}). What would you like to practice today?`,
+        text: `Hello ${studentName}! 👋 איזה כיף לראות אותך!\nאנחנו מתרגלים יחד ברמת **${profile.level} (${profile.vocabBand})**. במה תרצה/י שנתמקד היום – קריאת סיפור קצר, אוצר מילים, או כתיבה?`,
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-        quickReplies: ["תן לי משימת קריאה (Unseen)", "תרגל אוצר מילים", "בוא נכתוב חיבור"],
+        quickReplies: [
+          "🎲 דוד, בחר עבורי משהו קל",
+          "תן לי משימת קריאה (Unseen) 📖",
+          "תרגל אוצר מילים 📚",
+          "בוא נכתוב חיבור ✍️",
+        ],
       };
       baseMessages = [initialGreeting];
       setDiagnosticIndex(null);
@@ -669,10 +674,10 @@ export function TutorChatBox({
         const turnInMsg: TutorMessage = {
           id: `msg-turnin-${Date.now()}`,
           sender: "tutor",
-          text: `Well done ${studentName}! You scored ${pendingTurnIn.score}/100 on "${pendingTurnIn.taskTitle}"${teacherAck}. Let's review your work together, test ${pendingTurnIn.vocabToReview.length} vocabulary words (any word you don't know will be saved automatically to your Personal Dictionary), and then continue to your next practice!`,
+          text: `Well done ${studentName}! 🎉 כל הכבוד! קיבלת **${pendingTurnIn.score}/100** במשימה "${pendingTurnIn.taskTitleHebrew || pendingTurnIn.taskTitle}"${teacherAck}.\n\nבוא/י נעבור יחד על המשוב שלך, נבדוק **${pendingTurnIn.vocabToReview.length} מילים חשובות** מהמשימה (כל מילה שלא תכיר/י תישמר אוטומטית במילון האישי שלך! 📌), ואז נמשיך לתרגול הבא:`,
           timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
           turnInReview: pendingTurnIn,
-          quickReplies: ["תן לי משימה חדשה 🚀", "תרגל אוצר מילים"],
+          quickReplies: ["תן לי משימה חדשה 🚀", "תרגל אוצר מילים 📚"],
         };
         baseMessages = [...baseMessages, turnInMsg];
         setTimeout(() => {
@@ -1134,10 +1139,10 @@ export function TutorChatBox({
       const completionMessage: TutorMessage = {
         id: `msg-${Date.now() + 2}`,
         sender: "tutor",
-        text: `Thank you for chatting with me in English, ${studentName}! I really enjoyed hearing your thoughts and ideas.\n\nBased on our conversation, I've set up your personalized learning plan at **${updatedProfile.level}** (${updatedProfile.vocabBand}). ${
+        text: `Thank you for chatting with me, ${studentName}! 🎉 (תודה על השיחה הנעימה שלנו! כל הכבוד על ההשתתפות! 👏)\n\nבניתי עבורך תוכנית תרגול אישית ומותאמת בדיוק לקצב שלך ברמת **${updatedProfile.level} (${updatedProfile.vocabBand})**. ${
           isUnseenOrWriting
-            ? "Here is your first tailored practice! Pick a topic below that interests you, or click 'דוד, בחר עבורי':"
-            : "Here is your first tailored mission! Let's jump right in."
+            ? "הנה התרגול הראשון שהכנתי עבורך – בחר/י נושא שמעניין אותך מהרשימה למטה, או לחצ/י על **'🎲 דוד, בחר עבורי'**:"
+            : "הנה משימת הפתיחה הקלה שהכנתי עבורך – בוא/י נתחיל יחד!"
         }`,
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         taskRecommendation: updatedProfile.currentMission,
@@ -1147,7 +1152,7 @@ export function TutorChatBox({
                 "🎲 דוד, בחר עבורי",
                 ...mission.availableTopics.slice(0, 3).map((t) => `${t.emoji} ${t.nameHebrew}`),
               ]
-            : ["בוא נתחיל את המשימה!", "דוד, בחר עבורי", "שאל אותי שאלה נוספת"],
+            : ["בוא נתחיל את המשימה! 🚀", "🎲 דוד, בחר עבורי", "תסביר לי איך מתחילים"],
       };
 
       const updatedMsgs = [...historyWithStudentReply, completionMessage];
@@ -1182,6 +1187,15 @@ export function TutorChatBox({
 
       let attachedMission = undefined;
       const lower = text.toLowerCase();
+      const isCoachingOrHelpQuery =
+        lower.includes("איך מתחילים") ||
+        lower.includes("קשה לי") ||
+        lower.includes("מפחד") ||
+        lower.includes("פוחד") ||
+        lower.includes("מה זה") ||
+        lower.includes("מה אומר") ||
+        lower.includes("איך אומרים");
+
       const isAskingForMission =
         lower.includes("mission") ||
         lower.includes("משימה") ||
@@ -1199,14 +1213,20 @@ export function TutorChatBox({
       let finalTutorText = tutorText;
       let finalQuickReplies = quickReplies;
 
-      if (
+      const isAutoPickTopicRequest =
         lower.includes("תבחר אתה") ||
         lower.includes("בחר עבורי") ||
+        lower.includes("תבחר לי") ||
+        lower.includes("משהו קל") ||
+        lower.includes("לא יודע איזה נושא") ||
+        lower.includes("לא יודעת איזה נושא") ||
+        lower.includes("תמליץ לי") ||
         lower.includes("choose for me") ||
         lower.includes("תבחר בשבילי") ||
-        lower.includes("סמוך עליך")
-      ) {
-        const baseMission = profile.currentMission || generateNextMission(profile);
+        lower.includes("סמוך עליך");
+
+      if (isAutoPickTopicRequest && !lower.includes("קריאה") && !lower.includes("כתיבה")) {
+        const baseMission = profile.currentMission || generateNextMission(profile, "unseen");
         if (baseMission.availableTopics && baseMission.availableTopics.length > 0) {
           const firstTopic = baseMission.availableTopics[0];
           attachedMission = updateMissionTopic(baseMission, firstTopic.id);
@@ -1216,8 +1236,6 @@ export function TutorChatBox({
         } else {
           attachedMission = { ...baseMission, needsTopicSelection: false };
         }
-        finalTutorText = `סמוך עליי! בחרתי עבורך את המשימה המומלצת ביותר: "${attachedMission.hebrewTitle}". אפשר להתחיל עכשיו!`;
-        finalQuickReplies = ["התחל עכשיו 🚀", "החלף נושא", "בוא נתרגל אוצר מילים"];
         const updatedProf = { ...profile, currentMission: attachedMission };
         onProfileUpdate(updatedProf);
         saveTutorProfile(updatedProf);
@@ -1249,9 +1267,7 @@ export function TutorChatBox({
           attachedMission = generateNextMission(profile);
         }
 
-        if (attachedMission.needsTopicSelection) {
-          const missionTypeHebrew = attachedMission.type === "unseen" ? "קריאה (Unseen)" : "כתיבה";
-          finalTutorText = `בחרתי עבורך משימת ${missionTypeHebrew}! באיזה נושא תרצה/י לתרגל? בחר/י נושא מתוך האפשרויות למטה, או לחצ/י 'דוד, בחר עבורי':`;
+        if (attachedMission.needsTopicSelection && !isCoachingOrHelpQuery) {
           finalQuickReplies = [
             "🎲 דוד, בחר עבורי",
             ...(attachedMission.availableTopics?.slice(0, 3).map((t) => `${t.emoji} ${t.nameHebrew}`) || []),

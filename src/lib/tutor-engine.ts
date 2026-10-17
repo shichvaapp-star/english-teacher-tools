@@ -90,93 +90,858 @@ export const DIAGNOSTIC_STEPS: DiagnosticQuestionDef[] = [
 ];
 
 /**
- * Generates David's warm initial English greeting that starts a natural conversation instead of a test.
+ * Generates David's warm initial greeting that starts a natural, non-intimidating conversation
+ * with built-in Hebrew scaffolding for struggling / Level 1 learners.
  */
 export function getInitialOnboardingGreeting(studentName: string): {
   text: string;
   quickReplies: string[];
 } {
   return {
-    text: `Hi ${studentName}! I'm David, your personal English tutor. Instead of a boring test, let's just chat in English for a minute so I can get to know you! First — what do you like doing in your free time? Do you enjoy sports, video games, music, animals, or something else?`,
+    text: `Hi ${studentName}! 👋 I'm David, your personal English tutor.\nLet's chat for a minute so I can get to know you! (בוא/י נשוחח דקה באנגלית פשוטה כדי שאכיר אותך – ותמיד אפשר לשאול או לענות גם בעברית! 😊)\n\n**Question 1:** What do you like doing in your **free time** (זמן פנוי)?\nDo you like **sports** (ספורט ⚽), **video games** (משחקי מחשב 🎮), **music** (מוזיקה 🎵), or **animals** (חיות 🐶)?\n\n💡 *איך מתחילים? אפשר להתחיל ב-**"I like..."** (אני אוהב/ת...)*`,
     quickReplies: [
-      "I like playing video games and sports",
-      "I love listening to music and hanging out with friends",
-      "I really enjoy animals and nature",
+      "I like playing video games 🎮",
+      "I like playing football with friends ⚽",
+      "I love listening to music 🎵",
+      "I love animals and dogs 🐶",
       "אני לא מבין, תסביר בעברית 🙏",
     ],
   };
 }
 
-const ONBOARDING_WORD_GLOSSARY: Record<string, string> = {
+export const ONBOARDING_WORD_GLOSSARY: Record<string, string> = {
   "free time": "זמן פנוי",
   "enjoy": "נהנה / אוהב",
   "cousin": "בן דוד",
   "bake": "לאפות",
+  "baked": "אפה",
+  "chocolate": "שוקולד",
+  "cake": "עוגה",
+  "birthday": "יום הולדת",
+  "yesterday": "אתמול",
+  "mom": "אמא",
+  "mother": "אמא",
   "accidentally": "בטעות",
   "salt": "מלח",
+  "salty": "מלוח",
   "sugar": "סוכר",
   "instead": "במקום",
+  "instead of": "במקום",
   "jars": "צנצנות",
   "identical": "זהות (נראות אותו דבר)",
   "bite": "ביס / נגיסה",
+  "took a bite": "נתנו ביס / טעמו",
   "tasted": "טעמו",
+  "taste": "טעם / לטעום",
+  "everyone": "כולם",
+  "face": "פנים",
+  "faces": "פנים",
   "turn red": "האדימו",
+  "turned red": "האדימו",
   "turned bright red": "האדימו מאוד",
+  "party": "מסיבה",
   "order": "להזמין",
+  "ordered": "הזמינו",
   "ordering": "להזמין",
+  "pizza": "פיצה",
+  "ice cream": "גלידה",
+  "laugh": "לצחוק",
   "imagination": "דמיון",
   "travel": "לטייל / לטוס",
   "anywhere": "לכל מקום",
+  "world": "עולם",
+  "tomorrow": "מחר",
   "invent": "להמציא",
   "gadget": "גאדג'ט / מכשיר חכם",
+  "cool": "מגניב",
   "choose": "לבחור",
   "practice": "לתרגל",
   "improve": "לשפר",
+  "rescued": "הציל / חילץ",
+  "rescue": "להציל / לחלץ",
+  "dog": "כלב",
+  "dogs": "כלבים",
+  "cat": "חתול",
+  "cats": "חתולים",
+  "animal": "חיה / בעל חיים",
+  "animals": "בעלי חיים / חיות",
+  "nature": "טבע",
+  "music": "מוזיקה",
+  "sports": "ספורט",
+  "sport": "ספורט",
+  "video games": "משחקי מחשב",
+  "boy": "ילד / נער",
+  "girl": "ילדה / נערה",
+  "cute": "חמוד / חמודה",
+  "robot": "רובוט",
+  "homework": "שיעורי בית",
+  "friends": "חברים",
+  "friend": "חבר / חברה",
+  "school": "בית ספר",
+  "story": "סיפור",
+  "stories": "סיפורים",
+  "words": "מילים",
+  "vocabulary": "אוצר מילים",
+  "writing": "כתיבה",
+  "reading": "קריאה",
+  "boring": "משעמם",
+  "easy": "קל",
+  "hard": "קשה",
 };
 
 /**
- * Checks if the student is saying they don't understand, asking for translation/help,
- * or replying in Hebrew instead of English during the onboarding conversation.
+ * Rich Hebrew-to-English phrase & vocabulary map for helping students who ask
+ * "איך אומרים..." or answer in Hebrew/Heblish.
  */
-function checkOnboardingHelpOrHebrew(
+export const HEBREW_TO_ENGLISH_PHRASE_BANK: Array<{
+  hebrewPatterns: string[];
+  english: string;
+  hebrewLabel: string;
+  grammarTip?: string;
+  exampleSentence?: string;
+}> = [
+  {
+    hebrewPatterns: ["כלב חמוד", "כלבלב חמוד"],
+    english: "a cute dog",
+    hebrewLabel: "כלב חמוד",
+    grammarTip: "באנגלית שם התואר (cute = חמוד) מגיע לפני שם העצם (dog = כלב)!",
+    exampleSentence: "I have a cute dog. (יש לי כלב חמוד.)",
+  },
+  {
+    hebrewPatterns: ["חתול חמוד"],
+    english: "a cute cat",
+    hebrewLabel: "חתול חמוד",
+    grammarTip: "באנגלית אומרים קודם חמוד (cute) ואז חתול (cat).",
+    exampleSentence: "She has a cute cat. (יש לה חתול חמוד.)",
+  },
+  {
+    hebrewPatterns: ["לטוס ליפן", "לטייל ביפן", "לנסוע ליפן"],
+    english: "travel to Japan / fly to Japan",
+    hebrewLabel: "לטוס / לטייל ליפן",
+    exampleSentence: "I want to travel to Japan because it is cool! (אני רוצה לטוס ליפן כי זה מגניב!)",
+  },
+  {
+    hebrewPatterns: ["יפן"],
+    english: "Japan",
+    hebrewLabel: "יפן",
+    exampleSentence: "I want to travel to Japan! (אני רוצה לטוס ליפן!)",
+  },
+  {
+    hebrewPatterns: ["לטוס לארצות הברית", "לטוס לארה\"ב", "לטוס לאמריקה", "לנסוע לארה\"ב", "ארצות הברית", "ארה\"ב"],
+    english: "the USA / America",
+    hebrewLabel: "ארה\"ב (ארצות הברית)",
+    exampleSentence: "I want to travel to the USA! (אני רוצה לטוס לארה\"ב!)",
+  },
+  {
+    hebrewPatterns: ["לשחק פיפא", "משחק פיפא", "פיפא", "פיפ\"א"],
+    english: "playing FIFA",
+    hebrewLabel: "לשחק פיפא",
+    exampleSentence: "I like playing FIFA with my friends. (אני אוהב לשחק פיפא עם חברים.)",
+  },
+  {
+    hebrewPatterns: ["עם חברים", "עם החברים", "חברים"],
+    english: "with my friends / friends",
+    hebrewLabel: "עם חברים",
+    exampleSentence: "I play games with my friends. (אני משחק עם חברים שלי.)",
+  },
+  {
+    hebrewPatterns: ["פוטבול", "כדורגל"],
+    english: "football / soccer",
+    hebrewLabel: "כדורגל / פוטבול",
+    exampleSentence: "I like playing football! (אני אוהב לשחק כדורגל!)",
+  },
+  {
+    hebrewPatterns: ["כדורסל"],
+    english: "basketball",
+    hebrewLabel: "כדורסל",
+    exampleSentence: "I like playing basketball. (אני אוהב לשחק כדורסל.)",
+  },
+  {
+    hebrewPatterns: ["ספורט"],
+    english: "sports",
+    hebrewLabel: "ספורט",
+    exampleSentence: "I like playing sports. (אני אוהב לעשות ספורט.)",
+  },
+  {
+    hebrewPatterns: ["משחקי מחשב", "משחקי וידאו", "גיימינג", "סוני", "פלייסטיישן", "פורטנייט", "מיינקראפט", "רובלוקס"],
+    english: "video games",
+    hebrewLabel: "משחקי מחשב",
+    exampleSentence: "I like playing video games. (אני אוהב לשחק במשחקי מחשב.)",
+  },
+  {
+    hebrewPatterns: ["רובוט שמכין שיעורים", "רובוט שעושה שיעורים", "רובוט לשיעורי בית", "רובוט שמכין שיעורי בית"],
+    english: "a robot that does homework",
+    hebrewLabel: "רובוט שמכין שיעורי בית",
+    exampleSentence: "I would invent a robot that does homework! (הייתי ממציא רובוט שמכין שיעורי בית!)",
+  },
+  {
+    hebrewPatterns: ["רובוט"],
+    english: "a robot",
+    hebrewLabel: "רובוט",
+    exampleSentence: "I would invent a cool robot. (הייתי ממציא רובוט מגניב.)",
+  },
+  {
+    hebrewPatterns: ["שיעורי בית", "שיעורים"],
+    english: "homework",
+    hebrewLabel: "שיעורי בית",
+    exampleSentence: "The robot helps me with homework. (הרובוט עוזר לי עם שיעורי הבית.)",
+  },
+  {
+    hebrewPatterns: ["בית ספר", "ביה\"ס"],
+    english: "school",
+    hebrewLabel: "בית ספר",
+    exampleSentence: "I go to school every day. (אני הולך לבית הספר כל יום.)",
+  },
+  {
+    hebrewPatterns: ["מלח במקום סוכר", "שם מלח"],
+    english: "put salt instead of sugar",
+    hebrewLabel: "שם מלח במקום סוכר",
+    exampleSentence: "Because he put salt instead of sugar! (כי הוא שם מלח במקום סוכר!)",
+  },
+  {
+    hebrewPatterns: ["מלח", "מלוח"],
+    english: "salt / salty",
+    hebrewLabel: "מלח / מלוח",
+    exampleSentence: "Because he put salt in the cake! (כי הוא שם מלח בעוגה!)",
+  },
+  {
+    hebrewPatterns: ["סוכר"],
+    english: "sugar",
+    hebrewLabel: "סוכר",
+    exampleSentence: "He forgot to put sugar in the cake. (הוא שכח לשים סוכר בעוגה.)",
+  },
+  {
+    hebrewPatterns: ["עוגה", "עוגת שוקולד"],
+    english: "cake / chocolate cake",
+    hebrewLabel: "עוגה / עוגת שוקולד",
+    exampleSentence: "Leo baked a chocolate cake. (ליאו אפה עוגת שוקולד.)",
+  },
+  {
+    hebrewPatterns: ["מזמין פיצה", "להזמין פיצה", "פיצה"],
+    english: "order pizza",
+    hebrewLabel: "להזמין פיצה",
+    exampleSentence: "I would order pizza! (הייתי מזמין פיצה!)",
+  },
+  {
+    hebrewPatterns: ["גלידה"],
+    english: "ice cream",
+    hebrewLabel: "גלידה",
+    exampleSentence: "I would buy ice cream. (הייתי קונה גלידה.)",
+  },
+  {
+    hebrewPatterns: ["מוזיקה", "לשמוע שירים", "שירים"],
+    english: "listening to music",
+    hebrewLabel: "לשמוע מוזיקה",
+    exampleSentence: "I love listening to music. (אני אוהב לשמוע מוזיקה.)",
+  },
+  {
+    hebrewPatterns: ["כלבים", "כלב"],
+    english: "dogs / a dog",
+    hebrewLabel: "כלבים / כלב",
+    exampleSentence: "I love dogs! (אני אוהב כלבים!)",
+  },
+  {
+    hebrewPatterns: ["חתולים", "חתול"],
+    english: "cats / a cat",
+    hebrewLabel: "חתולים / חתול",
+    exampleSentence: "I love cats! (אני אוהב חתולים!)",
+  },
+  {
+    hebrewPatterns: ["חיות", "בעלי חיים"],
+    english: "animals",
+    hebrewLabel: "בעלי חיים / חיות",
+    exampleSentence: "I love animals! (אני אוהב חיות!)",
+  },
+  {
+    hebrewPatterns: ["לישון"],
+    english: "sleeping",
+    hebrewLabel: "לישון",
+    exampleSentence: "I like sleeping in my free time! (אני אוהב לישון בזמן הפנוי!)",
+  },
+  {
+    hebrewPatterns: ["סרטים", "טלוויזיה", "נטפליקס"],
+    english: "watching movies / TV",
+    hebrewLabel: "לצפות בסרטים / טלוויזיה",
+    exampleSentence: "I like watching movies. (אני אוהב לצפות בסרטים.)",
+  },
+  {
+    hebrewPatterns: ["משעמם"],
+    english: "boring",
+    hebrewLabel: "משעמם",
+    exampleSentence: "This game is not boring, it is fun! (המשחק הזה לא משעמם, הוא כיף!)",
+  },
+];
+
+/**
+ * Looks up English-to-Hebrew or Hebrew-to-English word/phrase translations from a student's query.
+ */
+export function lookupBilingualQuery(studentReply: string): {
+  isTranslationQuestion: boolean;
+  type?: "en_to_he" | "he_to_en";
+  targetExpression?: string;
+  translationHebrew?: string;
+  wordBreakdown?: Array<{ word: string; hebrew: string }>;
+  formattedAnswerHebrew?: string;
+} {
+  const trimmed = studentReply.trim();
+  const lower = trimmed.toLowerCase();
+
+  // 1. Check if student is asking "איך אומרים..." / "איך כותבים..." / "איך רושמים..." (Hebrew -> English)
+  const isHowToSayPattern =
+    lower.includes("איך אומרים") ||
+    lower.includes("איך כותבים") ||
+    lower.includes("איך רושמים") ||
+    lower.includes("איך מאייתים") ||
+    lower.includes("איך להגיד") ||
+    lower.includes("תרגם לאנגלית") ||
+    lower.includes("באנגלית זה");
+
+  if (isHowToSayPattern) {
+    const matchedPhrases = HEBREW_TO_ENGLISH_PHRASE_BANK.filter((item) =>
+      item.hebrewPatterns.some((pat) => lower.includes(pat))
+    );
+
+    if (matchedPhrases.length > 0) {
+      const primary = matchedPhrases[0];
+      const grammarLine = primary.grammarTip ? `\n💡 **טיפ קטן:** ${primary.grammarTip}` : "";
+      const exampleLine = primary.exampleSentence ? `\n✍️ **דוגמה במשפט:** *${primary.exampleSentence}*` : "";
+      return {
+        isTranslationQuestion: true,
+        type: "he_to_en",
+        targetExpression: primary.hebrewLabel,
+        translationHebrew: primary.english,
+        formattedAnswerHebrew: `כדי להגיד **"${primary.hebrewLabel}"** באנגלית אומרים: **"${primary.english}"** 🌟${grammarLine}${exampleLine}`,
+      };
+    }
+
+    const cleanQuery = lower
+      .replace(/איך אומרים|איך כותבים|איך רושמים|איך מאייתים|איך להגיד|תרגם לאנגלית|באנגלית זה|באנגלית|[?؟!.,"]/g, "")
+      .trim();
+
+    if (cleanQuery.length >= 2) {
+      // Check reverse lookup in ONBOARDING_WORD_GLOSSARY
+      for (const [eng, heb] of Object.entries(ONBOARDING_WORD_GLOSSARY)) {
+        const hebParts = heb.split(/[/,()]/).map((s) => s.trim()).filter(Boolean);
+        if (heb === cleanQuery || hebParts.includes(cleanQuery) || heb.includes(cleanQuery)) {
+          return {
+            isTranslationQuestion: true,
+            type: "he_to_en",
+            targetExpression: cleanQuery,
+            translationHebrew: eng,
+            formattedAnswerHebrew: `כדי להגיד **"${cleanQuery}"** באנגלית אומרים: **"${eng}"** 💡`,
+          };
+        }
+      }
+
+      // Check MIDDLE_SCHOOL vocab pools
+      const allVocab = [...MIDDLE_SCHOOL_EASY, ...MIDDLE_SCHOOL_MEDIUM, ...MIDDLE_SCHOOL_HARD];
+      const foundVocab = allVocab.find(
+        (v) => v.hebrew.includes(cleanQuery) || cleanQuery.includes(v.hebrew)
+      );
+      if (foundVocab) {
+        return {
+          isTranslationQuestion: true,
+          type: "he_to_en",
+          targetExpression: cleanQuery,
+          translationHebrew: foundVocab.english,
+          formattedAnswerHebrew: `כדי להגיד **"${cleanQuery}"** באנגלית אומרים: **"${foundVocab.english}"** 💡${
+            foundVocab.example ? `\n✍️ **למשל:** *${foundVocab.example}*` : ""
+          }`,
+        };
+      }
+
+      // Check reverse lookup in BUILT_IN_DICTIONARY
+      for (const [eng, heb] of Object.entries(BUILT_IN_DICTIONARY)) {
+        const hebParts = heb.split(/[/,()]/).map((s) => s.trim()).filter(Boolean);
+        if (heb === cleanQuery || hebParts.includes(cleanQuery)) {
+          return {
+            isTranslationQuestion: true,
+            type: "he_to_en",
+            targetExpression: cleanQuery,
+            translationHebrew: eng,
+            formattedAnswerHebrew: `כדי להגיד **"${cleanQuery}"** באנגלית אומרים: **"${eng}"** 💡`,
+          };
+        }
+      }
+    }
+  }
+
+  // 2. Check if student is asking what an English word or sentence means ("מה זה...", "מה אומר...", "מה זה אומר...", "מה הפירוש...")
+  const isWhatDoesItMeanPattern =
+    lower.includes("מה זה") ||
+    lower.includes("מה אומר") ||
+    lower.includes("מה זאת אומרת") ||
+    lower.includes("מה הפירוש") ||
+    lower.includes("מה פירוש") ||
+    lower.includes("מה המשמעות") ||
+    lower.includes("תרגם") ||
+    lower.includes("what is ") ||
+    lower.includes("what does ");
+
+  // Common irregular past-tense verbs for Level 1 / Band I stories
+  const irregularVerbsGlossary: Record<string, string> = {
+    went: "הלך / הלכו (עבר של go)",
+    saw: "ראה / ראו (עבר של see)",
+    bought: "קנה / קנו (עבר של buy)",
+    took: "לקח / לקחו (עבר של take)",
+    put: "שם / שמו (put)",
+    made: "הכין / עשה (עבר של make)",
+    ate: "אכל / אכלו (עבר של eat)",
+    said: "אמר / אמרו (עבר של say)",
+    got: "קיבל / השיג (עבר של get)",
+    came: "בא / הגיע (עבר של come)",
+    had: "היה לו / לה (עבר של have)",
+    did: "עשה (עבר של do)",
+    found: "מצא / מצאו (עבר של find)",
+    told: "סיפר / אמר (עבר של tell)",
+    thought: "חשב (עבר של think)",
+    knew: "ידע (עבר של know)",
+    ran: "רץ (עבר של run)",
+    gave: "נתן (עבר של give)",
+  };
+
+  const combinedGlossary: Record<string, string> = {
+    ...irregularVerbsGlossary,
+    ...ONBOARDING_WORD_GLOSSARY,
+  };
+
+  // Direct match in combinedGlossary
+  for (const [eng, heb] of Object.entries(combinedGlossary)) {
+    if (
+      lower === eng ||
+      (isWhatDoesItMeanPattern &&
+        new RegExp(`\\b${eng.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i").test(lower))
+    ) {
+      // Check if the student asked about a multi-word English sentence (not just a single glossary word)
+      const englishWordsInQuery = (lower.match(/[a-z]+/g) || []).filter(
+        (w) => !["what", "is", "does", "mean", "translate", "in", "hebrew", "or"].includes(w)
+      );
+      if (englishWordsInQuery.length <= 1 || eng.includes(" ")) {
+        return {
+          isTranslationQuestion: true,
+          type: "en_to_he",
+          targetExpression: eng,
+          translationHebrew: heb,
+          formattedAnswerHebrew: `הפירוש של **${eng}** הוא: **${heb}** 💡`,
+        };
+      }
+    }
+  }
+
+  // Multi-word or dictionary lookup when English words are present in a "מה זה אומר..." query
+  const extractedEngTokens = (
+    lower
+      .replace(/what does|what is|mean|translate to hebrew/g, "")
+      .match(/[a-z]+/g) || []
+  ).filter((w) => w.length >= 2 && w !== "or");
+
+  if (isWhatDoesItMeanPattern && extractedEngTokens.length > 0) {
+    const allCurated = [...MIDDLE_SCHOOL_EASY, ...MIDDLE_SCHOOL_MEDIUM, ...MIDDLE_SCHOOL_HARD];
+    const stopWords: Record<string, string> = {
+      the: "ה-",
+      a: "",
+      an: "",
+      to: "ל-",
+      in: "ב-",
+      on: "על",
+      at: "ב-",
+      of: "של",
+      for: "בשביל / עבור",
+      with: "עם",
+      and: "ו-",
+      but: "אבל",
+      because: "כי / מפני ש-",
+      he: "הוא",
+      she: "היא",
+      it: "זה",
+      they: "הם",
+      we: "אנחנו",
+      you: "אתה / את / אתם",
+      my: "שלי",
+      his: "שלו",
+      her: "שלה",
+      was: "היה / הייתה",
+      were: "היו",
+    };
+
+    const breakdown: Array<{ word: string; hebrew: string }> = [];
+    for (const token of extractedEngTokens) {
+      const candidates = [
+        token,
+        token.replace(/ed$/, ""),
+        token.replace(/ed$/, "e"),
+        token.replace(/ing$/, ""),
+        token.replace(/s$/, ""),
+      ];
+
+      let matchedHeb: string | undefined;
+      for (const cand of candidates) {
+        if (combinedGlossary[cand]) {
+          matchedHeb = combinedGlossary[cand];
+          break;
+        }
+        const curated = allCurated.find((item) => item.english.toLowerCase() === cand);
+        if (curated) {
+          matchedHeb = curated.hebrew;
+          break;
+        }
+        if (BUILT_IN_DICTIONARY[cand]) {
+          matchedHeb = BUILT_IN_DICTIONARY[cand];
+          break;
+        }
+      }
+
+      if (matchedHeb) {
+        breakdown.push({ word: token, hebrew: matchedHeb });
+      } else if (stopWords[token] && stopWords[token].length > 0) {
+        breakdown.push({ word: token, hebrew: stopWords[token] });
+      }
+    }
+
+    if (breakdown.length > 0) {
+      const englishPhrase = extractedEngTokens.join(" ");
+      // Special natural sentence synthesis for common SVO structures
+      let sentenceSummary = "";
+      if (lower.includes("dog") && lower.includes("rescued") && lower.includes("boy")) {
+        sentenceSummary = `משמעות המשפט כולו היא: **"הכלב הציל (חילץ) את הילד"** 🐕👦\n\n`;
+      } else if (breakdown.length === 1) {
+        return {
+          isTranslationQuestion: true,
+          type: "en_to_he",
+          targetExpression: breakdown[0].word,
+          translationHebrew: breakdown[0].hebrew,
+          wordBreakdown: breakdown,
+          formattedAnswerHebrew: `הפירוש של **${breakdown[0].word}** הוא: **${breakdown[0].hebrew}** 💡`,
+        };
+      }
+
+      const bullets = breakdown
+        .map((b) => `• **${b.word}** = ${b.hebrew}`)
+        .join("\n");
+
+      return {
+        isTranslationQuestion: true,
+        type: "en_to_he",
+        targetExpression: englishPhrase,
+        wordBreakdown: breakdown,
+        formattedAnswerHebrew: `בוא נפרק יחד את המשפט **"${englishPhrase}"** לעברית פשוטה 💡:\n${sentenceSummary}**מילה במילה:**\n${bullets}`,
+      };
+    }
+  }
+
+  return { isTranslationQuestion: false };
+}
+
+/**
+ * Synthesizes a personalized English sentence starter and vocabulary breakdown
+ * based on what the student actually wrote in Hebrew during onboarding!
+ */
+function buildTailoredHebrewToEnglishScaffold(
+  turnIndex: number,
+  studentReply: string,
+  studentName: string
+): {
+  acknowledgmentHebrew: string;
+  tailoredEnglishSentence: string;
+  vocabBreakdownHebrew: string[];
+  quickReplies: string[];
+} {
+  const lower = studentReply.toLowerCase();
+
+  if (turnIndex === 0) {
+    const hasFifa = lower.includes("פיפא") || lower.includes("פיפ\"א") || lower.includes("fifa");
+    const hasFootball = lower.includes("כדורגל") || lower.includes("פוטבול");
+    const hasBasketball = lower.includes("כדורסל");
+    const hasGames =
+      lower.includes("משחק") ||
+      lower.includes("מחשב") ||
+      lower.includes("סוני") ||
+      lower.includes("פורטנייט") ||
+      lower.includes("רובלוקס") ||
+      lower.includes("מיינקראפט") ||
+      lower.includes("גיימינג");
+    const hasFriends = lower.includes("חברים") || lower.includes("חבר");
+    const hasMusic = lower.includes("מוזיקה") || lower.includes("שירים") || lower.includes("לשיר");
+    const hasAnimals = lower.includes("כלב") || lower.includes("חתול") || lower.includes("חיות") || lower.includes("בעלי חיים");
+    const hasSleep = lower.includes("לישון") || lower.includes("שינה");
+    const hasMovies = lower.includes("סרט") || lower.includes("טלוויזיה") || lower.includes("נטפליקס") || lower.includes("טיקטוק");
+
+    if (hasFifa) {
+      const sentence = hasFriends
+        ? "I like playing FIFA with my friends"
+        : "I like playing FIFA";
+      return {
+        acknowledgmentHebrew: `איזה כיף, ${studentName}! לשחק פיפא${hasFriends ? " עם חברים" : ""} זה תחביב אדיר! 🎮⚽`,
+        tailoredEnglishSentence: sentence,
+        vocabBreakdownHebrew: [
+          "**I like...** = אני אוהב/ת...",
+          "**playing FIFA** = לשחק פיפא",
+          ...(hasFriends ? ["**with my friends** = עם חברים שלי"] : []),
+        ],
+        quickReplies: [
+          sentence,
+          "I like playing video games and football",
+          "I like playing with my friends",
+        ],
+      };
+    }
+
+    if (hasFootball || hasBasketball) {
+      const sportEng = hasBasketball ? "basketball" : "football";
+      const sportHeb = hasBasketball ? "כדורסל" : "כדורגל";
+      const sentence = hasFriends
+        ? `I like playing ${sportEng} with my friends`
+        : `I like playing ${sportEng}`;
+      return {
+        acknowledgmentHebrew: `מעולה, ${studentName}! לשחק ${sportHeb}${hasFriends ? " עם חברים" : ""} זה ספורט נהדר! ⚽🏀`,
+        tailoredEnglishSentence: sentence,
+        vocabBreakdownHebrew: [
+          "**I like playing...** = אני אוהב/ת לשחק...",
+          `**${sportEng}** = ${sportHeb}`,
+          ...(hasFriends ? ["**with my friends** = עם חברים שלי"] : []),
+        ],
+        quickReplies: [
+          sentence,
+          "I like playing sports",
+          "I like playing video games",
+        ],
+      };
+    }
+
+    if (hasGames) {
+      const sentence = hasFriends
+        ? "I like playing video games with my friends"
+        : "I like playing video games";
+      return {
+        acknowledgmentHebrew: `מגניב לגמרי, ${studentName}! משחקי מחשב${hasFriends ? " עם חברים" : ""} זו דרך מעולה להעביר את הזמן הפנוי! 🎮`,
+        tailoredEnglishSentence: sentence,
+        vocabBreakdownHebrew: [
+          "**I like playing...** = אני אוהב/ת לשחק...",
+          "**video games** = משחקי מחשב",
+          ...(hasFriends ? ["**with my friends** = עם חברים שלי"] : []),
+        ],
+        quickReplies: [
+          sentence,
+          "I love gaming and sports",
+          "I like hanging out with friends",
+        ],
+      };
+    }
+
+    if (hasMusic) {
+      return {
+        acknowledgmentHebrew: `איזה יופי, ${studentName}! מוזיקה תמיד עושה מצב רוח טוב! 🎵`,
+        tailoredEnglishSentence: "I love listening to music",
+        vocabBreakdownHebrew: [
+          "**I love...** = אני אוהב/ת מאוד...",
+          "**listening to music** = להקשיב למוזיקה",
+        ],
+        quickReplies: [
+          "I love listening to music",
+          "I like music and hanging out with friends",
+          "I like singing and dancing",
+        ],
+      };
+    }
+
+    if (hasAnimals) {
+      const isDog = lower.includes("כלב");
+      const sentence = isDog ? "I love dogs and animals" : "I love animals and nature";
+      return {
+        acknowledgmentHebrew: `איזה כיף, ${studentName}! בעלי חיים הם החברים הכי טובים! 🐶🐾`,
+        tailoredEnglishSentence: sentence,
+        vocabBreakdownHebrew: [
+          "**I love...** = אני אוהב/ת...",
+          isDog ? "**dogs** = כלבים" : "**animals** = בעלי חיים",
+        ],
+        quickReplies: [
+          sentence,
+          "I have a cute dog",
+          "I really enjoy animals",
+        ],
+      };
+    }
+
+    if (hasSleep || hasMovies) {
+      const sentence = hasSleep
+        ? "I like sleeping and relaxing"
+        : "I like watching movies and TV";
+      return {
+        acknowledgmentHebrew: `אחלה דרך לנוח בזמן הפנוי, ${studentName}! 😄`,
+        tailoredEnglishSentence: sentence,
+        vocabBreakdownHebrew: [
+          "**I like...** = אני אוהב/ת...",
+          hasSleep ? "**sleeping** = לישון" : "**watching movies** = לצפות בסרטים",
+        ],
+        quickReplies: [
+          sentence,
+          "I like hanging out with friends",
+          "I like playing video games",
+        ],
+      };
+    }
+
+    return {
+      acknowledgmentHebrew: `איזה יופי, ${studentName}! נשמע תחביב מעולה 😊`,
+      tailoredEnglishSentence: "I like hanging out with my friends",
+      vocabBreakdownHebrew: [
+        "**I like...** = אני אוהב/ת...",
+        "**playing video games** = לשחק במשחקי מחשב",
+        "**playing football** = לשחק כדורגל",
+        "**with my friends** = עם חברים",
+      ],
+      quickReplies: [
+        "I like playing video games with my friends",
+        "I like playing football",
+        "I love listening to music",
+      ],
+    };
+  }
+
+  if (turnIndex === 1) {
+    const mentionsSalt = lower.includes("מלח") || lower.includes("מלוח");
+    const mentionsSugar = lower.includes("סוכר");
+    const mentionsPizza = lower.includes("פיצה");
+    const mentionsIceCream = lower.includes("גלידה");
+
+    const sentence = mentionsPizza
+      ? "Because he put salt instead of sugar, and I would order pizza!"
+      : mentionsIceCream
+      ? "Because he put salt in the cake, and I would buy ice cream!"
+      : "Because he put salt instead of sugar in the cake!";
+
+    return {
+      acknowledgmentHebrew: `כל הכבוד ${studentName}, הבנת בול את הסיפור! 🎯👏${
+        mentionsSalt ? " ליאו באמת התבלבל ושם מלח במקום סוכר" : ""
+      }${mentionsPizza ? " ולהזמין פיצה זה לגמרי הפתרון הכי טעים!" : "!"}`,
+      tailoredEnglishSentence: sentence,
+      vocabBreakdownHebrew: [
+        "**Because** = כי / בגלל ש...",
+        "**he put salt** = הוא שם מלח",
+        ...(mentionsSugar ? ["**instead of sugar** = במקום סוכר"] : ["**in the cake** = בעוגה"]),
+        ...(mentionsPizza ? ["**I would order pizza** = הייתי מזמין/ה פיצה 🍕"] : []),
+        ...(mentionsIceCream ? ["**I would buy ice cream** = הייתי קונה גלידה 🍦"] : []),
+      ],
+      quickReplies: [
+        sentence,
+        "Because the cake had salt! I would order pizza.",
+        "Because it was salty, so I would laugh!",
+      ],
+    };
+  }
+
+  // Turn 2 (Travel or Gadget Invention)
+  const hasRobot = lower.includes("רובוט");
+  const hasHomework = lower.includes("שיעור") || lower.includes("בית ספר") || lower.includes("מבחן");
+  const hasJapan = lower.includes("יפן");
+  const hasUsa = lower.includes("ארצות הברית") || lower.includes("ארה\"ב") || lower.includes("אמריקה") || lower.includes("ניו יורק");
+  const hasTravel = lower.includes("לטוס") || lower.includes("לטייל") || lower.includes("לנסוע") || hasJapan || hasUsa;
+
+  if (hasRobot || hasHomework) {
+    const sentence = "I would invent a robot that does homework!";
+    return {
+      acknowledgmentHebrew: `וואו ${studentName}, הלוואי שהיה לי רובוט שמכין שיעורי בית כשהייתי תלמיד! 🤖📚 רעיון גאוני!`,
+      tailoredEnglishSentence: sentence,
+      vocabBreakdownHebrew: [
+        "**I would invent...** = הייתי ממציא/ה...",
+        "**a robot** = רובוט",
+        "**that does homework** = שמכין שיעורי בית",
+      ],
+      quickReplies: [
+        sentence,
+        "I would invent a robot for school because homework is hard.",
+        "I would invent a smart gadget that helps students.",
+      ],
+    };
+  }
+
+  if (hasTravel) {
+    const destEng = hasJapan ? "Japan" : hasUsa ? "the USA" : "a cool country";
+    const destHeb = hasJapan ? "ליפן" : hasUsa ? "לארה\"ב" : "למקום מגניב";
+    const sentence = `I want to travel to ${destEng} because it is amazing!`;
+    return {
+      acknowledgmentHebrew: `איזה חלום, ${studentName}! לטוס ${destHeb} נשמע חוויה מדהימה! ✈️🌍`,
+      tailoredEnglishSentence: sentence,
+      vocabBreakdownHebrew: [
+        "**I want to travel to...** = אני רוצה לטוס ל...",
+        `**${destEng}** = ${destHeb.replace(/^ל/, "")}`,
+        "**because it is amazing** = כי זה מדהים",
+      ],
+      quickReplies: [
+        sentence,
+        "I want to travel to Japan because it is cool.",
+        "I want to visit the USA with my family.",
+      ],
+    };
+  }
+
+  return {
+    acknowledgmentHebrew: `רעיון נהדר, ${studentName}! 🌟`,
+    tailoredEnglishSentence: "I would invent a robot that helps students at school!",
+    vocabBreakdownHebrew: [
+      "**I would invent a...** = הייתי ממציא/ה...",
+      "**I want to travel to...** = אני רוצה לטוס ל...",
+      "**because it is cool** = כי זה מגניב",
+    ],
+    quickReplies: [
+      "I would invent a robot that does homework!",
+      "I want to travel to Japan because it is cool!",
+      "I want to travel to the USA because it is fun!",
+    ],
+  };
+}
+
+/**
+ * Checks if the student is saying they don't understand, asking for translation/help,
+ * mixing Hebrew into English (Heblish), or replying in Hebrew during onboarding.
+ */
+export function checkOnboardingHelpOrHebrew(
   turnIndex: number,
   studentReply: string
 ): {
   isConfusionOrHelpRequest: boolean;
   isHebrewContentAnswer: boolean;
-  requestedWordTranslation?: { word: string; hebrew: string };
+  isHeblishAnswer: boolean;
+  heblishCoachingLine?: string;
+  requestedWordTranslation?: { word: string; hebrew: string; formatted?: string };
 } {
   const trimmed = studentReply.trim();
   const lower = trimmed.toLowerCase();
 
-  // Check if student asked about a specific word from David's message
-  let requestedWordTranslation: { word: string; hebrew: string } | undefined;
-  for (const [eng, heb] of Object.entries(ONBOARDING_WORD_GLOSSARY)) {
-    if (
-      lower.includes(`מה זה ${eng}`) ||
-      lower.includes(`מה הפירוש של ${eng}`) ||
-      lower.includes(`what is ${eng}`) ||
-      lower.includes(`what does ${eng}`) ||
-      lower === eng
-    ) {
-      requestedWordTranslation = { word: eng, hebrew: heb };
-      break;
-    }
+  // 1. Check bilingual lookup (catches "מה זה...", "מה אומר...", "איך אומרים...", etc.)
+  const lookup = lookupBilingualQuery(studentReply);
+  let requestedWordTranslation: { word: string; hebrew: string; formatted?: string } | undefined;
+  if (lookup.isTranslationQuestion && lookup.targetExpression) {
+    requestedWordTranslation = {
+      word: lookup.targetExpression,
+      hebrew: lookup.translationHebrew || "",
+      formatted: lookup.formattedAnswerHebrew,
+    };
   }
 
   const confusionPatterns = [
     "לא מבין",
     "לא מבינה",
     "לא הבנתי",
+    "לא קולט",
+    "הסתבכתי",
+    "מה רוצים ממני",
     "אין לי מושג",
+    "אין לי כוח",
     "לא יודע",
     "לא יודעת",
     "מה?",
+    "אה?",
+    "הא?",
     "מה זה",
+    "מה אומר",
+    "מה זאת אומרת",
     "מה שאלת",
     "מה כתבת",
     "מה אמרת",
     "מה הפירוש",
+    "מה פירוש",
+    "מה לבחור",
     "תסביר",
     "בעברית",
     "תרגם",
@@ -184,12 +949,18 @@ function checkOnboardingHelpOrHebrew(
     "קשה לי",
     "עזרה",
     "איך אומרים",
+    "איך כותבים",
+    "איך רושמים",
+    "איך מאייתים",
     "i don't understand",
     "i dont understand",
     "dont understand",
     "don't understand",
     "i don't get it",
     "what?",
+    "wat",
+    "huh",
+    "idk",
     "what do you mean",
     "what does that mean",
     "translate",
@@ -211,17 +982,41 @@ function checkOnboardingHelpOrHebrew(
   const hebrewChars = (trimmed.match(/[\u0590-\u05FF]/g) || []).length;
   const englishChars = (trimmed.match(/[a-zA-Z]/g) || []).length;
 
-  // On turns 0, 1, 2 we want the student to practice replying in English.
-  // If they answered in Hebrew (without saying "I don't understand"), we can validate their Hebrew answer and help them say it in English!
+  // Pure Hebrew content answer on turns 0, 1, 2
   const isHebrewContentAnswer =
     !isExplicitConfusion &&
     turnIndex < 3 &&
     hebrewChars >= 2 &&
     englishChars < 3;
 
+  // Heblish detection: Student mixed English and Hebrew words (e.g., "i like play פוטבול")
+  const isHeblishAnswer =
+    !isExplicitConfusion &&
+    turnIndex < 3 &&
+    hebrewChars >= 2 &&
+    englishChars >= 3;
+
+  let heblishCoachingLine: string | undefined;
+  if (isHeblishAnswer) {
+    const matchedHebPhrase = HEBREW_TO_ENGLISH_PHRASE_BANK.find((item) =>
+      item.hebrewPatterns.some((pat) => lower.includes(pat))
+    );
+    const ingTip =
+      lower.includes("i like play") && !lower.includes("playing")
+        ? `\n💡 *טיפ דקדוק קטן:* אחרי **I like** מוסיפים **ing** לפועל (**I like playing...**)!`
+        : "";
+    if (matchedHebPhrase) {
+      heblishCoachingLine = `👏 **איזה יופי ששילבת אנגלית!** אגב, המילה **"${matchedHebPhrase.hebrewLabel}"** באנגלית היא **"${matchedHebPhrase.english}"** – אז במשפט שלם באנגלית אומרים: *"${matchedHebPhrase.exampleSentence?.split("(")[0].trim() || `I like ${matchedHebPhrase.english}!`}"* 🌟${ingTip}`;
+    } else {
+      heblishCoachingLine = `👏 **כל הכבוד על הניסיון לשלב אנגלית!**${ingTip}`;
+    }
+  }
+
   return {
     isConfusionOrHelpRequest: isExplicitConfusion,
     isHebrewContentAnswer,
+    isHeblishAnswer,
+    heblishCoachingLine,
     requestedWordTranslation,
   };
 }
@@ -245,25 +1040,30 @@ export function generateOnboardingTurnResponse(
   const {
     isConfusionOrHelpRequest,
     isHebrewContentAnswer,
+    isHeblishAnswer,
+    heblishCoachingLine,
     requestedWordTranslation,
   } = checkOnboardingHelpOrHebrew(completedTurnIndex, studentReply);
 
   const wordPrefix = requestedWordTranslation
-    ? `הפירוש של **${requestedWordTranslation.word}** הוא: **${requestedWordTranslation.hebrew}** 💡\n\n`
+    ? `${
+        requestedWordTranslation.formatted ||
+        `הפירוש של **${requestedWordTranslation.word}** הוא: **${requestedWordTranslation.hebrew}** 💡`
+      }\n\n`
     : "";
 
-  // 1. Handle when the student says "אני לא מבין" / asks for Hebrew / asks what a word means
+  // 1. Handle when the student says "אני לא מבין" / asks for Hebrew / asks what a word means / "איך אומרים..."
   if (isConfusionOrHelpRequest) {
     if (completedTurnIndex === 0) {
       return {
         advanceTurn: false,
         neededHelp: true,
-        text: `${wordPrefix}אין שום בעיה, ${studentName}! אני כאן בדיוק כדי לעזור. 😊\n\nשאלתי באנגלית:\n**"What do you like doing in your free time?"**\nכלומר: **מה את/ה אוהב/ת לעשות בזמן הפנוי שלך?**\n\nאוצר מילים שיעזור לך:\n• **I like...** = אני אוהב/ת...\n• **sports** = ספורט | **video games** = משחקי מחשב\n• **music** = מוזיקה | **animals** = בעלי חיים\n\nנסה/י לכתוב משפט קצר באנגלית (למשל: *I like video games*), או לחצ/י על אחת התשובות המוכנות למטה:`,
+        text: `${wordPrefix}אין שום בעיה, ${studentName}! אני כאן איתך צעד-אחר-צעד 😊\n\nשאלתי באנגלית:\n**"What do you like doing in your free time?"**\nכלומר: **מה את/ה אוהב/ת לעשות בזמן הפנוי שלך?**\n\nאוצר מילים קצר שיעזור לך להרכיב תשובה:\n• **I like...** = אני אוהב/ת...\n• **playing video games** = לשחק במשחקי מחשב 🎮\n• **playing football** = לשחק כדורגל ⚽\n• **listening to music** = לשמוע מוזיקה 🎵\n• **dogs / animals** = כלבים / בעלי חיים 🐶\n\nנסה/י לכתוב משפט קצר באנגלית (או אפילו בעברית ואעזור לך לתרגם!), או לחצ/י על אחת התשובות למטה:`,
         quickReplies: [
-          "I like playing video games",
-          "I like playing sports",
-          "I love listening to music",
-          "I love animals and nature",
+          "I like playing video games 🎮",
+          "I like playing football ⚽",
+          "I love listening to music 🎵",
+          "I love dogs and animals 🐶",
         ],
       };
     }
@@ -272,11 +1072,11 @@ export function generateOnboardingTurnResponse(
       return {
         advanceTurn: false,
         neededHelp: true,
-        text: `${wordPrefix}אין שום בעיה, אסביר בשמחה בעברית! 😊\n\n**מה היה בסיפור הקצר שסיפרתי?**\nבן דוד שלי ליאו אפה עוגת שוקולד ליום ההולדת של אמא שלו, אבל בטעות הוא שם **מלח (salt)** במקום **סוכר (sugar)** כי הצנצנות נראו אותו דבר! כשכולם טעמו מהעוגה הפנים שלהם האדימו, ובסוף הם הזמינו פיצה. 🍕\n\n**השאלה שלי אליך היא:**\nלמה הפנים של כולם האדימו כשהם טעמו מהעוגה, ומה היית עושה במקומם?\n\nנסה/י לענות באנגלית פשוטה (אפשר להיעזר במילים: **because** = כי, **salt** = מלח, **sugar** = סוכר, **order pizza** = להזמין פיצה), או בחר/י באחת התשובות למטה:`,
+        text: `${wordPrefix}אין שום בעיה, ${studentName}, בוא נפרק את הסיפור הקצר בעברית פשוטה! 😊\n\n📖 **מה קרה בסיפור?**\nבן דוד שלי ליאו אפה עוגת שוקולד, אבל **בטעות (accidentally)** הוא שם **מלח (salt)** **במקום (instead of)** **סוכר (sugar)**! כשכולם טעמו מהעוגה הפנים שלהם האדימו, ולכן הם **הזמינו פיצה (ordered pizza)** 🍕.\n\n❓ **השאלה שלי:** למה הפנים שלהם האדימו, ומה היית עושה במקומם?\n\nאפשר להיעזר בתבנית הקצרה הזו באנגלית:\n• **Because he put salt!** (כי הוא שם מלח!)\n• **I would order pizza.** (הייתי מזמין/ה פיצה.)\n\nנסה/י לכתוב באנגלית או לבחור למטה:`,
         quickReplies: [
           "Because he put salt instead of sugar!",
-          "The cake was too salty, so I would order pizza.",
-          "I would laugh and buy ice cream instead.",
+          "Because the cake had salt! I would order pizza.",
+          "I would laugh and buy ice cream!",
         ],
       };
     }
@@ -285,97 +1085,77 @@ export function generateOnboardingTurnResponse(
       return {
         advanceTurn: false,
         neededHelp: true,
-        text: `${wordPrefix}בשמחה, ${studentName}! בוא נפרק את השאלה בעברית: 😊\n\nשאלתי:\n**אם היית יכול/ה לטוס מחר לכל מקום בעולם (travel anywhere) – או להמציא גאדג'ט מגניב לבית הספר (invent a cool gadget) – מה היית בוחר/ת ולמה?**\n\nנסה/י לכתוב משפט אחד או שניים באנגלית! אפשר להעתיק ולהשלים את ההתחלה הזו:\n• **I want to travel to... because...** (אני רוצה לטוס ל... כי...)\n• **I would invent a... because...** (הייתי ממציא/ה... כי...)\n\nאו בחר/י דוגמה מוכנה למטה:`,
+        text: `${wordPrefix}בשמחה, ${studentName}! בוא נפרק את השאלה בעברית פשוטה: 😊\n\n❓ **מה שאלתי?**\nאם היית יכול/ה **לטוס מחר לכל מקום בעולם (travel anywhere)** ✈️ או **להמציא גאדג'ט/רובוט מגניב לבית הספר (invent a cool gadget)** 🤖 – מה היית בוחר/ת ולמה?\n\nאפשר להעתיק ולהשלים אחת מההתחלות האלו באנגלית:\n• **I want to travel to... because it is cool!** (אני רוצה לטוס ל... כי זה מגניב!)\n• **I would invent a robot that...** (הייתי ממציא/ה רובוט ש...)\n\nאו לחצ/י על אחת התשובות המוכנות למטה:`,
         quickReplies: [
-          "I want to travel to Japan because I love the food and culture.",
-          "I want to visit New York because it looks exciting.",
-          "I would invent a robot that helps students with homework.",
+          "I want to travel to Japan because it is cool!",
+          "I would invent a robot that does homework!",
+          "I want to travel to the USA because it is fun!",
         ],
       };
     }
 
-    // Turn 3 confusion
+    // Turn 3 confusion (e.g., "אני לא יודע אנגלית טוב, מה לבחור?")
     return {
       advanceTurn: false,
       neededHelp: true,
-      text: `${wordPrefix}אסביר בשמחה בעברית! 😊\nשאלתי במה הכי תרצה/י שנתמקד עכשיו בתרגול הראשון שלנו:\n• **Reading stories** = קריאת סיפורים (Unseen)\n• **Learning new vocabulary words** = לימוד אוצר מילים\n• **Writing in English** = כתיבה באנגלית\n\nבחר/י באחת האפשרויות למטה:`,
+      text: `${wordPrefix}אל תדאג/י בכלל, ${studentName}! אם האנגלית מרגישה לך קצת קשה כרגע, הגעת בדיוק למקום הנכון – אנחנו נתקדם יחד לאט, צעד אחר צעד, עם הסברים בעברית! 💙💪\n\nשאלתי במה הכי בא לך שנתחיל עכשיו (הכול מותאם לרמת מתחילים **Level 1**):\n• **Learning new words (אוצר מילים בסיסי 📚)** – **מומלץ מאוד להתחלה קלה ומהירה!**\n• **Reading short stories (סיפורים קצרים עם תרגום 📖)**\n• **Writing simple sentences (אימון כתיבה מודרך ✍️)**\n\nפשוט לחצ/י על מה שמרגיש לך הכי נוח (אפשר גם בעברית!):`,
       quickReplies: [
-        "I'd like to practice reading stories",
-        "I want to learn new vocabulary words",
-        "I want to improve my writing in English",
-        "Let's practice a bit of everything!",
+        "מילים חדשות (Learning new words) 📚",
+        "סיפורים קצרים (Reading stories) 📖",
+        "כתיבה פשוטה (Writing) ✍️",
+        "תבחר לי אתה משהו קל! 🎲",
       ],
     };
   }
 
   // 2. Handle when the student understood and answered the question, but wrote their answer in Hebrew on Turns 0-2
   if (isHebrewContentAnswer) {
-    if (completedTurnIndex === 0) {
-      return {
-        advanceTurn: false,
-        neededHelp: true,
-        text: `איזה יופי, ${studentName}! נשמע תחביב מעולה 😊\nכדי שנתרגל קצת אנגלית יחד, איך היית כותב/ת את זה במשפט קצר באנגלית?\nאפשר להתחיל במילים: **I like...** (למשל: *I like football* / *I like video games* / *I like music*).\n\nנסה/י לכתוב באנגלית או לבחור למטה:`,
-        quickReplies: [
-          "I like playing sports and football",
-          "I like playing video games",
-          "I love listening to music",
-          "I really enjoy animals",
-        ],
-      };
-    }
+    const tailored = buildTailoredHebrewToEnglishScaffold(
+      completedTurnIndex,
+      studentReply,
+      studentName
+    );
+    const vocabBullets = tailored.vocabBreakdownHebrew.map((b) => `• ${b}`).join("\n");
 
-    if (completedTurnIndex === 1) {
-      return {
-        advanceTurn: false,
-        neededHelp: true,
-        text: `כל הכבוד ${studentName}, הבנת מעולה את הסיפור! 👏\nעכשיו בוא/י ננסה לכתוב את התשובה הזו במשפט קצר באנגלית!\nלמשל:\n• **Because he put salt instead of sugar!** (כי הוא שם מלח במקום סוכר)\n• **I would order pizza.** (הייתי מזמין/ה פיצה)\n\nנסה/י לכתוב את זה באנגלית או ללחוץ על אחת האפשרויות למטה:`,
-        quickReplies: [
-          "Because he put salt instead of sugar! I would order pizza.",
-          "The cake tasted salty, so I would buy ice cream.",
-        ],
-      };
-    }
-
-    if (completedTurnIndex === 2) {
-      return {
-        advanceTurn: false,
-        neededHelp: true,
-        text: `רעיון נהדר, ${studentName}! 🌟\nבוא/י ננסה לכתוב את הרעיון היפה שלך במשפט קצר באנגלית. אפשר להיעזר בתבנית הזו:\n• **I want to travel to... because it is fun.**\n• **I would invent a... for my school.**\n\nנסה/י לכתוב באנגלית או לבחור אחת מהאפשרויות למטה:`,
-        quickReplies: [
-          "I want to travel to USA because it is amazing.",
-          "I want to travel to Japan because I love technology.",
-          "I would invent a smart tablet that helps students learn.",
-        ],
-      };
-    }
+    return {
+      advanceTurn: false,
+      neededHelp: true,
+      text: `${tailored.acknowledgmentHebrew}\n\nעכשיו בוא/י נגיד את **התשובה שלך** במשפט קצר באנגלית! הנה המילים המדויקות למה שכתבת:\n${vocabBullets}\n\n✨ **המשפט שלך באנגלית:**\n👉 **"${tailored.tailoredEnglishSentence}"**\n\nנסה/י להקליד אותו באנגלית או פשוט לחצ/י עליו למטה כדי להמשיך:`,
+      quickReplies: tailored.quickReplies,
+    };
   }
 
-  // 3. Normal English progression: Advance to the next turn!
-  // After Turn 0 (Student shared their hobbies/free time) -> Move to Turn 1 (Short story comprehension in conversation)
+  // 3. Normal English (or Heblish / Broken English) progression: Advance to the next turn with warm modeling!
   if (completedTurnIndex === 0) {
-    let hobbyReaction = `That sounds like a great way to spend your free time, ${studentName}!`;
-    if (lower.includes("game") || lower.includes("gaming") || lower.includes("play")) {
-      hobbyReaction = `Nice! Video games and sports are awesome ways to unwind, ${studentName}!`;
+    let hobbyReaction = `Awesome, ${studentName}! (מעולה!)`;
+    if (isHeblishAnswer && heblishCoachingLine) {
+      hobbyReaction = heblishCoachingLine;
+    } else if (lower === "i love dog" || lower === "i like dog") {
+      hobbyReaction = `Dogs are the best, ${studentName}! 🐶 (אגב, באנגלית אומרים **"I love dogs!"** – כל הכבוד על התשובה!)`;
+    } else if (lower.includes("play") && !lower.includes("playing") && (lower.includes("i like play") || lower.includes("i love play"))) {
+      hobbyReaction = `Great answer, ${studentName}! 🎮⚽ (טיפ קטן: אחרי *I like* מוסיפים *ing*, למשל: **"I like playing..."** – אלוף!)`;
+    } else if (lower.includes("game") || lower.includes("gaming") || lower.includes("fifa") || lower.includes("play")) {
+      hobbyReaction = `Nice! Gaming and sports are awesome ways to have fun, ${studentName}! 🎮⚽ (איזה כיף!)`;
     } else if (lower.includes("music") || lower.includes("song") || lower.includes("sing") || lower.includes("dance")) {
-      hobbyReaction = `I love music too, ${studentName}! It always puts me in a good mood.`;
+      hobbyReaction = `I love music too, ${studentName}! 🎵 (גם אני ממש אוהב מוזיקה!)`;
     } else if (lower.includes("animal") || lower.includes("dog") || lower.includes("cat") || lower.includes("nature")) {
-      hobbyReaction = `Animals and nature are amazing, ${studentName}!`;
+      hobbyReaction = `Animals and nature are amazing, ${studentName}! 🐶🌿 (בעלי חיים זה מדהים!)`;
     } else if (lower.includes("sport") || lower.includes("football") || lower.includes("soccer") || lower.includes("basketball")) {
-      hobbyReaction = `Sports are fantastic for staying active and having fun, ${studentName}!`;
+      hobbyReaction = `Sports are fantastic for having fun, ${studentName}! ⚽🏀 (ספורט זה מעולה!)`;
     }
 
     return {
       advanceTurn: true,
-      text: `${hobbyReaction}\n\nSpeaking of fun weekends, my cousin Leo tried to bake a chocolate cake for his mom's birthday yesterday. He accidentally used salt instead of sugar because the two jars looked identical! When everyone took a bite at the party, their faces turned bright red, and they ended up ordering pizza instead. 😄\n\nTell me in your own words — why did everyone's face turn red when they tasted Leo's cake, and what would you do if that happened at your party?`,
+      text: `${hobbyReaction}\n\n📖 **Short Story (סיפור קצר – קרא/י וענה/י על השאלה):**\nYesterday, my cousin Leo baked a chocolate cake 🎂.\nHe **accidentally** (בטעות) put **salt** (מלח) **instead of** (במקום) **sugar** (סוכר)!\nWhen everyone **tasted** (טעמו) the cake, their faces **turned red** (האדימו) 🥵, so they **ordered pizza** (הזמינו פיצה) 🍕!\n\n**Question 2:** Why did everyone's face turn red, and what would you do?\n💡 *Tip: Start with **"Because he put..."** (כי הוא שם...) and **"I would..."** (הייתי...)*`,
       quickReplies: [
-        "Because he put salt instead of sugar! I would laugh and order pizza too.",
-        "The cake tasted super salty! I would go buy ice cream instead.",
+        "Because he put salt instead of sugar! I would order pizza.",
+        "Because the cake was salty! I would buy ice cream.",
         "אני לא מבין, תסביר בעברית 🙏",
       ],
     };
   }
 
-  // After Turn 1 (Student explained the salty cake story) -> Move to Turn 2 (Expressive 2-3 sentence prompt)
+  // After Turn 1 (Student explained the salty cake story) -> Move to Turn 2
   if (completedTurnIndex === 1) {
     const mentionedSaltOrSugar =
       lower.includes("salt") ||
@@ -385,28 +1165,74 @@ export function generateOnboardingTurnResponse(
       lower.includes("taste") ||
       lower.includes("bad");
 
-    const storyReaction = mentionedSaltOrSugar
-      ? `Haha, spot on! A mouthful of salty chocolate cake is definitely an unforgettable birthday surprise!`
-      : `Haha, totally! At least pizza saved the birthday party in the end!`;
+    let storyReaction = mentionedSaltOrSugar
+      ? `Spot on, ${studentName}! 🍕👏 (בול! עוגת שוקולד מלוחה זו לגמרי הפתעה מצחיקה!)`
+      : `Haha, totally! At least pizza saved the party! 🍕 (לפחות הפיצה הצילה את המסיבה!)`;
+
+    if (isHeblishAnswer && heblishCoachingLine) {
+      storyReaction = `${heblishCoachingLine}\n${storyReaction}`;
+    } else if (
+      lower.includes("becoz") ||
+      lower === "because salt" ||
+      lower === "because salt in cake"
+    ) {
+      storyReaction = `Spot on, ${studentName}! 🎯 You understood the story! (הבנת מצוין! במשפט מלא באנגלית נכתוב: **"Because he put salt in the cake!"** 👏)`;
+    }
 
     return {
       advanceTurn: true,
-      text: `${storyReaction}\n\nNow I'm curious about your imagination, ${studentName}: if you could travel anywhere in the world tomorrow — or invent one cool gadget for your school — what would you choose and why? Write 2 or 3 sentences in English!`,
+      text: `${storyReaction}\n\n**Question 3:** If you could **travel anywhere** (לטוס לכל מקום בעולם) ✈️ OR **invent a cool gadget** (להמציא מכשיר/רובוט מגניב) 🤖 for your school — what would you choose and why?\n\n💡 *Tip: Write 1 short sentence using (נסה/י לכתוב משפט קצר אחד):*\n• **"I want to travel to... because..."** (אני רוצה לטוס ל... כי...)\n• **"I would invent a... because..."** (הייתי ממציא/ה... כי...)`,
       quickReplies: [
+        "I would invent a robot that does homework!",
+        "I want to travel to Japan because it is cool!",
         "אני לא מבין את השאלה, תסביר בעברית 🙏",
       ],
     };
   }
 
-  // After Turn 2 (Student wrote 2-3 sentences about travel or an invention) -> Move to Turn 3 (Preferred focus)
+  // After Turn 2 (Student wrote about travel or an invention) -> Move to Turn 3 (Preferred focus)
+  if (completedTurnIndex === 2) {
+    let ideaReaction = `I really loved your idea, ${studentName}! 🌟 (אהבתי מאוד את הרעיון שלך!)`;
+    if (isHeblishAnswer && heblishCoachingLine) {
+      ideaReaction = `${heblishCoachingLine}\n${ideaReaction}`;
+    } else if (lower.includes("robot") && lower.includes("homework")) {
+      ideaReaction = `Awesome invention, ${studentName}! 🤖📚 A homework robot would be a bestseller! (המצאה אדירה! במשפט מלא: **"I would invent a robot that does homework!"**)`;
+    } else if (lower.includes("japan") || lower.includes("usa") || lower.includes("travel")) {
+      ideaReaction = `Great choice, ${studentName}! ✈️🌍 Traveling is the best way to practice English! (בחירה מעולה!)`;
+    }
+
+    return {
+      advanceTurn: true,
+      text: `${ideaReaction}\n\n**Question 4 (Last question! / שאלה אחרונה!):**\nWhat would you like to practice first with me right now?\n• 📖 **Reading stories** (קריאת סיפורים קצרים - Unseen)\n• 📚 **Learning new words** (אוצר מילים - Band I)\n• ✍️ **Writing in English** (כתיבת משפטים באנגלית)`,
+      quickReplies: [
+        "I want to learn new vocabulary words 📚",
+        "I'd like to practice reading stories 📖",
+        "I want to improve my writing in English ✍️",
+        "תבחר לי אתה משהו קל! 🎲",
+      ],
+    };
+  }
+
+  // After Turn 3 (Final Turn - Student selected their preferred practice focus!)
+  const wantsVocab = lower.includes("word") || lower.includes("vocab") || lower.includes("מילים") || lower.includes("אוצר");
+  const wantsReading = lower.includes("read") || lower.includes("stor") || lower.includes("קריאה") || lower.includes("סיפור");
+  const wantsWriting = lower.includes("writ") || lower.includes("essay") || lower.includes("כתיבה");
+
+  const focusHeb = wantsVocab
+    ? "חיזוק אוצר מילים בסיסי (Band I) 📚"
+    : wantsReading
+    ? "קריאת סיפורים קצרים ומהנים (Unseen) 📖"
+    : wantsWriting
+    ? "כתיבת משפטים קצרים באנגלית (Writing) ✍️"
+    : "תרגול מדורג וקל שמתאים בדיוק לך 🎯";
+
   return {
     advanceTurn: true,
-    text: `I really enjoyed reading your idea, ${studentName}! One last question before we pick our first activity together: what do you feel you'd like to practice most with me right now — reading interesting stories, learning new vocabulary words, or writing in English?`,
+    text: `Awesome choice, ${studentName}! 🎉\nמעולה! סיימנו את שיחת ההיכרות שלנו בהצלחה! 👏\nנתחיל עכשיו ב-**${focusHeb}** בקצב שלך, עם הסברים בעברית בכל שלב. הנה המשימה הראשונה שהכנתי במיוחד עבורך:`,
     quickReplies: [
-      "I'd like to practice reading stories",
-      "I want to learn new vocabulary words",
-      "I want to improve my writing in English",
-      "Let's practice a bit of everything!",
+      "בוא נתחיל עכשיו 🚀",
+      "🎲 דוד, בחר עבורי משהו קל",
+      "תסביר לי איך מתחילים",
     ],
   };
 }
