@@ -86,6 +86,8 @@ export interface TutorTurnInPayload {
   vocabToReview: TutorVocabReviewItem[];
   assignmentId?: string;
   teacherName?: string;
+  encouragement?: string;
+  teacherNote?: string;
 }
 
 export interface TutorMessage {

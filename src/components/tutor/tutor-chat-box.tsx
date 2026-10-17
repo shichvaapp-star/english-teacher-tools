@@ -107,6 +107,7 @@ function TurnInLessonFlowCard({
   const [savedWordsMap, setSavedWordsMap] = useState<Record<string, boolean>>({});
   const [knownCount, setKnownCount] = useState(0);
   const [nextMissionTriggered, setNextMissionTriggered] = useState(false);
+  const [showAllImprovements, setShowAllImprovements] = useState(false);
 
   const words = useMemo(() => {
     return (turnIn.vocabToReview || []).slice(0, 8);
@@ -234,14 +235,35 @@ function TurnInLessonFlowCard({
               </p>
             </div>
 
+            {/* David's Personal Encouragement Note */}
+            <div className="p-3 sm:p-3.5 rounded-xl bg-indigo-500/10 border border-indigo-500/25 flex items-start gap-2.5">
+              <div className="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-xs">
+                דוד
+              </div>
+              <div className="space-y-0.5 text-right">
+                <span className="text-[11px] font-bold text-indigo-700 dark:text-indigo-300 block">
+                  מילה אישית מדוד:
+                </span>
+                <p className="text-xs sm:text-sm text-foreground/95 leading-relaxed font-medium">
+                  {turnIn.teacherNote ||
+                    turnIn.encouragement ||
+                    (turnIn.score >= 90
+                      ? "כל הכבוד! עבודה יוצאת מן הכלל עם כתיבה מדויקת ורעיונות נהדרים. אני גאה בך! 🌟"
+                      : turnIn.score >= 80
+                      ? "עבודה יפה מאוד! ענית על המשימה בצורה ברורה עם אוצר מילים טוב. יש לנו כמה ליטושים קטנים ונתקדם! 👍"
+                      : "כל הכבוד על ההשקעה וההגשה! בוא נעבור יחד על כמה דגשים חשובים כדי להשתפר לפעם הבאה 💪")}
+                </p>
+              </div>
+            </div>
+
             {turnIn.strengths && turnIn.strengths.length > 0 && (
               <div className="p-3 rounded-xl border border-emerald-500/30 bg-emerald-500/5 space-y-1.5">
                 <div className="text-xs font-bold text-emerald-700 dark:text-emerald-300 flex items-center gap-1.5">
                   <CheckCircle2 className="h-4 w-4 shrink-0" />
-                  <span>נקודות חוזק בעבודה שלך:</span>
+                  <span>נקודות חוזק מובילות:</span>
                 </div>
-                <ul className="space-y-1 text-xs sm:text-sm text-foreground/90 pr-4 list-disc">
-                  {turnIn.strengths.map((s, i) => (
+                <ul className="space-y-1 text-xs sm:text-sm text-foreground/90 pr-3 list-disc">
+                  {turnIn.strengths.slice(0, 3).map((s, i) => (
                     <li key={i}>{s}</li>
                   ))}
                 </ul>
@@ -249,19 +271,33 @@ function TurnInLessonFlowCard({
             )}
 
             {turnIn.improvements && turnIn.improvements.length > 0 && (
-              <div className="p-3 rounded-xl border border-amber-500/30 bg-amber-500/5 space-y-1.5">
-                <div className="text-xs font-bold text-amber-700 dark:text-amber-300 flex items-center gap-1.5">
-                  <Sparkles className="h-4 w-4 shrink-0" />
-                  <span>תיקונים ודגשים חשובים מדוד:</span>
+              <div className="p-3 rounded-xl border border-amber-500/30 bg-amber-500/5 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="text-xs font-bold text-amber-700 dark:text-amber-300 flex items-center gap-1.5">
+                    <Sparkles className="h-4 w-4 shrink-0" />
+                    <span>דגשים ושיפורים ממוקדים מדוד:</span>
+                  </div>
+                  {turnIn.improvements.length > 3 && (
+                    <button
+                      type="button"
+                      onClick={() => setShowAllImprovements(!showAllImprovements)}
+                      className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
+                    >
+                      {showAllImprovements ? "הצג פחות ▴" : `עוד ${turnIn.improvements.length - 3} תיקונים ▾`}
+                    </button>
+                  )}
                 </div>
-                <ul className="space-y-2 text-xs sm:text-sm text-foreground/90 pr-1">
-                  {turnIn.improvements.map((imp, i) => (
-                    <li key={i} className="p-2 rounded-lg bg-background/60 border border-border/50 space-y-0.5">
+                <ul className="space-y-1.5 text-xs text-foreground/90">
+                  {(showAllImprovements ? turnIn.improvements : turnIn.improvements.slice(0, 3)).map((imp, i) => (
+                    <li key={i} className="p-2 rounded-lg bg-background/80 border border-border/60 space-y-1">
                       {imp.original && (
-                        <div className="text-xs text-muted-foreground font-sans" dir="ltr">
-                          <span className="line-through text-rose-500/80 mr-1.5">{imp.original}</span>
-                          <span className="text-emerald-600 dark:text-emerald-400 font-bold">
-                            &rarr; {imp.suggestion}
+                        <div className="text-xs font-sans flex items-center gap-1.5 flex-wrap" dir="ltr">
+                          <span className="line-through text-rose-500/80 bg-rose-500/10 px-1.5 py-0.5 rounded text-[11px] font-mono">
+                            {imp.original}
+                          </span>
+                          <span className="text-muted-foreground text-xs">&rarr;</span>
+                          <span className="text-emerald-600 dark:text-emerald-400 font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded text-[11px] font-mono">
+                            {imp.suggestion}
                           </span>
                         </div>
                       )}
@@ -270,7 +306,7 @@ function TurnInLessonFlowCard({
                           {imp.suggestion}
                         </div>
                       )}
-                      <div className="text-xs text-foreground/90">{imp.explanationHebrew}</div>
+                      <div className="text-[11px] text-foreground/80 leading-snug">{imp.explanationHebrew}</div>
                     </li>
                   ))}
                 </ul>

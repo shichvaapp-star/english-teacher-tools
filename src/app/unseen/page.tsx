@@ -53,6 +53,7 @@ import {
   UserCheck,
   Edit3,
   GraduationCap,
+  ChevronDown,
 } from "lucide-react";
 
 const LOCAL_SUBMISSIONS_KEY = "ett_writing_submissions";
@@ -284,6 +285,7 @@ export default function UnseenPracticePage() {
   const [submissionRecord, setSubmissionRecord] = useState<SubmissionItem | null>(null);
   const [copiedReceipt, setCopiedReceipt] = useState(false);
   const [showReviewAnswers, setShowReviewAnswers] = useState(false);
+  const [showDetailedUnseenRubric, setShowDetailedUnseenRubric] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Practice Completion Celebration State
@@ -1110,6 +1112,8 @@ export default function UnseenPracticePage() {
       vocabToReview,
       assignmentId: currentAssignmentId || undefined,
       teacherName: activeAssignment?.teacherName,
+      encouragement: "סיימת בהצלחה את משימת האנסין!",
+      teacherNote: `כל הכבוד! סיימת את קטע הקריאה "${currentStory.hebrewTitle}" בהצלחה עם ציון ${finalScore}.`,
     });
 
     if (typeof window !== "undefined") {
@@ -2564,99 +2568,114 @@ export default function UnseenPracticePage() {
                     </div>
                   )}
 
-                  {/* 4-Pillar Reading Comprehension Rubric Cards */}
+                  {/* 4-Pillar Reading Comprehension Rubric Cards with Progressive Disclosure */}
                   {submissionRecord?.unseenRubric && (
-                    <div className="space-y-2.5 text-right">
-                      <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                        <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
-                        <span>פירוט ציונים לפי 4 עמודי התווך של משרד החינוך בהבנת הנקרא:</span>
-                      </span>
+                    <div className="space-y-2 pt-1 border-t border-border/60 text-right">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowDetailedUnseenRubric(!showDetailedUnseenRubric)}
+                        className="w-full text-xs font-bold gap-2 text-muted-foreground hover:text-foreground h-9 cursor-pointer"
+                      >
+                        <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${showDetailedUnseenRubric ? "rotate-180" : ""}`} />
+                        <span>{showDetailedUnseenRubric ? "הסתר מחוון מעמיק ▴" : "צפה בפירוט 4 עמודי התווך של משרד החינוך בהבנת הנקרא ▾"}</span>
+                      </Button>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
-                        {/* 1. Explicit Details */}
-                        <div className="p-3 rounded-xl border border-border/70 bg-card space-y-1.5">
-                          <div className="flex items-center justify-between font-bold">
-                            <span className="text-foreground">איתור מידע מפורש (Explicit Details)</span>
-                            <span className="text-primary font-mono text-[11px]">
-                              {submissionRecord.unseenRubric.explicitDetails.score} / {submissionRecord.unseenRubric.explicitDetails.max}
-                            </span>
-                          </div>
-                          <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
-                            <div
-                              className="bg-primary h-1.5 rounded-full transition-all"
-                              style={{
-                                width: `${Math.min(100, (submissionRecord.unseenRubric.explicitDetails.score / submissionRecord.unseenRubric.explicitDetails.max) * 100)}%`,
-                              }}
-                            />
-                          </div>
-                          <p className="text-[11px] text-muted-foreground leading-relaxed">
-                            {submissionRecord.unseenRubric.explicitDetails.commentHebrew}
-                          </p>
-                        </div>
+                      {showDetailedUnseenRubric && (
+                        <div className="space-y-2.5 pt-1 animate-in fade-in duration-200">
+                          <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                            <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
+                            <span>פירוט ציונים לפי 4 עמודי התווך של משרד החינוך בהבנת הנקרא:</span>
+                          </span>
 
-                        {/* 2. Inference & Context */}
-                        <div className="p-3 rounded-xl border border-border/70 bg-card space-y-1.5">
-                          <div className="flex items-center justify-between font-bold">
-                            <span className="text-foreground">הסקת מסקנות ורמזי הקשר (Inference)</span>
-                            <span className="text-primary font-mono text-[11px]">
-                              {submissionRecord.unseenRubric.inferenceAndContext.score} / {submissionRecord.unseenRubric.inferenceAndContext.max}
-                            </span>
-                          </div>
-                          <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
-                            <div
-                              className="bg-primary h-1.5 rounded-full transition-all"
-                              style={{
-                                width: `${Math.min(100, (submissionRecord.unseenRubric.inferenceAndContext.score / submissionRecord.unseenRubric.inferenceAndContext.max) * 100)}%`,
-                              }}
-                            />
-                          </div>
-                          <p className="text-[11px] text-muted-foreground leading-relaxed">
-                            {submissionRecord.unseenRubric.inferenceAndContext.commentHebrew}
-                          </p>
-                        </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
+                            {/* 1. Explicit Details */}
+                            <div className="p-3 rounded-xl border border-border/70 bg-card space-y-1.5">
+                              <div className="flex items-center justify-between font-bold">
+                                <span className="text-foreground">איתור מידע מפורש (Explicit Details)</span>
+                                <span className="text-primary font-mono text-[11px]">
+                                  {submissionRecord.unseenRubric.explicitDetails.score} / {submissionRecord.unseenRubric.explicitDetails.max}
+                                </span>
+                              </div>
+                              <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
+                                <div
+                                  className="bg-primary h-1.5 rounded-full transition-all"
+                                  style={{
+                                    width: `${Math.min(100, (submissionRecord.unseenRubric.explicitDetails.score / submissionRecord.unseenRubric.explicitDetails.max) * 100)}%`,
+                                  }}
+                                />
+                              </div>
+                              <p className="text-[11px] text-muted-foreground leading-relaxed">
+                                {submissionRecord.unseenRubric.explicitDetails.commentHebrew}
+                              </p>
+                            </div>
 
-                        {/* 3. Global Understanding */}
-                        <div className="p-3 rounded-xl border border-border/70 bg-card space-y-1.5">
-                          <div className="flex items-center justify-between font-bold">
-                            <span className="text-foreground">הבנה כוללת ורעיון מרכזי (Global)</span>
-                            <span className="text-primary font-mono text-[11px]">
-                              {submissionRecord.unseenRubric.globalUnderstanding.score} / {submissionRecord.unseenRubric.globalUnderstanding.max}
-                            </span>
-                          </div>
-                          <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
-                            <div
-                              className="bg-primary h-1.5 rounded-full transition-all"
-                              style={{
-                                width: `${Math.min(100, (submissionRecord.unseenRubric.globalUnderstanding.score / submissionRecord.unseenRubric.globalUnderstanding.max) * 100)}%`,
-                              }}
-                            />
-                          </div>
-                          <p className="text-[11px] text-muted-foreground leading-relaxed">
-                            {submissionRecord.unseenRubric.globalUnderstanding.commentHebrew}
-                          </p>
-                        </div>
+                            {/* 2. Inference & Context */}
+                            <div className="p-3 rounded-xl border border-border/70 bg-card space-y-1.5">
+                              <div className="flex items-center justify-between font-bold">
+                                <span className="text-foreground">הסקת מסקנות ורמזי הקשר (Inference)</span>
+                                <span className="text-primary font-mono text-[11px]">
+                                  {submissionRecord.unseenRubric.inferenceAndContext.score} / {submissionRecord.unseenRubric.inferenceAndContext.max}
+                                </span>
+                              </div>
+                              <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
+                                <div
+                                  className="bg-primary h-1.5 rounded-full transition-all"
+                                  style={{
+                                    width: `${Math.min(100, (submissionRecord.unseenRubric.inferenceAndContext.score / submissionRecord.unseenRubric.inferenceAndContext.max) * 100)}%`,
+                                  }}
+                                />
+                              </div>
+                              <p className="text-[11px] text-muted-foreground leading-relaxed">
+                                {submissionRecord.unseenRubric.inferenceAndContext.commentHebrew}
+                              </p>
+                            </div>
 
-                        {/* 4. Language & Accuracy */}
-                        <div className="p-3 rounded-xl border border-border/70 bg-card space-y-1.5">
-                          <div className="flex items-center justify-between font-bold">
-                            <span className="text-foreground">דיוק בניסוח ובהעתקת משפטים (Accuracy)</span>
-                            <span className="text-primary font-mono text-[11px]">
-                              {submissionRecord.unseenRubric.languageAndAccuracy.score} / {submissionRecord.unseenRubric.languageAndAccuracy.max}
-                            </span>
+                            {/* 3. Global Understanding */}
+                            <div className="p-3 rounded-xl border border-border/70 bg-card space-y-1.5">
+                              <div className="flex items-center justify-between font-bold">
+                                <span className="text-foreground">הבנה כוללת ורעיון מרכזי (Global)</span>
+                                <span className="text-primary font-mono text-[11px]">
+                                  {submissionRecord.unseenRubric.globalUnderstanding.score} / {submissionRecord.unseenRubric.globalUnderstanding.max}
+                                </span>
+                              </div>
+                              <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
+                                <div
+                                  className="bg-primary h-1.5 rounded-full transition-all"
+                                  style={{
+                                    width: `${Math.min(100, (submissionRecord.unseenRubric.globalUnderstanding.score / submissionRecord.unseenRubric.globalUnderstanding.max) * 100)}%`,
+                                  }}
+                                />
+                              </div>
+                              <p className="text-[11px] text-muted-foreground leading-relaxed">
+                                {submissionRecord.unseenRubric.globalUnderstanding.commentHebrew}
+                              </p>
+                            </div>
+
+                            {/* 4. Language & Accuracy */}
+                            <div className="p-3 rounded-xl border border-border/70 bg-card space-y-1.5">
+                              <div className="flex items-center justify-between font-bold">
+                                <span className="text-foreground">דיוק בניסוח ובהעתקת משפטים (Accuracy)</span>
+                                <span className="text-primary font-mono text-[11px]">
+                                  {submissionRecord.unseenRubric.languageAndAccuracy.score} / {submissionRecord.unseenRubric.languageAndAccuracy.max}
+                                </span>
+                              </div>
+                              <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
+                                <div
+                                  className="bg-primary h-1.5 rounded-full transition-all"
+                                  style={{
+                                    width: `${Math.min(100, (submissionRecord.unseenRubric.languageAndAccuracy.score / submissionRecord.unseenRubric.languageAndAccuracy.max) * 100)}%`,
+                                  }}
+                                />
+                              </div>
+                              <p className="text-[11px] text-muted-foreground leading-relaxed">
+                                {submissionRecord.unseenRubric.languageAndAccuracy.commentHebrew}
+                              </p>
+                            </div>
                           </div>
-                          <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
-                            <div
-                              className="bg-primary h-1.5 rounded-full transition-all"
-                              style={{
-                                width: `${Math.min(100, (submissionRecord.unseenRubric.languageAndAccuracy.score / submissionRecord.unseenRubric.languageAndAccuracy.max) * 100)}%`,
-                              }}
-                            />
-                          </div>
-                          <p className="text-[11px] text-muted-foreground leading-relaxed">
-                            {submissionRecord.unseenRubric.languageAndAccuracy.commentHebrew}
-                          </p>
                         </div>
-                      </div>
+                      )}
                     </div>
                   )}
 

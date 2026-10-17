@@ -276,34 +276,35 @@ export async function POST(request: Request) {
 STUDENT AUDIENCE PROFILE: LEVEL 1 (ELEMENTARY SCHOOL / BEGINNER / EARLY FOUNDATION - כיתות ד'-ו'):
 - Target word count is very short (${targetMin} to ${targetMax} words, approximately 1-3 simple sentences).
 - BE EXTREMELY GENTLE, ENCOURAGING, AND WARM!
-- Celebrate any attempt to write words and form basic sentences (e.g., "I like cats", "My dog is brown").
-- Grade generously: assign total scores between 85 and 95 for sincere beginner attempts.
+- Celebrate any attempt to write words and form basic sentences (e.g., "I like cats", "My dog is brown", "He is my best friend").
+- Grade generously: assign total scores between 86 and 95 for sincere beginner attempts answering the task.
 - Do NOT deduct points for simple vocabulary or brevity if they wrote about the topic.
 - CAPITAL LETTERS & SPELLING:
   * Flag capitalization errors in "corrections" with "category": "capitalization" so students learn the rule.
-  * In the mechanics rubric score, deduct at most 1-2 points for beginner capitalization slips; keep total score in the 85-95 range!
+  * In the mechanics rubric score, deduct at most 1-2 points for beginner capitalization slips; keep total score in the 86-95 range!
 - In Hebrew feedback, write warm, enthusiastic praise ("כל הכבוד!", "התחלה נהדרת!").`;
     } else if (currentLevel === "Level 3") {
       levelPedagogyGuidance = `
 STUDENT AUDIENCE PROFILE: LEVEL 3 (HIGH SCHOOL BAGRUT PREP / 4-5 POINTS / ADVANCED / CEFR B1-B2):
 - Target word count is ${targetMin} to ${targetMax} words.
 - Evaluate according to the official Israeli Ministry of Education (Mafmar) Bagrut Rubric.
-- Baseline 82-89 for well-structured, coherent essays that address the prompt with good paragraph flow.
-- 90-100 for rich Band III vocabulary, varied sentence structures (compound/complex), and thoughtful elaboration.
+- Baseline 85-91 for well-structured, coherent essays that address the prompt with good paragraph flow.
+- EXCELLENT STUDENTS (0-2 minor slips, rich vocabulary, clear transitions): Award 92–98! Do NOT low-ball advanced Israeli students.
 - Provide constructive, insightful advice on style, register, and transitions.`;
     } else {
       levelPedagogyGuidance = `
 STUDENT AUDIENCE PROFILE: LEVEL 2 (ISRAELI MIDDLE SCHOOL / חטיבת ביניים / AGES 12-15 / CEFR A2-B1):
 - Target word count is ${targetMin} to ${targetMax} words (typically one paragraph or short personal letter).
-- PEDAGOGICAL ASSESSMENT PHILOSOPHY (COMMUNICATIVE COMPETENCE):
-  * In the Israeli school system, a score of 55 is the failing cutoff ("ציון נכשל"). A score in the 50s is given ONLY to incomprehensible gibberish, severe language breakdown, or essays that completely ignore the task!
-  * If a student writes a coherent text that answers the prompt, falls within or near the target word count (${targetMin}–${targetMax} words), and uses correct basic past/present tenses, their BASELINE GRADE IS 80–89 (Good / Very Good)!
+- PEDAGOGICAL ASSESSMENT PHILOSOPHY (COMMUNICATIVE COMPETENCE & NO LOW-BALLING):
+  * In the Israeli school system, a score of 55 is the failing cutoff ("ציון נכשל"). A score in the 50s-60s is given ONLY to incomprehensible gibberish, severe language breakdown, or essays that completely ignore the task!
+  * EXCELLENT STUDENTS (92–98): If a student writes a clear, coherent text that answers the prompt, is within or near target length, and has 0–2 minor slips, they MUST score 92–98! Never low-ball a good middle schooler to the 70s or 80s for not writing like an adult native speaker.
+  * SOLID / GOOD EFFORT (84–90): Meets word count, clearly answers the prompt, uses basic tenses correctly, with 2–4 minor slips (e.g. simple sentence structures, minor capital letter slip).
   * Do NOT penalize Level 2 students for using everyday, level-appropriate words (e.g. "vacation", "beach", "pool", "food", "summer", "friend"). These are Core Band I and II words expected and praised at this age!
   * Do NOT expect adult, academic, or complex essay structures. Simple sentences connected logically (e.g., "First, we went...", "We ate a lot of food...") are completely appropriate for middle school.
   * PROPORTIONAL DEDUCTIONS ONLY:
-    - 1 to 3 minor slips (e.g., a phonetic spelling slip like "Tailand" for "Thailand", a capitalization slip like "HI", or an extra period) should ONLY deduct 2 to 3 points in Mechanics (giving 11-13/15), NEVER 8-9 points!
-    - Minor sentence boundary slips (e.g. "in Tailand. with my family") should ONLY deduct 2-3 points in Grammar (giving 20-22/25).
-  * High-scoring students (82-90) are those who communicated their message clearly and followed the task, even with a few typical middle-school learning slips.`;
+    - 0 to 1 minor slip: Deduct at most 0–1 point in Mechanics (giving 14-15/15), total score 94–98!
+    - 2 to 3 minor slips: Deduct at most 2 to 3 points in Mechanics (giving 12-13/15), total score 85–91.
+    - Minor sentence boundary slips (e.g. "in Tailand. with my family") should ONLY deduct 2-3 points in Grammar (giving 21-23/25).`;
     }
 
     const systemPrompt = `You are an expert Israeli English teacher and Ministry of Education (משרד החינוך / מפמ"ר אנגלית) pedagogical evaluator.
@@ -357,32 +358,32 @@ CORE ISRAELI PEDAGOGICAL EVALUATION PRINCIPLES:
    Evaluate strictly using these pedagogical score bands. DO NOT judge against adult native English; judge against Israeli EFL grade-level expectations!
 
    A. Content and Organization (תוכן ומבנה - max 35):
-      - 31–35 (Very Good / Excellent): Task is fully addressed; all parts of the prompt are answered; ideas are clear, relevant, and organized; text is within or close to target word count (${targetMin}–${targetMax} words).
-      - 26–30 (Good / Proficient): Task is mostly addressed; main ideas are clear; minor organizational gaps or slight length shortfall.
-      - 20–25 (Adequate): Task is only partially addressed; ideas are limited or repetitive; lacks organizational structure.
-      - 10–19 (Limited): Barely addresses the prompt; off-topic; severe length shortfall.
-      - 0–9 (Inadequate): Irrelevant or empty text.
+      - 33–35 (Very Good / Excellent - מעולה): Task is fully addressed; all parts of the prompt are answered; ideas are clear, relevant, and well organized; text is within or close to target word count (${targetMin}–${targetMax} words).
+      - 28–32 (Good / Proficient - טוב מאוד): Task is mostly addressed; main ideas are clear; minor organizational gaps or slight length shortfall.
+      - 20–27 (Adequate - בינוני): Task is only partially addressed; ideas are limited or repetitive; lacks organizational structure.
+      - 10–19 (Limited - טעון שיפור): Barely addresses the prompt; off-topic; severe length shortfall.
+      - 0–9 (Inadequate - לא מספק): Irrelevant or empty text.
 
    B. Vocabulary (אוצר מילים - max 25):
-      - 22–25 (Very Good / Excellent): Vocabulary is fully appropriate and natural for the student's level (Band I/II for Level 1-2; Band II/III for Level 3); clearly conveys the intended meaning. Simple everyday words (beach, pool, food, vacation, summer) are expected and welcome at Level 2!
-      - 18–21 (Good / Proficient): Appropriate vocabulary for the level; message is easily understood; few minor inaccuracies or occasional repetition.
-      - 14–17 (Adequate): Limited vocabulary with noticeable repetition; some Hebrew-transfer word choices, but meaning is still decipherable.
-      - 8–13 (Limited): Severely restricted or inaccurate vocabulary obscuring meaning.
-      - 0–7 (Inadequate): Complete lack of meaningful vocabulary.
+      - 23–25 (Very Good / Excellent - מעולה): Vocabulary is fully appropriate and natural for the student's level (Band I/II for Level 1-2; Band II/III for Level 3); clearly conveys the intended meaning. Everyday words (beach, pool, food, vacation, summer) are expected and welcome at Level 2!
+      - 19–22 (Good / Proficient - טוב מאוד): Appropriate vocabulary for the level; message is easily understood; few minor inaccuracies or occasional repetition.
+      - 14–18 (Adequate - בינוני): Limited vocabulary with noticeable repetition; some Hebrew-transfer word choices, but meaning is still decipherable.
+      - 8–13 (Limited - טעון שיפור): Severely restricted or inaccurate vocabulary obscuring meaning.
+      - 0–7 (Inadequate - לא מספק): Complete lack of meaningful vocabulary.
 
    C. Language and Grammar (דקדוק ומבנה משפטים - max 25):
-      - 22–25 (Very Good / Excellent): Basic sentence structures and tenses are correct for the context (e.g. past tense used for a past vacation: "went", "ate", "was"); minor slips do not impede understanding at all.
-      - 18–21 (Good / Proficient): Sentences are mostly grammatical; basic tenses are largely correct; a few minor slips in prepositions, articles, or sentence boundaries (e.g. fragment).
-      - 14–17 (Adequate): Frequent grammar errors (e.g. wrong tenses, subject-verb agreement issues), but the reader can still follow the meaning.
-      - 8–13 (Limited): Severe grammatical breakdown that makes multiple sentences hard to understand.
-      - 0–7 (Inadequate): No recognizable English syntax.
+      - 23–25 (Very Good / Excellent - מעולה): Basic sentence structures and tenses are correct for the context (e.g. past tense used for a past vacation: "went", "ate", "was"); 0-1 minor slips that do not impede understanding at all.
+      - 19–22 (Good / Proficient - טוב מאוד): Sentences are mostly grammatical; basic tenses are largely correct; 2-4 minor slips in prepositions, articles, or sentence boundaries (e.g. fragment).
+      - 14–18 (Adequate - בינוני): Frequent grammar errors (e.g. wrong tenses, subject-verb agreement issues), but the reader can still follow the meaning.
+      - 8–13 (Limited - טעון שיפור): Severe grammatical breakdown that makes multiple sentences hard to understand.
+      - 0–7 (Inadequate - לא מספק): No recognizable English syntax.
 
    D. Mechanics, Spelling & Punctuation (מכניקה, אותיות גדולות ואיות - max 15):
-      - 13–15 (Very Good / Excellent): Near-flawless mechanics; at most 1 minor slip. Meaning is completely unobstructed.
-      - 10–12 (Good / Proficient): 2–4 minor spelling or capitalization slips (e.g., phonetic spelling like "Tailand", a capitalization slip like "HI", or a punctuation slip). The text remains easily readable. Deduct only 2–4 points total!
-      - 7–9 (Adequate): Frequent errors in capitalization, punctuation, or spelling across multiple sentences.
-      - 4–6 (Limited): Pervasive spelling and punctuation errors making reading difficult.
-      - 0–3 (Inadequate): Complete absence of mechanics.
+      - 14–15 (Very Good / Excellent - מעולה): Near-flawless mechanics; at most 0–1 minor slip. Meaning is completely unobstructed.
+      - 11–13 (Good / Proficient - טוב מאוד): 2–4 minor spelling or capitalization slips (e.g., phonetic spelling like "Tailand", a capitalization slip like "HI", or a punctuation slip). The text remains easily readable. Deduct only 2–4 points total!
+      - 7–10 (Adequate - בינוני): Frequent errors in capitalization, punctuation, or spelling across multiple sentences.
+      - 4–6 (Limited - טעון שיפור): Pervasive spelling and punctuation errors making reading difficult.
+      - 0–3 (Inadequate - לא מספק): Complete absence of mechanics.
 
 6. SPAM / GIBBERISH / CHEATING FILTER:
    - If the text is pure spam, repeated words ("because because because"), or random characters, set "isSpamOrGibberish": true, assign total score 10-20, and explain gently in Hebrew.
@@ -580,45 +581,51 @@ Return ONLY a valid, raw JSON object matching this exact schema (NO MARKDOWN COD
             }
 
             // Pedagogical calibration sanity guardrail:
-            // If the essay is NOT spam/gibberish, meets or approaches the target word count,
-            // and has few corrections (<= 4 errors), prevent unfair LLM zero-tolerance penalization
-            // to ensure alignment with Israeli Ministry of Education (MOE) grade standards.
+            // Ensure no unfair low-balling of Israeli students in accordance with Ministry of Education standards.
             const essayWords = essayText.trim().split(/\s+/).filter(Boolean);
             const numWords = essayWords.length;
             const correctionCount = (parsed.corrections || []).length;
-            const isWordCountAdequate = numWords >= Math.min(targetMin * 0.75, 25);
+            const isWordCountAdequate =
+              currentLevel === "Level 1"
+                ? numWords >= Math.min(targetMin * 0.7, 7)
+                : numWords >= Math.min(targetMin * 0.75, 25);
+
+            const cleanWords = essayWords.map((w) => w.toLowerCase().replace(/[^a-z0-9]/g, "")).filter((w) => w.length > 0);
+            const richWordsCount = cleanWords.filter((w) => w.length >= 7).length;
 
             if (!parsed.isSpamOrGibberish && isWordCountAdequate && parsed.rubric) {
               const r = parsed.rubric;
 
-              // Mechanics: 1-3 minor slips in MOE guidelines should deduct at most 2-4 points (yielding 11-13/15)
-              if (correctionCount <= 3 && r.mechanicsAndSpelling) {
-                r.mechanicsAndSpelling.score = Math.max(r.mechanicsAndSpelling.score, 11);
-              } else if (correctionCount <= 5 && r.mechanicsAndSpelling) {
-                r.mechanicsAndSpelling.score = Math.max(r.mechanicsAndSpelling.score, 9);
-              }
+              if (currentLevel === "Level 1") {
+                if (r.contentAndOrganization) r.contentAndOrganization.score = Math.max(r.contentAndOrganization.score, 32);
+                if (r.vocabulary) r.vocabulary.score = Math.max(r.vocabulary.score, 23);
+                if (r.languageAndGrammar) r.languageAndGrammar.score = Math.max(r.languageAndGrammar.score, 23);
+                if (r.mechanicsAndSpelling) r.mechanicsAndSpelling.score = Math.max(r.mechanicsAndSpelling.score, 14);
+              } else {
+                const isHighAchiever =
+                  (currentLevel === "Level 3" ? richWordsCount >= 8 : richWordsCount >= 6 && numWords >= targetMin * 1.3) &&
+                  correctionCount <= 1;
 
-              // Content: If student fulfilled target length and wrote coherent sentences, baseline is at least Good (30+/35)
-              if (numWords >= targetMin && r.contentAndOrganization) {
-                r.contentAndOrganization.score = Math.max(r.contentAndOrganization.score, correctionCount <= 3 ? 30 : 28);
-              } else if (numWords >= targetMin * 0.8 && r.contentAndOrganization) {
-                r.contentAndOrganization.score = Math.max(r.contentAndOrganization.score, 26);
-              }
-
-              // Vocabulary & Grammar: If few errors exist, ensure baseline reflects Good / Proficient (20+/25)
-              if (correctionCount <= 3) {
-                if (r.vocabulary) {
-                  r.vocabulary.score = Math.max(r.vocabulary.score, 20);
-                }
-                if (r.languageAndGrammar) {
-                  r.languageAndGrammar.score = Math.max(r.languageAndGrammar.score, 20);
-                }
-              } else if (correctionCount <= 5) {
-                if (r.vocabulary) {
-                  r.vocabulary.score = Math.max(r.vocabulary.score, 17);
-                }
-                if (r.languageAndGrammar) {
-                  r.languageAndGrammar.score = Math.max(r.languageAndGrammar.score, 17);
+                if (isHighAchiever) {
+                  // Profile A: High Achiever (94-98)
+                  if (r.contentAndOrganization) {
+                    r.contentAndOrganization.score = Math.max(r.contentAndOrganization.score, 34);
+                  }
+                  if (r.vocabulary) r.vocabulary.score = Math.max(r.vocabulary.score, 24);
+                  if (r.languageAndGrammar) r.languageAndGrammar.score = Math.max(r.languageAndGrammar.score, 24);
+                  if (r.mechanicsAndSpelling) {
+                    r.mechanicsAndSpelling.score = Math.max(r.mechanicsAndSpelling.score, correctionCount === 0 ? 15 : 14);
+                  }
+                } else if (correctionCount <= 3 && numWords >= targetMin * 0.8) {
+                  // Profile B: Solid Student / Good Effort (84-90)
+                  if (r.contentAndOrganization) {
+                    r.contentAndOrganization.score = Math.max(r.contentAndOrganization.score, 30);
+                  }
+                  if (r.vocabulary) r.vocabulary.score = Math.max(r.vocabulary.score, 21);
+                  if (r.languageAndGrammar) r.languageAndGrammar.score = Math.max(r.languageAndGrammar.score, 21);
+                  if (r.mechanicsAndSpelling) {
+                    r.mechanicsAndSpelling.score = Math.max(r.mechanicsAndSpelling.score, 13);
+                  }
                 }
               }
             }
@@ -649,36 +656,64 @@ Return ONLY a valid, raw JSON object matching this exact schema (NO MARKDOWN COD
     // 5. Fallback Heuristic Rubric (if no AI keys or all models timed out)
     const words = essayText.trim().split(/\s+/).filter(Boolean);
     const wordCount = words.length;
+    const cleanWords = words.map((w) => w.toLowerCase().replace(/[^a-z0-9]/g, "")).filter((w) => w.length > 0);
     const uniqueWords = new Set(words.map((w) => w.toLowerCase()));
     const vocabDiversity = uniqueWords.size / Math.max(1, wordCount);
+    const corrections = ensureCapitalizationChecks(essayText, [], currentLevel);
+    const correctionCount = corrections.length;
+    const richWordsCount = cleanWords.filter((w) => w.length >= 7).length;
 
-    let contentScore = Math.min(35, Math.round((wordCount / Math.max(1, targetMin)) * 30));
-    if (wordCount >= targetMin && wordCount <= targetMax + 20) contentScore = 32;
+    let contentScore: number;
+    let vocabScore: number;
+    let grammarScore: number;
+    let mechanicsScore: number;
 
-    let vocabScore = Math.round(vocabDiversity * 25);
-    if (vocabScore > 24) vocabScore = 22;
-    if (vocabScore < 18 && wordCount >= 15) vocabScore = 19;
+    if (currentLevel === "Level 1") {
+      // Elementary beginner learner (Profile C: 86-94)
+      contentScore = wordCount >= targetMin ? 32 : Math.max(24, Math.round((wordCount / targetMin) * 30));
+      vocabScore = 23;
+      grammarScore = 23;
+      mechanicsScore = 14;
+    } else {
+      const isHighAchiever =
+        (currentLevel === "Level 3" ? richWordsCount >= 8 : richWordsCount >= 6 && wordCount >= targetMin * 1.3) &&
+        correctionCount <= 1;
 
-    let grammarScore = 21;
-    if (/\bi\b/.test(essayText)) grammarScore -= 2; // lowercase 'i' penalty
-    if (!/[.?!]/.test(essayText)) grammarScore -= 3; // missing sentence punctuation
+      if (isHighAchiever) {
+        // Profile A: Rich development, Band II/III vocabulary, near flawless (95-98)
+        contentScore = wordCount >= targetMin ? 35 : 34;
+        vocabScore = 24;
+        grammarScore = 24;
+        mechanicsScore = correctionCount === 0 ? 15 : 14;
+      } else {
+        // Profile B: Solid student meeting prompt, everyday words (Band I), basic structures (84-90)
+        contentScore = wordCount >= targetMin ? 31 : 28;
+        vocabScore = 21;
+        grammarScore = 21;
+        mechanicsScore = correctionCount <= 1 ? 13 : 11;
+      }
+    }
 
-    let mechanicsScore = 13;
-    if (/[A-Z]/.test(essayText)) mechanicsScore += 1;
-    if (mechanicsScore > 15) mechanicsScore = 14;
-
-    const totalScore = Math.min(100, Math.max(25, contentScore + vocabScore + grammarScore + mechanicsScore));
+    const totalScore = Math.min(100, Math.max(20, contentScore + vocabScore + grammarScore + mechanicsScore));
 
     const fallbackResult: WritingEvaluationResult = {
       score: totalScore,
       isSpamOrGibberish: false,
-      encouragement: "החיבור נבדק לפי עקרונות מחוון משרד החינוך (בדיקה פדגוגית בסיסית).",
-      teacherNote: `כל הכבוד על ההשקעה בכתיבת החיבור! כתבת ${wordCount} מילים מתוך יעד של ${targetMin}–${targetMax} מילים. כדי לקבל משוב מפורט ומעמיק יותר עם הצעות שדרוג לשוניות, מומלץ לחבר מפתח AI (Groq או Gemini) בהגדרות.`,
+      encouragement:
+        totalScore >= 92
+          ? "עבודה מצוינת! כתיבה רהוטה ומאורגנת היטב לפי מחוון משרד החינוך 🌟"
+          : totalScore >= 84
+          ? "עבודה טובה מאוד! רעיון ברור ומענה יפה למטלה 👍"
+          : "החיבור נבדק לפי עקרונות מחוון משרד החינוך (בדיקה פדגוגית בסיסית).",
+      teacherNote:
+        totalScore >= 92
+          ? `כל הכבוד! כתבת ${wordCount} מילים בצורה בהירה ומשכנעת, תוך עמידה מושלמת ביעד המטלה (${targetMin}–${targetMax} מילים). המשך כך!`
+          : `כל הכבוד על ההשקעה בכתיבת החיבור! כתבת ${wordCount} מילים מתוך יעד של ${targetMin}–${targetMax} מילים. החיבור מעביר את המסר בצורה טובה וברורה.`,
       strengths: [
         `אורך החיבור: ${wordCount} מילים (יעד המטלה: ${targetMin}–${targetMax} מילים).`,
-        vocabDiversity > 0.6
-          ? "שימוש באוצר מילים מגוון ללא חזרות מיותרות."
-          : "העברת רעיון ברור בשפה מובנת.",
+        vocabDiversity > 0.55
+          ? "שימוש באוצר מילים מגוון ומתאים לרמת הכיתה ללא חזרות מיותרות."
+          : "העברת רעיון ברור בשפה מובנת ורציפה.",
       ],
       tips: [
         "הקפידו לפתוח כל משפט באות גדולה (Capital letter) ולסיים בנקודה.",
@@ -707,11 +742,7 @@ Return ONLY a valid, raw JSON object matching this exact schema (NO MARKDOWN COD
           commentHebrew: `פיסוק, אותיות גדולות ואיות: ${mechanicsScore}/15`,
         },
       },
-      corrections: ensureCapitalizationChecks(
-        essayText,
-        [],
-        currentLevel
-      ),
+      corrections,
       vocabularyUpgrades: [
         {
           original: "good",

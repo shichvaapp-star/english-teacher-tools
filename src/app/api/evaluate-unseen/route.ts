@@ -196,7 +196,8 @@ function evaluateOpenHeuristic(
     };
   }
 
-  if (keywordRatio >= 0.6 || (matchedKeywords >= 2 && words.length >= 3)) {
+  // High keyword match (ratio >= 0.5 or 2+ matched keywords)
+  if (keywordRatio >= 0.5 || (matchedKeywords >= 2 && words.length >= 2)) {
     return {
       points: 10,
       isCorrect: true,
@@ -204,26 +205,35 @@ function evaluateOpenHeuristic(
     };
   }
 
-  if (keywordRatio >= 0.35 || matchedKeywords >= 1) {
+  // Concise correct answer (e.g., "To see dolphins" where primary keyword matches)
+  if (matchedKeywords >= 1) {
+    if (words.length <= 8) {
+      return {
+        points: 10,
+        isCorrect: true,
+        feedbackHebrew: "תשובה נכונה וממוקדת! זיהית את פרט המידע המרכזי הנדרש מתוך הפסקה.",
+      };
+    }
     return {
-      points: 8,
+      points: 9,
       isCorrect: true,
       feedbackHebrew: "תשובה טובה! הבנת את הרעיון המרכזי בפסקה.",
     };
   }
 
-  if (words.length >= 4) {
+  // Factually wrong answer or text with 0 matched keywords
+  if (words.length >= 3) {
     return {
-      points: 5,
+      points: 2,
       isCorrect: false,
-      feedbackHebrew: "ניסחת תשובה באנגלית, אך המידע אינו עונה במדויק על השאלה לפי הטקסט.",
+      feedbackHebrew: "ניסחת משפט באנגלית, אך המידע אינו עונה על השאלה לפי הטקסט (המידע שגוי או חסר).",
     };
   }
 
   return {
-    points: 1,
+    points: 0,
     isCorrect: false,
-    feedbackHebrew: "התשובה חלקית מאוד ואינה מכילה את המידע הנכון מתוך הטקסט.",
+    feedbackHebrew: "התשובה אינה מכילה את המידע הנכון מתוך הטקסט.",
   };
 }
 
@@ -524,8 +534,9 @@ PEDAGOGICAL GRADING GUIDELINES (OFFICIAL ISRAELI MOE READING COMPREHENSION STAND
    - In 'feedbackHebrew', write an encouraging, constructive 1-2 sentence explanation in Hebrew.
 
 5. HOLISTIC MOE RUBRIC DISTRIBUTION (Sum to 100):
-   - A student who answers questions correctly should achieve an overall score in the 80–95 range.
-   - Scores in the 50s are reserved ONLY for students who missed most questions or left them blank.
+   - A student who answers questions correctly should achieve an overall score in the 92–98 range!
+   - Solid performance with minor slips should achieve 84–90.
+   - Scores in the 50s-60s are reserved ONLY for students who missed most questions or left them blank.
    - Break down reading skills into the 4 official Ministry of Education pillars:
      * explicitDetails: max 35 (איתור מידע מפורש)
      * inferenceAndContext: max 25 (הסקת מסקנות ורמזי הקשר)
