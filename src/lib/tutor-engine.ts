@@ -19,6 +19,14 @@ export const TUTOR_TITLE_HE = "דוד - המורה הפרטי שלך לאנגל�
 const PROFILE_STORAGE_KEY_PREFIX = "ett_tutor_profile";
 const CHAT_STORAGE_KEY_PREFIX = "ett_tutor_chat";
 
+export interface DiagnosticAnswer {
+  questionIndex: number;
+  selectedOption: string;
+  writingScore?: number;
+  writingStrengths?: string[];
+  writingTips?: string[];
+}
+
 export interface DiagnosticQuestionDef {
   step: number;
   totalSteps: number;
@@ -26,7 +34,9 @@ export interface DiagnosticQuestionDef {
   question: string;
   questionHebrew: string;
   passage?: string;
-  options: { text: string; textHebrew?: string; value: string; isCorrect?: boolean; levelWeight?: TutorLevel }[];
+  isFreeText?: boolean;
+  placeholderHebrew?: string;
+  options?: { text: string; textHebrew?: string; value: string; isCorrect?: boolean; levelWeight?: TutorLevel }[];
 }
 
 export const DIAGNOSTIC_STEPS: DiagnosticQuestionDef[] = [
@@ -61,14 +71,11 @@ export const DIAGNOSTIC_STEPS: DiagnosticQuestionDef[] = [
     step: 3,
     totalSteps: 4,
     skill: "writing",
-    question: "Choose the best connector word:\n\"Eran wanted to play soccer in the yard, _______ it started to rain heavily.\"",
-    questionHebrew: "בחרו את מילת הקישור המתאימה ביותר:",
-    options: [
-      { text: "because", textHebrew: "בגלל ש...", value: "because", isCorrect: false },
-      { text: "but", textHebrew: "אבל / אך", value: "but", isCorrect: true, levelWeight: "Level 2" },
-      { text: "so that", textHebrew: "כדי ש...", value: "so_that", isCorrect: false },
-      { text: "therefore", textHebrew: "לפיכך / לכן (High level)", value: "therefore", isCorrect: false, levelWeight: "Level 3" },
-    ],
+    isFreeText: true,
+    question: "Translate into English (or write 1-2 sentences about yourself or your hobbies):\n\"אני אוהב ללמוד דברים חדשים עם חברים כי זה מעניין ועוזר לי להצליח.\"",
+    questionHebrew: "בדיקת כתיבה: תרגמו את המשפט לאנגלית, או כתבו 1-2 משפטים על עצמכם/התחביב שלכם:",
+    placeholderHebrew: "כתבו כאן 1-2 משפטים באנגלית (למשל: I like to learn new things because...)",
+    options: [],
   },
   {
     step: 4,
@@ -235,45 +242,86 @@ export async function saveTutorProfile(profile: StudentTutorProfile): Promise<vo
 }
 
 /**
- * Calculates placement from diagnostic answers
+ * Calculates placement from diagnostic answers including AI writing evaluation
  */
 export function calculateDiagnosticPlacement(
-  answers: { questionIndex: number; selectedOption: string }[],
+  answers: DiagnosticAnswer[],
   currentProfile: StudentTutorProfile
 ): StudentTutorProfile {
-  let score = 0;
   let selectedGoal = "all";
+  let writingScore = 65;
+  let writingStrengths: string[] = [];
+  let writingTips: string[] = [];
+
+  let vScore = 65;
+  let rScore = 65;
 
   answers.forEach((ans) => {
     const q = DIAGNOSTIC_STEPS[ans.questionIndex];
     if (!q) return;
+
     if (q.skill === "goal") {
       selectedGoal = ans.selectedOption;
       return;
     }
-    const opt = q.options.find((o) => o.value === ans.selectedOption);
-    if (opt?.isCorrect) score += 1;
+
+    if (q.skill === "vocabulary" && q.options) {
+      const opt = q.options.find((o) => o.value === ans.selectedOption);
+      vScore = opt?.isCorrect ? 85 : 55;
+      return;
+    }
+
+    if (q.skill === "reading" && q.options) {
+      const opt = q.options.find((o) => o.value === ans.selectedOption);
+      rScore = opt?.isCorrect ? 85 : 55;
+      return;
+    }
+
+    if (q.skill === "writing") {
+      if (typeof ans.writingScore === "number") {
+        writingScore = ans.writingScore;
+      }
+      if (ans.writingStrengths && ans.writingStrengths.length > 0) {
+        writingStrengths = ans.writingStrengths;
+      }
+      if (ans.writingTips && ans.writingTips.length > 0) {
+        writingTips = ans.writingTips;
+      }
+      return;
+    }
   });
+
+  // Calculate composite score from the three core pillars:
+  // Reading 35%, Vocab 35%, AI Writing Rubric Evaluation 30%
+  const compositeScore = Math.round(rScore * 0.35 + vScore * 0.35 + writingScore * 0.30);
 
   let placedLevel: TutorLevel = "Level 2";
   let placedBand: VocabBandLevel = "Band II";
-  let rScore = 65;
-  let vScore = 65;
-  let wScore = 65;
 
-  if (score === 3) {
+  if (compositeScore >= 78) {
     placedLevel = "Level 3";
     placedBand = "Band III";
-    rScore = 85;
-    vScore = 85;
-    wScore = 80;
-  } else if (score <= 1) {
+  } else if (compositeScore <= 60) {
     placedLevel = "Level 1";
     placedBand = "Band I";
-    rScore = 55;
-    vScore = 50;
-    wScore = 55;
+  } else {
+    placedLevel = "Level 2";
+    placedBand = "Band II";
   }
+
+  const strengthsList = [
+    compositeScore >= 70 ? "בסיס טוב באוצר מילים והבנת הנקרא" : "רצון להשתפר ותרגול יסודי",
+    ...writingStrengths.slice(0, 2),
+    "השלמת מבדק האבחון המלא בהצלחה!",
+  ].filter(Boolean);
+
+  const weaknessesList = [
+    ...writingTips.slice(0, 2),
+    selectedGoal === "reading" ? "שאלות הסקה ומבנה פסקאות באנסין" :
+    selectedGoal === "writing" ? "אוצר מילים עשיר ומילות קישור בכתיבה" :
+    selectedGoal === "vocabulary" ? "הטמעת מילים חדשות ב-Band II" :
+    "דיוק בתשובות פתוחות והרחבת אוצר מילים",
+  ].filter(Boolean);
 
   const updated: StudentTutorProfile = {
     ...currentProfile,
@@ -283,18 +331,10 @@ export function calculateDiagnosticPlacement(
     skills: {
       reading: rScore,
       vocabulary: vScore,
-      writing: wScore,
+      writing: writingScore,
     },
-    strengths: [
-      score >= 2 ? "בסיס טוב באוצר מילים ומשפטים" : "רצון להשתפר ותרגול יסודי",
-      "השלמת מבדק האבחון הראשוני בהצלחה!",
-    ],
-    weaknesses: [
-      selectedGoal === "reading" ? "שאלות הסקה ומבנה פסקאות באנסין" :
-      selectedGoal === "writing" ? "אוצר מילים עשיר ומילות קישור בכתיבה" :
-      selectedGoal === "vocabulary" ? "הטמעת מילים חדשות ב-Band II" :
-      "דיוק בתשובות פתוחות והרחבת אוצר מילים",
-    ],
+    strengths: strengthsList,
+    weaknesses: weaknessesList,
   };
 
   updated.currentMission = generateNextMission(updated);

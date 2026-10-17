@@ -11,12 +11,14 @@ import {
   updateMissionTopic,
   loadTutorChat,
   saveTutorChat,
+  DiagnosticAnswer,
 } from "@/lib/tutor-engine";
 import { getCuratedTutorVoices, TutorVoiceOption } from "@/lib/tutor-voice";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -44,6 +46,7 @@ import {
   Award,
   MoreVertical,
   RefreshCw,
+  Loader2,
 } from "lucide-react";
 
 interface TutorChatBoxProps {
@@ -77,9 +80,9 @@ export function TutorChatBox({
   const [diagnosticIndex, setDiagnosticIndex] = useState<number | null>(
     profile.diagnosticCompleted ? null : 0
   );
-  const [diagnosticAnswers, setDiagnosticAnswers] = useState<
-    { questionIndex: number; selectedOption: string }[]
-  >([]);
+  const [diagnosticAnswers, setDiagnosticAnswers] = useState<DiagnosticAnswer[]>([]);
+  const [diagnosticWritingText, setDiagnosticWritingText] = useState("");
+  const [isEvaluatingWriting, setIsEvaluatingWriting] = useState(false);
 
   const chatEndRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<any>(null);
@@ -282,13 +285,15 @@ export function TutorChatBox({
     if (diagnosticIndex === null) return;
 
     const currentStep = DIAGNOSTIC_STEPS[diagnosticIndex];
-    const newAnswers = [
+    if (!currentStep) return;
+
+    const newAnswers: DiagnosticAnswer[] = [
       ...diagnosticAnswers,
       { questionIndex: diagnosticIndex, selectedOption: optionValue },
     ];
     setDiagnosticAnswers(newAnswers);
 
-    const chosenOpt = currentStep.options.find((o) => o.value === optionValue);
+    const chosenOpt = currentStep.options?.find((o) => o.value === optionValue);
     const studentReply: TutorMessage = {
       id: `msg-${Date.now()}`,
       sender: "student",
@@ -310,6 +315,123 @@ export function TutorChatBox({
       const updatedMsgs = [...messages, studentReply, tutorFollowUp];
       setMessages(updatedMsgs);
       saveTutorChat(updatedMsgs, profile.studentId);
+    } else {
+      setDiagnosticIndex(null);
+      const updatedProfile = calculateDiagnosticPlacement(newAnswers, profile);
+      onProfileUpdate(updatedProfile);
+      saveTutorProfile(updatedProfile);
+
+      const mission = updatedProfile.currentMission;
+      const isUnseenOrWriting = mission && (mission.type === "unseen" || mission.type === "writing");
+
+      const completionMessage: TutorMessage = {
+        id: `msg-${Date.now() + 2}`,
+        sender: "tutor",
+        text: `Excellent job ${studentName}! I have calibrated your learning plan. You are starting at **${updatedProfile.level}** (${updatedProfile.vocabBand}). ${
+          isUnseenOrWriting
+            ? "I prepared your first assignment! Please pick a topic you'd like to practice from the options below, or click 'דוד, בחר עבורי': (בחר/י נושא לתרגול שמעניין אותך, או לחצ/י 'דוד, בחר עבורי')"
+            : "I've picked a tailored mission for you! You are ready to start."
+        }`,
+        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        taskRecommendation: updatedProfile.currentMission,
+        quickReplies: isUnseenOrWriting && mission?.availableTopics
+          ? ["🎲 דוד, בחר עבורי", ...mission.availableTopics.slice(0, 3).map((t) => `${t.emoji} ${t.nameHebrew}`)]
+          : ["בוא נתחיל את המשימה!", "דוד, בחר עבורי", "שאל אותי שאלה נוספת"],
+      };
+
+      const updatedMsgs = [...messages, studentReply, completionMessage];
+      setMessages(updatedMsgs);
+      saveTutorChat(updatedMsgs, profile.studentId);
+      speakText(completionMessage.text);
+    }
+  };
+
+  // Handle Student Submitting Written Sentences in Diagnostic Check
+  const handleSubmitDiagnosticWriting = async () => {
+    if (diagnosticIndex === null || !diagnosticWritingText.trim() || isEvaluatingWriting) return;
+
+    const text = diagnosticWritingText.trim();
+    setIsEvaluatingWriting(true);
+
+    let writingScore = 70;
+    let writingStrengths: string[] = [];
+    let writingTips: string[] = [];
+    let encouragement = "כל הכבוד על כתיבת המשפטים באנגלית!";
+
+    try {
+      const res = await fetch("/api/evaluate-writing", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          essayText: text,
+          taskTitle: "Diagnostic Writing Placement",
+          prompt: "Translate into English or write 1-2 sentences about learning and hobbies.",
+          category: "opinion",
+          minWords: 3,
+          maxWords: 40,
+          level: "Level 2",
+        }),
+      });
+
+      if (res.ok) {
+        const evalData = await res.json();
+        if (typeof evalData.score === "number") {
+          writingScore = evalData.score;
+        }
+        if (evalData.encouragement) {
+          encouragement = evalData.encouragement;
+        }
+        if (Array.isArray(evalData.strengths) && evalData.strengths.length > 0) {
+          writingStrengths = evalData.strengths;
+        }
+        if (Array.isArray(evalData.tips) && evalData.tips.length > 0) {
+          writingTips = evalData.tips;
+        }
+      }
+    } catch (e) {
+      console.warn("AI writing diagnostic evaluation notice:", e);
+    } finally {
+      setIsEvaluatingWriting(false);
+    }
+
+    const newAnswer: DiagnosticAnswer = {
+      questionIndex: diagnosticIndex,
+      selectedOption: text,
+      writingScore,
+      writingStrengths,
+      writingTips,
+    };
+
+    const newAnswers = [...diagnosticAnswers, newAnswer];
+    setDiagnosticAnswers(newAnswers);
+    setDiagnosticWritingText("");
+
+    const studentReply: TutorMessage = {
+      id: `msg-${Date.now()}`,
+      sender: "student",
+      text: text,
+      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+    };
+
+    if (diagnosticIndex < DIAGNOSTIC_STEPS.length - 1) {
+      const nextIdx = diagnosticIndex + 1;
+      setDiagnosticIndex(nextIdx);
+
+      const tutorFollowUpText = `מעולה! בדקתי את המשפטים שלך לפי מחוון הכתיבה: ציון כתיבה ${writingScore}/100 ✍️\n${encouragement}${
+        writingTips.length > 0 ? `\n💡 טיפ לשיפור: ${writingTips[0]}` : ""
+      }\n\nנשארה לנו רק שאלה אחרונה (${nextIdx + 1} מתוך ${DIAGNOSTIC_STEPS.length}):`;
+
+      const tutorFollowUp: TutorMessage = {
+        id: `msg-${Date.now() + 1}`,
+        sender: "tutor",
+        text: tutorFollowUpText,
+        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      };
+
+      const updatedMsgs = [...messages, studentReply, tutorFollowUp];
+      setMessages(updatedMsgs);
+      saveTutorChat(updatedMsgs, profile.studentId);
+      speakText(`Great job! Your writing score is ${writingScore} out of 100.`);
     } else {
       setDiagnosticIndex(null);
       const updatedProfile = calculateDiagnosticPlacement(newAnswers, profile);
@@ -587,6 +709,8 @@ export function TutorChatBox({
   const handleRestartDiagnostic = () => {
     setDiagnosticIndex(0);
     setDiagnosticAnswers([]);
+    setDiagnosticWritingText("");
+    setIsEvaluatingWriting(false);
     const resetGreeting: TutorMessage = {
       id: `msg-${Date.now()}`,
       sender: "tutor",
@@ -930,47 +1054,90 @@ export function TutorChatBox({
         ))}
 
         {/* Minimal Conversational Diagnostic Check */}
-        {diagnosticIndex !== null && DIAGNOSTIC_STEPS[diagnosticIndex] && (
-          <div className="mr-11 max-w-[92%] sm:max-w-[85%] animate-in fade-in slide-in-from-bottom-2 duration-300 text-right">
-            <Card className="border border-primary/30 bg-card p-4 sm:p-5 rounded-2xl shadow-xs space-y-3">
-              <div className="flex items-center gap-1.5 text-xs text-primary font-bold">
-                <Sparkles className="h-3.5 w-3.5" />
-                <span>בדיקת רמה קצרה מדוד • שאלה {diagnosticIndex + 1} מתוך {DIAGNOSTIC_STEPS.length}</span>
-              </div>
-
-              {DIAGNOSTIC_STEPS[diagnosticIndex].passage && (
-                <div className="p-3 bg-muted/50 rounded-xl text-sm font-serif italic text-foreground border-r-4 border-primary/60 text-left" dir="ltr">
-                  "{DIAGNOSTIC_STEPS[diagnosticIndex].passage}"
+        {diagnosticIndex !== null && DIAGNOSTIC_STEPS[diagnosticIndex] && (() => {
+          const step = DIAGNOSTIC_STEPS[diagnosticIndex];
+          if (!step) return null;
+          return (
+            <div className="mr-11 max-w-[92%] sm:max-w-[85%] animate-in fade-in slide-in-from-bottom-2 duration-300 text-right">
+              <Card className="border border-primary/30 bg-card p-4 sm:p-5 rounded-2xl shadow-xs space-y-3">
+                <div className="flex items-center gap-1.5 text-xs text-primary font-bold">
+                  <Sparkles className="h-3.5 w-3.5" />
+                  <span>בדיקת רמה קצרה מדוד • שאלה {diagnosticIndex + 1} מתוך {DIAGNOSTIC_STEPS.length}</span>
                 </div>
-              )}
 
-              <div className="space-y-1 text-right font-sans">
-                <div className="text-sm sm:text-base font-semibold text-foreground whitespace-pre-line text-left leading-relaxed font-sans" dir="ltr">
-                  {DIAGNOSTIC_STEPS[diagnosticIndex].question}
-                </div>
-                <div className="text-xs sm:text-sm text-muted-foreground text-right font-hebrew" dir="rtl">
-                  {DIAGNOSTIC_STEPS[diagnosticIndex].questionHebrew}
-                </div>
-              </div>
+                {step.passage && (
+                  <div className="p-3 bg-muted/50 rounded-xl text-sm font-serif italic text-foreground border-r-4 border-primary/60 text-left" dir="ltr">
+                    "{step.passage}"
+                  </div>
+                )}
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1" dir="rtl">
-                {DIAGNOSTIC_STEPS[diagnosticIndex].options.map((opt, oIdx) => (
-                  <Button
-                    key={oIdx}
-                    variant="outline"
-                    onClick={() => handleDiagnosticOptionSelect(opt.value)}
-                    className="justify-start text-right h-auto py-2.5 px-3 border-border/70 hover:border-primary hover:bg-primary/5 transition-all text-sm flex flex-col items-start gap-0.5 whitespace-normal cursor-pointer rounded-xl"
-                  >
-                    <span className="font-semibold text-foreground text-left font-sans text-sm" dir="ltr">{opt.text}</span>
-                    {opt.textHebrew && (
-                      <span className="text-xs text-muted-foreground text-right font-hebrew" dir="rtl">{opt.textHebrew}</span>
-                    )}
-                  </Button>
-                ))}
-              </div>
-            </Card>
-          </div>
-        )}
+                <div className="space-y-1 text-right font-sans">
+                  <div className="text-sm sm:text-base font-semibold text-foreground whitespace-pre-line text-left leading-relaxed font-sans" dir="ltr">
+                    {step.question}
+                  </div>
+                  <div className="text-xs sm:text-sm text-muted-foreground text-right font-hebrew" dir="rtl">
+                    {step.questionHebrew}
+                  </div>
+                </div>
+
+                {step.isFreeText ? (
+                  <div className="space-y-2.5 pt-1 font-sans">
+                    <Textarea
+                      value={diagnosticWritingText}
+                      onChange={(e) => setDiagnosticWritingText(e.target.value)}
+                      placeholder={
+                        step.placeholderHebrew ||
+                        "כתבו כאן באנגלית (למשל: I like to learn new things because...)"
+                      }
+                      className="min-h-[85px] text-sm sm:text-base p-3 rounded-xl bg-muted/20 border-border/70 text-left font-sans"
+                      dir="ltr"
+                      disabled={isEvaluatingWriting}
+                    />
+                    <div className="flex items-center justify-between text-xs text-muted-foreground px-1">
+                      <span>
+                        {diagnosticWritingText.trim().split(/\s+/).filter(Boolean).length} מילים
+                      </span>
+                      <span>מומלץ לכתוב 1-2 משפטים שלמים באנגלית</span>
+                    </div>
+                    <Button
+                      onClick={handleSubmitDiagnosticWriting}
+                      disabled={!diagnosticWritingText.trim() || isEvaluatingWriting}
+                      className="w-full gap-2 font-bold h-10 text-sm cursor-pointer shadow-xs"
+                    >
+                      {isEvaluatingWriting ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          <span>דוד בודק את הכתיבה שלך...</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>בדוק כתיבה והמשך לשלב הבא</span>
+                          <ArrowLeft className="h-4 w-4" />
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1" dir="rtl">
+                    {step.options?.map((opt, oIdx) => (
+                      <Button
+                        key={oIdx}
+                        variant="outline"
+                        onClick={() => handleDiagnosticOptionSelect(opt.value)}
+                        className="justify-start text-right h-auto py-2.5 px-3 border-border/70 hover:border-primary hover:bg-primary/5 transition-all text-sm flex flex-col items-start gap-0.5 whitespace-normal cursor-pointer rounded-xl"
+                      >
+                        <span className="font-semibold text-foreground text-left font-sans text-sm" dir="ltr">{opt.text}</span>
+                        {opt.textHebrew && (
+                          <span className="text-xs text-muted-foreground text-right font-hebrew" dir="rtl">{opt.textHebrew}</span>
+                        )}
+                      </Button>
+                    ))}
+                  </div>
+                )}
+              </Card>
+            </div>
+          );
+        })()}
 
         {/* Loading Indicator */}
         {isSending && (

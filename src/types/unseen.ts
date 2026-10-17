@@ -38,6 +38,37 @@ export interface StudentAnswers {
   [questionId: string]: string | number;
 }
 
+export interface MSUnseenQuestion {
+  id: string;
+  number: number;
+  paragraphIndex: number;
+  linesHint?: string;
+  type: "mcq" | "open" | "copy";
+  prompt: string;
+  options?: string[];
+  correctIndex?: number;
+  targetSentence?: string;
+  modelAnswer?: string;
+  keywords?: string[];
+  explanationHebrew: string;
+  points: number;
+}
+
+export interface MSUnseenStory {
+  id: string;
+  title: string;
+  hebrewTitle: string;
+  level: "Level 1" | "Level 2" | "Level 3";
+  levelLabel: string;
+  levelDescription: string;
+  paragraphs: string[];
+  vocabularyHints: { word: string; translation: string }[];
+  questions: MSUnseenQuestion[];
+  totalPoints: number;
+  generationPrompt?: string;
+  isAiGenerated?: boolean;
+}
+
 export interface UnseenRubricCategory {
   score: number;
   max: number;
