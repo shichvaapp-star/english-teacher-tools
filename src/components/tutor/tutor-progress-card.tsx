@@ -1,110 +1,77 @@
 "use client";
 
-import React, { useState } from "react";
-import Link from "next/link";
+import React from "react";
 import { StudentTutorProfile } from "@/types/tutor";
-import { updateMissionTopic, saveTutorProfile } from "@/lib/tutor-engine";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  Sparkles,
   BookOpen,
   BookA,
   PenTool,
   Flame,
   Award,
-  ArrowLeft,
   RotateCcw,
   Compass,
   CheckCircle2,
-  Clock,
   GraduationCap,
-  SlidersHorizontal,
 } from "lucide-react";
 
 interface TutorProgressCardProps {
   profile: StudentTutorProfile;
   onResetDiagnostic?: () => void;
-  onProfileUpdate?: (newProfile: StudentTutorProfile) => void;
 }
 
-export function TutorProgressCard({ profile, onResetDiagnostic, onProfileUpdate }: TutorProgressCardProps) {
-  const { skills, level, vocabBand, streakDays, totalTasksCompleted, currentMission } = profile;
-  const [showTopicPicker, setShowTopicPicker] = useState(false);
-
-  const handleTopicSelect = (topicId: string | "default") => {
-    if (!currentMission || !onProfileUpdate) return;
-    let updatedRec = currentMission;
-
-    if (topicId === "default") {
-      const firstTopic = currentMission.availableTopics?.[0];
-      if (firstTopic) {
-        updatedRec = updateMissionTopic(currentMission, firstTopic.id);
-        updatedRec.selectedTopicId = "default";
-        updatedRec.selectedTopicNameHebrew = "בחירת דוד";
-      }
-    } else {
-      updatedRec = updateMissionTopic(currentMission, topicId);
-    }
-
-    const updatedProfile: StudentTutorProfile = {
-      ...profile,
-      currentMission: updatedRec,
-    };
-    onProfileUpdate(updatedProfile);
-    saveTutorProfile(updatedProfile);
-  };
+export function TutorProgressCard({ profile, onResetDiagnostic }: TutorProgressCardProps) {
+  const { skills, level, vocabBand, streakDays, totalTasksCompleted } = profile;
 
   return (
-    <div className="space-y-4" dir="rtl">
-      {/* Student Level & Badges Card */}
-      <Card className="border border-border/60 bg-card/60 backdrop-blur-xs shadow-xs overflow-hidden">
-        <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent p-4 sm:p-5 border-b border-border/40">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-tr from-sky-500 via-indigo-500 to-purple-500 text-white shadow-xs shrink-0">
-                <GraduationCap className="h-6 w-6" />
-              </div>
-              <div>
-                <h3 className="font-bold text-foreground text-base sm:text-lg flex items-center gap-2">
-                  {profile.studentName}
-                </h3>
-                <p className="text-xs text-muted-foreground">
-                  לומד/ת עם דוד (David) המורה הפרטי
-                </p>
-              </div>
+    <div className="space-y-4 font-sans text-right" dir="rtl">
+      {/* Student Level & Identity Card */}
+      <Card className="border border-border/60 bg-muted/20 shadow-xs overflow-hidden">
+        <div className="p-4 border-b border-border/30 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-tr from-sky-500 via-indigo-500 to-purple-500 text-white shadow-xs shrink-0">
+              <GraduationCap className="h-6 w-6" />
             </div>
+            <div>
+              <h3 className="font-bold text-foreground text-base">
+                {profile.studentName}
+              </h3>
+              <p className="text-xs text-muted-foreground">
+                פרופיל למידה אישי עם דוד
+              </p>
+            </div>
+          </div>
 
-            <div className="flex items-center gap-2">
-              <Badge className="bg-primary/15 text-primary border-primary/30 text-xs px-2.5 py-1">
-                {level}
-              </Badge>
-              <Badge variant="outline" className="text-xs px-2.5 py-1 border-muted-foreground/30">
-                {vocabBand}
-              </Badge>
-            </div>
+          <div className="flex items-center gap-1.5">
+            <Badge className="bg-primary/15 text-primary border-primary/30 text-xs px-2.5 py-1">
+              {level}
+            </Badge>
+            <Badge variant="outline" className="text-xs px-2.5 py-1 border-muted-foreground/30">
+              {vocabBand}
+            </Badge>
           </div>
         </div>
 
-        <CardContent className="p-4 sm:p-5 space-y-4">
-          {/* Stats Bar */}
-          <div className="grid grid-cols-2 gap-2 sm:gap-3">
-            <div className="flex items-center gap-2.5 p-3 rounded-xl bg-muted/40 border border-border/40">
+        <CardContent className="p-4 space-y-4">
+          {/* Key Stats Bar */}
+          <div className="grid grid-cols-2 gap-2.5">
+            <div className="flex items-center gap-2.5 p-3 rounded-xl bg-card border border-border/40">
               <Flame className="h-5 w-5 text-amber-500 shrink-0" />
               <div>
-                <div className="text-xs text-muted-foreground">רצף ימי תרגול</div>
-                <div className="font-bold text-sm sm:text-base text-foreground">
-                  {streakDays} ימים
+                <div className="text-[11px] text-muted-foreground">רצף ימי תרגול</div>
+                <div className="font-bold text-sm text-foreground">
+                  {streakDays} ימים 🔥
                 </div>
               </div>
             </div>
 
-            <div className="flex items-center gap-2.5 p-3 rounded-xl bg-muted/40 border border-border/40">
+            <div className="flex items-center gap-2.5 p-3 rounded-xl bg-card border border-border/40">
               <Award className="h-5 w-5 text-emerald-500 shrink-0" />
               <div>
-                <div className="text-xs text-muted-foreground">משימות שהושלמו</div>
-                <div className="font-bold text-sm sm:text-base text-foreground">
+                <div className="text-[11px] text-muted-foreground">משימות שהושלמו</div>
+                <div className="font-bold text-sm text-foreground">
                   {totalTasksCompleted} משימות
                 </div>
               </div>
@@ -112,7 +79,7 @@ export function TutorProgressCard({ profile, onResetDiagnostic, onProfileUpdate 
           </div>
 
           {/* Skill Bars */}
-          <div className="space-y-3 pt-2">
+          <div className="space-y-3 pt-1">
             <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
               מדד מיומנויות (Skill Mastery)
             </div>
@@ -171,115 +138,13 @@ export function TutorProgressCard({ profile, onResetDiagnostic, onProfileUpdate 
         </CardContent>
       </Card>
 
-      {/* Active Recommended Mission Card */}
-      {currentMission && (
-        <Card className="border-2 border-primary/30 bg-primary/5 shadow-xs overflow-hidden">
-          <CardHeader className="p-4 pb-2 border-b border-primary/10">
-            <div className="flex items-center justify-between">
-              <span className="flex items-center gap-1.5 text-xs font-bold text-primary">
-                <Sparkles className="h-4 w-4" />
-                המשימה המומלצת הבאה מדוד
-              </span>
-              <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
-                <Clock className="h-3 w-3" />
-                כ-{currentMission.estimatedMinutes} דק׳
-              </span>
-            </div>
-            <div className="flex flex-wrap items-center justify-between gap-1.5 mt-1">
-              <CardTitle className="text-base font-bold text-foreground">
-                {currentMission.hebrewTitle}
-              </CardTitle>
-              {currentMission.availableTopics && currentMission.availableTopics.length > 0 && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setShowTopicPicker(!showTopicPicker)}
-                  className="h-6 px-2 text-[11px] font-medium text-primary hover:text-primary hover:bg-primary/10 gap-1 cursor-pointer"
-                >
-                  <SlidersHorizontal className="h-3 w-3" />
-                  <span>{showTopicPicker ? "סגור נושאים" : "החלף נושא"}</span>
-                </Button>
-              )}
-            </div>
-            {currentMission.selectedTopicNameHebrew && (
-              <div className="pt-0.5">
-                <Badge variant="secondary" className="text-[11px] font-normal px-2 py-0.5 bg-primary/10 text-primary border-primary/20">
-                  נושא: {currentMission.selectedTopicNameHebrew}
-                </Badge>
-              </div>
-            )}
-          </CardHeader>
-
-          <CardContent className="p-4 pt-3 space-y-3">
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              {currentMission.descriptionHebrew}
-            </p>
-
-            {/* Expandable Topic Selection Tray */}
-            {showTopicPicker && currentMission.availableTopics && currentMission.availableTopics.length > 0 && (
-              <div className="p-2.5 rounded-xl bg-card border border-border/60 space-y-2 animate-in fade-in duration-200">
-                <div className="text-[11px] font-bold text-foreground">
-                  בחרו נושא מועדף (או לחצו על בחירת דוד):
-                </div>
-                <div className="flex flex-wrap gap-1">
-                  <button
-                    type="button"
-                    onClick={() => handleTopicSelect("default")}
-                    className={`text-[11px] px-2 py-1 rounded-md border transition-all cursor-pointer flex items-center gap-1 ${
-                      currentMission.selectedTopicId === "default" ||
-                      (!currentMission.selectedTopicId &&
-                        currentMission.taskId === currentMission.availableTopics[0]?.taskId)
-                        ? "border-primary bg-primary text-primary-foreground font-bold"
-                        : "border-border/60 bg-muted/40 hover:border-primary/50 text-foreground"
-                    }`}
-                  >
-                    <span>🎲</span>
-                    <span>דוד, בחר עבורי</span>
-                  </button>
-
-                  {currentMission.availableTopics.map((top) => {
-                    const isSelected =
-                      currentMission.selectedTopicId === top.id ||
-                      (currentMission.selectedTopicId !== "default" &&
-                        currentMission.taskId === top.taskId);
-
-                    return (
-                      <button
-                        key={top.id}
-                        type="button"
-                        onClick={() => handleTopicSelect(top.id)}
-                        className={`text-[11px] px-2 py-1 rounded-md border transition-all cursor-pointer flex items-center gap-1 ${
-                          isSelected && currentMission.selectedTopicId !== "default"
-                            ? "border-primary bg-primary text-primary-foreground font-bold"
-                            : "border-border/60 bg-muted/40 hover:border-primary/50 text-foreground"
-                        }`}
-                      >
-                        <span>{top.emoji}</span>
-                        <span>{top.nameHebrew}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            <Link href={currentMission.targetUrl} className="block w-full">
-              <Button className="w-full gap-2 font-bold shadow-xs cursor-pointer">
-                <span>התחל משימה עכשיו</span>
-                <ArrowLeft className="h-4 w-4" />
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
-      )}
-
       {/* Strengths & Focus Areas */}
-      <Card className="border border-border/50 bg-card/40 p-4 space-y-3">
+      <Card className="border border-border/50 bg-card p-4 space-y-3">
         {profile.strengths.length > 0 && (
           <div>
-            <div className="text-xs font-bold text-emerald-600 dark:text-emerald-400 mb-1.5 flex items-center gap-1">
+            <div className="text-xs font-bold text-emerald-600 dark:text-emerald-400 mb-1 flex items-center gap-1">
               <CheckCircle2 className="h-3.5 w-3.5" />
-              נקודות חוזק (Strengths)
+              נקודות חוזק
             </div>
             <ul className="text-xs text-muted-foreground space-y-1 list-disc list-inside">
               {profile.strengths.map((s, idx) => (
@@ -291,9 +156,9 @@ export function TutorProgressCard({ profile, onResetDiagnostic, onProfileUpdate 
 
         {profile.weaknesses.length > 0 && (
           <div className="pt-2 border-t border-border/30">
-            <div className="text-xs font-bold text-amber-600 dark:text-amber-400 mb-1.5 flex items-center gap-1">
+            <div className="text-xs font-bold text-amber-600 dark:text-amber-400 mb-1 flex items-center gap-1">
               <Compass className="h-3.5 w-3.5" />
-              מוקדים לחיזוק (Focus Areas)
+              מוקדים לחיזוק
             </div>
             <ul className="text-xs text-muted-foreground space-y-1 list-disc list-inside">
               {profile.weaknesses.map((w, idx) => (
@@ -309,7 +174,7 @@ export function TutorProgressCard({ profile, onResetDiagnostic, onProfileUpdate 
               variant="ghost"
               size="sm"
               onClick={onResetDiagnostic}
-              className="text-xs text-muted-foreground hover:text-foreground h-7 px-2 gap-1.5"
+              className="text-xs text-muted-foreground hover:text-foreground h-7 px-2 gap-1.5 cursor-pointer"
             >
               <RotateCcw className="h-3 w-3" />
               בצע מבדק רמה מחדש

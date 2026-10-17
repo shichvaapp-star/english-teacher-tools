@@ -15,17 +15,31 @@ export function scoreTutorVoice(v: SpeechSynthesisVoice): number {
   const name = v.name.toLowerCase();
   const uri = v.voiceURI.toLowerCase();
 
-  // Premium / Natural neural speech engines
-  if (name.includes("natural") || uri.includes("natural")) score += 60;
-  if (name.includes("google") || uri.includes("google")) score += 45;
-  if (name.includes("enhanced") || uri.includes("enhanced")) score += 40;
-  if (name.includes("premium") || uri.includes("premium")) score += 35;
-  if (name.includes("siri") || uri.includes("siri")) score += 35;
-  if (name.includes("online") || uri.includes("online")) score += 25;
+  const lang = v.lang.toLowerCase();
+  const isUK = lang.includes("gb") || lang.includes("uk") || lang.includes("en-gb");
+
+  // Top priority: Google Natural (UK) / British natural voices
+  if ((name.includes("google") || uri.includes("google")) && isUK) {
+    score += 100;
+  } else if (isUK && (name.includes("natural") || name.includes("enhanced") || name.includes("daniel") || name.includes("oliver"))) {
+    score += 80;
+  } else if (name.includes("natural") || uri.includes("natural")) {
+    score += 60;
+  } else if (name.includes("google") || uri.includes("google")) {
+    score += 50;
+  } else if (name.includes("enhanced") || uri.includes("enhanced")) {
+    score += 40;
+  } else if (name.includes("premium") || uri.includes("premium")) {
+    score += 35;
+  } else if (name.includes("siri") || uri.includes("siri")) {
+    score += 35;
+  } else if (name.includes("online") || uri.includes("online")) {
+    score += 25;
+  }
 
   // Well-known high-prosody voice actors
+  if (name.includes("daniel") || name.includes("oliver")) score += 30;
   if (name.includes("samantha") || name.includes("jenny") || name.includes("guy")) score += 20;
-  if (name.includes("daniel") || name.includes("oliver") || name.includes("ava")) score += 20;
   if (name.includes("serena") || name.includes("tom") || name.includes("karen")) score += 15;
 
   // Penalize robotic, low-quality legacy voices

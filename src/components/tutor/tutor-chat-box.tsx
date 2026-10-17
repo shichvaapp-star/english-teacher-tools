@@ -18,6 +18,12 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   Send,
   Volume2,
   VolumeX,
@@ -30,18 +36,20 @@ import {
   PenTool,
   RotateCcw,
   User,
-  Clock,
-  CheckCircle2,
   GraduationCap,
   Play,
   Settings2,
   Check,
+  Flame,
+  Award,
+  MoreVertical,
 } from "lucide-react";
 
 interface TutorChatBoxProps {
   profile: StudentTutorProfile;
   onProfileUpdate: (newProfile: StudentTutorProfile) => void;
   studentName: string;
+  onOpenStats?: () => void;
 }
 
 const VOICE_STORAGE_KEY = "ett_tutor_selected_voice";
@@ -50,6 +58,7 @@ export function TutorChatBox({
   profile,
   onProfileUpdate,
   studentName,
+  onOpenStats,
 }: TutorChatBoxProps) {
   const [messages, setMessages] = useState<TutorMessage[]>([]);
   const [inputText, setInputText] = useState("");
@@ -61,7 +70,6 @@ export function TutorChatBox({
   const [availableVoices, setAvailableVoices] = useState<TutorVoiceOption[]>([]);
   const [selectedVoiceURI, setSelectedVoiceURI] = useState<string>("");
   const [showVoiceDialog, setShowVoiceDialog] = useState(false);
-  const [isFirstVoiceInteraction, setIsFirstVoiceInteraction] = useState(false);
   const [previewingVoiceId, setPreviewingVoiceId] = useState<string | null>(null);
 
   // Diagnostic state inside chat
@@ -75,8 +83,25 @@ export function TutorChatBox({
   const chatEndRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<any>(null);
   const selectedVoiceRef = useRef<SpeechSynthesisVoice | null>(null);
+  const [showMenu, setShowMenu] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
-  // Load and Curate Voices
+  // Close options menu on click outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setShowMenu(false);
+      }
+    };
+    if (showMenu) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showMenu]);
+
+  // Load and Curate Voices - Default silently to Google Natural UK
   useEffect(() => {
     if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
 
@@ -85,17 +110,26 @@ export function TutorChatBox({
       if (curated.length > 0) {
         setAvailableVoices(curated);
 
+        // Prioritize UK natural / Google UK voice
+        const ukGoogle = curated.find(
+          (c) =>
+            c.accent === "UK" &&
+            (c.voice.name.toLowerCase().includes("google") || c.voice.name.toLowerCase().includes("natural"))
+        );
+        const defaultChoice = ukGoogle || curated[0];
+
         const savedURI = localStorage.getItem(VOICE_STORAGE_KEY);
         if (savedURI && curated.some((c) => c.id === savedURI)) {
           setSelectedVoiceURI(savedURI);
           const found = curated.find((c) => c.id === savedURI);
           if (found) selectedVoiceRef.current = found.voice;
-          setIsFirstVoiceInteraction(false);
         } else {
-          // First interaction: Ask the student to choose their voice!
-          setSelectedVoiceURI(curated[0].id);
-          selectedVoiceRef.current = curated[0].voice;
-          setIsFirstVoiceInteraction(true);
+          // Zero-setup: auto-set Google Natural (UK) as default
+          setSelectedVoiceURI(defaultChoice.id);
+          selectedVoiceRef.current = defaultChoice.voice;
+          try {
+            localStorage.setItem(VOICE_STORAGE_KEY, defaultChoice.id);
+          } catch {}
         }
       }
     };
@@ -113,21 +147,20 @@ export function TutorChatBox({
   // Scroll to bottom on new message
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, isSending, diagnosticIndex, isFirstVoiceInteraction]);
+  }, [messages, isSending, diagnosticIndex]);
 
-  // Load chat history or create greeting
+  // Load chat history or create clean initial greeting
   useEffect(() => {
     const saved = loadTutorChat(profile.studentId);
     if (saved && saved.length > 0) {
       setMessages(saved);
     } else {
-      // Initial Welcome Message
       const initialGreeting: TutorMessage = {
         id: `msg-${Date.now()}`,
         sender: "tutor",
         text: profile.diagnosticCompleted
           ? `Hello ${studentName}! I'm David, your English tutor. We are currently working on ${profile.level} (${profile.vocabBand}). What would you like to practice today?`
-          : `Hello ${studentName}! I'm David, your personal English tutor. I'm excited to help you succeed in English! First, choose the voice you'd like me to speak in, and then let's do a quick 4-question check to tailor your learning plan. Ready?`,
+          : `Hello ${studentName}! I'm David, your personal English tutor. I'm excited to help you succeed in English! Let's do a quick, friendly 4-question check so I can tailor the best reading, writing, and vocabulary tasks for you. Ready?`,
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         quickReplies: profile.diagnosticCompleted
           ? ["תן לי משימת קריאה (Unseen)", "תרגל אוצר מילים", "בוא נכתוב חיבור"]
@@ -149,7 +182,7 @@ export function TutorChatBox({
       const utterance = new SpeechSynthesisUtterance("Hello! I am David, your personal English tutor.");
       utterance.voice = opt.voice;
       utterance.rate = 0.95;
-      utterance.pitch = 1.05; // Lively, natural, warm
+      utterance.pitch = 1.05;
 
       utterance.onend = () => setPreviewingVoiceId(null);
       utterance.onerror = () => setPreviewingVoiceId(null);
@@ -167,13 +200,11 @@ export function TutorChatBox({
     if (typeof window !== "undefined") {
       localStorage.setItem(VOICE_STORAGE_KEY, opt.id);
     }
-    setIsFirstVoiceInteraction(false);
     setShowVoiceDialog(false);
 
-    // Warm confirmation in the new voice
     if (typeof window !== "undefined" && "speechSynthesis" in window) {
       window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance("Excellent! I will speak with this voice. Let's do great things together!");
+      const utterance = new SpeechSynthesisUtterance("Excellent! I will speak with this voice.");
       utterance.voice = opt.voice;
       utterance.rate = 0.95;
       utterance.pitch = 1.05;
@@ -181,12 +212,11 @@ export function TutorChatBox({
     }
   };
 
-  // Text to Speech with Natural Prosody
+  // Text to Speech
   const speakText = (text: string) => {
     if (!speechEnabled || typeof window === "undefined" || !("speechSynthesis" in window)) return;
     try {
       window.speechSynthesis.cancel();
-      // Remove Hebrew in parentheses (בעברית) and markdown formatting
       const cleanEnglish = text
         .replace(/\([^)]*[\u0590-\u05FF][^)]*\)/g, "")
         .replace(/\*+/g, "")
@@ -198,8 +228,8 @@ export function TutorChatBox({
       if (selectedVoiceRef.current) {
         utterance.voice = selectedVoiceRef.current;
       }
-      utterance.rate = 0.95; // Natural ESL cadence
-      utterance.pitch = 1.05; // Friendly, warm, non-robotic
+      utterance.rate = 0.95;
+      utterance.pitch = 1.05;
       window.speechSynthesis.speak(utterance);
     } catch {}
   };
@@ -257,7 +287,6 @@ export function TutorChatBox({
     ];
     setDiagnosticAnswers(newAnswers);
 
-    // Add student's response message to chat
     const chosenOpt = currentStep.options.find((o) => o.value === optionValue);
     const studentReply: TutorMessage = {
       id: `msg-${Date.now()}`,
@@ -267,15 +296,13 @@ export function TutorChatBox({
     };
 
     if (diagnosticIndex < DIAGNOSTIC_STEPS.length - 1) {
-      // Proceed to next question
       const nextIdx = diagnosticIndex + 1;
       setDiagnosticIndex(nextIdx);
 
-      const nextStep = DIAGNOSTIC_STEPS[nextIdx];
       const tutorFollowUp: TutorMessage = {
         id: `msg-${Date.now() + 1}`,
         sender: "tutor",
-        text: `Great choice! Here is question ${nextIdx + 1} of ${DIAGNOSTIC_STEPS.length}:`,
+        text: `Great! Here is question ${nextIdx + 1} of ${DIAGNOSTIC_STEPS.length}:`,
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       };
 
@@ -283,7 +310,6 @@ export function TutorChatBox({
       setMessages(updatedMsgs);
       saveTutorChat(updatedMsgs, profile.studentId);
     } else {
-      // Diagnostic complete! Calculate placement
       setDiagnosticIndex(null);
       const updatedProfile = calculateDiagnosticPlacement(newAnswers, profile);
       onProfileUpdate(updatedProfile);
@@ -381,7 +407,6 @@ export function TutorChatBox({
       const tutorText = data?.message || "Great question! Let's practice together.";
       const quickReplies = data?.quickReplies || ["בוא נמשיך", "תן לי משימה"];
 
-      // Check if user asked for a new mission or topic choice
       let attachedMission = undefined;
       const lower = text.toLowerCase();
       const isAskingForMission =
@@ -449,7 +474,7 @@ export function TutorChatBox({
     }
   };
 
-  // Reset chat / Diagnostic
+  // Reset Diagnostic Check
   const handleRestartDiagnostic = () => {
     setDiagnosticIndex(0);
     setDiagnosticAnswers([]);
@@ -464,117 +489,157 @@ export function TutorChatBox({
   };
 
   return (
-    <Card className="flex flex-col h-[650px] sm:h-[720px] border border-border/60 bg-card/60 backdrop-blur-xs shadow-xs overflow-hidden font-sans" dir="rtl">
-      {/* Tutor Chat Header */}
-      <div className="flex items-center justify-between p-3.5 sm:p-4 border-b border-border/40 bg-muted/30">
+    <Card className="flex flex-col h-[calc(100vh-125px)] min-h-[580px] max-h-[820px] border border-border/60 bg-card/90 shadow-sm overflow-hidden font-sans rounded-2xl" dir="rtl">
+      {/* Sleek Minimalist Header */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border/40 bg-muted/20">
         <div className="flex items-center gap-3">
           <div className="relative">
             <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-tr from-sky-500 via-indigo-500 to-purple-500 text-white shadow-xs">
               <GraduationCap className="h-5 w-5" />
             </div>
-            <span className="absolute bottom-0 left-0 h-3 w-3 rounded-full bg-emerald-500 ring-2 ring-background" />
+            <span className="absolute bottom-0 left-0 h-3 w-3 rounded-full bg-emerald-500 ring-2 ring-background" title="דוד מחובר וזמין" />
           </div>
 
           <div className="text-right">
-            <div className="font-bold text-base sm:text-lg text-foreground flex items-center gap-2">
-              David (דוד)
-              <Badge variant="secondary" className="text-xs px-2 py-0.5">
-                AI Private Tutor
-              </Badge>
+            <div className="font-bold text-base text-foreground flex items-center gap-1.5">
+              <span>David (דוד)</span>
             </div>
-            <div className="text-xs text-muted-foreground flex items-center gap-1.5">
-              <span>מורה פרטי אישי לאנגלית</span>
-              <span>•</span>
-              <span className="text-emerald-600 dark:text-emerald-400 font-medium">קול טבעי פעיל</span>
+            <div className="text-xs text-muted-foreground">
+              המורה הפרטי שלך לאנגלית
             </div>
           </div>
         </div>
 
+        {/* Action Controls */}
         <div className="flex items-center gap-1.5">
-          {/* Voice Selector Settings Button */}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setShowVoiceDialog(!showVoiceDialog)}
-            className="h-8 px-2 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground cursor-pointer gap-1"
-            title="בחירת קול ומבטא של דוד"
-          >
-            <Settings2 className="h-4 w-4" />
-            <span className="hidden sm:inline">הגדרת קול</span>
-          </Button>
+          {/* Level & Streak Pill - Click to open Progress Drawer */}
+          {onOpenStats && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onOpenStats}
+              className="h-8 px-2.5 rounded-full text-xs font-semibold bg-muted/40 border-border/60 hover:bg-primary/10 hover:border-primary/40 gap-1.5 cursor-pointer transition-all"
+              title="ההתקדמות והמיומנויות שלי"
+            >
+              <Sparkles className="h-3.5 w-3.5 text-primary" />
+              <span>{profile.level}</span>
+              <span className="text-border">|</span>
+              <span className="flex items-center gap-0.5 text-amber-500 font-bold">
+                <Flame className="h-3.5 w-3.5 fill-amber-500" />
+                {profile.streakDays}
+              </span>
+            </Button>
+          )}
 
-          {/* Voice Toggle */}
+          {/* Quick Sound Toggle */}
           <Button
             variant="ghost"
             size="icon"
             onClick={() => setSpeechEnabled(!speechEnabled)}
-            className={`h-8 w-8 rounded-lg cursor-pointer ${speechEnabled ? "text-primary" : "text-muted-foreground"}`}
-            title={speechEnabled ? "השתק הקראה קולית" : "הפעל הקראה קולית באנגלית"}
+            className={`h-8 w-8 rounded-full cursor-pointer transition-colors ${
+              speechEnabled ? "text-primary hover:bg-primary/10" : "text-muted-foreground hover:bg-muted"
+            }`}
+            title={speechEnabled ? "השתק הקראה קולית" : "הפעל הקראה קולית (Google Natural UK)"}
           >
             {speechEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
           </Button>
 
-          {/* Restart Diagnostic */}
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleRestartDiagnostic}
-            className="h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground cursor-pointer"
-            title="בצע מבדק אבחון מחדש"
-          >
-            <RotateCcw className="h-4 w-4" />
-          </Button>
+          {/* Options Dropdown Menu */}
+          <div className="relative" ref={menuRef}>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setShowMenu(!showMenu)}
+              className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
+              title="אפשרויות נוספות"
+            >
+              <MoreVertical className="h-4 w-4" />
+            </Button>
+
+            {showMenu && (
+              <div className="absolute left-0 top-full mt-1.5 w-52 rounded-xl border border-border/60 bg-popover text-popover-foreground shadow-lg z-50 p-1 text-right font-sans text-xs space-y-0.5 animate-in fade-in zoom-in-95 duration-150">
+                {onOpenStats && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowMenu(false);
+                      onOpenStats();
+                    }}
+                    className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-muted text-foreground transition-colors cursor-pointer text-right"
+                  >
+                    <Award className="h-4 w-4 text-primary shrink-0" />
+                    <span>לוח התקדמות ומיומנויות</span>
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowMenu(false);
+                    setShowVoiceDialog(true);
+                  }}
+                  className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-muted text-foreground transition-colors cursor-pointer text-right"
+                >
+                  <Settings2 className="h-4 w-4 text-sky-500 shrink-0" />
+                  <span>בחירת קול ומבטא</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowMenu(false);
+                    handleRestartDiagnostic();
+                  }}
+                  className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-muted text-muted-foreground transition-colors cursor-pointer text-right"
+                >
+                  <RotateCcw className="h-4 w-4 shrink-0" />
+                  <span>ביצוע מבדק רמה מחדש</span>
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Voice Customization Dialog Bar */}
-      {showVoiceDialog && (
-        <div className="p-3 bg-muted/70 border-b border-border/50 animate-in fade-in slide-in-from-top-2 duration-200">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
-              <Volume2 className="h-4 w-4 text-primary" />
-              בחרו את הקול והמבטא המועדף עליכם של דוד (Natural AI Voices):
-            </span>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowVoiceDialog(false)}
-              className="h-6 px-2 text-[11px]"
-            >
-              סגור
-            </Button>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+      {/* Voice Selection Modal Dialog (Opens only when student explicitly requests it) */}
+      <Dialog open={showVoiceDialog} onOpenChange={setShowVoiceDialog}>
+        <DialogContent className="sm:max-w-md font-sans" dir="rtl">
+          <DialogHeader className="text-right">
+            <DialogTitle className="flex items-center gap-2 text-base font-bold">
+              <Volume2 className="h-5 w-5 text-primary" />
+              בחירת קול ומבטא של דוד
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-xs text-muted-foreground text-right -mt-1">
+            דוד משתמש כברירת מחדל בקול Google Natural בריטי איכותי. באפשרותך לבחור קול אחר:
+          </p>
+          <div className="space-y-2 max-h-72 overflow-y-auto pt-2">
             {availableVoices.map((v) => {
               const isSelected = selectedVoiceURI === v.id;
               return (
                 <div
                   key={v.id}
-                  className={`flex items-center justify-between p-2.5 rounded-xl border transition-all text-xs ${
+                  className={`flex items-center justify-between p-3 rounded-xl border transition-all text-xs ${
                     isSelected
                       ? "border-primary bg-primary/10 shadow-xs"
                       : "border-border/60 bg-card hover:border-border"
                   }`}
                 >
                   <div className="flex flex-col text-right">
-                    <span className="font-bold text-foreground text-sm flex items-center gap-1">
+                    <span className="font-bold text-foreground text-sm flex items-center gap-1.5">
                       {v.titleHebrew}
                       {isSelected && <Check className="h-3.5 w-3.5 text-primary" />}
                     </span>
                     <span className="text-[11px] text-muted-foreground">{v.subtitle}</span>
                   </div>
 
-                  <div className="flex items-center gap-1 shrink-0">
+                  <div className="flex items-center gap-1.5 shrink-0">
                     <Button
                       size="sm"
                       variant="ghost"
                       onClick={() => handlePlayVoicePreview(v)}
                       className="h-7 px-2 text-[11px] gap-1 cursor-pointer"
-                      title="השמע דוגמה"
                     >
                       <Play className={`h-3 w-3 ${previewingVoiceId === v.id ? "text-primary animate-pulse" : ""}`} />
-                      <span>דוגמה</span>
+                      <span>השמע</span>
                     </Button>
                     <Button
                       size="sm"
@@ -589,82 +654,18 @@ export function TutorChatBox({
               );
             })}
           </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
 
       {/* Messages Transcript */}
       <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
-        {/* First Interaction: Voice Selection Card */}
-        {isFirstVoiceInteraction && availableVoices.length > 0 && (
-          <div className="mr-9 max-w-[95%] sm:max-w-[85%] animate-in fade-in slide-in-from-bottom-2 duration-300">
-            <Card className="border-2 border-primary/50 bg-card p-4 sm:p-5 rounded-2xl shadow-md space-y-3">
-              <div className="space-y-1 text-right">
-                <span className="text-xs font-bold text-primary flex items-center gap-1.5">
-                  <Sparkles className="h-4 w-4" />
-                  צעד ראשון: בחירת קול המורה דוד (Voice Selection)
-                </span>
-                <h4 className="font-bold text-base sm:text-lg text-foreground">
-                  איזה קול של דוד נשמע לך הכי נעים ללמידה?
-                </h4>
-                <p className="text-xs sm:text-sm text-muted-foreground">
-                  האזינו לדוגמה קצרה ובחרו את הקול והמבטא (אמריקאי או בריטי) שילווה אתכם בתרגול.
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
-                {availableVoices.slice(0, 4).map((v) => {
-                  const isSelected = selectedVoiceURI === v.id;
-                  return (
-                    <div
-                      key={v.id}
-                      className={`flex items-center justify-between p-3 rounded-xl border transition-all ${
-                        isSelected
-                          ? "border-primary bg-primary/10 shadow-xs"
-                          : "border-border/70 bg-card hover:border-primary/40"
-                      }`}
-                    >
-                      <div className="flex flex-col text-right">
-                        <span className="font-bold text-sm sm:text-base text-foreground flex items-center gap-1">
-                          {v.titleHebrew}
-                          {isSelected && <Check className="h-4 w-4 text-primary" />}
-                        </span>
-                        <span className="text-xs text-muted-foreground">{v.subtitle}</span>
-                      </div>
-
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => handlePlayVoicePreview(v)}
-                          className="h-8 px-2 text-xs gap-1 cursor-pointer"
-                        >
-                          <Play className={`h-3.5 w-3.5 ${previewingVoiceId === v.id ? "text-primary animate-pulse" : ""}`} />
-                          <span>השמע</span>
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant={isSelected ? "default" : "outline"}
-                          onClick={() => handleSelectVoice(v)}
-                          className="h-8 px-3 text-xs font-bold cursor-pointer"
-                        >
-                          {isSelected ? "נבחר" : "בחר"}
-                        </Button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </Card>
-          </div>
-        )}
-
         {messages.map((msg) => (
           <div
             key={msg.id}
             className={`flex flex-col ${msg.sender === "student" ? "items-end" : "items-start"}`}
           >
             <div
-              className={`flex items-start gap-3 max-w-[88%] sm:max-w-[80%] ${
+              className={`flex items-start gap-3 max-w-[90%] sm:max-w-[82%] ${
                 msg.sender === "student" ? "flex-row-reverse" : "flex-row"
               }`}
             >
@@ -682,12 +683,12 @@ export function TutorChatBox({
                 className={`rounded-2xl px-5 py-3.5 text-base sm:text-lg shadow-xs leading-relaxed font-sans ${
                   msg.sender === "student"
                     ? "bg-primary text-primary-foreground rounded-tl-xs"
-                    : "bg-muted/70 text-foreground border border-border/40 rounded-tr-xs"
+                    : "bg-muted/60 text-foreground border border-border/40 rounded-tr-xs"
                 }`}
               >
                 <p className="whitespace-pre-line text-right font-sans" dir="auto">{msg.text}</p>
                 <span
-                  className={`block text-xs mt-2 text-right ${
+                  className={`block text-[11px] mt-1.5 text-right ${
                     msg.sender === "student" ? "text-primary-foreground/70" : "text-muted-foreground"
                   }`}
                 >
@@ -705,7 +706,7 @@ export function TutorChatBox({
                       {msg.taskRecommendation.type === "unseen" && <BookOpen className="h-4 w-4" />}
                       {msg.taskRecommendation.type === "vocab" && <BookA className="h-4 w-4" />}
                       {msg.taskRecommendation.type === "writing" && <PenTool className="h-4 w-4" />}
-                      משימה מותאמת אישית מדוד
+                      משימה מותאמת עבורך
                     </span>
                     <Badge variant="outline" className="text-xs py-0.5 px-2 bg-muted/40 border-border/70">
                       {msg.taskRecommendation.level}
@@ -728,37 +729,33 @@ export function TutorChatBox({
                     </p>
                   </div>
 
-                  {/* Topic Selection Chips (Unless student chooses not to, they can pick a topic) */}
+                  {/* Clean Topic Choice Chips */}
                   {msg.taskRecommendation.availableTopics && msg.taskRecommendation.availableTopics.length > 0 && (
-                    <div className="p-3 bg-muted/40 rounded-xl border border-border/50 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                          <Sparkles className="h-3.5 w-3.5 text-primary" />
-                          בחירת נושא לקטע / משימה (Topic Choice):
+                    <div className="p-2.5 bg-muted/30 rounded-xl border border-border/40 space-y-1.5">
+                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                        <span className="font-semibold text-foreground flex items-center gap-1">
+                          <Sparkles className="h-3 w-3 text-primary" />
+                          באיזה נושא תרצו?
                         </span>
-                        <span className="text-[11px] text-muted-foreground">
-                          בחרו נושא או המשיכו עם הבחירה של דוד
-                        </span>
+                        <span>(אפשר לבחור או להמשיך עם בחירת דוד)</span>
                       </div>
 
                       <div className="flex flex-wrap gap-1.5 pt-0.5">
-                        {/* David's Choice Default Option */}
                         <button
                           type="button"
                           onClick={() => handleSelectMissionTopic(msg.id, "default")}
-                          className={`text-xs px-2.5 py-1.5 rounded-lg border transition-all cursor-pointer flex items-center gap-1.5 ${
+                          className={`text-xs px-2.5 py-1 rounded-lg border transition-all cursor-pointer flex items-center gap-1 ${
                             msg.taskRecommendation.selectedTopicId === "default" ||
                             (!msg.taskRecommendation.selectedTopicId &&
                               msg.taskRecommendation.taskId === msg.taskRecommendation.availableTopics[0]?.taskId)
                               ? "border-primary bg-primary text-primary-foreground font-bold shadow-xs"
-                              : "border-border/70 bg-card hover:border-primary/50 text-foreground"
+                              : "border-border/60 bg-card hover:border-primary/50 text-foreground"
                           }`}
                         >
                           <span>🎲</span>
-                          <span>דוד, בחר עבורי (ברירת מחדל)</span>
+                          <span>דוד, בחר עבורי</span>
                         </button>
 
-                        {/* Curated Topic Chips */}
                         {msg.taskRecommendation.availableTopics.map((top) => {
                           const isSelected =
                             msg.taskRecommendation?.selectedTopicId === top.id ||
@@ -770,10 +767,10 @@ export function TutorChatBox({
                               key={top.id}
                               type="button"
                               onClick={() => handleSelectMissionTopic(msg.id, top.id)}
-                              className={`text-xs px-2.5 py-1.5 rounded-lg border transition-all cursor-pointer flex items-center gap-1.5 ${
+                              className={`text-xs px-2.5 py-1 rounded-lg border transition-all cursor-pointer flex items-center gap-1 ${
                                 isSelected && msg.taskRecommendation?.selectedTopicId !== "default"
                                   ? "border-primary bg-primary text-primary-foreground font-bold shadow-xs"
-                                  : "border-border/70 bg-card hover:border-primary/50 text-foreground"
+                                  : "border-border/60 bg-card hover:border-primary/50 text-foreground"
                               }`}
                             >
                               <span>{top.emoji}</span>
@@ -797,35 +794,22 @@ export function TutorChatBox({
           </div>
         ))}
 
-        {/* Diagnostic Question Interactive Widget */}
+        {/* Minimal Conversational Diagnostic Check */}
         {diagnosticIndex !== null && DIAGNOSTIC_STEPS[diagnosticIndex] && (
           <div className="mr-11 max-w-[92%] sm:max-w-[85%] animate-in fade-in slide-in-from-bottom-2 duration-300 text-right">
-            <Card className="border-2 border-primary/40 bg-card p-4 sm:p-5 rounded-2xl shadow-sm space-y-3.5">
-              <div className="flex items-center justify-between text-sm text-primary font-bold">
-                <span className="flex items-center gap-1.5 font-sans">
-                  <Sparkles className="h-4 w-4" />
-                  מבדק התאמה אישי מדוד (שאלה {diagnosticIndex + 1} מתוך {DIAGNOSTIC_STEPS.length})
-                </span>
-                <span className="text-muted-foreground text-xs" dir="ltr">
-                  {Math.round(((diagnosticIndex + 1) / DIAGNOSTIC_STEPS.length) * 100)}%
-                </span>
-              </div>
-
-              {/* Progress bar */}
-              <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-primary transition-all duration-300 rounded-full"
-                  style={{ width: `${((diagnosticIndex + 1) / DIAGNOSTIC_STEPS.length) * 100}%` }}
-                />
+            <Card className="border border-primary/30 bg-card p-4 sm:p-5 rounded-2xl shadow-xs space-y-3">
+              <div className="flex items-center gap-1.5 text-xs text-primary font-bold">
+                <Sparkles className="h-3.5 w-3.5" />
+                <span>בדיקת רמה קצרה מדוד • שאלה {diagnosticIndex + 1} מתוך {DIAGNOSTIC_STEPS.length}</span>
               </div>
 
               {DIAGNOSTIC_STEPS[diagnosticIndex].passage && (
-                <div className="p-3.5 bg-muted/60 rounded-xl text-sm sm:text-base font-serif italic text-foreground border border-border/40 text-left" dir="ltr">
-                  {DIAGNOSTIC_STEPS[diagnosticIndex].passage}
+                <div className="p-3 bg-muted/50 rounded-xl text-sm font-serif italic text-foreground border-r-4 border-primary/60 text-left" dir="ltr">
+                  "{DIAGNOSTIC_STEPS[diagnosticIndex].passage}"
                 </div>
               )}
 
-              <div className="space-y-1.5 text-right font-sans">
+              <div className="space-y-1 text-right font-sans">
                 <div className="text-sm sm:text-base font-semibold text-foreground whitespace-pre-line text-left leading-relaxed font-sans" dir="ltr">
                   {DIAGNOSTIC_STEPS[diagnosticIndex].question}
                 </div>
@@ -834,15 +818,15 @@ export function TutorChatBox({
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1" dir="rtl">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1" dir="rtl">
                 {DIAGNOSTIC_STEPS[diagnosticIndex].options.map((opt, oIdx) => (
                   <Button
                     key={oIdx}
                     variant="outline"
                     onClick={() => handleDiagnosticOptionSelect(opt.value)}
-                    className="justify-start text-right h-auto py-3 px-3.5 border-border/70 hover:border-primary hover:bg-primary/5 transition-all text-sm sm:text-base flex flex-col items-start gap-1 whitespace-normal cursor-pointer"
+                    className="justify-start text-right h-auto py-2.5 px-3 border-border/70 hover:border-primary hover:bg-primary/5 transition-all text-sm flex flex-col items-start gap-0.5 whitespace-normal cursor-pointer rounded-xl"
                   >
-                    <span className="font-semibold text-foreground text-left font-sans text-sm sm:text-base" dir="ltr">{opt.text}</span>
+                    <span className="font-semibold text-foreground text-left font-sans text-sm" dir="ltr">{opt.text}</span>
                     {opt.textHebrew && (
                       <span className="text-xs text-muted-foreground text-right font-hebrew" dir="rtl">{opt.textHebrew}</span>
                     )}
@@ -861,9 +845,9 @@ export function TutorChatBox({
             </div>
             <div className="bg-muted/60 px-4 py-2.5 rounded-2xl border border-border/40 flex items-center gap-2 text-sm">
               <span className="animate-pulse">דוד מקליד תשובה...</span>
-              <span className="inline-block h-2 w-2 rounded-full bg-primary animate-bounce [animation-delay:-0.3s]" />
-              <span className="inline-block h-2 w-2 rounded-full bg-primary animate-bounce [animation-delay:-0.15s]" />
-              <span className="inline-block h-2 w-2 rounded-full bg-primary animate-bounce" />
+              <span className="inline-block h-1.5 w-1.5 rounded-full bg-primary animate-bounce [animation-delay:-0.3s]" />
+              <span className="inline-block h-1.5 w-1.5 rounded-full bg-primary animate-bounce [animation-delay:-0.15s]" />
+              <span className="inline-block h-1.5 w-1.5 rounded-full bg-primary animate-bounce" />
             </div>
           </div>
         )}
@@ -873,13 +857,13 @@ export function TutorChatBox({
 
       {/* Quick Replies Tray */}
       {messages.length > 0 && messages[messages.length - 1].quickReplies && !isSending && (
-        <div className="px-4 sm:px-5 py-2.5 border-t border-border/30 bg-muted/10 flex items-center gap-2 overflow-x-auto no-scrollbar font-sans" dir="rtl">
-          <span className="text-xs text-muted-foreground shrink-0 font-medium">הצעות מהירות:</span>
+        <div className="px-4 sm:px-5 py-2 border-t border-border/20 bg-muted/10 flex items-center gap-1.5 overflow-x-auto no-scrollbar font-sans" dir="rtl">
+          <span className="text-xs text-muted-foreground shrink-0">הצעות:</span>
           {messages[messages.length - 1].quickReplies?.map((reply, rIdx) => (
             <button
               key={rIdx}
               onClick={() => handleSendMessage(reply)}
-              className="text-xs sm:text-sm bg-muted/60 hover:bg-primary/10 hover:text-primary hover:border-primary/40 border border-border/50 text-foreground px-3 py-1.5 rounded-full whitespace-nowrap transition-all shrink-0 cursor-pointer font-sans"
+              className="text-xs sm:text-sm bg-muted/60 hover:bg-primary/10 hover:text-primary hover:border-primary/40 border border-border/50 text-foreground px-3 py-1 rounded-full whitespace-nowrap transition-all shrink-0 cursor-pointer font-sans"
             >
               {reply}
             </button>
@@ -887,8 +871,8 @@ export function TutorChatBox({
         </div>
       )}
 
-      {/* Input Bar */}
-      <div className="p-3.5 sm:p-4 border-t border-border/40 bg-background flex items-center gap-2.5" dir="rtl">
+      {/* Simple Clean Input Bar */}
+      <div className="p-3 sm:p-3.5 border-t border-border/40 bg-background flex items-center gap-2" dir="rtl">
         <Input
           value={inputText}
           onChange={(e) => setInputText(e.target.value)}
@@ -898,8 +882,8 @@ export function TutorChatBox({
               handleSendMessage();
             }
           }}
-          placeholder="כתבו הודעה או שאלה לדוד (אפשר באנגלית או בעברית)..."
-          className="flex-1 text-sm sm:text-base h-11 rounded-xl bg-muted/40 text-right font-sans"
+          placeholder="כתבו הודעה או שאלה לדוד (באנגלית או בעברית)..."
+          className="flex-1 text-sm sm:text-base h-11 rounded-xl bg-muted/30 text-right font-sans border-border/60"
           dir="rtl"
           disabled={isSending}
         />
@@ -912,7 +896,7 @@ export function TutorChatBox({
           className={`h-11 w-11 shrink-0 rounded-xl transition-colors cursor-pointer ${
             isListening
               ? "bg-rose-500 text-white border-rose-500 animate-pulse"
-              : "text-muted-foreground hover:text-foreground"
+              : "text-muted-foreground hover:text-foreground border-border/60"
           }`}
           title={isListening ? "עצור הקלטה" : "דבר באנגלית עם דוד (Voice)"}
         >
