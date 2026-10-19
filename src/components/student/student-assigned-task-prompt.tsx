@@ -170,15 +170,16 @@ export function StudentAssignedTaskPrompt() {
   const assignment = pendingAssignments[0];
   const useDavid = Boolean(assignment.coachWithDavid || assignment.isAdaptiveDavid);
   const davidSuffix = useDavid ? "&from=david" : "";
+  const levelParam = assignment.level ? `&level=${encodeURIComponent(assignment.level)}` : "";
   const isFreeChoice = assignment.isFreeChoice || assignment.isAdaptiveDavid || assignment.taskId === "free_choice" || assignment.taskId === "adaptive_david";
   const targetUrl =
     assignment.type === "writing"
       ? (isFreeChoice
-          ? `/writing?assignmentId=${assignment.id}${davidSuffix}`
-          : `/writing?task=${assignment.taskId || ""}&assignmentId=${assignment.id}${davidSuffix}`)
+          ? `/writing?assignmentId=${assignment.id}${davidSuffix}${levelParam}`
+          : `/writing?task=${assignment.taskId || ""}&assignmentId=${assignment.id}${davidSuffix}${levelParam}`)
       : (isFreeChoice
-          ? `/unseen?assignmentId=${assignment.id}${davidSuffix}`
-          : `/unseen?passageId=${assignment.taskId || ""}&assignmentId=${assignment.id}${davidSuffix}`);
+          ? `/unseen?assignmentId=${assignment.id}${davidSuffix}${levelParam}`
+          : `/unseen?passageId=${assignment.taskId || ""}&assignmentId=${assignment.id}${davidSuffix}${levelParam}`);
 
   return (
     <div
@@ -211,6 +212,21 @@ export function StudentAssignedTaskPrompt() {
                   </>
                 )}
               </Badge>
+
+              {assignment.level && (
+                <Badge
+                  variant="outline"
+                  className={`text-3xs font-bold gap-1 ${
+                    assignment.level === "Level 1"
+                      ? "border-emerald-500/40 text-emerald-700 dark:text-emerald-300 bg-emerald-500/10"
+                      : assignment.level === "Level 2"
+                      ? "border-sky-500/40 text-sky-700 dark:text-sky-300 bg-sky-500/10"
+                      : "border-purple-500/40 text-purple-700 dark:text-purple-300 bg-purple-500/10"
+                  }`}
+                >
+                  <span>🎯 {assignment.level}</span>
+                </Badge>
+              )}
 
               {assignment.targetClass && (
                 <Badge variant="outline" className="text-3xs font-bold border-purple-500/40 text-purple-700 dark:text-purple-300">

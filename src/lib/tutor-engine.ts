@@ -98,7 +98,24 @@ export function getInitialOnboardingGreeting(studentName: string): {
   quickReplies: string[];
 } {
   return {
-    text: `Hi ${studentName}! 👋 I'm David, your personal English tutor.\nLet's chat for a minute so I can get to know you! (בוא/י נשוחח דקה באנגלית פשוטה כדי שאכיר אותך – ותמיד אפשר לשאול או לענות גם בעברית! 😊)\n\n**Question 1:** What do you like doing in your **free time** (זמן פנוי)?\nDo you like **sports** (ספורט ⚽), **video games** (משחקי מחשב 🎮), **music** (מוזיקה 🎵), or **animals** (חיות 🐶)?\n\n💡 *איך מתחילים? אפשר להתחיל ב-**"I like..."** (אני אוהב/ת...)*`,
+    text: `Hi ${studentName}! 👋 I'm David, your personal English tutor.
+Let's chat for a minute so I can get to know you!
+(בוא/י נשוחח דקה כדי שאכיר אותך – ואפשר לשאול או לענות גם בעברית! 😊)
+
+**Question 1:**
+What do you like doing in your free time?
+(מה את/ה אוהב/ת לעשות בזמן הפנוי שלך?)
+
+For example:
+• **sports** — ספורט ⚽
+• **video games** — משחקי מחשב 🎮
+• **music** — מוזיקה 🎵
+• **animals** — חיות 🐶
+
+💡 **איך מתחילים?**
+אפשר להתחיל ב:
+👉 **"I like..."**
+(אני אוהב/ת...)`,
     quickReplies: [
       "I like playing video games 🎮",
       "I like playing football with friends ⚽",
@@ -1058,7 +1075,7 @@ export function generateOnboardingTurnResponse(
       return {
         advanceTurn: false,
         neededHelp: true,
-        text: `${wordPrefix}אין שום בעיה, ${studentName}! אני כאן איתך צעד-אחר-צעד 😊\n\nשאלתי באנגלית:\n**"What do you like doing in your free time?"**\nכלומר: **מה את/ה אוהב/ת לעשות בזמן הפנוי שלך?**\n\nאוצר מילים קצר שיעזור לך להרכיב תשובה:\n• **I like...** = אני אוהב/ת...\n• **playing video games** = לשחק במשחקי מחשב 🎮\n• **playing football** = לשחק כדורגל ⚽\n• **listening to music** = לשמוע מוזיקה 🎵\n• **dogs / animals** = כלבים / בעלי חיים 🐶\n\nנסה/י לכתוב משפט קצר באנגלית (או אפילו בעברית ואעזור לך לתרגם!), או לחצ/י על אחת התשובות למטה:`,
+        text: `${wordPrefix}אין שום בעיה, ${studentName}! אני כאן איתך צעד-אחר-צעד 😊\n\nשאלתי באנגלית:\n**"What do you like doing in your free time?"**\n(מה את/ה אוהב/ת לעשות בזמן הפנוי שלך?)\n\nאוצר מילים שיעזור לך להרכיב תשובה:\n• **I like...** = אני אוהב/ת...\n• **playing video games** = לשחק במשחקי מחשב 🎮\n• **playing football** = לשחק כדורגל ⚽\n• **listening to music** = לשמוע מוזיקה 🎵\n• **dogs / animals** = כלבים / בעלי חיים 🐶\n\nנסה/י לכתוב משפט קצר באנגלית (או אפילו בעברית ואעזור לך לתרגם!), או לחצ/י על אחת התשובות למטה:`,
         quickReplies: [
           "I like playing video games 🎮",
           "I like playing football ⚽",
@@ -1072,7 +1089,7 @@ export function generateOnboardingTurnResponse(
       return {
         advanceTurn: false,
         neededHelp: true,
-        text: `${wordPrefix}אין שום בעיה, ${studentName}, בוא נפרק את הסיפור הקצר בעברית פשוטה! 😊\n\n📖 **מה קרה בסיפור?**\nבן דוד שלי ליאו אפה עוגת שוקולד, אבל **בטעות (accidentally)** הוא שם **מלח (salt)** **במקום (instead of)** **סוכר (sugar)**! כשכולם טעמו מהעוגה הפנים שלהם האדימו, ולכן הם **הזמינו פיצה (ordered pizza)** 🍕.\n\n❓ **השאלה שלי:** למה הפנים שלהם האדימו, ומה היית עושה במקומם?\n\nאפשר להיעזר בתבנית הקצרה הזו באנגלית:\n• **Because he put salt!** (כי הוא שם מלח!)\n• **I would order pizza.** (הייתי מזמין/ה פיצה.)\n\nנסה/י לכתוב באנגלית או לבחור למטה:`,
+        text: `${wordPrefix}אין שום בעיה, ${studentName}, בוא נפרק את הסיפור הקצר בעברית פשוטה! 😊\n\n📖 **מה קרה בסיפור?**\nבן דוד שלי ליאו אפה עוגת שוקולד, אבל בטעות הוא שם מלח במקום סוכר!\nכשכולם טעמו מהעוגה הפנים שלהם האדימו, ולכן הם הזמינו פיצה 🍕.\n\n🔑 **מילים חשובות מהסיפור:**\n• **accidentally** = בטעות\n• **salt instead of sugar** = מלח במקום סוכר\n• **tasted** = טעמו\n• **ordered pizza** = הזמינו פיצה\n\n❓ **השאלה שלי:**\nלמה הפנים שלהם האדימו, ומה היית עושה במקומם?\n\nאפשר להיעזר בתבנית קצרה באנגלית:\n👉 **"Because he put salt!"**\n(כי הוא שם מלח!)\n👉 **"I would order pizza."**\n(הייתי מזמין/ה פיצה.)\n\nנסה/י לכתוב באנגלית או לבחור למטה:`,
         quickReplies: [
           "Because he put salt instead of sugar!",
           "Because the cake had salt! I would order pizza.",
@@ -1085,7 +1102,7 @@ export function generateOnboardingTurnResponse(
       return {
         advanceTurn: false,
         neededHelp: true,
-        text: `${wordPrefix}בשמחה, ${studentName}! בוא נפרק את השאלה בעברית פשוטה: 😊\n\n❓ **מה שאלתי?**\nאם היית יכול/ה **לטוס מחר לכל מקום בעולם (travel anywhere)** ✈️ או **להמציא גאדג'ט/רובוט מגניב לבית הספר (invent a cool gadget)** 🤖 – מה היית בוחר/ת ולמה?\n\nאפשר להעתיק ולהשלים אחת מההתחלות האלו באנגלית:\n• **I want to travel to... because it is cool!** (אני רוצה לטוס ל... כי זה מגניב!)\n• **I would invent a robot that...** (הייתי ממציא/ה רובוט ש...)\n\nאו לחצ/י על אחת התשובות המוכנות למטה:`,
+        text: `${wordPrefix}בשמחה, ${studentName}! בוא נפרק את השאלה בעברית פשוטה: 😊\n\n❓ **מה שאלתי?**\nאם היית יכול/ה לטוס מחר לכל מקום בעולם, או להמציא גאדג'ט/רובוט מגניב לבית הספר – מה היית בוחר/ת ולמה?\n\n🔑 **מילות מפתח:**\n• **travel anywhere** = לטוס לכל מקום בעולם ✈️\n• **invent a cool gadget** = להמציא מכשיר או רובוט מגניב 🤖\n\nאפשר להעתיק ולהשלים אחת מההתחלות האלו באנגלית:\n👉 **"I want to travel to... because it is cool!"**\n(אני רוצה לטוס ל... כי זה מגניב!)\n👉 **"I would invent a robot that..."**\n(הייתי ממציא/ה רובוט ש...)\n\nאו לחצ/י על אחת התשובות המוכנות למטה:`,
         quickReplies: [
           "I want to travel to Japan because it is cool!",
           "I would invent a robot that does homework!",
@@ -1098,7 +1115,7 @@ export function generateOnboardingTurnResponse(
     return {
       advanceTurn: false,
       neededHelp: true,
-      text: `${wordPrefix}אל תדאג/י בכלל, ${studentName}! אם האנגלית מרגישה לך קצת קשה כרגע, הגעת בדיוק למקום הנכון – אנחנו נתקדם יחד לאט, צעד אחר צעד, עם הסברים בעברית! 💙💪\n\nשאלתי במה הכי בא לך שנתחיל עכשיו (הכול מותאם לרמת מתחילים **Level 1**):\n• **Learning new words (אוצר מילים בסיסי 📚)** – **מומלץ מאוד להתחלה קלה ומהירה!**\n• **Reading short stories (סיפורים קצרים עם תרגום 📖)**\n• **Writing simple sentences (אימון כתיבה מודרך ✍️)**\n\nפשוט לחצ/י על מה שמרגיש לך הכי נוח (אפשר גם בעברית!):`,
+      text: `${wordPrefix}אל תדאג/י בכלל, ${studentName}! אם האנגלית מרגישה לך קצת קשה כרגע, הגעת בדיוק למקום הנכון – אנחנו נתקדם יחד לאט, צעד אחר צעד, עם הסברים בעברית! 💙💪\n\nשאלתי במה הכי בא לך שנתחיל עכשיו (הכול מותאם לרמת מתחילים **Level 1**):\n• 📚 **Learning new words** — אוצר מילים בסיסי (מומלץ מאוד להתחלה קלה ומהירה!)\n• 📖 **Reading short stories** — סיפורים קצרים עם תרגום לכל מילה\n• ✍️ **Writing simple sentences** — אימון כתיבה מודרך עם משפטים מוכנים\n\nפשוט לחצ/י על מה שמרגיש לך הכי נוח (אפשר גם בעברית!):`,
       quickReplies: [
         "מילים חדשות (Learning new words) 📚",
         "סיפורים קצרים (Reading stories) 📖",
@@ -1127,26 +1144,26 @@ export function generateOnboardingTurnResponse(
 
   // 3. Normal English (or Heblish / Broken English) progression: Advance to the next turn with warm modeling!
   if (completedTurnIndex === 0) {
-    let hobbyReaction = `Awesome, ${studentName}! (מעולה!)`;
+    let hobbyReaction = `Awesome, ${studentName}! 🎉\n(מעולה!)`;
     if (isHeblishAnswer && heblishCoachingLine) {
       hobbyReaction = heblishCoachingLine;
     } else if (lower === "i love dog" || lower === "i like dog") {
-      hobbyReaction = `Dogs are the best, ${studentName}! 🐶 (אגב, באנגלית אומרים **"I love dogs!"** – כל הכבוד על התשובה!)`;
+      hobbyReaction = `Dogs are the best, ${studentName}! 🐶\n(אגב, באנגלית אומרים: "I love dogs!" – כל הכבוד על התשובה!)`;
     } else if (lower.includes("play") && !lower.includes("playing") && (lower.includes("i like play") || lower.includes("i love play"))) {
-      hobbyReaction = `Great answer, ${studentName}! 🎮⚽ (טיפ קטן: אחרי *I like* מוסיפים *ing*, למשל: **"I like playing..."** – אלוף!)`;
+      hobbyReaction = `Great answer, ${studentName}! 🎮⚽\n(טיפ קטן: אחרי I like מוסיפים ing, למשל: "I like playing..." – אלוף!)`;
     } else if (lower.includes("game") || lower.includes("gaming") || lower.includes("fifa") || lower.includes("play")) {
-      hobbyReaction = `Nice! Gaming and sports are awesome ways to have fun, ${studentName}! 🎮⚽ (איזה כיף!)`;
+      hobbyReaction = `Nice! Gaming and sports are awesome ways to have fun, ${studentName}! 🎮⚽\n(איזה כיף!)`;
     } else if (lower.includes("music") || lower.includes("song") || lower.includes("sing") || lower.includes("dance")) {
-      hobbyReaction = `I love music too, ${studentName}! 🎵 (גם אני ממש אוהב מוזיקה!)`;
+      hobbyReaction = `I love music too, ${studentName}! 🎵\n(גם אני ממש אוהב מוזיקה!)`;
     } else if (lower.includes("animal") || lower.includes("dog") || lower.includes("cat") || lower.includes("nature")) {
-      hobbyReaction = `Animals and nature are amazing, ${studentName}! 🐶🌿 (בעלי חיים זה מדהים!)`;
+      hobbyReaction = `Animals and nature are amazing, ${studentName}! 🐶🌿\n(בעלי חיים זה מדהים!)`;
     } else if (lower.includes("sport") || lower.includes("football") || lower.includes("soccer") || lower.includes("basketball")) {
-      hobbyReaction = `Sports are fantastic for having fun, ${studentName}! ⚽🏀 (ספורט זה מעולה!)`;
+      hobbyReaction = `Sports are fantastic for having fun, ${studentName}! ⚽🏀\n(ספורט זה מעולה!)`;
     }
 
     return {
       advanceTurn: true,
-      text: `${hobbyReaction}\n\n📖 **Short Story (סיפור קצר – קרא/י וענה/י על השאלה):**\nYesterday, my cousin Leo baked a chocolate cake 🎂.\nHe **accidentally** (בטעות) put **salt** (מלח) **instead of** (במקום) **sugar** (סוכר)!\nWhen everyone **tasted** (טעמו) the cake, their faces **turned red** (האדימו) 🥵, so they **ordered pizza** (הזמינו פיצה) 🍕!\n\n**Question 2:** Why did everyone's face turn red, and what would you do?\n💡 *Tip: Start with **"Because he put..."** (כי הוא שם...) and **"I would..."** (הייתי...)*`,
+      text: `${hobbyReaction}\n\n📖 **Short Story:**\nYesterday, my cousin Leo baked a chocolate cake 🎂.\nHe accidentally put salt instead of sugar!\nWhen everyone tasted the cake, their faces turned red 🥵, so they ordered pizza 🍕!\n\n🔑 **מילים שיעזרו לך:**\n• **accidentally** = בטעות\n• **salt instead of sugar** = מלח במקום סוכר\n• **tasted** = טעמו\n• **turned red** = האדימו\n• **ordered pizza** = הזמינו פיצה\n\n**Question 2:**\nWhy did everyone's face turn red, and what would you do?\n(למה הפנים שלהם האדימו, ומה היית עושה במקומם?)\n\n💡 **איך מתחילים את התשובה?**\nאפשר להתחיל ב:\n• **"Because he put..."** (כי הוא שם...)\n• **"I would..."** (הייתי...)`,
       quickReplies: [
         "Because he put salt instead of sugar! I would order pizza.",
         "Because the cake was salty! I would buy ice cream.",
@@ -1166,8 +1183,8 @@ export function generateOnboardingTurnResponse(
       lower.includes("bad");
 
     let storyReaction = mentionedSaltOrSugar
-      ? `Spot on, ${studentName}! 🍕👏 (בול! עוגת שוקולד מלוחה זו לגמרי הפתעה מצחיקה!)`
-      : `Haha, totally! At least pizza saved the party! 🍕 (לפחות הפיצה הצילה את המסיבה!)`;
+      ? `Spot on, ${studentName}! 🍕👏\n(בול! עוגת שוקולד מלוחה זו לגמרי הפתעה מצחיקה!)`
+      : `Haha, totally! At least pizza saved the party! 🍕\n(לפחות הפיצה הצילה את המסיבה!)`;
 
     if (isHeblishAnswer && heblishCoachingLine) {
       storyReaction = `${heblishCoachingLine}\n${storyReaction}`;
@@ -1176,12 +1193,12 @@ export function generateOnboardingTurnResponse(
       lower === "because salt" ||
       lower === "because salt in cake"
     ) {
-      storyReaction = `Spot on, ${studentName}! 🎯 You understood the story! (הבנת מצוין! במשפט מלא באנגלית נכתוב: **"Because he put salt in the cake!"** 👏)`;
+      storyReaction = `Spot on, ${studentName}! 🎯 You understood the story!\n(הבנת מצוין! משפט מלא באנגלית: "Because he put salt in the cake!" 👏)`;
     }
 
     return {
       advanceTurn: true,
-      text: `${storyReaction}\n\n**Question 3:** If you could **travel anywhere** (לטוס לכל מקום בעולם) ✈️ OR **invent a cool gadget** (להמציא מכשיר/רובוט מגניב) 🤖 for your school — what would you choose and why?\n\n💡 *Tip: Write 1 short sentence using (נסה/י לכתוב משפט קצר אחד):*\n• **"I want to travel to... because..."** (אני רוצה לטוס ל... כי...)\n• **"I would invent a... because..."** (הייתי ממציא/ה... כי...)`,
+      text: `${storyReaction}\n\n**Question 3:**\nIf you could travel anywhere ✈️ or invent a cool gadget 🤖 for your school — what would you choose and why?\n(אם היית יכול/ה לטוס לכל מקום בעולם, או להמציא מכשיר מגניב לבית הספר – מה היית בוחר/ת ולמה?)\n\n💡 **איך כותבים את התשובה בקלות?**\nנסה/י להשלים אחד מהמשפטים:\n👉 **"I want to travel to... because..."**\n(אני רוצה לטוס ל... כי...)\n👉 **"I would invent a... because..."**\n(הייתי ממציא/ה... כי...)`,
       quickReplies: [
         "I would invent a robot that does homework!",
         "I want to travel to Japan because it is cool!",
@@ -1192,18 +1209,18 @@ export function generateOnboardingTurnResponse(
 
   // After Turn 2 (Student wrote about travel or an invention) -> Move to Turn 3 (Preferred focus)
   if (completedTurnIndex === 2) {
-    let ideaReaction = `I really loved your idea, ${studentName}! 🌟 (אהבתי מאוד את הרעיון שלך!)`;
+    let ideaReaction = `I really loved your idea, ${studentName}! 🌟\n(אהבתי מאוד את הרעיון שלך!)`;
     if (isHeblishAnswer && heblishCoachingLine) {
       ideaReaction = `${heblishCoachingLine}\n${ideaReaction}`;
     } else if (lower.includes("robot") && lower.includes("homework")) {
-      ideaReaction = `Awesome invention, ${studentName}! 🤖📚 A homework robot would be a bestseller! (המצאה אדירה! במשפט מלא: **"I would invent a robot that does homework!"**)`;
+      ideaReaction = `Awesome invention, ${studentName}! 🤖📚\nA homework robot would be a bestseller!\n(המצאה אדירה! משפט מלא: "I would invent a robot that does homework!")`;
     } else if (lower.includes("japan") || lower.includes("usa") || lower.includes("travel")) {
-      ideaReaction = `Great choice, ${studentName}! ✈️🌍 Traveling is the best way to practice English! (בחירה מעולה!)`;
+      ideaReaction = `Great choice, ${studentName}! ✈️🌍\nTraveling is the best way to practice English!\n(בחירה מעולה!)`;
     }
 
     return {
       advanceTurn: true,
-      text: `${ideaReaction}\n\n**Question 4 (Last question! / שאלה אחרונה!):**\nWhat would you like to practice first with me right now?\n• 📖 **Reading stories** (קריאת סיפורים קצרים - Unseen)\n• 📚 **Learning new words** (אוצר מילים - Band I)\n• ✍️ **Writing in English** (כתיבת משפטים באנגלית)`,
+      text: `${ideaReaction}\n\n**Question 4 (Last question!):**\n(שאלה אחרונה לפני שמתחילים!)\n\nWhat would you like to practice first with me right now?\n(במה הכי בא לך שנתאמן עכשיו יחד?)\n\n• 📖 **Reading stories** — קריאת סיפורים קצרים (Unseen)\n• 📚 **Learning new words** — אוצר מילים בסיסי (Band I)\n• ✍️ **Writing in English** — כתיבת משפטים באנגלית`,
       quickReplies: [
         "I want to learn new vocabulary words 📚",
         "I'd like to practice reading stories 📖",
@@ -2313,7 +2330,7 @@ export async function getPendingTeacherAssignmentsForStudent(
   const recommendations: TutorTaskRecommendation[] = [];
 
   for (const a of relevant) {
-    const targetLevel: TutorLevel = studentLevel;
+    const targetLevel: TutorLevel = a.level ? (a.level as TutorLevel) : studentLevel;
 
     if (a.type === "unseen") {
       const levelTopics = getUnseenTopicsForLevel(targetLevel).map((t) => ({
@@ -2469,7 +2486,10 @@ export function generateTeacherAssignmentPrepMessage(
     ? `\n📌 **דגש חשוב מהמורה ${mission.teacherName || ""}:** "${mission.teacherInstructions}"\n`
     : "";
 
-  return `בשמחה ${cleanName}! בוא/י נעשה הכנה קצרה של דקה לפני שאת/ה מתחיל/ה את המשימה **"${mission.hebrewTitle}" (${mission.title})** 🎓${teacherNote}
+  return `בשמחה ${cleanName}! בוא/י נעשה הכנה קצרה של דקה לפני שאת/ה מתחיל/ה את המשימה:
+👉 **${mission.title}**
+(${mission.hebrewTitle}) 🎓${teacherNote}
+
 🔑 **מילות מפתח שכדאי להכיר לפני שמתחילים (אבחן אותך עליהן בסיום!):**
 ${wordsListText}
 

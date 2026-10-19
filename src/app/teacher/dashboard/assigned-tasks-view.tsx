@@ -181,6 +181,21 @@ export function AssignedTasksView({
                       </Badge>
                     )}
 
+                    {assignment.level && (
+                      <Badge
+                        variant="outline"
+                        className={`text-[10px] font-bold gap-1 ${
+                          assignment.level === "Level 1"
+                            ? "border-emerald-500/40 text-emerald-700 dark:text-emerald-300 bg-emerald-500/10"
+                            : assignment.level === "Level 2"
+                            ? "border-sky-500/40 text-sky-700 dark:text-sky-300 bg-sky-500/10"
+                            : "border-purple-500/40 text-purple-700 dark:text-purple-300 bg-purple-500/10"
+                        }`}
+                      >
+                        <span>🎯 {assignment.level}</span>
+                      </Badge>
+                    )}
+
                     {assignment.targetType === "all" && (
                       <Badge variant="outline" className="text-[10px] font-bold">
                         כל הכיתות
@@ -188,9 +203,25 @@ export function AssignedTasksView({
                     )}
 
                     {assignment.targetType === "students" && (
-                      <Badge variant="outline" className="text-[10px] font-bold">
-                        {assignment.targetStudentIds?.length || 0} תלמידים
-                      </Badge>
+                      <div className="flex items-center gap-1 flex-wrap">
+                        <Badge variant="outline" className="text-[10px] font-bold border-indigo-500/40 text-indigo-700 dark:text-indigo-300 bg-indigo-500/10">
+                          {assignment.targetStudentIds?.length || 0} תלמידים בודדים
+                        </Badge>
+                        {assignment.targetStudentIds &&
+                          assignment.targetStudentIds.slice(0, 3).map((id) => {
+                            const st = students.find((s) => s.id === id);
+                            return (
+                              <Badge key={id} variant="secondary" className="text-[9px] py-0 px-1 font-sans" dir="ltr">
+                                {st?.name || id}
+                              </Badge>
+                            );
+                          })}
+                        {(assignment.targetStudentIds?.length || 0) > 3 && (
+                          <span className="text-[9px] text-muted-foreground">
+                            +{(assignment.targetStudentIds?.length || 0) - 3} נוספים
+                          </span>
+                        )}
+                      </div>
                     )}
 
                     {(assignment.isFreeChoice || assignment.taskId === "free_choice") && (

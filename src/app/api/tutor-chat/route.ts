@@ -61,7 +61,7 @@ function generateDeterministicTutorResponse(
   if (isWritingStruggle) {
     const easyWritingTopic = writingTopics[0];
     return {
-      message: `אני לגמרי מבין אותך, ${studentName}! כתיבה באנגלית היא קלה הרבה יותר כשיש לך **"תבניות קסם"** קבועות להתחיל איתן 😊✍️\n\n🔑 **נוסחת הזהב למשפט באנגלית:**\n**מי (Subject)** + **פעולה (Verb)** + **המשך קצר**\n\nהנה **4 התחלות משפט קלות** שתמיד עובדות (אפשר פשוט להעתיק ולהשלים מילה אחת!):\n1. **I like... because it is fun.** (אני אוהב/ת... כי זה כיף.)\n2. **I think that... is great.** (אני חושב/ת ש... הוא מעולה.)\n3. **My favorite... is...** (ה... האהוב עליי הוא...)\n4. **First, I want to say that...** (קודם כל, אני רוצה להגיד ש...)\n\nרוצה שננסה יחד משימת כתיבה קצרה וקלילה בנושא **"${easyWritingTopic?.nameHebrew || "מכתב לחבר/ה"}"** עם בנק מילים מוכן?`,
+      message: `אני לגמרי מבין אותך, ${studentName}! כתיבה באנגלית היא קלה הרבה יותר כשיש לך **"תבניות קסם"** קבועות להתחיל איתן 😊✍️\n\n🔑 **נוסחת הזהב למשפט באנגלית:**\n**מי (Subject)** + **פעולה (Verb)** + **המשך קצר**\n\nהנה **4 התחלות משפט קלות** שתמיד עובדות (אפשר פשוט להעתיק ולהשלים מילה אחת!):\n\n1. **I like... because it is fun.**\n(אני אוהב/ת... כי זה כיף.)\n\n2. **I think that... is great.**\n(אני חושב/ת ש... הוא מעולה.)\n\n3. **My favorite... is...**\n(ה... האהוב עליי הוא...)\n\n4. **First, I want to say that...**\n(קודם כל, אני רוצה להגיד ש...)\n\nרוצה שננסה יחד משימת כתיבה קצרה וקלילה בנושא **"${easyWritingTopic?.nameHebrew || "מכתב לחבר/ה"}"** עם בנק מילים מוכן?`,
       quickReplies: [
         `בוא ננסה כתיבה: ${easyWritingTopic?.nameHebrew || "מכתב לחבר/ה"} ✍️`,
         "🎲 דוד, בחר עבורי נושא קל",
@@ -97,7 +97,7 @@ function generateDeterministicTutorResponse(
     if (isAboutWriting) {
       const easyWriting = writingTopics[0];
       return {
-        message: `הכי טבעי להרגיש ככה, ${studentName}! 💙 חשוב לי שתדע/י: אצלי **אין ציונים מלחיצים ומותר לטעות כמה שרוצים** – ככה בדיוק לומדים לכתוב באנגלית! 😊✍️\n\n✨ **איך כותבים בלי לחץ ב-3 צעדים פשוטים?**\n1. משתמשים בהתחלה מוכנה כמו **I like...** (אני אוהב/ת...) או **I think that...** (אני חושב/ת ש...).\n2. נעזרים בבנק המילים בעברית ובאנגלית שמופיע ליד המשימה.\n3. מתחילים ממשפט אחד או שניים בנושא קליל כמו **"${easyWriting?.nameHebrew || "מכתב לחבר/ה"}"** ${easyWriting?.emoji || "💌"}!`,
+        message: `הכי טבעי להרגיש ככה, ${studentName}! 💙 חשוב לי שתדע/י: אצלי **אין ציונים מלחיצים ומותר לטעות כמה שרוצים** – ככה בדיוק לומדים לכתוב באנגלית! 😊✍️\n\n✨ **איך כותבים בלי לחץ ב-3 צעדים פשוטים?**\n1. משתמשים בתבנית מוכנה כמו:\n👉 **"I like..."**\n(אני אוהב/ת...)\nאו:\n👉 **"I think that..."**\n(אני חושב/ת ש...)\n2. נעזרים בבנק המילים בעברית ובאנגלית שמופיע ליד המשימה.\n3. מתחילים ממשפט אחד או שניים בנושא קליל כמו **"${easyWriting?.nameHebrew || "מכתב לחבר/ה"}"** ${easyWriting?.emoji || "💌"}!`,
         quickReplies: [
           `בוא ננסה כתיבה קלה: ${easyWriting?.nameHebrew || "מכתב לחבר/ה"} ✍️`,
           "🎲 דוד, בחר עבורי משהו קל",
@@ -194,7 +194,7 @@ function generateDeterministicTutorResponse(
   // 6. Greeting ("שלום", "היי", "hello", "hi")
   if (lower.includes("hello") || lower.includes("hi") || lower.includes("שלום") || lower.includes("היי")) {
     return {
-      message: `Hi ${studentName}! 👋 איזה כיף לראות אותך!\nI am ready to practice with you! (אני מוכן לתרגל איתך ברמת **${level}**!)\nבמה בא לך להתחיל היום – סיפור קצר, משחק מילים מהיר, או כתיבה מודרכת?`,
+      message: `Hi ${studentName}! 👋 איזה כיף לראות אותך!\nI am ready to practice with you!\n(אני מוכן לתרגל איתך ברמת **${level}**!)\n\nבמה בא לך להתחיל היום – סיפור קצר, משחק מילים מהיר, או כתיבה מודרכת?`,
       quickReplies: [
         "🎲 דוד, בחר עבורי משהו קל",
         "סיפור קצר (Unseen) 📖",
@@ -254,7 +254,7 @@ function generateDeterministicTutorResponse(
 
   // 11. Warm, Bilingual Level-1 Calibrated Default Response (Never a wall of English!)
   return {
-    message: `Great job chatting with me, ${studentName}! 🌟 (כל הכבוד על התרגול איתי!)\nאני כאן איתך לכל שאלה ברמת **${level}** – אם יש מילה או משפט שלא ברורים לך, פשוט שאל/י אותי **"מה זה..."** או **"איך אומרים..."** בעברית, או שנמשיך למשימה הקלה הבאה שלנו!`,
+    message: `Great job chatting with me, ${studentName}! 🌟\n(כל הכבוד על התרגול איתי!)\n\nאני כאן איתך לכל שאלה ברמת **${level}** – אם יש מילה או משפט שלא ברורים לך, פשוט שאל/י אותי **"מה זה..."** או **"איך אומרים..."** בעברית, או שנמשיך למשימה הקלה הבאה שלנו!`,
     quickReplies: [
       "🎲 דוד, בחר עבורי משהו קל",
       "תן לי משימת קריאה קלה 📖",
@@ -313,8 +313,16 @@ CRITICAL PEDAGOGICAL RULES (ESPECIALLY FOR LEVEL 1 / STRUGGLING HEBREW-NATIVE LE
 1. **Comprehension Rescue & Confusion Detection**:
    - If the student writes in Hebrew asking "מה זה...", "מה אומר...", "מה זה אומר...", "איך אומרים...", "לא הבנתי", or mixes Hebrew & English (Heblish), NEVER ignore their question or give a generic menu!
    - Translate the exact word or sentence they asked about into simple Hebrew, break it down word-by-word, and give 1 short example sentence.
-2. **Cognitive Load & Level 1 Calibration**:
-   - Never write more than 1–2 short, simple Band I English sentences at a time without immediate warm Hebrew scaffolding in parentheses or below.
+2. **Cognitive Load, BiDi Readability & Strict Language Separation Rules**:
+   - NEVER combine an English sentence and a Hebrew explanation/translation on the exact same line! Combining Hebrew and English on the same line scrambles text direction, reverses brackets, and breaks punctuation.
+   - ALWAYS place English sentences on their own line.
+   - If providing a Hebrew translation or explanation, ALWAYS place it on a NEW LINE directly below the English sentence, formatted like:
+     (תרגום או הסבר בעברית)
+   - For vocabulary items, ALWAYS place each word on its own bulleted line:
+     • **English Word** — תרגום בעברית
+   - For sentence starters or templates, put the English pattern on its own separate line:
+     👉 **"I like... because..."**
+     (אני אוהב/ת... כי...)
 3. **Active English Production Scaffolding**:
    - When a student answers in Hebrew or struggles with writing ("קשה לי לכתוב", "איך מתחילים משפט?"), validate their specific idea in Hebrew and give them a tailored, fill-in-the-blank English sentence starter (e.g., "I like... because...", "I think that...", "I would invent a...") matched to their exact idea.
    - When a student expresses fear or anxiety (e.g. "אני מפחד לטעות באנסין"), reassure them warmly in Hebrew that mistakes are how we learn, and share 2–3 simple tips.
@@ -425,7 +433,7 @@ Return ONLY a raw JSON object (NO markdown code fences, NO backticks) with this 
     console.error("Tutor API error:", error);
     return NextResponse.json({
       success: true,
-      message: "Hello! I am David, your English tutor. Let's practice reading, vocabulary, or writing today! (בוא נתרגל היום יחד!)",
+      message: "Hello! I am David, your English tutor.\nLet's practice reading, vocabulary, or writing today!\n(בוא נתרגל היום יחד!)",
       quickReplies: ["בוא נתרגל קריאה", "בוא נתרגל אוצר מילים", "בוא נתרגל כתיבה"],
       source: "emergency_fallback",
     });

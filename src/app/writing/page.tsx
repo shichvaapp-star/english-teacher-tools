@@ -193,6 +193,10 @@ export default function WritingPracticePage() {
       const params = new URLSearchParams(window.location.search);
       const taskIdParam = params.get("task");
       const assignIdParam = params.get("assignmentId");
+      const levelQueryParam = params.get("level") as WritingLevel | null;
+      if (levelQueryParam && (levelQueryParam === "Level 1" || levelQueryParam === "Level 2" || levelQueryParam === "Level 3")) {
+        setSelectedLevel(levelQueryParam);
+      }
       if (params.get("from") === "david") {
         setIsFromDavid(true);
       }
@@ -206,20 +210,25 @@ export default function WritingPracticePage() {
       }
       if (assignIdParam) {
         setCurrentAssignmentId(assignIdParam);
+        let matchedAssign: TeacherAssignment | undefined;
         try {
           const rawAssigns = localStorage.getItem("ett_teacher_assignments");
           if (rawAssigns) {
             const parsed = JSON.parse(rawAssigns) as TeacherAssignment[];
-            const matchedAssign = parsed.find((a) => a.id === assignIdParam);
+            matchedAssign = parsed.find((a) => a.id === assignIdParam);
             if (matchedAssign) {
               setActiveAssignment(matchedAssign);
+              if (matchedAssign.level) {
+                setSelectedLevel(matchedAssign.level);
+              }
             }
           }
         } catch {}
+        const lvlText = matchedAssign?.level ? ` (${matchedAssign.level})` : "";
         if (!taskIdParam || taskIdParam === "free_choice" || taskIdParam === "adaptive_david") {
-          setAssignedNotice("✨ משימת בחירה חופשית מהמורה שלך: בחרו כל נושא שתרצו (או צרו נושא עם ה-AI), כתבו והגישו לבדיקה!");
+          setAssignedNotice(`✨ משימת בחירה חופשית מהמורה שלך${lvlText}: בחרו נושא מתאים, כתבו והגישו לבדיקה!`);
         } else {
-          setAssignedNotice("משימה זו הוקצתה על ידי המורה שלך. בסיום הכתיבה, הגישו את המשימה לבדיקה.");
+          setAssignedNotice(`משימה זו${lvlText} הוקצתה על ידי המורה שלך. בסיום הכתיבה, הגישו את המשימה לבדיקה.`);
         }
       }
     }

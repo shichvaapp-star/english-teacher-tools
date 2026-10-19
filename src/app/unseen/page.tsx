@@ -130,6 +130,10 @@ export default function UnseenPracticePage() {
       if (params.get("stage") === "exercise") {
         setStage("exercise");
       }
+      const levelQueryParam = params.get("level") as "Level 1" | "Level 2" | "Level 3" | null;
+      if (levelQueryParam && (levelQueryParam === "Level 1" || levelQueryParam === "Level 2" || levelQueryParam === "Level 3")) {
+        setSelectedLevel(levelQueryParam);
+      }
       const passageParam = params.get("passageId") || params.get("story");
       const assignIdParam = params.get("assignmentId");
       if (passageParam && passageParam !== "free_choice" && passageParam !== "adaptive_david") {
@@ -143,20 +147,25 @@ export default function UnseenPracticePage() {
       }
       if (assignIdParam) {
         setCurrentAssignmentId(assignIdParam);
+        let matchedAssign: TeacherAssignment | undefined;
         try {
           const rawAssigns = localStorage.getItem("ett_teacher_assignments");
           if (rawAssigns) {
             const parsed = JSON.parse(rawAssigns) as TeacherAssignment[];
-            const matchedAssign = parsed.find((a) => a.id === assignIdParam);
+            matchedAssign = parsed.find((a) => a.id === assignIdParam);
             if (matchedAssign) {
               setActiveAssignment(matchedAssign);
+              if (matchedAssign.level) {
+                setSelectedLevel(matchedAssign.level);
+              }
             }
           }
         } catch {}
+        const lvlText = matchedAssign?.level ? ` (${matchedAssign.level})` : "";
         if (!passageParam || passageParam === "free_choice" || passageParam === "adaptive_david") {
-          setAssignedNotice("✨ משימת אנסין בבחירה חופשית מהמורה שלך: בחרו כל קטע קריאה שתרצו (או צרו קטע עם ה-AI), ענו על השאלות והגישו לבדיקה!");
+          setAssignedNotice(`✨ משימת אנסין בבחירה חופשית מהמורה שלך${lvlText}: בחרו קטע קריאה מתאים, ענו על השאלות והגישו לבדיקה!`);
         } else {
-          setAssignedNotice("מבחן אנסין זה הוקצה על ידי המורה שלך. בסיום המענה, הגישו לבדיקה.");
+          setAssignedNotice(`מבחן אנסין זה${lvlText} הוקצה על ידי המורה שלך. בסיום המענה, הגישו לבדיקה.`);
         }
       }
     }

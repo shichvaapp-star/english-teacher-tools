@@ -1,6 +1,7 @@
 import { StudentGroup } from "./auth";
 
 export type AssignmentTargetType = "all" | "class" | "group" | "students";
+export type ExerciseLevel = "Level 1" | "Level 2" | "Level 3";
 
 export interface TeacherAssignment {
   id: string;
@@ -10,6 +11,7 @@ export interface TeacherAssignment {
   title: string;
   hebrewTitle: string;
   taskId?: string; // ID of specific writing task or unseen passage
+  level?: ExerciseLevel; // Selected exercise level: Level 1, Level 2, or Level 3
   isFreeChoice?: boolean;
   isAdaptiveDavid?: boolean; // David selects a task matching each student's personal level (Level 1/2/3)
   focusWords?: string[]; // Optional teacher-selected English words for David to pre-teach and quiz

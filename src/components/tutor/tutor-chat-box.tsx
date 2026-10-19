@@ -26,6 +26,7 @@ import {
   generateTeacherAssignmentPrepMessage,
   DiagnosticAnswer,
 } from "@/lib/tutor-engine";
+import { TutorChatMessageContent } from "./tutor-chat-message-content";
 import { useAuth } from "@/lib/auth-context";
 import {
   saveWordToBuilder,
@@ -663,7 +664,7 @@ export function TutorChatBox({
       const initialGreeting: TutorMessage = {
         id: `msg-${Date.now()}`,
         sender: "tutor",
-        text: `Hello ${studentName}! 👋 איזה כיף לראות אותך!\nאנחנו מתרגלים יחד ברמת **${profile.level} (${profile.vocabBand})**. במה תרצה/י שנתמקד היום – קריאת סיפור קצר, אוצר מילים, או כתיבה?`,
+        text: `Hello ${studentName}! 👋 איזה כיף לראות אותך!\nאנחנו מתרגלים יחד ברמת **${profile.level} (${profile.vocabBand})**.\n\nבמה תרצה/י שנתמקד היום – קריאת סיפור קצר, אוצר מילים, או כתיבה?`,
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         quickReplies: [
           "🎲 דוד, בחר עבורי משהו קל",
@@ -710,7 +711,7 @@ export function TutorChatBox({
         const turnInMsg: TutorMessage = {
           id: `msg-turnin-${Date.now()}`,
           sender: "tutor",
-          text: `Well done ${studentName}! 🎉 כל הכבוד! קיבלת **${pendingTurnIn.score}/100** במשימה "${pendingTurnIn.taskTitleHebrew || pendingTurnIn.taskTitle}"${teacherAck}.\n\nבוא/י נעבור יחד על המשוב שלך, נבדוק **${pendingTurnIn.vocabToReview.length} מילים חשובות** מהמשימה (כל מילה שלא תכיר/י תישמר אוטומטית במילון האישי שלך! 📌), ואז נמשיך לתרגול הבא:`,
+          text: `Well done ${studentName}! 🎉\nכל הכבוד! קיבלת **${pendingTurnIn.score}/100** במשימה "${pendingTurnIn.taskTitleHebrew || pendingTurnIn.taskTitle}"${teacherAck}.\n\nבוא/י נעבור יחד על המשוב שלך, נבדוק **${pendingTurnIn.vocabToReview.length} מילים חשובות** מהמשימה (כל מילה שלא תכיר/י תישמר אוטומטית במילון האישי שלך! 📌), ואז נמשיך לתרגול הבא:`,
           timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
           turnInReview: pendingTurnIn,
           quickReplies: ["תן לי משימה חדשה 🚀", "תרגל אוצר מילים 📚"],
@@ -824,7 +825,7 @@ export function TutorChatBox({
     const nextMsg: TutorMessage = {
       id: `msg-next-${Date.now()}`,
       sender: "tutor",
-      text: `Awesome work on your vocabulary check! Now let's move to your next practice: a **${missionTypeHebrew}** task. Pick a topic below that interests you, or click 'דוד, בחר עבורי':`,
+      text: `Awesome work on your vocabulary check! 🎉\n(כל הכבוד על סיום מבדק המילים!)\n\nNow let's move to your next practice: a **${missionTypeHebrew}** task.\nPick a topic below that interests you, or click 'דוד, בחר עבורי':`,
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       taskRecommendation: nextMission,
       quickReplies: [
@@ -1175,7 +1176,7 @@ export function TutorChatBox({
       const completionMessage: TutorMessage = {
         id: `msg-${Date.now() + 2}`,
         sender: "tutor",
-        text: `Thank you for chatting with me, ${studentName}! 🎉 (תודה על השיחה הנעימה שלנו! כל הכבוד על ההשתתפות! 👏)\n\nבניתי עבורך תוכנית תרגול אישית ומותאמת בדיוק לקצב שלך ברמת **${updatedProfile.level} (${updatedProfile.vocabBand})**. ${
+        text: `Thank you for chatting with me, ${studentName}! 🎉\n(תודה על השיחה הנעימה שלנו! כל הכבוד על ההשתתפות! 👏)\n\nבניתי עבורך תוכנית תרגול אישית ומותאמת בדיוק לקצב שלך ברמת **${updatedProfile.level} (${updatedProfile.vocabBand})**.\n\n${
           isUnseenOrWriting
             ? "הנה התרגול הראשון שהכנתי עבורך – בחר/י נושא שמעניין אותך מהרשימה למטה, או לחצ/י על **'🎲 דוד, בחר עבורי'**:"
             : "הנה משימת הפתיחה הקלה שהכנתי עבורך – בוא/י נתחיל יחד!"
@@ -1352,7 +1353,7 @@ export function TutorChatBox({
       const errorMsg: TutorMessage = {
         id: `msg-${Date.now() + 1}`,
         sender: "tutor",
-        text: "I'm with you! Keep practicing on the site tools, and let me know whenever you need guidance. (אני כאן איתך! בחר באחד הכלים באתר כדי להמשיך לתרגל)",
+        text: "I'm with you! Keep practicing on the site tools, and let me know whenever you need guidance.\n(אני כאן איתך! בחר באחד הכלים באתר כדי להמשיך לתרגל)",
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         quickReplies: ["פתח משימה מומלצת", "בוא נתרגל אוצר מילים"],
       };
@@ -1571,17 +1572,20 @@ export function TutorChatBox({
               </div>
 
               <div
-                className={`rounded-2xl px-5 py-3.5 text-base sm:text-lg shadow-xs leading-relaxed font-sans ${
+                className={`rounded-2xl px-4 sm:px-5 py-3 sm:py-3.5 text-base sm:text-lg shadow-xs leading-relaxed font-sans ${
                   msg.sender === "student"
                     ? "bg-primary text-primary-foreground rounded-tl-xs"
                     : "bg-muted/60 text-foreground border border-border/40 rounded-tr-xs"
                 }`}
               >
-                <p className="whitespace-pre-line text-right font-sans" dir="auto">{msg.text}</p>
+                <TutorChatMessageContent text={msg.text} isTutor={msg.sender === "tutor"} />
                 <span
-                  className={`block text-[11px] mt-1.5 text-right ${
-                    msg.sender === "student" ? "text-primary-foreground/70" : "text-muted-foreground"
+                  className={`block text-[11px] mt-1.5 ${
+                    msg.sender === "student"
+                      ? "text-primary-foreground/70 text-right"
+                      : "text-muted-foreground text-left"
                   }`}
+                  dir="ltr"
                 >
                   {msg.timestamp}
                 </span>
