@@ -273,7 +273,7 @@ export function AssignedTasksView({
                 {/* David Tutor Toggle Row */}
                 <div className="flex items-center justify-between pt-1">
                   <span className="text-[11px] text-muted-foreground flex items-center gap-1.5 font-medium">
-                    <GraduationCap className={`h-3.5 w-3.5 ${isDavidEnabled ? "text-indigo-500" : "text-muted-foreground"}`} />
+                    <img src="/images/logos/david-logo.png" alt="David" className="h-4 w-4 rounded-full object-cover object-top shrink-0" />
                     <span>ליווי עם דוד (מורה פרטי):</span>
                   </span>
                   {onToggleDavid ? (

@@ -2340,7 +2340,7 @@ export default function WritingPracticePage() {
                   <div className="p-4 rounded-xl bg-emerald-500/10 border-2 border-emerald-500/35 flex flex-col sm:flex-row items-center justify-between gap-3 text-right">
                     <div className="space-y-0.5">
                       <h5 className="text-xs sm:text-sm font-bold text-foreground flex items-center gap-1.5">
-                        <GraduationCap className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                        <img src="/images/logos/david-logo.png" alt="David" className="h-4 w-4 rounded-full object-cover object-top shrink-0" />
                         <span>סיימת את החיבור? הגש/י אותו לדוד להמשך השיעור הפרטי!</span>
                       </h5>
                       <p className="text-[11px] sm:text-xs text-muted-foreground">
@@ -2354,7 +2354,7 @@ export default function WritingPracticePage() {
                         onClick={() => handleTurnInToDavid(feedback)}
                         className="flex-1 sm:flex-initial h-10 px-5 text-xs sm:text-sm font-bold bg-emerald-600 hover:bg-emerald-700 text-white shrink-0 cursor-pointer gap-1.5 shadow-xs"
                       >
-                        <GraduationCap className="h-4 w-4" />
+                        <img src="/images/logos/david-logo.png" alt="David" className="h-4 w-4 rounded-full object-cover object-top shrink-0" />
                         <span>{isTurningInToDavid ? "מגיש לדוד..." : "הגש משימה לדוד 🎓"}</span>
                       </Button>
                       <Button

@@ -31,8 +31,8 @@ export function TutorProgressCard({ profile, onResetDiagnostic }: TutorProgressC
       <Card className="border border-border/60 bg-muted/20 shadow-xs overflow-hidden">
         <div className="p-4 border-b border-border/30 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-tr from-sky-500 via-indigo-500 to-purple-500 text-white shadow-xs shrink-0">
-              <GraduationCap className="h-6 w-6" />
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-tr from-sky-500/20 via-indigo-500/20 to-purple-500/20 border border-indigo-500/30 overflow-hidden shadow-xs shrink-0">
+              <img src="/images/logos/david-logo.png" alt="David" className="h-full w-full object-cover object-top" />
             </div>
             <div>
               <h3 className="font-bold text-foreground text-base">

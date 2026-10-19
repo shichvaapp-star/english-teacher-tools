@@ -1386,8 +1386,8 @@ export function TutorChatBox({
       <div className="flex items-center justify-between px-4 py-3 border-b border-border/40 bg-muted/20">
         <div className="flex items-center gap-3">
           <div className="relative">
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-tr from-sky-500 via-indigo-500 to-purple-500 text-white shadow-xs">
-              <GraduationCap className="h-5 w-5" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-tr from-sky-500/20 via-indigo-500/20 to-purple-500/20 border border-indigo-500/30 overflow-hidden shadow-xs">
+              <img src="/images/logos/david-logo.png" alt="David" className="h-full w-full object-cover object-top" />
             </div>
             <span className="absolute bottom-0 left-0 h-3 w-3 rounded-full bg-emerald-500 ring-2 ring-background" title="דוד מחובר וזמין" />
           </div>
@@ -1562,13 +1562,17 @@ export function TutorChatBox({
               }`}
             >
               <div
-                className={`flex h-8 w-8 rounded-xl items-center justify-center text-xs shrink-0 mt-1 shadow-xs ${
+                className={`flex h-8 w-8 rounded-xl items-center justify-center text-xs shrink-0 mt-1 shadow-xs overflow-hidden ${
                   msg.sender === "student"
                     ? "bg-primary text-primary-foreground"
-                    : "bg-gradient-to-tr from-sky-500 via-indigo-500 to-purple-500 text-white"
+                    : "bg-gradient-to-tr from-sky-500/20 via-indigo-500/20 to-purple-500/20 border border-indigo-500/30"
                 }`}
               >
-                {msg.sender === "student" ? <User className="h-4 w-4" /> : <GraduationCap className="h-4 w-4" />}
+                {msg.sender === "student" ? (
+                  <User className="h-4 w-4" />
+                ) : (
+                  <img src="/images/logos/david-logo.png" alt="David" className="h-full w-full object-cover object-top" />
+                )}
               </div>
 
               <div
@@ -1795,8 +1799,8 @@ export function TutorChatBox({
         {/* Loading Indicator */}
         {isSending && (
           <div className="flex items-center gap-2.5 text-sm text-muted-foreground mr-11">
-            <div className="flex h-8 w-8 rounded-xl items-center justify-center bg-gradient-to-tr from-sky-500 via-indigo-500 to-purple-500 text-white shrink-0 shadow-xs">
-              <GraduationCap className="h-4 w-4" />
+            <div className="flex h-8 w-8 rounded-xl items-center justify-center bg-gradient-to-tr from-sky-500/20 via-indigo-500/20 to-purple-500/20 border border-indigo-500/30 overflow-hidden shrink-0 shadow-xs">
+              <img src="/images/logos/david-logo.png" alt="David" className="h-full w-full object-cover object-top" />
             </div>
             <div className="bg-muted/60 px-4 py-2.5 rounded-2xl border border-border/40 flex items-center gap-2 text-sm">
               <span className="animate-pulse">

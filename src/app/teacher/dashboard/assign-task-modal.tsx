@@ -411,13 +411,13 @@ export function AssignTaskModal({
           >
             <div className="flex items-start gap-2.5">
               <div
-                className={`p-2 rounded-lg shrink-0 mt-0.5 ${
+                className={`h-9 w-9 rounded-xl shrink-0 mt-0.5 overflow-hidden border ${
                   coachWithDavid
-                    ? "bg-indigo-600 text-white"
-                    : "bg-muted text-muted-foreground"
+                    ? "border-indigo-500 shadow-xs"
+                    : "border-border/60 opacity-80"
                 }`}
               >
-                <GraduationCap className="h-4 w-4" />
+                <img src="/images/logos/david-logo.png" alt="David" className="h-full w-full object-cover object-top" />
               </div>
               <div className="space-y-0.5">
                 <div className="flex items-center gap-2">
@@ -529,7 +529,7 @@ export function AssignTaskModal({
                   }`}
                 >
                   <div className="flex items-center gap-1.5 font-bold text-xs">
-                    <GraduationCap className="h-3.5 w-3.5 text-indigo-500 shrink-0" />
+                    <img src="/images/logos/david-logo.png" alt="David" className="h-4 w-4 rounded-full object-cover object-top shrink-0" />
                     <span>מותאם רמה ע״י דוד</span>
                   </div>
                   <p className="text-[10px] text-muted-foreground mt-1">
@@ -626,7 +626,7 @@ export function AssignTaskModal({
               </div>
             ) : selectionMode === "adaptive_david" && coachWithDavid ? (
               <div className="p-3 rounded-xl bg-indigo-500/10 border border-indigo-500/30 flex items-start gap-2.5 text-xs text-indigo-950 dark:text-indigo-200">
-                <GraduationCap className="h-4 w-4 text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5" />
+                <img src="/images/logos/david-logo.png" alt="David" className="h-5 w-5 rounded-full object-cover object-top shrink-0 mt-0.5" />
                 <div className="space-y-1">
                   <span className="font-bold block">
                     דוד יתאים לכל תלמיד/ה {taskType === "writing" ? "משימת כתיבה" : "קטע קריאה (Unseen)"}
@@ -1046,7 +1046,7 @@ export function AssignTaskModal({
           {coachWithDavid && (
             <div className="space-y-1 p-2.5 rounded-xl border border-indigo-500/30 bg-indigo-500/5 animate-in fade-in duration-150">
               <label className="font-bold text-foreground flex items-center gap-1.5">
-                <BookA className="h-3.5 w-3.5 text-indigo-500" />
+                <img src="/images/logos/david-logo.png" alt="David" className="h-4 w-4 rounded-full object-cover object-top shrink-0" />
                 <span>מילות מפתח באנגלית לתרגול ומבדק עם דוד (אופציונלי):</span>
               </label>
               <Input

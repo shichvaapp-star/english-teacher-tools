@@ -81,8 +81,8 @@ export default function PrivateTutorPage() {
             <span className="text-border">|</span>
 
             <div className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-tr from-sky-500 via-indigo-500 to-purple-500 text-white shadow-xs">
-                <GraduationCap className="h-4 w-4" />
+              <div className="flex h-8 w-8 items-center justify-center rounded-xl overflow-hidden border border-indigo-500/30 bg-muted/20 shadow-xs shrink-0">
+                <img src="/images/logos/david-logo.png" alt="David" className="h-full w-full object-cover object-top" />
               </div>
               <span className="font-bold text-sm sm:text-base text-foreground">
                 המורה הפרטי שלי (David)

@@ -241,8 +241,8 @@ export function StudentAssignedTaskPrompt() {
               )}
 
               {useDavid && (
-                <Badge variant="outline" className="text-3xs font-bold border-indigo-500/40 text-indigo-700 dark:text-indigo-300 bg-indigo-500/10 gap-1">
-                  <GraduationCap className="h-2.5 w-2.5 text-indigo-500" />
+                <Badge variant="outline" className="text-3xs font-bold border-indigo-500/40 text-indigo-700 dark:text-indigo-300 bg-indigo-500/10 gap-1 pl-1.5">
+                  <img src="/images/logos/david-logo.png" alt="David" className="h-3 w-3 rounded-full object-cover object-top" />
                   <span>{assignment.isAdaptiveDavid ? "מותאם אישית עם דוד" : "בליווי דוד"}</span>
                 </Badge>
               )}
@@ -291,7 +291,7 @@ export function StudentAssignedTaskPrompt() {
                 variant="outline"
                 className="text-xs font-bold gap-1.5 cursor-pointer border-indigo-500/50 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 px-3"
               >
-                <GraduationCap className="h-3.5 w-3.5" />
+                <img src="/images/logos/david-logo.png" alt="David" className="h-4 w-4 rounded-full object-cover object-top" />
                 <span>פתור בליווי דוד 🎓</span>
               </Button>
             </Link>

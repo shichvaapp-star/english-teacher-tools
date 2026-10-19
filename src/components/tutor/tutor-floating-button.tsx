@@ -24,7 +24,11 @@ export function TutorFloatingButton() {
           className="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-full border border-border/70 bg-card/85 hover:bg-card hover:border-primary/50 text-muted-foreground hover:text-foreground shadow-md hover:shadow-lg backdrop-blur-md text-xs font-medium transition-all duration-200 cursor-pointer group focus:outline-none focus:ring-2 focus:ring-primary/20"
           aria-label="פתח את המורה הפרטי דוד"
         >
-          <Bot className="h-4 w-4 text-primary group-hover:scale-110 transition-transform" />
+          <img
+            src="/images/logos/david-logo.png"
+            alt="David"
+            className="h-5 w-5 rounded-full object-cover object-top border border-indigo-500/40 shadow-2xs group-hover:scale-110 transition-transform shrink-0"
+          />
           <span className="hidden sm:inline text-[11px] font-normal tracking-tight">
             המורה הפרטי (דוד)
           </span>

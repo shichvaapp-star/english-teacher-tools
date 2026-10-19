@@ -1831,7 +1831,7 @@ export default function UnseenPracticePage() {
           {isFromDavid && (
             <div className="p-3 rounded-xl bg-indigo-500/10 border border-indigo-500/30 flex flex-wrap items-center justify-between gap-3 text-xs text-indigo-900 dark:text-indigo-200" dir="rtl">
               <div className="flex items-center gap-2">
-                <GraduationCap className="h-4 w-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
+                <img src="/images/logos/david-logo.png" alt="David" className="h-4 w-4 rounded-full object-cover object-top shrink-0" />
                 <span className="font-semibold">
                   שיעור פרטי עם המורה דוד: קראו את הקטע וענו על השאלות. בסיום לחצו על <strong>&ldquo;הגש משימה לדוד 🎓&rdquo;</strong> כדי שדוד יבדוק את העבודה שלכם ויבחן אתכם על אוצר מילים!
                 </span>
@@ -1843,7 +1843,7 @@ export default function UnseenPracticePage() {
                 disabled={isTurningInToDavid}
                 className="h-8 text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white cursor-pointer gap-1.5 shrink-0"
               >
-                <GraduationCap className="h-3.5 w-3.5" />
+                <img src="/images/logos/david-logo.png" alt="David" className="h-3.5 w-3.5 rounded-full object-cover object-top shrink-0" />
                 <span>{isTurningInToDavid ? "מגיש לדוד..." : `הגש משימה לדוד 🎓 (${answeredCount}/10)`}</span>
               </Button>
             </div>
