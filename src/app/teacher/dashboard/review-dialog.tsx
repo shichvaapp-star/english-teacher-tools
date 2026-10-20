@@ -10,6 +10,7 @@ import {
   GraduationCap,
   Sparkles,
   BookOpen,
+  BookA,
   CheckCircle2,
   Lightbulb,
   AlertCircle,
@@ -108,32 +109,34 @@ export function ReviewDialog({
               <p className="text-xs text-muted-foreground">
                 {reviewItem.hebrewTitle} &bull; {reviewItem.studentClass || "חטיבת ביניים"}
                 {reviewItem.studentGroup && ` • הקבצה ${reviewItem.studentGroup}`} (
-                {reviewItem.type === "unseen" ? "מבחן אנסין" : "חיבור כתיבה"})
+                {reviewItem.type === "vocab" ? "אימון אוצר מילים" : reviewItem.type === "unseen" ? "מבחן אנסין" : "חיבור כתיבה"})
               </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() => onAiReview(reviewItem)}
-              disabled={isEvaluatingAi}
-              className="h-8 text-xs font-bold gap-1.5 border-purple-500/40 text-purple-700 dark:text-purple-300 bg-purple-500/10 hover:bg-purple-500/20 cursor-pointer shadow-xs"
-              title="הפעל בדיקת AI מקיפה"
-            >
-              {isEvaluatingAi ? (
-                <>
-                  <Loader2 className="h-3.5 w-3.5 animate-spin text-purple-600 dark:text-purple-400" />
-                  <span>בודק ב-AI...</span>
-                </>
-              ) : (
-                <>
-                  <Sparkles className="h-3.5 w-3.5 text-purple-600 dark:text-purple-400" />
-                  <span>{writingAiResult ? "בדיקת AI מחדש" : "בדיקת AI"}</span>
-                </>
-              )}
-            </Button>
+            {reviewItem.type !== "vocab" && (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => onAiReview(reviewItem)}
+                disabled={isEvaluatingAi}
+                className="h-8 text-xs font-bold gap-1.5 border-purple-500/40 text-purple-700 dark:text-purple-300 bg-purple-500/10 hover:bg-purple-500/20 cursor-pointer shadow-xs"
+                title="הפעל בדיקת AI מקיפה"
+              >
+                {isEvaluatingAi ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin text-purple-600 dark:text-purple-400" />
+                    <span>בודק ב-AI...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-3.5 w-3.5 text-purple-600 dark:text-purple-400" />
+                    <span>{writingAiResult ? "בדיקת AI מחדש" : "בדיקת AI"}</span>
+                  </>
+                )}
+              </Button>
+            )}
             <button
               onClick={onClose}
               className="p-1 rounded-md text-muted-foreground hover:text-foreground cursor-pointer"
@@ -145,7 +148,73 @@ export function ReviewDialog({
 
         {/* Modal Content */}
         <div className="space-y-3 flex-1 text-xs">
-          {reviewItem.type === "unseen" ? (
+          {reviewItem.type === "vocab" ? (
+            <div className="space-y-4">
+              {/* Top Vocab Stats Banner */}
+              <div className="p-3.5 rounded-xl border border-emerald-500/30 bg-emerald-500/5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-lg bg-emerald-500/20 text-emerald-600 dark:text-emerald-400">
+                    <BookA className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-sm text-foreground">
+                      אימון אוצר מילים ממוקד
+                    </h4>
+                    <p className="text-2xs text-muted-foreground">
+                      {reviewItem.vocabSummary
+                        ? `${reviewItem.vocabSummary.totalWords} מילים הוקצו לתרגול • ${reviewItem.vocabSummary.masteredCount} בשליטה מלאה`
+                        : "התלמיד השלים את תרגול המילים בהצלחה"}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Badge className="text-sm px-2.5 py-0.5 font-bold bg-emerald-600 text-white">
+                    ציון תרגול: {reviewItem.score ?? 100} / 100
+                  </Badge>
+                </div>
+              </div>
+
+              {/* Practiced Words Grid */}
+              <div className="space-y-2">
+                <span className="font-bold text-foreground block">
+                  פירוט המילים ותרגול התלמיד/ה ({reviewItem.vocabSummary?.wordsPracticed?.length || 0} מילים):
+                </span>
+
+                {reviewItem.vocabSummary?.wordsPracticed && reviewItem.vocabSummary.wordsPracticed.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-56 overflow-y-auto pr-1">
+                    {reviewItem.vocabSummary.wordsPracticed.map((w, idx) => (
+                      <div
+                        key={idx}
+                        className={`p-2.5 rounded-xl border text-xs flex items-center justify-between gap-2 ${
+                          w.mastered
+                            ? "border-emerald-500/40 bg-emerald-500/5"
+                            : "border-border bg-card"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="font-black text-foreground text-sm" dir="ltr">{w.english}</span>
+                          <span className="text-muted-foreground truncate">— {w.hebrew}</span>
+                        </div>
+                        <Badge
+                          variant={w.mastered ? "default" : "outline"}
+                          className={`text-3xs font-bold shrink-0 ${
+                            w.mastered ? "bg-emerald-600 text-white" : "text-muted-foreground"
+                          }`}
+                        >
+                          {w.mastered ? "✓ שליטה מלאה" : "בתהליך"}
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="p-4 rounded-xl border border-dashed border-border text-center text-muted-foreground text-xs">
+                    כל המילים הוקצו ותרגולן הושלם במערכת.
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : reviewItem.type === "unseen" ? (
             <>
               {reviewItem.generationPrompt ? (
                 <div className="p-3.5 rounded-xl border border-purple-500/30 bg-purple-500/5 space-y-2">

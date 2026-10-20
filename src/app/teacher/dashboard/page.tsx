@@ -92,7 +92,7 @@ export default function TeacherDashboardPage() {
   const [isLoadingSubmissions, setIsLoadingSubmissions] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "submitted" | "reviewed">("all");
-  const [typeFilter, setTypeFilter] = useState<"all" | "writing" | "unseen">("all");
+  const [typeFilter, setTypeFilter] = useState<"all" | "writing" | "unseen" | "vocab">("all");
   const [classFilter, setClassFilter] = useState<string>("all");
   const [groupFilter, setGroupFilter] = useState<string>("all");
 
@@ -1282,10 +1282,11 @@ export default function TeacherDashboardPage() {
                 {/* Type Filter */}
                 <select
                   value={typeFilter}
-                  onChange={(e) => setTypeFilter(e.target.value as "all" | "writing" | "unseen")}
+                  onChange={(e) => setTypeFilter(e.target.value as "all" | "writing" | "unseen" | "vocab")}
                   className="h-8 rounded-lg border border-input bg-background px-2.5 text-xs shadow-2xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring cursor-pointer"
                 >
                   <option value="all">כל המשימות</option>
+                  <option value="vocab">🔤 אוצר מילים</option>
                   <option value="writing">✍️ כתיבה</option>
                   <option value="unseen">📖 אנסין</option>
                 </select>

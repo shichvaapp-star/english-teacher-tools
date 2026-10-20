@@ -13,6 +13,7 @@ import {
   Bell,
   PenTool,
   BookOpen,
+  BookA,
   Calendar,
   ArrowLeft,
   X,
@@ -173,7 +174,9 @@ export function StudentAssignedTaskPrompt() {
   const levelParam = assignment.level ? `&level=${encodeURIComponent(assignment.level)}` : "";
   const isFreeChoice = assignment.isFreeChoice || assignment.isAdaptiveDavid || assignment.taskId === "free_choice" || assignment.taskId === "adaptive_david";
   const targetUrl =
-    assignment.type === "writing"
+    assignment.type === "vocab"
+      ? `/vocabulary?assignmentId=${assignment.id}${davidSuffix}`
+      : assignment.type === "writing"
       ? (isFreeChoice
           ? `/writing?assignmentId=${assignment.id}${davidSuffix}${levelParam}`
           : `/writing?task=${assignment.taskId || ""}&assignmentId=${assignment.id}${davidSuffix}${levelParam}`)
@@ -200,7 +203,12 @@ export function StudentAssignedTaskPrompt() {
               </span>
 
               <Badge variant="secondary" className="text-3xs gap-1 font-semibold">
-                {assignment.type === "writing" ? (
+                {assignment.type === "vocab" ? (
+                  <>
+                    <BookA className="h-2.5 w-2.5 text-emerald-500" />
+                    <span>אוצר מילים</span>
+                  </>
+                ) : assignment.type === "writing" ? (
                   <>
                     <PenTool className="h-2.5 w-2.5 text-purple-500" />
                     <span>חיבור כתיבה</span>
@@ -212,6 +220,12 @@ export function StudentAssignedTaskPrompt() {
                   </>
                 )}
               </Badge>
+
+              {assignment.type === "vocab" && assignment.vocabWords && (
+                <Badge variant="outline" className="text-3xs font-bold border-emerald-500/40 text-emerald-700 dark:text-emerald-300 bg-emerald-500/10">
+                  {assignment.vocabWords.length} מילים לתרגול
+                </Badge>
+              )}
 
               {assignment.level && (
                 <Badge
@@ -302,7 +316,7 @@ export function StudentAssignedTaskPrompt() {
               size="sm"
               className="text-xs font-bold gap-1.5 cursor-pointer bg-purple-600 hover:bg-purple-700 text-white shadow-xs px-4"
             >
-              <span>התחל משימה כעת</span>
+              <span>{assignment.type === "vocab" ? "התחל תרגול מילים" : "התחל משימה כעת"}</span>
               <ArrowLeft className="h-3.5 w-3.5" />
             </Button>
           </Link>

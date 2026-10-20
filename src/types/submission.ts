@@ -18,9 +18,26 @@ export interface SubmissionQuestionBreakdown {
   feedbackHebrew?: string; // Nuanced teacher feedback specifically on student's answer
 }
 
+export type SubmissionType = "writing" | "unseen" | "vocab";
+
+export interface VocabPracticedWord {
+  english: string;
+  hebrew: string;
+  partOfSpeech?: string;
+  mastered: boolean;
+}
+
+export interface VocabPracticeSummary {
+  totalWords: number;
+  masteredCount: number;
+  quizScore?: number;
+  completedModes: string[];
+  wordsPracticed: VocabPracticedWord[];
+}
+
 export interface SubmissionItem {
   id: string;
-  type: "writing" | "unseen";
+  type: SubmissionType;
   studentId: string;
   studentName: string;
   teacherId: string;
@@ -32,6 +49,8 @@ export interface SubmissionItem {
   taskId: string;
   taskTitle: string;
   hebrewTitle: string;
+  // Vocabulary specific
+  vocabSummary?: VocabPracticeSummary;
   // Writing specific
   category?: string;
   essayText?: string;

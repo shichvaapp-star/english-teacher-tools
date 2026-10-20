@@ -23,6 +23,7 @@ import {
   Send,
   Loader2,
   BookOpen,
+  BookA,
   PenTool,
   Clock,
   CheckCircle2,
@@ -255,7 +256,12 @@ export function TurnInsTable({
                           variant="secondary"
                           className="text-[10px] py-0 px-1.5 gap-1 shrink-0 font-medium"
                         >
-                          {sub.type === "writing" ? (
+                          {sub.type === "vocab" ? (
+                            <>
+                              <BookA className="h-2.5 w-2.5 text-emerald-500" />
+                              <span>אוצר מילים</span>
+                            </>
+                          ) : sub.type === "writing" ? (
                             <>
                               <PenTool className="h-2.5 w-2.5 text-purple-500" />
                               <span>כתיבה</span>
@@ -385,7 +391,44 @@ export function TurnInsTable({
 
                         {/* Submission Content */}
                         <div className="space-y-2 text-xs">
-                          {sub.type === "writing" ? (
+                          {sub.type === "vocab" ? (
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between text-muted-foreground">
+                                <span className="font-semibold text-foreground">
+                                  סיכום אימון אוצר מילים:
+                                </span>
+                                {sub.vocabSummary && (
+                                  <Badge variant="outline" className="text-[10px] font-bold border-emerald-500/40 text-emerald-700 dark:text-emerald-300 bg-emerald-500/10">
+                                    שליטה: {sub.vocabSummary.masteredCount} / {sub.vocabSummary.totalWords} מילים ({Math.round((sub.vocabSummary.masteredCount / Math.max(sub.vocabSummary.totalWords, 1)) * 100)}%)
+                                  </Badge>
+                                )}
+                              </div>
+
+                              {sub.vocabSummary?.wordsPracticed && sub.vocabSummary.wordsPracticed.length > 0 ? (
+                                <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto p-2.5 rounded-xl border border-border/70 bg-muted/20">
+                                  {sub.vocabSummary.wordsPracticed.map((w, idx) => (
+                                    <Badge
+                                      key={idx}
+                                      variant={w.mastered ? "default" : "secondary"}
+                                      className={`text-2xs py-1 px-2 font-medium flex items-center gap-1.5 ${
+                                        w.mastered
+                                          ? "bg-emerald-600 text-white"
+                                          : "bg-background text-foreground border border-border"
+                                      }`}
+                                    >
+                                      <span dir="ltr" className="font-bold">{w.english}</span>
+                                      <span className="opacity-80">({w.hebrew})</span>
+                                      {w.mastered && <Check className="h-3 w-3 shrink-0" />}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              ) : (
+                                <div className="p-3 rounded-lg border border-border/60 bg-muted/20 text-muted-foreground text-2xs">
+                                  הושלם תרגול אוצר מילים בהצלחה.
+                                </div>
+                              )}
+                            </div>
+                          ) : sub.type === "writing" ? (
                             <div className="space-y-1.5">
                               <div className="flex items-center justify-between text-muted-foreground">
                                 <span className="font-semibold text-foreground">טקסט החיבור שהוגש:</span>

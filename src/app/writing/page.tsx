@@ -388,16 +388,45 @@ export default function WritingPracticePage() {
       alert("Text-to-speech is not supported on this browser.");
       return;
     }
-    window.speechSynthesis.cancel();
     if (!text.trim()) return;
 
+    try {
+      if (window.speechSynthesis.paused) {
+        window.speechSynthesis.resume();
+      }
+      if (window.speechSynthesis.speaking || window.speechSynthesis.pending) {
+        window.speechSynthesis.cancel();
+      }
+    } catch {}
+
     setIsPlayingAudio(true);
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = "en-US";
-    utterance.rate = selectedLevel === "Level 1" ? 0.85 : 0.95;
-    utterance.onend = () => setIsPlayingAudio(false);
-    utterance.onerror = () => setIsPlayingAudio(false);
-    window.speechSynthesis.speak(utterance);
+
+    setTimeout(() => {
+      try {
+        if (window.speechSynthesis.paused) {
+          window.speechSynthesis.resume();
+        }
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = "en-US";
+        utterance.rate = selectedLevel === "Level 1" ? 0.85 : 0.95;
+
+        const w = window as any;
+        w.__writingUtterance = utterance;
+
+        utterance.onend = () => {
+          w.__writingUtterance = null;
+          setIsPlayingAudio(false);
+        };
+        utterance.onerror = () => {
+          w.__writingUtterance = null;
+          setIsPlayingAudio(false);
+        };
+        window.speechSynthesis.speak(utterance);
+      } catch (err) {
+        console.warn("[writing] handleSpeak error:", err);
+        setIsPlayingAudio(false);
+      }
+    }, 25);
   };
 
   // Quick Dictionary Search

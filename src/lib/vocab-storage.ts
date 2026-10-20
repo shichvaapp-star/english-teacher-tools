@@ -9,6 +9,7 @@ export interface VocabItem {
   example?: string;
   level?: "Easy" | "Medium" | "Hard" | "Saved from Unseen" | "Personal Word";
   mastered?: boolean;
+  starred?: boolean; // Favorite / priority word marked by student
   addedAt: string;
 }
 
@@ -146,6 +147,115 @@ export function removeWordFromBuilder(wordId: string, userId?: string) {
     try {
       const ref = doc(db, "users", userId, "words", wordId);
       deleteDoc(ref).catch(() => {});
+    } catch {}
+  }
+}
+
+const OVERRIDES_STORAGE_KEY = "bg_word_status_overrides";
+
+export function loadWordStatusOverrides(
+  userId?: string
+): Record<string, { starred?: boolean; mastered?: boolean }> {
+  if (typeof window === "undefined") return {};
+  try {
+    const key = userId ? `${OVERRIDES_STORAGE_KEY}_${userId}` : `${OVERRIDES_STORAGE_KEY}_guest`;
+    const raw = localStorage.getItem(key);
+    if (!raw) return {};
+    return JSON.parse(raw);
+  } catch {
+    return {};
+  }
+}
+
+export function saveWordStatusOverride(
+  wordId: string,
+  override: { starred?: boolean; mastered?: boolean },
+  userId?: string
+): void {
+  if (typeof window === "undefined") return;
+  const key = userId ? `${OVERRIDES_STORAGE_KEY}_${userId}` : `${OVERRIDES_STORAGE_KEY}_guest`;
+  const current = loadWordStatusOverrides(userId);
+  const updated = {
+    ...current,
+    [wordId]: {
+      ...current[wordId],
+      ...override,
+    },
+  };
+
+  try {
+    localStorage.setItem(key, JSON.stringify(updated));
+  } catch (e) {
+    console.warn("Error saving word status override locally:", e);
+  }
+
+  // Also update saved words list if word exists in personal collection
+  const personalWords = loadSavedWords(userId);
+  const existingIndex = personalWords.findIndex((w) => w.id === wordId);
+  if (existingIndex !== -1) {
+    const updatedPersonal = [...personalWords];
+    updatedPersonal[existingIndex] = {
+      ...updatedPersonal[existingIndex],
+      ...override,
+    };
+    try {
+      const pKey = userId ? `${STORAGE_KEY}_${userId}` : `${STORAGE_KEY}_guest`;
+      localStorage.setItem(pKey, JSON.stringify(updatedPersonal));
+    } catch {}
+  }
+
+  // Sync override to Firestore
+  if (userId && db) {
+    try {
+      const ref = doc(db, "users", userId, "wordOverrides", wordId);
+      setDoc(ref, updated[wordId], { merge: true }).catch(() => {});
+    } catch {}
+  }
+}
+
+export function toggleWordStarred(
+  wordId: string,
+  currentStatus: boolean,
+  userId?: string
+): boolean {
+  const nextStatus = !currentStatus;
+  saveWordStatusOverride(wordId, { starred: nextStatus }, userId);
+  return nextStatus;
+}
+
+export function toggleWordMastered(
+  wordId: string,
+  currentStatus: boolean,
+  userId?: string
+): boolean {
+  const nextStatus = !currentStatus;
+  saveWordStatusOverride(wordId, { mastered: nextStatus }, userId);
+  return nextStatus;
+}
+
+export function updateWordInBuilder(
+  wordId: string,
+  updates: Partial<VocabItem>,
+  userId?: string
+): void {
+  if (typeof window === "undefined") return;
+  const key = userId ? `${STORAGE_KEY}_${userId}` : `${STORAGE_KEY}_guest`;
+  const current = loadSavedWords(userId);
+  const index = current.findIndex((w) => w.id === wordId);
+  if (index === -1) return;
+
+  const updatedItem = { ...current[index], ...updates };
+  const updatedList = [...current];
+  updatedList[index] = updatedItem;
+
+  try {
+    localStorage.setItem(key, JSON.stringify(updatedList));
+  } catch {}
+
+  if (userId && db) {
+    try {
+      const ref = doc(db, "users", userId, "words", wordId);
+      setDoc(ref, updatedItem, { merge: true }).catch(() => {});
     } catch {}
   }
 }

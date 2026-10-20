@@ -2,9 +2,15 @@
 
 import React, { useState, useMemo } from "react";
 import { StudentProfile, StudentGroup } from "@/types/auth";
-import { TeacherAssignment, AssignmentTargetType, ExerciseLevel } from "@/types/assignment";
+import { TeacherAssignment, AssignmentTargetType, ExerciseLevel, AssignedVocabWord, AssignmentType } from "@/types/assignment";
 import { ALL_WRITING_TASKS } from "@/data/writing-tasks";
 import { MIDDLE_SCHOOL_UNSEENS } from "@/data/unseen-middle-school";
+import { MINISTRY_VOCAB_WORDS } from "@/data/vocabulary-bands";
+import {
+  MIDDLE_SCHOOL_EASY,
+  MIDDLE_SCHOOL_MEDIUM,
+  MIDDLE_SCHOOL_HARD,
+} from "@/lib/vocab-storage";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,6 +33,8 @@ import {
   Filter,
   User,
   CheckSquare,
+  Plus,
+  Trash2,
 } from "lucide-react";
 
 interface AssignTaskModalProps {
@@ -50,7 +58,7 @@ export function AssignTaskModal({
   onTaskAssigned,
   preselectedStudentId,
 }: AssignTaskModalProps) {
-  const [taskType, setTaskType] = useState<"writing" | "unseen">("writing");
+  const [taskType, setTaskType] = useState<AssignmentType>("writing");
   const [selectedLevel, setSelectedLevel] = useState<"all" | ExerciseLevel>("all");
   const [coachWithDavid, setCoachWithDavid] = useState<boolean>(false);
   const [selectionMode, setSelectionMode] = useState<"specific" | "adaptive_david" | "free_choice">("specific");
@@ -58,6 +66,25 @@ export function AssignTaskModal({
     ALL_WRITING_TASKS[0]?.id || ""
   );
   const [customTitle, setCustomTitle] = useState("");
+  const [customHebrewTitle, setCustomHebrewTitle] = useState("");
+
+  // Vocabulary Assignment State
+  const [selectedVocabWords, setSelectedVocabWords] = useState<AssignedVocabWord[]>(() =>
+    MIDDLE_SCHOOL_MEDIUM.map((w) => ({
+      id: w.id,
+      english: w.english,
+      hebrew: w.hebrew,
+      partOfSpeech: w.partOfSpeech,
+      example: w.example,
+    }))
+  );
+  const [vocabSearchQuery, setVocabSearchQuery] = useState("");
+  const [customVocabEng, setCustomVocabEng] = useState("");
+  const [customVocabHeb, setCustomVocabHeb] = useState("");
+  const [customVocabPos, setCustomVocabPos] = useState<"noun" | "verb" | "adjective" | "adverb" | "phrase">("noun");
+  const [customVocabExample, setCustomVocabExample] = useState("");
+  const [showAddCustomWord, setShowAddCustomWord] = useState(false);
+
   const [targetType, setTargetType] = useState<AssignmentTargetType>("class");
   const [classTargetScope, setClassTargetScope] = useState<"all" | "custom">("all");
   const [selectedClass, setSelectedClass] = useState<string>("");
@@ -138,15 +165,190 @@ export function AssignTaskModal({
   };
 
   // Switch task list based on type
-  const handleTypeChange = (type: "writing" | "unseen") => {
+  const handleTypeChange = (type: AssignmentType) => {
     setTaskType(type);
     if (type === "writing") {
       const pool = selectedLevel === "all" ? ALL_WRITING_TASKS : ALL_WRITING_TASKS.filter((t) => t.level === selectedLevel);
       setSelectedTaskId(pool[0]?.id || ALL_WRITING_TASKS[0]?.id || "");
-    } else {
+    } else if (type === "unseen") {
       const pool = selectedLevel === "all" ? MIDDLE_SCHOOL_UNSEENS : MIDDLE_SCHOOL_UNSEENS.filter((s) => s.level === selectedLevel);
       setSelectedTaskId(pool[0]?.id || MIDDLE_SCHOOL_UNSEENS[0]?.id || "");
+    } else {
+      setSelectedTaskId("vocab_assigned");
+      if (selectedVocabWords.length === 0) {
+        setSelectedVocabWords(
+          MIDDLE_SCHOOL_MEDIUM.map((w) => ({
+            id: w.id,
+            english: w.english,
+            hebrew: w.hebrew,
+            partOfSpeech: w.partOfSpeech,
+            example: w.example,
+          }))
+        );
+      }
     }
+  };
+
+  // Comprehensive pool of all vocabulary words for searching
+  const allVocabWordPool = useMemo(() => {
+    const list: AssignedVocabWord[] = [];
+    const seen = new Set<string>();
+
+    MINISTRY_VOCAB_WORDS.forEach((w) => {
+      const key = w.word.toLowerCase().trim();
+      if (!seen.has(key)) {
+        seen.add(key);
+        list.push({
+          id: w.id,
+          english: w.word,
+          hebrew: w.hebrew,
+          partOfSpeech: w.partOfSpeech,
+          example: w.exampleSentence,
+        });
+      }
+    });
+
+    [...MIDDLE_SCHOOL_EASY, ...MIDDLE_SCHOOL_MEDIUM, ...MIDDLE_SCHOOL_HARD].forEach((w) => {
+      const key = w.english.toLowerCase().trim();
+      if (!seen.has(key)) {
+        seen.add(key);
+        list.push({
+          id: w.id,
+          english: w.english,
+          hebrew: w.hebrew,
+          partOfSpeech: w.partOfSpeech,
+          example: w.example,
+        });
+      }
+    });
+
+    return list;
+  }, []);
+
+  const filteredVocabWordPool = useMemo(() => {
+    const q = vocabSearchQuery.trim().toLowerCase();
+    if (!q) return allVocabWordPool.slice(0, 16);
+    return allVocabWordPool.filter(
+      (w) =>
+        w.english.toLowerCase().includes(q) ||
+        w.hebrew.includes(q) ||
+        (w.example && w.example.toLowerCase().includes(q))
+    ).slice(0, 20);
+  }, [allVocabWordPool, vocabSearchQuery]);
+
+  const applyVocabPreset = (presetKey: string) => {
+    let words: AssignedVocabWord[] = [];
+    let titleEn = "";
+    let titleHeb = "";
+
+    if (presetKey === "band1") {
+      words = MINISTRY_VOCAB_WORDS.filter((w) => w.band === "Band I").map((w) => ({
+        id: w.id,
+        english: w.word,
+        hebrew: w.hebrew,
+        partOfSpeech: w.partOfSpeech,
+        example: w.exampleSentence,
+      }));
+      titleEn = "Band I Vocabulary Drill";
+      titleHeb = "אוצר מילים יסודי - Band I";
+    } else if (presetKey === "band2") {
+      words = MINISTRY_VOCAB_WORDS.filter((w) => w.band === "Band II").map((w) => ({
+        id: w.id,
+        english: w.word,
+        hebrew: w.hebrew,
+        partOfSpeech: w.partOfSpeech,
+        example: w.exampleSentence,
+      }));
+      titleEn = "Band II Core Vocabulary";
+      titleHeb = "אוצר מילים חטיבת ביניים - Band II";
+    } else if (presetKey === "band3") {
+      words = MINISTRY_VOCAB_WORDS.filter((w) => w.band === "Band III").map((w) => ({
+        id: w.id,
+        english: w.word,
+        hebrew: w.hebrew,
+        partOfSpeech: w.partOfSpeech,
+        example: w.exampleSentence,
+      }));
+      titleEn = "Band III Advanced Vocabulary";
+      titleHeb = "אוצר מילים מתקדם - Band III";
+    } else if (presetKey === "grade7") {
+      words = MIDDLE_SCHOOL_EASY.map((w) => ({
+        id: w.id,
+        english: w.english,
+        hebrew: w.hebrew,
+        partOfSpeech: w.partOfSpeech,
+        example: w.example,
+      }));
+      titleEn = "Grade 7 Essential Vocabulary";
+      titleHeb = "אוצר מילים כיתה ז׳ - בסיסי";
+    } else if (presetKey === "grade8") {
+      words = MIDDLE_SCHOOL_MEDIUM.map((w) => ({
+        id: w.id,
+        english: w.english,
+        hebrew: w.hebrew,
+        partOfSpeech: w.partOfSpeech,
+        example: w.example,
+      }));
+      titleEn = "Grade 8 Core Vocabulary";
+      titleHeb = "אוצר מילים כיתה ח׳ - ליבה";
+    } else if (presetKey === "grade9") {
+      words = MIDDLE_SCHOOL_HARD.map((w) => ({
+        id: w.id,
+        english: w.english,
+        hebrew: w.hebrew,
+        partOfSpeech: w.partOfSpeech,
+        example: w.example,
+      }));
+      titleEn = "Grade 9 Academic Vocabulary";
+      titleHeb = "אוצר מילים כיתה ט׳ - אקדמי";
+    }
+
+    if (words.length > 0) {
+      setSelectedVocabWords(words);
+      setCustomTitle(titleEn);
+      setCustomHebrewTitle(titleHeb);
+    }
+  };
+
+  const handleToggleVocabWord = (word: AssignedVocabWord) => {
+    setSelectedVocabWords((prev) => {
+      const exists = prev.some((w) => w.english.toLowerCase() === word.english.toLowerCase());
+      if (exists) {
+        return prev.filter((w) => w.english.toLowerCase() !== word.english.toLowerCase());
+      } else {
+        return [...prev, word];
+      }
+    });
+  };
+
+  const handleRemoveVocabWord = (english: string) => {
+    setSelectedVocabWords((prev) =>
+      prev.filter((w) => w.english.toLowerCase() !== english.toLowerCase())
+    );
+  };
+
+  const handleAddCustomWord = () => {
+    const cleanEng = customVocabEng.trim().toLowerCase();
+    const cleanHeb = customVocabHeb.trim();
+    if (!cleanEng || !cleanHeb) return;
+
+    const newWord: AssignedVocabWord = {
+      id: `custom-word-${Date.now()}`,
+      english: cleanEng,
+      hebrew: cleanHeb,
+      partOfSpeech: customVocabPos,
+      example: customVocabExample.trim() || undefined,
+    };
+
+    setSelectedVocabWords((prev) => {
+      if (prev.some((w) => w.english.toLowerCase() === cleanEng)) return prev;
+      return [...prev, newWord];
+    });
+
+    setCustomVocabEng("");
+    setCustomVocabHeb("");
+    setCustomVocabExample("");
+    setShowAddCustomWord(false);
   };
 
   // Students belonging to currently selected class & group
@@ -235,7 +437,14 @@ export function AssignTaskModal({
 
     const levelSuffixEnglish = selectedLevel !== "all" ? ` (${selectedLevel})` : "";
 
-    if (isAdaptiveDavid) {
+    if (taskType === "vocab") {
+      if (selectedVocabWords.length === 0) {
+        setError("יש לבחור לפחות מילה אחת למשימת אוצר המילים.");
+        return;
+      }
+      title = customTitle.trim() || `Vocabulary Assignment (${selectedVocabWords.length} words)`;
+      hebrewTitle = customHebrewTitle.trim() || `משימת אוצר מילים (${selectedVocabWords.length} מילים)`;
+    } else if (isAdaptiveDavid) {
       if (taskType === "writing") {
         title = `Adaptive Writing Mission with David${levelSuffixEnglish}`;
         hebrewTitle = `משימת כתיבה מותאמת אישית עם דוד 🎓${levelSuffixHebrew}`;
@@ -303,7 +512,15 @@ export function AssignTaskModal({
       type: taskType,
       title,
       hebrewTitle,
-      taskId: isAdaptiveDavid ? "adaptive_david" : isFreeChoice ? "free_choice" : selectedTaskId,
+      taskId:
+        taskType === "vocab"
+          ? "vocab_assigned"
+          : isAdaptiveDavid
+          ? "adaptive_david"
+          : isFreeChoice
+          ? "free_choice"
+          : selectedTaskId,
+      vocabWords: taskType === "vocab" ? selectedVocabWords : undefined,
       level: finalLevel,
       isFreeChoice: isFreeChoice || isAdaptiveDavid,
       isAdaptiveDavid,
@@ -333,6 +550,10 @@ export function AssignTaskModal({
       setClassTargetScope("all");
       setSelectedClass("");
       setSelectedGroup(null);
+      setCustomTitle("");
+      setCustomHebrewTitle("");
+      setVocabSearchQuery("");
+      setShowAddCustomWord(false);
     } catch (err) {
       console.error("Error creating assignment:", err);
       setError("שגיאה ביצירת המשימה. אנא נסו שוב.");
@@ -372,31 +593,44 @@ export function AssignTaskModal({
           {/* 1. Task Type Switcher */}
           <div className="space-y-1.5">
             <label className="font-bold text-foreground block">סוג המשימה:</label>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-3 gap-2">
               <button
                 type="button"
                 onClick={() => handleTypeChange("writing")}
-                className={`flex items-center justify-center gap-2 p-3 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                className={`flex flex-col sm:flex-row items-center justify-center gap-1.5 p-2.5 rounded-xl border text-xs font-bold transition-all cursor-pointer text-center ${
                   taskType === "writing"
                     ? "border-primary bg-primary/10 text-primary shadow-2xs"
                     : "border-border hover:bg-muted/40 text-muted-foreground"
                 }`}
               >
-                <PenTool className="h-4 w-4 text-purple-500" />
-                <span>✍️ מטלת כתיבה (Essay)</span>
+                <PenTool className="h-4 w-4 text-purple-500 shrink-0" />
+                <span>✍️ כתיבה</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => handleTypeChange("unseen")}
-                className={`flex items-center justify-center gap-2 p-3 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                className={`flex flex-col sm:flex-row items-center justify-center gap-1.5 p-2.5 rounded-xl border text-xs font-bold transition-all cursor-pointer text-center ${
                   taskType === "unseen"
                     ? "border-primary bg-primary/10 text-primary shadow-2xs"
                     : "border-border hover:bg-muted/40 text-muted-foreground"
                 }`}
               >
-                <BookOpen className="h-4 w-4 text-sky-500" />
-                <span>📖 מבחן הבנת הנקרא (Unseen)</span>
+                <BookOpen className="h-4 w-4 text-sky-500 shrink-0" />
+                <span>📖 הבנת הנקרא</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleTypeChange("vocab")}
+                className={`flex flex-col sm:flex-row items-center justify-center gap-1.5 p-2.5 rounded-xl border text-xs font-bold transition-all cursor-pointer text-center ${
+                  taskType === "vocab"
+                    ? "border-emerald-600 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-black shadow-2xs ring-1 ring-emerald-500/40"
+                    : "border-border hover:bg-muted/40 text-muted-foreground"
+                }`}
+              >
+                <BookA className="h-4 w-4 text-emerald-500 shrink-0" />
+                <span>🔤 אוצר מילים</span>
               </button>
             </div>
           </div>
@@ -456,207 +690,494 @@ export function AssignTaskModal({
             </button>
           </div>
 
-          {/* 3. Exercise Level Selector */}
-          <div className="space-y-1.5 p-3 rounded-xl border border-border/80 bg-muted/20">
-            <div className="flex items-center justify-between">
-              <label className="font-bold text-foreground block">רמת התרגיל (Level):</label>
-              {selectedLevel !== "all" && (
-                <Badge variant="secondary" className="text-[10px] font-bold">
-                  {selectedLevel === "Level 1"
-                    ? "רמה 1 • מתחילים"
-                    : selectedLevel === "Level 2"
-                    ? "רמה 2 • מתקדמים"
-                    : "רמה 3 • מיומנים"}
+          {taskType === "vocab" ? (
+            /* Vocabulary Word Builder Section */
+            <div className="space-y-3 p-3.5 rounded-xl border border-emerald-500/30 bg-emerald-500/5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 font-bold text-foreground">
+                  <BookA className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                  <span>אוצר מילים מוקצה למשימה:</span>
+                </div>
+                <Badge
+                  variant="outline"
+                  className={`text-2xs font-bold border-emerald-500/40 text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 ${
+                    selectedVocabWords.length >= 4 ? "ring-1 ring-emerald-500/30" : ""
+                  }`}
+                >
+                  {selectedVocabWords.length} מילים נבחרו
                 </Badge>
-              )}
-            </div>
+              </div>
 
-            <div className="grid grid-cols-4 gap-1.5 pt-0.5">
-              {[
-                { id: "all", label: "כל הרמות", sub: "הכל", icon: "🌐" },
-                { id: "Level 1", label: "רמה 1", sub: "מתחילים", icon: "🟢" },
-                { id: "Level 2", label: "רמה 2", sub: "מתקדמים", icon: "🔵" },
-                { id: "Level 3", label: "רמה 3", sub: "מיומנים", icon: "🟣" },
-              ].map((lvl) => (
-                <button
-                  key={lvl.id}
-                  type="button"
-                  onClick={() => handleLevelChange(lvl.id as "all" | ExerciseLevel)}
-                  className={`p-2 rounded-xl border text-center transition-all cursor-pointer flex flex-col items-center justify-center gap-0.5 ${
-                    selectedLevel === lvl.id
-                      ? "border-primary bg-primary/10 text-primary font-black shadow-2xs ring-1 ring-primary"
-                      : "border-border text-muted-foreground hover:bg-muted/40"
-                  }`}
-                >
-                  <span className="text-xs font-bold">{lvl.icon} {lvl.label}</span>
-                  <span className="text-[9px] text-muted-foreground">{lvl.sub}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* 4. Topic Selection Mode */}
-          <div className="space-y-2">
-            <label className="font-bold text-foreground block">בחירת נושא המשימה:</label>
-
-            <div className={`grid grid-cols-1 ${coachWithDavid ? "sm:grid-cols-3" : "sm:grid-cols-2"} gap-2`}>
-              <button
-                type="button"
-                onClick={() => setSelectionMode("specific")}
-                className={`p-2.5 rounded-xl border text-right transition-all cursor-pointer flex flex-col justify-between ${
-                  selectionMode === "specific"
-                    ? "border-primary bg-primary/10 text-primary font-bold shadow-2xs"
-                    : "border-border text-muted-foreground hover:bg-muted/40"
-                }`}
-              >
-                <div className="flex items-center gap-1.5 font-bold text-xs">
-                  <Layers className="h-3.5 w-3.5 shrink-0" />
-                  <span>משימה ספציפית מהמאגר</span>
+              {/* Quick Presets */}
+              <div className="space-y-1.5">
+                <span className="text-2xs font-bold text-muted-foreground block">
+                  ערכות מילים מוכנות מראש (1-Click Presets):
+                </span>
+                <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => applyVocabPreset("grade7")}
+                    className="p-1.5 rounded-lg border border-border bg-background hover:bg-muted text-center cursor-pointer text-2xs font-medium transition-colors"
+                  >
+                    כיתה ז׳ (10)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => applyVocabPreset("grade8")}
+                    className="p-1.5 rounded-lg border border-border bg-background hover:bg-muted text-center cursor-pointer text-2xs font-medium transition-colors"
+                  >
+                    כיתה ח׳ (8)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => applyVocabPreset("grade9")}
+                    className="p-1.5 rounded-lg border border-border bg-background hover:bg-muted text-center cursor-pointer text-2xs font-medium transition-colors"
+                  >
+                    כיתה ט׳ (7)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => applyVocabPreset("band1")}
+                    className="p-1.5 rounded-lg border border-border bg-background hover:bg-muted text-center cursor-pointer text-2xs font-medium transition-colors"
+                  >
+                    Band I (5)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => applyVocabPreset("band2")}
+                    className="p-1.5 rounded-lg border border-border bg-background hover:bg-muted text-center cursor-pointer text-2xs font-medium transition-colors"
+                  >
+                    Band II (6)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => applyVocabPreset("band3")}
+                    className="p-1.5 rounded-lg border border-border bg-background hover:bg-muted text-center cursor-pointer text-2xs font-medium transition-colors"
+                  >
+                    Band III (6)
+                  </button>
                 </div>
-                <p className="text-[10px] text-muted-foreground mt-1">
-                  {taskType === "writing" ? "בחירת נושא קבוע מהמאגר" : "בחירת קטע אנסין מוגדר"}
-                </p>
-              </button>
+              </div>
 
-              {coachWithDavid && (
-                <button
-                  type="button"
-                  onClick={() => setSelectionMode("adaptive_david")}
-                  className={`p-2.5 rounded-xl border text-right transition-all cursor-pointer flex flex-col justify-between ${
-                    selectionMode === "adaptive_david"
-                      ? "border-indigo-500 bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 font-bold shadow-2xs ring-1 ring-indigo-500/40"
-                      : "border-border text-muted-foreground hover:bg-muted/40"
-                  }`}
-                >
-                  <div className="flex items-center gap-1.5 font-bold text-xs">
-                    <img src="/images/logos/david-logo.png" alt="David" className="h-4 w-4 rounded-full object-cover object-top shrink-0" />
-                    <span>מותאם רמה ע״י דוד</span>
-                  </div>
-                  <p className="text-[10px] text-muted-foreground mt-1">
-                    {selectedLevel !== "all"
-                      ? `דוד יתמקד ברמה ${selectedLevel}`
-                      : "דוד מתאים לכל תלמיד לפי רמתו (Level 1-3)"}
-                  </p>
-                </button>
-              )}
-
-              <button
-                type="button"
-                onClick={() => setSelectionMode("free_choice")}
-                className={`p-2.5 rounded-xl border text-right transition-all cursor-pointer flex flex-col justify-between ${
-                  selectionMode === "free_choice"
-                    ? "border-purple-500 bg-purple-500/10 text-purple-700 dark:text-purple-300 font-bold shadow-2xs"
-                    : "border-border text-muted-foreground hover:bg-muted/40"
-                }`}
-              >
-                <div className="flex items-center gap-1.5 font-bold text-xs">
-                  <Sparkles className="h-3.5 w-3.5 text-purple-500 shrink-0" />
-                  <span>בחירה חופשית של התלמיד</span>
-                </div>
-                <p className="text-[10px] text-muted-foreground mt-1">
-                  {selectedLevel !== "all"
-                    ? `התלמיד בוחר נושא ברמה ${selectedLevel}`
-                    : "התלמיד בוחר נושא בעצמו או יוצר ב-AI"}
-                </p>
-              </button>
-            </div>
-
-            {/* Dropdown if specific topic, or info callout if adaptive / free choice */}
-            {selectionMode === "specific" ? (
-              <div className="space-y-1 pt-1">
-                <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                  <label className="block">
-                    {taskType === "writing" ? "בחירת נושא החיבור מתוך המאגר:" : "בחירת קטע קריאה (Unseen):"}
-                  </label>
-                  <span>
-                    ({taskType === "writing" ? availableWritingTasks.length : availableUnseens.length} זמינים)
+              {/* Selected Words Chips Tray */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-2xs font-bold text-muted-foreground">
+                    מילים שנבחרו לתרגול ({selectedVocabWords.length}):
                   </span>
+                  {selectedVocabWords.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setSelectedVocabWords([])}
+                      className="text-3xs text-destructive hover:underline cursor-pointer"
+                    >
+                      נקה הכל
+                    </button>
+                  )}
                 </div>
-                {taskType === "writing" ? (
-                  <select
-                    value={selectedTaskId}
-                    onChange={(e) => setSelectedTaskId(e.target.value)}
-                    className="w-full h-9 rounded-lg border border-input bg-background px-3 text-xs shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring cursor-pointer"
-                  >
-                    {availableWritingTasks.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.hebrewTitle} — {t.title} ({t.level})
-                      </option>
-                    ))}
-                  </select>
+
+                {selectedVocabWords.length === 0 ? (
+                  <div className="p-3 text-center rounded-lg border border-dashed border-border text-muted-foreground text-2xs">
+                    טרם נבחרו מילים. בחרו ערכה מוכנה או חפשו מילים להוספה מטה.
+                  </div>
                 ) : (
-                  <select
-                    value={selectedTaskId}
-                    onChange={(e) => setSelectedTaskId(e.target.value)}
-                    className="w-full h-9 rounded-lg border border-input bg-background px-3 text-xs shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring cursor-pointer"
-                  >
-                    {selectedLevel === "all" ? (
-                      <>
-                        <optgroup label="רמה 1 - קוראים מתחילים (20 קטעים)">
-                          {availableUnseens.filter((s) => s.level === "Level 1").map((s, idx) => (
-                            <option key={s.id} value={s.id}>
-                              #{idx + 1} {s.hebrewTitle} — {s.title}
-                            </option>
-                          ))}
-                        </optgroup>
-                        <optgroup label="רמה 2 - קוראים מתקדמים (20 קטעים)">
-                          {availableUnseens.filter((s) => s.level === "Level 2").map((s, idx) => (
-                            <option key={s.id} value={s.id}>
-                              #{idx + 1} {s.hebrewTitle} — {s.title}
-                            </option>
-                          ))}
-                        </optgroup>
-                        <optgroup label="רמה 3 - קוראים מיומנים (20 קטעים)">
-                          {availableUnseens.filter((s) => s.level === "Level 3").map((s, idx) => (
-                            <option key={s.id} value={s.id}>
-                              #{idx + 1} {s.hebrewTitle} — {s.title}
-                            </option>
-                          ))}
-                        </optgroup>
-                      </>
-                    ) : (
-                      availableUnseens.map((s, idx) => (
-                        <option key={s.id} value={s.id}>
-                          #{idx + 1} {s.hebrewTitle} — {s.title}
-                        </option>
-                      ))
-                    )}
-                  </select>
+                  <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto p-2 rounded-lg bg-background/80 border border-border/80">
+                    {selectedVocabWords.map((w) => (
+                      <Badge
+                        key={w.id || w.english}
+                        variant="secondary"
+                        className="gap-1.5 text-2xs py-1 px-2 font-medium bg-secondary/80 hover:bg-secondary flex items-center"
+                      >
+                        <span className="font-bold text-foreground" dir="ltr">{w.english}</span>
+                        <span className="text-muted-foreground">({w.hebrew})</span>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveVocabWord(w.english)}
+                          className="hover:text-destructive cursor-pointer shrink-0 transition-colors"
+                          aria-label={`הסר את ${w.english}`}
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    ))}
+                  </div>
                 )}
               </div>
-            ) : selectionMode === "adaptive_david" && coachWithDavid ? (
-              <div className="p-3 rounded-xl bg-indigo-500/10 border border-indigo-500/30 flex items-start gap-2.5 text-xs text-indigo-950 dark:text-indigo-200">
-                <img src="/images/logos/david-logo.png" alt="David" className="h-5 w-5 rounded-full object-cover object-top shrink-0 mt-0.5" />
-                <div className="space-y-1">
-                  <span className="font-bold block">
-                    דוד יתאים לכל תלמיד/ה {taskType === "writing" ? "משימת כתיבה" : "קטע קריאה (Unseen)"}
-                    {selectedLevel !== "all" ? ` ברמה ${selectedLevel}!` : " בדיוק לפי רמתו/ה!"}
-                  </span>
-                  <p className="text-[11px] text-muted-foreground leading-relaxed">
-                    מתאים במיוחד לכיתות הטרוגניות: התלמיד יקבל מדוד משימה
-                    {selectedLevel !== "all" ? ` ברמה ${selectedLevel}` : " ברמתו האישית"},
-                    יבחר נושא שמעניין אותו, יעבור מבדק אוצר מילים בסיום, והציון יופיע אוטומטית בלוח המורה.
-                  </p>
+
+              {/* Search to add from dictionary */}
+              <div className="space-y-1.5">
+                <div className="relative">
+                  <Search className="absolute right-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                  <Input
+                    value={vocabSearchQuery}
+                    onChange={(e) => setVocabSearchQuery(e.target.value)}
+                    placeholder="חיפוש מילה באנגלית או בעברית להוספה למשימה..."
+                    className="pr-8 text-xs h-8 bg-background"
+                  />
+                  {vocabSearchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setVocabSearchQuery("")}
+                      className="absolute left-2.5 top-2.5 text-muted-foreground hover:text-foreground cursor-pointer"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  )}
+                </div>
+
+                {vocabSearchQuery.trim() && (
+                  <div className="p-1.5 rounded-lg bg-background border border-border max-h-36 overflow-y-auto space-y-1">
+                    {filteredVocabWordPool.length === 0 ? (
+                      <div className="p-2 text-center text-3xs text-muted-foreground">
+                        לא נמצאה מילה מתאימה במאגר. ניתן להוסיפה ידנית מטה.
+                      </div>
+                    ) : (
+                      filteredVocabWordPool.map((w) => {
+                        const isSelected = selectedVocabWords.some(
+                          (sw) => sw.english.toLowerCase() === w.english.toLowerCase()
+                        );
+                        return (
+                          <div
+                            key={w.id || w.english}
+                            className="flex items-center justify-between p-1.5 rounded-md hover:bg-muted/50 text-2xs"
+                          >
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-foreground" dir="ltr">{w.english}</span>
+                              <span className="text-muted-foreground">— {w.hebrew}</span>
+                              {w.partOfSpeech && (
+                                <span className="text-3xs text-muted-foreground/80 italic">({w.partOfSpeech})</span>
+                              )}
+                            </div>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant={isSelected ? "outline" : "default"}
+                              onClick={() => handleToggleVocabWord(w)}
+                              className={`h-6 px-2 text-3xs gap-1 cursor-pointer ${
+                                isSelected
+                                  ? "border-destructive/50 text-destructive hover:bg-destructive/10"
+                                  : "bg-emerald-600 hover:bg-emerald-700 text-white"
+                              }`}
+                            >
+                              {isSelected ? (
+                                <>
+                                  <X className="h-2.5 w-2.5" />
+                                  <span>הסר</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Plus className="h-2.5 w-2.5" />
+                                  <span>הוסף</span>
+                                </>
+                              )}
+                            </Button>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Add Custom Word Accordion */}
+              <div className="pt-1">
+                {!showAddCustomWord ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowAddCustomWord(true)}
+                    className="flex items-center gap-1.5 text-2xs text-emerald-600 dark:text-emerald-400 font-bold hover:underline cursor-pointer"
+                  >
+                    <Plus className="h-3 w-3" />
+                    <span>הוסף מילה מותאמת אישית לרשימה</span>
+                  </button>
+                ) : (
+                  <div className="p-2.5 rounded-lg border border-border bg-background space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-2xs text-foreground">הוספת מילה אישית:</span>
+                      <button
+                        type="button"
+                        onClick={() => setShowAddCustomWord(false)}
+                        className="text-muted-foreground hover:text-foreground cursor-pointer"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Input
+                        value={customVocabEng}
+                        onChange={(e) => setCustomVocabEng(e.target.value)}
+                        placeholder="Word in English (e.g. challenge)"
+                        className="text-xs h-7"
+                        dir="ltr"
+                      />
+                      <Input
+                        value={customVocabHeb}
+                        onChange={(e) => setCustomVocabHeb(e.target.value)}
+                        placeholder="תרגום בעברית (למשל: אתגר)"
+                        className="text-xs h-7"
+                        dir="rtl"
+                      />
+                    </div>
+                    <Input
+                      value={customVocabExample}
+                      onChange={(e) => setCustomVocabExample(e.target.value)}
+                      placeholder="משפט דוגמה אופציונלי (English sentence)"
+                      className="text-xs h-7"
+                      dir="ltr"
+                    />
+                    <div className="flex justify-end gap-2 pt-1">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setShowAddCustomWord(false)}
+                        className="h-6 text-2xs"
+                      >
+                        ביטול
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={handleAddCustomWord}
+                        disabled={!customVocabEng.trim() || !customVocabHeb.trim()}
+                        className="h-6 text-2xs bg-emerald-600 hover:bg-emerald-700 text-white"
+                      >
+                        הוסף לרשימה
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Assignment Title (Editable) */}
+              <div className="space-y-1 pt-1">
+                <label className="text-2xs font-bold text-muted-foreground block">
+                  שם המשימה לתלמידים:
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <Input
+                    value={customHebrewTitle}
+                    onChange={(e) => setCustomHebrewTitle(e.target.value)}
+                    placeholder="שם בעברית (למשל: אוצר מילים ליחידה 2)"
+                    className="text-xs h-8 bg-background"
+                    dir="rtl"
+                  />
+                  <Input
+                    value={customTitle}
+                    onChange={(e) => setCustomTitle(e.target.value)}
+                    placeholder="Title in English (e.g. Unit 2 Vocabulary)"
+                    className="text-xs h-8 bg-background"
+                    dir="ltr"
+                  />
                 </div>
               </div>
-            ) : (
-              <div className="p-3 rounded-xl bg-purple-500/10 border border-purple-500/30 flex items-start gap-2.5 text-xs text-purple-900 dark:text-purple-200">
-                <Sparkles className="h-4 w-4 text-purple-600 dark:text-purple-400 shrink-0 mt-0.5" />
-                <div className="space-y-1">
-                  <span className="font-bold block">
-                    {taskType === "writing"
-                      ? `התלמידים יבחרו בעצמם על מה לכתוב${selectedLevel !== "all" ? ` (רמה ${selectedLevel})` : ""}`
-                      : `התלמידים יבחרו בעצמם איזה קטע אנסין לקרוא${selectedLevel !== "all" ? ` (רמה ${selectedLevel})` : ""}`}
-                  </span>
-                  <p className="text-[11px] text-muted-foreground leading-relaxed">
-                    {taskType === "writing"
-                      ? `התלמידים יוכלו לבחור כל נושא מתוך המאגר${selectedLevel !== "all" ? ` ברמה ${selectedLevel}` : ""}, לכתוב נושא חופשי או להיעזר ב-AI. המערכת תשייך את ההגשה למשימה זו.`
-                      : `התלמידים יוכלו לבחור קטע קריאה${selectedLevel !== "all" ? ` ברמה ${selectedLevel}` : ""} או לחולל קטע חדש ב-AI. המערכת תשייך את ההגשה למשימה זו.`}
-                  </p>
+            </div>
+          ) : (
+            /* Exercise Level & Topic Selection Mode for Writing & Unseen */
+            <>
+              {/* 3. Exercise Level Selector */}
+              <div className="space-y-1.5 p-3 rounded-xl border border-border/80 bg-muted/20">
+                <div className="flex items-center justify-between">
+                  <label className="font-bold text-foreground block">רמת התרגיל (Level):</label>
+                  {selectedLevel !== "all" && (
+                    <Badge variant="secondary" className="text-[10px] font-bold">
+                      {selectedLevel === "Level 1"
+                        ? "רמה 1 • מתחילים"
+                        : selectedLevel === "Level 2"
+                        ? "רמה 2 • מתקדמים"
+                        : "רמה 3 • מיומנים"}
+                    </Badge>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-4 gap-1.5 pt-0.5">
+                  {[
+                    { id: "all", label: "כל הרמות", sub: "הכל", icon: "🌐" },
+                    { id: "Level 1", label: "רמה 1", sub: "מתחילים", icon: "🟢" },
+                    { id: "Level 2", label: "רמה 2", sub: "מתקדמים", icon: "🔵" },
+                    { id: "Level 3", label: "רמה 3", sub: "מיומנים", icon: "🟣" },
+                  ].map((lvl) => (
+                    <button
+                      key={lvl.id}
+                      type="button"
+                      onClick={() => handleLevelChange(lvl.id as "all" | ExerciseLevel)}
+                      className={`p-2 rounded-xl border text-center transition-all cursor-pointer flex flex-col items-center justify-center gap-0.5 ${
+                        selectedLevel === lvl.id
+                          ? "border-primary bg-primary/10 text-primary font-black shadow-2xs ring-1 ring-primary"
+                          : "border-border text-muted-foreground hover:bg-muted/40"
+                      }`}
+                    >
+                      <span className="text-xs font-bold">{lvl.icon} {lvl.label}</span>
+                      <span className="text-[9px] text-muted-foreground">{lvl.sub}</span>
+                    </button>
+                  ))}
                 </div>
               </div>
-            )}
-          </div>
+
+              {/* 4. Topic Selection Mode */}
+              <div className="space-y-2">
+                <label className="font-bold text-foreground block">בחירת נושא המשימה:</label>
+
+                <div className={`grid grid-cols-1 ${coachWithDavid ? "sm:grid-cols-3" : "sm:grid-cols-2"} gap-2`}>
+                  <button
+                    type="button"
+                    onClick={() => setSelectionMode("specific")}
+                    className={`p-2.5 rounded-xl border text-right transition-all cursor-pointer flex flex-col justify-between ${
+                      selectionMode === "specific"
+                        ? "border-primary bg-primary/10 text-primary font-bold shadow-2xs"
+                        : "border-border text-muted-foreground hover:bg-muted/40"
+                    }`}
+                  >
+                    <div className="flex items-center gap-1.5 font-bold text-xs">
+                      <Layers className="h-3.5 w-3.5 shrink-0" />
+                      <span>משימה ספציפית מהמאגר</span>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground mt-1">
+                      {taskType === "writing" ? "בחירת נושא קבוע מהמאגר" : "בחירת קטע אנסין מוגדר"}
+                    </p>
+                  </button>
+
+                  {coachWithDavid && (
+                    <button
+                      type="button"
+                      onClick={() => setSelectionMode("adaptive_david")}
+                      className={`p-2.5 rounded-xl border text-right transition-all cursor-pointer flex flex-col justify-between ${
+                        selectionMode === "adaptive_david"
+                          ? "border-indigo-500 bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 font-bold shadow-2xs ring-1 ring-indigo-500/40"
+                          : "border-border text-muted-foreground hover:bg-muted/40"
+                      }`}
+                    >
+                      <div className="flex items-center gap-1.5 font-bold text-xs">
+                        <img src="/images/logos/david-logo.png" alt="David" className="h-4 w-4 rounded-full object-cover object-top shrink-0" />
+                        <span>מותאם רמה ע״י דוד</span>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground mt-1">
+                        {selectedLevel !== "all"
+                          ? `דוד יתמקד ברמה ${selectedLevel}`
+                          : "דוד מתאים לכל תלמיד לפי רמתו (Level 1-3)"}
+                      </p>
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => setSelectionMode("free_choice")}
+                    className={`p-2.5 rounded-xl border text-right transition-all cursor-pointer flex flex-col justify-between ${
+                      selectionMode === "free_choice"
+                        ? "border-purple-500 bg-purple-500/10 text-purple-700 dark:text-purple-300 font-bold shadow-2xs"
+                        : "border-border text-muted-foreground hover:bg-muted/40"
+                    }`}
+                  >
+                    <div className="flex items-center gap-1.5 font-bold text-xs">
+                      <Sparkles className="h-3.5 w-3.5 text-purple-500 shrink-0" />
+                      <span>בחירה חופשית של התלמיד</span>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground mt-1">
+                      {selectedLevel !== "all"
+                        ? `התלמיד בוחר נושא ברמה ${selectedLevel}`
+                        : "התלמיד בוחר נושא בעצמו או יוצר ב-AI"}
+                    </p>
+                  </button>
+                </div>
+
+                {/* Dropdown if specific topic, or info callout if adaptive / free choice */}
+                {selectionMode === "specific" ? (
+                  <div className="space-y-1 pt-1">
+                    <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                      <label className="block">
+                        {taskType === "writing" ? "בחירת נושא החיבור מתוך המאגר:" : "בחירת קטע קריאה (Unseen):"}
+                      </label>
+                      <span>
+                        ({taskType === "writing" ? availableWritingTasks.length : availableUnseens.length} זמינים)
+                      </span>
+                    </div>
+                    {taskType === "writing" ? (
+                      <select
+                        value={selectedTaskId}
+                        onChange={(e) => setSelectedTaskId(e.target.value)}
+                        className="w-full h-9 rounded-lg border border-input bg-background px-3 text-xs shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring cursor-pointer"
+                      >
+                        {availableWritingTasks.map((t) => (
+                          <option key={t.id} value={t.id}>
+                            {t.hebrewTitle} — {t.title} ({t.level})
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <select
+                        value={selectedTaskId}
+                        onChange={(e) => setSelectedTaskId(e.target.value)}
+                        className="w-full h-9 rounded-lg border border-input bg-background px-3 text-xs shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring cursor-pointer"
+                      >
+                        {selectedLevel === "all" ? (
+                          <>
+                            <optgroup label="רמה 1 - קוראים מתחילים (20 קטעים)">
+                              {availableUnseens.filter((s) => s.level === "Level 1").map((s, idx) => (
+                                <option key={s.id} value={s.id}>
+                                  #{idx + 1} {s.hebrewTitle} — {s.title}
+                                </option>
+                              ))}
+                            </optgroup>
+                            <optgroup label="רמה 2 - קוראים מתקדמים (20 קטעים)">
+                              {availableUnseens.filter((s) => s.level === "Level 2").map((s, idx) => (
+                                <option key={s.id} value={s.id}>
+                                  #{idx + 1} {s.hebrewTitle} — {s.title}
+                                </option>
+                              ))}
+                            </optgroup>
+                            <optgroup label="רמה 3 - קוראים מיומנים (20 קטעים)">
+                              {availableUnseens.filter((s) => s.level === "Level 3").map((s, idx) => (
+                                <option key={s.id} value={s.id}>
+                                  #{idx + 1} {s.hebrewTitle} — {s.title}
+                                </option>
+                              ))}
+                            </optgroup>
+                          </>
+                        ) : (
+                          availableUnseens.map((s, idx) => (
+                            <option key={s.id} value={s.id}>
+                              #{idx + 1} {s.hebrewTitle} — {s.title}
+                            </option>
+                          ))
+                        )}
+                      </select>
+                    )}
+                  </div>
+                ) : selectionMode === "adaptive_david" && coachWithDavid ? (
+                  <div className="p-3 rounded-xl bg-indigo-500/10 border border-indigo-500/30 flex items-start gap-2.5 text-xs text-indigo-950 dark:text-indigo-200">
+                    <img src="/images/logos/david-logo.png" alt="David" className="h-5 w-5 rounded-full object-cover object-top shrink-0 mt-0.5" />
+                    <div className="space-y-1">
+                      <span className="font-bold block">
+                        דוד יתאים לכל תלמיד/ה {taskType === "writing" ? "משימת כתיבה" : "קטע קריאה (Unseen)"}
+                        {selectedLevel !== "all" ? ` ברמה ${selectedLevel}!` : " בדיוק לפי רמתו/ה!"}
+                      </span>
+                      <p className="text-[11px] text-muted-foreground leading-relaxed">
+                        מתאים במיוחד לכיתות הטרוגניות: התלמיד יקבל מדוד משימה
+                        {selectedLevel !== "all" ? ` ברמה ${selectedLevel}` : " ברמתו האישית"},
+                        יבחר נושא שמעניין אותו, יעבור מבדק אוצר מילים בסיום, והציון יופיע אוטומטית בלוח המורה.
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-3 rounded-xl bg-purple-500/10 border border-purple-500/30 flex items-start gap-2.5 text-xs text-purple-900 dark:text-purple-200">
+                    <Sparkles className="h-4 w-4 text-purple-600 dark:text-purple-400 shrink-0 mt-0.5" />
+                    <div className="space-y-1">
+                      <span className="font-bold block">
+                        {taskType === "writing"
+                          ? `התלמידים יבחרו בעצמם על מה לכתוב${selectedLevel !== "all" ? ` (רמה ${selectedLevel})` : ""}`
+                          : `התלמידים יבחרו בעצמם איזה קטע אנסין לקרוא${selectedLevel !== "all" ? ` (רמה ${selectedLevel})` : ""}`}
+                      </span>
+                      <p className="text-[11px] text-muted-foreground leading-relaxed">
+                        {taskType === "writing"
+                          ? `התלמידים יוכלו לבחור כל נושא מתוך המאגר${selectedLevel !== "all" ? ` ברמה ${selectedLevel}` : ""}, לכתוב נושא חופשי או להיעזר ב-AI. המערכת תשייך את ההגשה למשימה זו.`
+                          : `התלמידים יוכלו לבחור קטע קריאה${selectedLevel !== "all" ? ` ברמה ${selectedLevel}` : ""} או לחולל קטע חדש ב-AI. המערכת תשייך את ההגשה למשימה זו.`}
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
 
           {/* 5. Target Audience: Class vs All vs Individual Students */}
           <div className="space-y-2">

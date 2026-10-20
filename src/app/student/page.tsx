@@ -20,6 +20,7 @@ import {
   CheckCircle2,
   Clock,
   BookOpen,
+  BookA,
   PenTool,
   Search,
   RefreshCw,
@@ -44,7 +45,7 @@ export default function StudentPortalPage() {
   const [submissions, setSubmissions] = useState<SubmissionItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [typeFilter, setTypeFilter] = useState<"all" | "writing" | "unseen">("all");
+  const [typeFilter, setTypeFilter] = useState<"all" | "writing" | "unseen" | "vocab">("all");
   const [statusFilter, setStatusFilter] = useState<"all" | "submitted" | "reviewed">("all");
 
   // Selected item for details modal
@@ -341,10 +342,11 @@ export default function StudentPortalPage() {
             {/* Type Filter */}
             <select
               value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value as "all" | "writing" | "unseen")}
+              onChange={(e) => setTypeFilter(e.target.value as "all" | "writing" | "unseen" | "vocab")}
               className="h-9 rounded-md border border-input bg-background px-3 text-xs shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring cursor-pointer"
             >
               <option value="all">כל סוגי המשימות (הכל)</option>
+              <option value="vocab">🔤 אימון אוצר מילים (Vocabulary)</option>
               <option value="unseen">📖 מבחני אנסין (Unseen)</option>
               <option value="writing">✍️ מטלות כתיבה (Writing)</option>
             </select>
@@ -408,7 +410,7 @@ export default function StudentPortalPage() {
                   <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/40 pb-2.5">
                     <div className="flex items-center gap-2">
                       <Badge variant="secondary" className="text-[10px]">
-                        {sub.type === "writing" ? "✍️ מטלת כתיבה" : "📖 מבחן אנסין"}
+                        {sub.type === "vocab" ? "🔤 אוצר מילים" : sub.type === "writing" ? "✍️ מטלת כתיבה" : "📖 מבחן אנסין"}
                       </Badge>
 
                       <span className="font-black text-sm sm:text-base text-foreground">
@@ -417,6 +419,12 @@ export default function StudentPortalPage() {
                       <span className="text-xs text-muted-foreground hidden sm:inline" dir="ltr">
                         ({sub.taskTitle})
                       </span>
+
+                      {sub.type === "vocab" && sub.vocabSummary && (
+                        <Badge variant="outline" className="text-3xs font-bold border-emerald-500/40 text-emerald-700 dark:text-emerald-300 bg-emerald-500/10">
+                          {sub.vocabSummary.masteredCount} / {sub.vocabSummary.totalWords} בשליטה
+                        </Badge>
+                      )}
 
                       {/* Status Badge */}
                       {isReviewed ? (
@@ -525,7 +533,7 @@ export default function StudentPortalPage() {
             <div className="flex items-center justify-between border-b border-border pb-3">
               <div className="flex items-center gap-2.5">
                 <div className="p-2 rounded-xl bg-primary/10 text-primary">
-                  {selectedItem.type === "unseen" ? <BookOpen className="h-5 w-5" /> : <PenTool className="h-5 w-5" />}
+                  {selectedItem.type === "vocab" ? <BookA className="h-5 w-5" /> : selectedItem.type === "unseen" ? <BookOpen className="h-5 w-5" /> : <PenTool className="h-5 w-5" />}
                 </div>
                 <div>
                   <h3 className="font-black text-lg text-foreground">
@@ -579,8 +587,55 @@ export default function StudentPortalPage() {
               </div>
             )}
 
-            {/* Submission Content: Unseen vs Writing */}
-            {selectedItem.type === "unseen" ? (
+            {/* Submission Content: Vocab vs Unseen vs Writing */}
+            {selectedItem.type === "vocab" ? (
+              <div className="space-y-4">
+                <div className="p-3.5 rounded-xl border border-emerald-500/30 bg-emerald-500/5 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-foreground">
+                      מילים שתורגלו במשימה זו:
+                    </span>
+                    {selectedItem.vocabSummary && (
+                      <Badge variant="outline" className="text-3xs font-bold border-emerald-500/40 text-emerald-700 dark:text-emerald-300 bg-emerald-500/10">
+                        {selectedItem.vocabSummary.masteredCount} / {selectedItem.vocabSummary.totalWords} בשליטה מלאה
+                      </Badge>
+                    )}
+                  </div>
+
+                  {selectedItem.vocabSummary?.wordsPracticed && selectedItem.vocabSummary.wordsPracticed.length > 0 ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-56 overflow-y-auto pr-1">
+                      {selectedItem.vocabSummary.wordsPracticed.map((w, idx) => (
+                        <div
+                          key={idx}
+                          className={`p-2.5 rounded-xl border text-xs flex items-center justify-between gap-2 ${
+                            w.mastered
+                              ? "border-emerald-500/40 bg-emerald-500/5"
+                              : "border-border bg-card"
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="font-bold text-foreground" dir="ltr">{w.english}</span>
+                            <span className="text-muted-foreground truncate">— {w.hebrew}</span>
+                          </div>
+                          <Badge
+                            variant={w.mastered ? "default" : "outline"}
+                            className={`text-3xs font-bold shrink-0 ${
+                              w.mastered ? "bg-emerald-600 text-white" : "text-muted-foreground"
+                            }`}
+                          >
+                            {w.mastered ? "✓ שליטה" : "בתהליך"}
+                          </Badge>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="p-3 text-center text-muted-foreground text-xs">
+                      הושלם תרגול אוצר המילים בהצלחה.
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : selectedItem.type === "unseen" ? (
               <div className="space-y-4">
                 {/* AI Encouragement & Teacher Note */}
                 {(selectedItem.encouragement || selectedItem.teacherNote) && (

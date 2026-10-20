@@ -2372,6 +2372,26 @@ export async function getPendingTeacherAssignmentsForStudent(
         dueDate: a.dueDate,
         teacherFocusWords: a.focusWords,
       });
+    } else if (a.type === "vocab") {
+      recommendations.push({
+        id: `mission-assign-${a.id}`,
+        type: "vocab",
+        taskId: a.id,
+        title: a.title,
+        hebrewTitle: a.hebrewTitle,
+        descriptionHebrew:
+          a.instructions ||
+          `המורה ${a.teacherName} הקצה/תה לכיתה ${a.vocabWords?.length || 0} מילים לתרגול ושינון.`,
+        level: targetLevel,
+        targetUrl: `/vocabulary?assignmentId=${a.id}&from=david`,
+        estimatedMinutes: 8,
+        needsTopicSelection: false,
+        assignmentId: a.id,
+        teacherName: a.teacherName,
+        teacherInstructions: a.instructions,
+        dueDate: a.dueDate,
+        teacherFocusWords: a.vocabWords?.map((w) => w.english),
+      });
     } else if (a.type === "writing") {
       const levelTopics = getWritingTopicsForLevel(targetLevel).map((t) => ({
         ...t,

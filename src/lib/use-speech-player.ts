@@ -17,26 +17,57 @@ export interface CuratedVoice {
   accent: "US" | "UK" | "AU" | "Other";
 }
 
-// Score voice quality: higher score = more natural prosody
+// Prevent garbage collection in Chrome / Safari V8 engines
+function retainUtterance(u: SpeechSynthesisUtterance) {
+  if (typeof window === "undefined") return;
+  const w = window as any;
+  if (!w.__speechUtteranceSet) {
+    w.__speechUtteranceSet = new Set<SpeechSynthesisUtterance>();
+  }
+  w.__speechUtteranceSet.add(u);
+}
+
+function releaseUtterance(u: SpeechSynthesisUtterance) {
+  if (typeof window === "undefined") return;
+  const w = window as any;
+  if (w.__speechUtteranceSet) {
+    w.__speechUtteranceSet.delete(u);
+  }
+}
+
+// Ensure browser speech synthesis is unpaused and active
+function ensureSpeechSynthesisUnpaused() {
+  if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+  try {
+    if (window.speechSynthesis.paused) {
+      window.speechSynthesis.resume();
+    }
+  } catch {}
+}
+
+// Score voice quality: higher score = more natural prosody and local offline reliability
 function scoreVoice(v: SpeechSynthesisVoice): number {
   let score = 0;
   const name = v.name.toLowerCase();
   const uri = v.voiceURI.toLowerCase();
 
-  if (name.includes("natural") || uri.includes("natural")) score += 50;
-  if (name.includes("google") || uri.includes("google")) score += 40;
+  // Prefer local offline voices for rock-solid stability without network hiccups
+  if (v.localService) score += 25;
+
+  if (name.includes("natural") || uri.includes("natural")) score += 40;
   if (name.includes("enhanced") || uri.includes("enhanced")) score += 35;
   if (name.includes("premium") || uri.includes("premium")) score += 30;
   if (name.includes("siri") || uri.includes("siri")) score += 30;
-  if (name.includes("online") || uri.includes("online")) score += 20;
+  if (name.includes("google") || uri.includes("google")) score += 20;
+  if (name.includes("online") || uri.includes("online")) score += 10;
 
-  // Specific high quality voices on macOS / Windows
-  if (name.includes("samantha") || name.includes("jenny") || name.includes("guy")) score += 15;
-  if (name.includes("daniel") || name.includes("oliver") || name.includes("ava")) score += 15;
+  // Specific high quality voices on macOS / Windows / iOS
+  if (name.includes("samantha") || name.includes("jenny") || name.includes("guy")) score += 25;
+  if (name.includes("daniel") || name.includes("oliver") || name.includes("ava")) score += 25;
 
   // Penalize robotic / legacy voices
-  if (name.includes("alex") || name.includes("fred") || name.includes("victoria")) score -= 10;
-  if (v.localService === false) score += 5; // Often cloud/neural
+  if (name.includes("alex") || name.includes("fred") || name.includes("victoria")) score -= 15;
+  if (name.includes("albert") || name.includes("bad news") || name.includes("bahh")) score -= 50;
 
   return score;
 }
@@ -66,6 +97,8 @@ export function useSpeechPlayer(paragraphs: string[]) {
   const rateRef = useRef(0.9);
   const selectedVoiceRef = useRef<SpeechSynthesisVoice | null>(null);
   const interSentenceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const playTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const keepAliveIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const sentenceStartTimeRef = useRef<number>(0);
 
   // Sync refs with state
@@ -82,13 +115,14 @@ export function useSpeechPlayer(paragraphs: string[]) {
     paragraphs.forEach((para, pIdx) => {
       if (!para || !para.trim()) return;
 
-      // Match sentences ending in . ! ? or end of string
-      const rawSentences = para.match(/[^.!?]+(?:[.!?]+|\s*$)/g) || [para];
+      // Match sentences ending in . ! ? with quotes/parentheses attached
+      const rawSentences = para.match(/[^.!?]+(?:[.!?]+["'”’)]*|\s*$)/g) || [para];
 
       let sentenceIdxInPara = 0;
       rawSentences.forEach((raw) => {
         const clean = raw.trim();
-        if (clean.length > 0) {
+        // Check if there is actual pronounceable text
+        if (clean.length > 0 && /[a-zA-Z0-9]/.test(clean)) {
           list.push({
             id: `p${pIdx}-s${sentenceIdxInPara}-${globalIdx}`,
             paragraphIndex: pIdx,
@@ -98,6 +132,9 @@ export function useSpeechPlayer(paragraphs: string[]) {
           });
           sentenceIdxInPara++;
           globalIdx++;
+        } else if (list.length > 0 && clean.length > 0) {
+          // If it's just punctuation or a trailing quote, append to previous sentence
+          list[list.length - 1].text += " " + clean;
         }
       });
     });
@@ -113,12 +150,15 @@ export function useSpeechPlayer(paragraphs: string[]) {
       const allVoices = window.speechSynthesis.getVoices();
       if (!allVoices || allVoices.length === 0) return;
 
-      const englishVoices = allVoices.filter(
-        (v) => v.lang.toLowerCase().startsWith("en") || v.lang.toLowerCase().startsWith("en-")
-      );
+      const englishVoices = allVoices.filter((v) => {
+        const l = v.lang.toLowerCase();
+        return l.startsWith("en-") || l.startsWith("en_") || l === "en";
+      });
+
+      const listToScore = englishVoices.length > 0 ? englishVoices : allVoices;
 
       // Score and sort
-      const curated: CuratedVoice[] = englishVoices
+      const curated: CuratedVoice[] = listToScore
         .map((v) => {
           const score = scoreVoice(v);
           const accent = getVoiceAccent(v);
@@ -144,7 +184,11 @@ export function useSpeechPlayer(paragraphs: string[]) {
       // Pick top-ranked natural voice as default
       if (curated.length > 0) {
         setSelectedVoiceURI((prev) => {
-          if (prev && curated.some((c) => c.voice.voiceURI === prev)) return prev;
+          if (prev && curated.some((c) => c.voice.voiceURI === prev)) {
+            const match = curated.find((c) => c.voice.voiceURI === prev);
+            if (match) selectedVoiceRef.current = match.voice;
+            return prev;
+          }
           const best = curated[0];
           selectedVoiceRef.current = best.voice;
           return best.voice.voiceURI;
@@ -153,12 +197,12 @@ export function useSpeechPlayer(paragraphs: string[]) {
     };
 
     loadVoices();
-    window.speechSynthesis.onvoiceschanged = loadVoices;
+    window.speechSynthesis.addEventListener("voiceschanged", loadVoices);
+    const timer = setTimeout(loadVoices, 250);
 
     return () => {
-      if (typeof window !== "undefined" && "speechSynthesis" in window) {
-        window.speechSynthesis.onvoiceschanged = null;
-      }
+      window.speechSynthesis.removeEventListener("voiceschanged", loadVoices);
+      clearTimeout(timer);
     };
   }, []);
 
@@ -172,21 +216,57 @@ export function useSpeechPlayer(paragraphs: string[]) {
     }
   }, [selectedVoiceURI, voices]);
 
+  // Keep-alive timer for Chrome (Chrome pauses SpeechSynthesis after ~14 seconds)
+  useEffect(() => {
+    if (isPlaying && !isPaused) {
+      keepAliveIntervalRef.current = setInterval(() => {
+        if (typeof window !== "undefined" && "speechSynthesis" in window) {
+          if (window.speechSynthesis.paused) {
+            window.speechSynthesis.resume();
+          }
+        }
+      }, 10000);
+    } else {
+      if (keepAliveIntervalRef.current) {
+        clearInterval(keepAliveIntervalRef.current);
+        keepAliveIntervalRef.current = null;
+      }
+    }
+
+    return () => {
+      if (keepAliveIntervalRef.current) {
+        clearInterval(keepAliveIntervalRef.current);
+        keepAliveIntervalRef.current = null;
+      }
+    };
+  }, [isPlaying, isPaused]);
+
   // Cleanup on unmount or story switch
   useEffect(() => {
     return () => {
       if (typeof window !== "undefined" && "speechSynthesis" in window) {
-        window.speechSynthesis.cancel();
+        try {
+          window.speechSynthesis.cancel();
+        } catch {}
       }
       if (interSentenceTimeoutRef.current) {
         clearTimeout(interSentenceTimeoutRef.current);
+        interSentenceTimeoutRef.current = null;
+      }
+      if (playTimeoutRef.current) {
+        clearTimeout(playTimeoutRef.current);
+        playTimeoutRef.current = null;
+      }
+      if (keepAliveIntervalRef.current) {
+        clearInterval(keepAliveIntervalRef.current);
+        keepAliveIntervalRef.current = null;
       }
     };
   }, [paragraphs]);
 
-  // 3. Play a specific sentence by index
+  // 3. Play a specific sentence by index (with automatic fallback to default voice if custom voice fails)
   const playSentence = useCallback(
-    (index: number) => {
+    (index: number, fallbackWithoutVoice = false) => {
       if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
       if (index < 0 || index >= sentences.length) {
         setIsPlaying(false);
@@ -194,10 +274,21 @@ export function useSpeechPlayer(paragraphs: string[]) {
         return;
       }
 
-      window.speechSynthesis.cancel();
       if (interSentenceTimeoutRef.current) {
         clearTimeout(interSentenceTimeoutRef.current);
+        interSentenceTimeoutRef.current = null;
       }
+      if (playTimeoutRef.current) {
+        clearTimeout(playTimeoutRef.current);
+        playTimeoutRef.current = null;
+      }
+
+      // If active utterance is in progress, cancel cleanly
+      try {
+        if (window.speechSynthesis.speaking || window.speechSynthesis.pending) {
+          window.speechSynthesis.cancel();
+        }
+      } catch {}
 
       const sentenceObj = sentences[index];
       if (!sentenceObj) return;
@@ -208,54 +299,100 @@ export function useSpeechPlayer(paragraphs: string[]) {
       setIsPaused(false);
       sentenceStartTimeRef.current = Date.now();
 
-      const utterance = new SpeechSynthesisUtterance(sentenceObj.text);
-      activeUtteranceRef.current = utterance;
+      // Small 25ms delay to allow browser speech engine queue to flush cleanly after cancel
+      playTimeoutRef.current = setTimeout(() => {
+        try {
+          ensureSpeechSynthesisUnpaused();
 
-      utterance.lang = "en-US";
-      utterance.rate = rateRef.current;
-      utterance.pitch = 1.0;
+          const utterance = new SpeechSynthesisUtterance(sentenceObj.text);
+          activeUtteranceRef.current = utterance;
+          retainUtterance(utterance);
 
-      if (selectedVoiceRef.current) {
-        utterance.voice = selectedVoiceRef.current;
-      }
+          utterance.lang = "en-US";
+          utterance.rate = rateRef.current;
+          utterance.pitch = 1.0;
 
-      utterance.onend = () => {
-        if (!isPlayingRef.current || isPausedRef.current) return;
+          if (!fallbackWithoutVoice && selectedVoiceRef.current) {
+            utterance.voice = selectedVoiceRef.current;
+          }
 
-        const nextIndex = currentSentenceRef.current + 1;
-        if (nextIndex < sentences.length) {
-          // Add a natural 180ms breath pause between sentences for realistic human cadence
-          interSentenceTimeoutRef.current = setTimeout(() => {
-            playSentence(nextIndex);
-          }, 180);
-        } else {
-          // Finished entire passage
+          utterance.onstart = () => {
+            ensureSpeechSynthesisUnpaused();
+          };
+
+          utterance.onend = () => {
+            releaseUtterance(utterance);
+            if (!isPlayingRef.current || isPausedRef.current) return;
+
+            const nextIndex = currentSentenceRef.current + 1;
+            if (nextIndex < sentences.length) {
+              // Add a natural 180ms breath pause between sentences for realistic human cadence
+              interSentenceTimeoutRef.current = setTimeout(() => {
+                playSentence(nextIndex);
+              }, 180);
+            } else {
+              // Finished entire passage
+              setIsPlaying(false);
+              setIsPaused(false);
+              setCurrentSentenceIndex(0);
+            }
+          };
+
+          utterance.onerror = (e) => {
+            releaseUtterance(utterance);
+            // "interrupted" or "canceled" errors happen naturally when user skips, pauses, or changes stories
+            if (e.error === "interrupted" || e.error === "canceled") {
+              return;
+            }
+
+            console.warn("[SpeechPlayer] Error on utterance:", e.error);
+
+            // If voice synthesis failed with a custom voice (e.g. network timeout on Google voice),
+            // immediately retry this sentence with the browser's default system voice!
+            if (!fallbackWithoutVoice && utterance.voice) {
+              console.info("[SpeechPlayer] Retrying sentence with default system voice fallback...");
+              playSentence(index, true);
+              return;
+            }
+
+            // If it still errored, advance to next sentence smoothly or pause
+            const nextIndex = currentSentenceRef.current + 1;
+            if (nextIndex < sentences.length && isPlayingRef.current) {
+              interSentenceTimeoutRef.current = setTimeout(() => {
+                playSentence(nextIndex);
+              }, 200);
+            } else {
+              setIsPlaying(false);
+              setIsPaused(false);
+            }
+          };
+
+          ensureSpeechSynthesisUnpaused();
+          window.speechSynthesis.speak(utterance);
+
+          // Extra safety check: if browser paused immediately after speak, unpause it
+          if (window.speechSynthesis.paused) {
+            window.speechSynthesis.resume();
+          }
+        } catch (err) {
+          console.error("[SpeechPlayer] Exception during speak:", err);
           setIsPlaying(false);
-          setIsPaused(false);
-          setCurrentSentenceIndex(0);
         }
-      };
-
-      utterance.onerror = (e) => {
-        // "interrupted" or "canceled" errors happen naturally when user skips or pauses
-        if (e.error !== "interrupted" && e.error !== "canceled") {
-          console.warn("[SpeechPlayer] Error on utterance:", e.error);
-        }
-      };
-
-      window.speechSynthesis.speak(utterance);
+      }, 25);
     },
     [sentences]
   );
 
   // 4. Public Controls
   const startPlayer = useCallback(() => {
+    ensureSpeechSynthesisUnpaused();
     setIsActive(true);
     playSentence(0);
   }, [playSentence]);
 
   const resume = useCallback(() => {
     if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    ensureSpeechSynthesisUnpaused();
     setIsPaused(false);
     setIsPlaying(true);
     // Restart current sentence cleanly
@@ -266,8 +403,15 @@ export function useSpeechPlayer(paragraphs: string[]) {
     if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
     if (interSentenceTimeoutRef.current) {
       clearTimeout(interSentenceTimeoutRef.current);
+      interSentenceTimeoutRef.current = null;
     }
-    window.speechSynthesis.cancel();
+    if (playTimeoutRef.current) {
+      clearTimeout(playTimeoutRef.current);
+      playTimeoutRef.current = null;
+    }
+    try {
+      window.speechSynthesis.cancel();
+    } catch {}
     setIsPlaying(false);
     setIsPaused(true);
   }, []);
@@ -335,10 +479,21 @@ export function useSpeechPlayer(paragraphs: string[]) {
 
   const stop = useCallback(() => {
     if (typeof window !== "undefined" && "speechSynthesis" in window) {
-      window.speechSynthesis.cancel();
+      try {
+        window.speechSynthesis.cancel();
+      } catch {}
     }
     if (interSentenceTimeoutRef.current) {
       clearTimeout(interSentenceTimeoutRef.current);
+      interSentenceTimeoutRef.current = null;
+    }
+    if (playTimeoutRef.current) {
+      clearTimeout(playTimeoutRef.current);
+      playTimeoutRef.current = null;
+    }
+    if (keepAliveIntervalRef.current) {
+      clearInterval(keepAliveIntervalRef.current);
+      keepAliveIntervalRef.current = null;
     }
     setIsActive(false);
     setIsPlaying(false);

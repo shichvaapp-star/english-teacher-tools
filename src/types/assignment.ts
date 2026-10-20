@@ -2,15 +2,25 @@ import { StudentGroup } from "./auth";
 
 export type AssignmentTargetType = "all" | "class" | "group" | "students";
 export type ExerciseLevel = "Level 1" | "Level 2" | "Level 3";
+export type AssignmentType = "writing" | "unseen" | "vocab";
+
+export interface AssignedVocabWord {
+  id: string;
+  english: string;
+  hebrew: string;
+  partOfSpeech?: "noun" | "verb" | "adjective" | "adverb" | "preposition" | "phrase";
+  example?: string;
+}
 
 export interface TeacherAssignment {
   id: string;
   teacherId: string;
   teacherName: string;
-  type: "writing" | "unseen";
+  type: AssignmentType;
   title: string;
   hebrewTitle: string;
-  taskId?: string; // ID of specific writing task or unseen passage
+  taskId?: string; // ID of specific writing task or unseen passage or preset vocab id
+  vocabWords?: AssignedVocabWord[]; // Words pre-assigned by the teacher
   level?: ExerciseLevel; // Selected exercise level: Level 1, Level 2, or Level 3
   isFreeChoice?: boolean;
   isAdaptiveDavid?: boolean; // David selects a task matching each student's personal level (Level 1/2/3)

@@ -10,6 +10,7 @@ import {
   Send,
   PenTool,
   BookOpen,
+  BookA,
   Users,
   Clock,
   Calendar,
@@ -149,7 +150,12 @@ export function AssignedTasksView({
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-center gap-1.5 flex-wrap">
                     <Badge variant="secondary" className="text-[10px] gap-1 font-medium">
-                      {assignment.type === "writing" ? (
+                      {assignment.type === "vocab" ? (
+                        <>
+                          <BookA className="h-2.5 w-2.5 text-emerald-500" />
+                          <span>אוצר מילים</span>
+                        </>
+                      ) : assignment.type === "writing" ? (
                         <>
                           <PenTool className="h-2.5 w-2.5 text-purple-500" />
                           <span>כתיבה</span>
@@ -254,6 +260,32 @@ export function AssignedTasksView({
                     {assignment.title}
                   </p>
                 </div>
+
+                {/* Pre-assigned Vocabulary Words Badges */}
+                {assignment.vocabWords && assignment.vocabWords.length > 0 && (
+                  <div className="space-y-1 pt-0.5">
+                    <span className="text-3xs font-bold text-muted-foreground">
+                      מילים מוקצות ({assignment.vocabWords.length}):
+                    </span>
+                    <div className="flex items-center gap-1 flex-wrap">
+                      {assignment.vocabWords.slice(0, 6).map((w) => (
+                        <Badge
+                          key={w.id || w.english}
+                          variant="secondary"
+                          className="text-3xs py-0 px-1.5 font-medium bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 border border-emerald-500/20"
+                        >
+                          <span dir="ltr" className="font-bold">{w.english}</span>
+                          <span className="text-muted-foreground mr-1">({w.hebrew})</span>
+                        </Badge>
+                      ))}
+                      {assignment.vocabWords.length > 6 && (
+                        <Badge variant="outline" className="text-3xs py-0 px-1 text-muted-foreground">
+                          +{assignment.vocabWords.length - 6} נוספות
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 {/* Teacher Instructions */}
                 {assignment.instructions && (

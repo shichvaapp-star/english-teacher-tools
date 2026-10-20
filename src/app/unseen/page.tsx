@@ -694,15 +694,51 @@ export default function UnseenPracticePage() {
   // Text-to-Speech (single word / phrase with selected natural voice)
   const handleSpeak = (text: string) => {
     if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = "en-US";
-    utterance.rate = 0.9;
-    if (speech.selectedVoiceURI) {
-      const v = speech.voices.find((item) => item.voice.voiceURI === speech.selectedVoiceURI);
-      if (v) utterance.voice = v.voice;
-    }
-    window.speechSynthesis.speak(utterance);
+    try {
+      if (window.speechSynthesis.paused) {
+        window.speechSynthesis.resume();
+      }
+      if (window.speechSynthesis.speaking || window.speechSynthesis.pending) {
+        window.speechSynthesis.cancel();
+      }
+    } catch {}
+
+    setTimeout(() => {
+      try {
+        if (window.speechSynthesis.paused) {
+          window.speechSynthesis.resume();
+        }
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = "en-US";
+        utterance.rate = 0.9;
+        if (speech.selectedVoiceURI) {
+          const v = speech.voices.find((item) => item.voice.voiceURI === speech.selectedVoiceURI);
+          if (v) utterance.voice = v.voice;
+        }
+
+        // Prevent GC in Chrome/Safari
+        const w = window as any;
+        w.__unseenWordUtterance = utterance;
+
+        utterance.onend = () => {
+          w.__unseenWordUtterance = null;
+        };
+        utterance.onerror = (e) => {
+          w.__unseenWordUtterance = null;
+          // If custom voice failed, retry once with system default voice
+          if (e.error !== "canceled" && e.error !== "interrupted" && utterance.voice) {
+            const fallback = new SpeechSynthesisUtterance(text);
+            fallback.lang = "en-US";
+            fallback.rate = 0.9;
+            window.speechSynthesis.speak(fallback);
+          }
+        };
+
+        window.speechSynthesis.speak(utterance);
+      } catch (err) {
+        console.warn("[unseen] handleSpeak error:", err);
+      }
+    }, 25);
   };
 
 
