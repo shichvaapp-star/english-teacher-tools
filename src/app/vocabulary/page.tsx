@@ -449,27 +449,25 @@ export default function VocabularyPage() {
       }
     } catch {}
 
-    setTimeout(() => {
-      try {
-        if (window.speechSynthesis.paused) {
-          window.speechSynthesis.resume();
-        }
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = "en-US";
-        utterance.rate = 0.9;
-        const w = window as any;
-        w.__vocabUtterance = utterance;
-        utterance.onend = () => {
-          w.__vocabUtterance = null;
-        };
-        utterance.onerror = () => {
-          w.__vocabUtterance = null;
-        };
-        window.speechSynthesis.speak(utterance);
-      } catch (err) {
-        console.warn("[vocabulary] handleSpeak error:", err);
+    try {
+      if (window.speechSynthesis.paused) {
+        window.speechSynthesis.resume();
       }
-    }, 25);
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = "en-US";
+      utterance.rate = 0.9;
+      const w = window as any;
+      w.__vocabUtterance = utterance;
+      utterance.onend = () => {
+        w.__vocabUtterance = null;
+      };
+      utterance.onerror = () => {
+        w.__vocabUtterance = null;
+      };
+      window.speechSynthesis.speak(utterance);
+    } catch (err) {
+      console.warn("[vocabulary] handleSpeak error:", err);
+    }
   };
 
   // Flashcard controls

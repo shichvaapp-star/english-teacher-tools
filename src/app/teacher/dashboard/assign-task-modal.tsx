@@ -11,6 +11,8 @@ import {
   MIDDLE_SCHOOL_MEDIUM,
   MIDDLE_SCHOOL_HARD,
 } from "@/lib/vocab-storage";
+import { TeacherVocabBank, GRADE_LABELS, STANDARD_LEVEL_LABELS } from "@/types/vocab-bank";
+import { getLocalVocabBanks } from "@/lib/vocab-bank-storage";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -46,6 +48,8 @@ interface AssignTaskModalProps {
   availableClasses: string[];
   onTaskAssigned: (assignment: TeacherAssignment) => void;
   preselectedStudentId?: string | null;
+  customBanks?: TeacherVocabBank[];
+  preselectedVocabBank?: TeacherVocabBank | null;
 }
 
 export function AssignTaskModal({
@@ -57,6 +61,8 @@ export function AssignTaskModal({
   availableClasses,
   onTaskAssigned,
   preselectedStudentId,
+  customBanks,
+  preselectedVocabBank,
 }: AssignTaskModalProps) {
   const [taskType, setTaskType] = useState<AssignmentType>("writing");
   const [selectedLevel, setSelectedLevel] = useState<"all" | ExerciseLevel>("all");
@@ -69,6 +75,28 @@ export function AssignTaskModal({
   const [customHebrewTitle, setCustomHebrewTitle] = useState("");
 
   // Vocabulary Assignment State
+  const [vocabSourceMode, setVocabSourceMode] = useState<"custom" | "ministry">("custom");
+  const [selectedBankGradeFilter, setSelectedBankGradeFilter] = useState<string>("all");
+  const [selectedBankLevelFilter, setSelectedBankLevelFilter] = useState<string>("all");
+
+  const effectiveCustomBanks = useMemo(() => {
+    if (customBanks && customBanks.length > 0) return customBanks;
+    return getLocalVocabBanks(teacherId);
+  }, [customBanks, teacherId]);
+
+  const filteredCustomBanks = useMemo(() => {
+    return effectiveCustomBanks.filter((b) => {
+      if (selectedBankGradeFilter !== "all" && b.grade !== selectedBankGradeFilter && b.grade !== "all") {
+        return false;
+      }
+      if (selectedBankLevelFilter !== "all") {
+        if (b.levelType === "custom" && b.customLevelName !== selectedBankLevelFilter) return false;
+        if (b.levelType === "standard" && b.standardLevel !== selectedBankLevelFilter) return false;
+      }
+      return true;
+    });
+  }, [effectiveCustomBanks, selectedBankGradeFilter, selectedBankLevelFilter]);
+
   const [selectedVocabWords, setSelectedVocabWords] = useState<AssignedVocabWord[]>(() =>
     MIDDLE_SCHOOL_MEDIUM.map((w) => ({
       id: w.id,
@@ -98,7 +126,7 @@ export function AssignTaskModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Reset or pre-select student on modal open (keep David off by default!)
+  // Reset or pre-select student / custom vocab bank on modal open
   React.useEffect(() => {
     if (open) {
       setError(null);
@@ -107,6 +135,23 @@ export function AssignTaskModal({
       setSelectedLevel("all");
       setClassTargetScope("all");
       setStudentSearchQuery("");
+
+      if (preselectedVocabBank) {
+        setTaskType("vocab");
+        setSelectedVocabWords(
+          preselectedVocabBank.words.map((w) => ({
+            id: w.id,
+            english: w.english,
+            hebrew: w.hebrew,
+            partOfSpeech: w.partOfSpeech,
+            example: w.example,
+          }))
+        );
+        setCustomTitle(`${preselectedVocabBank.name} Practice`);
+        setCustomHebrewTitle(`אוצר מילים: ${preselectedVocabBank.name}`);
+        setVocabSourceMode("custom");
+      }
+
       if (preselectedStudentId) {
         setTargetType("students");
         setSelectedStudentIds([preselectedStudentId]);
@@ -123,7 +168,7 @@ export function AssignTaskModal({
         setSelectedStudentIds([]);
       }
     }
-  }, [open, preselectedStudentId, students]);
+  }, [open, preselectedStudentId, preselectedVocabBank, students]);
 
   const handleToggleDavid = (enabled: boolean) => {
     setCoachWithDavid(enabled);
@@ -308,6 +353,20 @@ export function AssignTaskModal({
       setCustomTitle(titleEn);
       setCustomHebrewTitle(titleHeb);
     }
+  };
+
+  const applyCustomBank = (bank: TeacherVocabBank) => {
+    setSelectedVocabWords(
+      bank.words.map((w) => ({
+        id: w.id,
+        english: w.english,
+        hebrew: w.hebrew,
+        partOfSpeech: w.partOfSpeech,
+        example: w.example,
+      }))
+    );
+    setCustomTitle(`${bank.name} Vocabulary Drill`);
+    setCustomHebrewTitle(`אוצר מילים: ${bank.name}`);
   };
 
   const handleToggleVocabWord = (word: AssignedVocabWord) => {
@@ -708,55 +767,146 @@ export function AssignTaskModal({
                 </Badge>
               </div>
 
-              {/* Quick Presets */}
-              <div className="space-y-1.5">
-                <span className="text-2xs font-bold text-muted-foreground block">
-                  ערכות מילים מוכנות מראש (1-Click Presets):
-                </span>
-                <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => applyVocabPreset("grade7")}
-                    className="p-1.5 rounded-lg border border-border bg-background hover:bg-muted text-center cursor-pointer text-2xs font-medium transition-colors"
-                  >
-                    כיתה ז׳ (10)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => applyVocabPreset("grade8")}
-                    className="p-1.5 rounded-lg border border-border bg-background hover:bg-muted text-center cursor-pointer text-2xs font-medium transition-colors"
-                  >
-                    כיתה ח׳ (8)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => applyVocabPreset("grade9")}
-                    className="p-1.5 rounded-lg border border-border bg-background hover:bg-muted text-center cursor-pointer text-2xs font-medium transition-colors"
-                  >
-                    כיתה ט׳ (7)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => applyVocabPreset("band1")}
-                    className="p-1.5 rounded-lg border border-border bg-background hover:bg-muted text-center cursor-pointer text-2xs font-medium transition-colors"
-                  >
-                    Band I (5)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => applyVocabPreset("band2")}
-                    className="p-1.5 rounded-lg border border-border bg-background hover:bg-muted text-center cursor-pointer text-2xs font-medium transition-colors"
-                  >
-                    Band II (6)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => applyVocabPreset("band3")}
-                    className="p-1.5 rounded-lg border border-border bg-background hover:bg-muted text-center cursor-pointer text-2xs font-medium transition-colors"
-                  >
-                    Band III (6)
-                  </button>
+              {/* Bank Source Switch: Custom Banks vs Ministry Presets */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between border-b border-border/60 pb-1.5">
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setVocabSourceMode("custom")}
+                      className={`px-2.5 py-1 rounded-lg text-2xs font-bold cursor-pointer transition-colors ${
+                        vocabSourceMode === "custom"
+                          ? "bg-primary text-primary-foreground shadow-2xs"
+                          : "text-muted-foreground hover:bg-muted"
+                      }`}
+                    >
+                      מאגרי המילים שלי ({effectiveCustomBanks.length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setVocabSourceMode("ministry")}
+                      className={`px-2.5 py-1 rounded-lg text-2xs font-bold cursor-pointer transition-colors ${
+                        vocabSourceMode === "ministry"
+                          ? "bg-primary text-primary-foreground shadow-2xs"
+                          : "text-muted-foreground hover:bg-muted"
+                      }`}
+                    >
+                      ערכות משרד החינוך (Bands I-III)
+                    </button>
+                  </div>
                 </div>
+
+                {vocabSourceMode === "custom" ? (
+                  <div className="space-y-2 bg-card/60 p-2.5 rounded-xl border border-border/60">
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-3xs">
+                      <span className="font-bold text-muted-foreground">
+                        בחר מאגר מילים מותאם אישית:
+                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <select
+                          value={selectedBankGradeFilter}
+                          onChange={(e) => setSelectedBankGradeFilter(e.target.value)}
+                          className="h-6 px-1.5 rounded border border-border bg-background text-3xs cursor-pointer font-medium"
+                        >
+                          <option value="all">כל השכבות</option>
+                          <option value="ז">כיתה ז׳</option>
+                          <option value="ח">כיתה ח׳</option>
+                          <option value="ט">כיתה ט׳</option>
+                          <option value="י">כיתה י׳</option>
+                          <option value="יא">כיתה י״א</option>
+                          <option value="יב">כיתה י״ב</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {filteredCustomBanks.length === 0 ? (
+                      <div className="p-3 text-center text-3xs text-muted-foreground border border-dashed border-border rounded-lg">
+                        {effectiveCustomBanks.length === 0 ? (
+                          <span>עדיין לא יצרת מאגרי מילים. תוכל ליצור מאגר בלשונית &quot;מאגרי מילים שלי&quot; בלוח הבקרה.</span>
+                        ) : (
+                          <span>אין מאגרים התואמים לשכבה שנבחרה.</span>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-36 overflow-y-auto">
+                        {filteredCustomBanks.map((b) => (
+                          <button
+                            key={b.id}
+                            type="button"
+                            onClick={() => applyCustomBank(b)}
+                            className="p-2 rounded-lg border border-border bg-background hover:border-primary/50 text-right cursor-pointer transition-all flex items-center justify-between gap-1.5 group"
+                          >
+                            <div className="min-w-0">
+                              <span className="font-bold text-2xs block truncate text-foreground group-hover:text-primary">
+                                {b.name}
+                              </span>
+                              <span className="text-3xs text-muted-foreground block truncate">
+                                {GRADE_LABELS[b.grade] || b.grade} •{" "}
+                                {b.levelType === "custom"
+                                  ? b.customLevelName
+                                  : STANDARD_LEVEL_LABELS[b.standardLevel || ""] || b.standardLevel}
+                              </span>
+                            </div>
+                            <Badge variant="outline" className="text-3xs shrink-0 font-bold">
+                              {b.words.length} מילים
+                            </Badge>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  /* Ministry Presets */
+                  <div className="space-y-1.5">
+                    <span className="text-2xs font-bold text-muted-foreground block">
+                      ערכות מילים מוכנות מראש (1-Click Presets):
+                    </span>
+                    <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => applyVocabPreset("grade7")}
+                        className="p-1.5 rounded-lg border border-border bg-background hover:bg-muted text-center cursor-pointer text-2xs font-medium transition-colors"
+                      >
+                        כיתה ז׳ (10)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => applyVocabPreset("grade8")}
+                        className="p-1.5 rounded-lg border border-border bg-background hover:bg-muted text-center cursor-pointer text-2xs font-medium transition-colors"
+                      >
+                        כיתה ח׳ (8)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => applyVocabPreset("grade9")}
+                        className="p-1.5 rounded-lg border border-border bg-background hover:bg-muted text-center cursor-pointer text-2xs font-medium transition-colors"
+                      >
+                        כיתה ט׳ (7)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => applyVocabPreset("band1")}
+                        className="p-1.5 rounded-lg border border-border bg-background hover:bg-muted text-center cursor-pointer text-2xs font-medium transition-colors"
+                      >
+                        Band I (5)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => applyVocabPreset("band2")}
+                        className="p-1.5 rounded-lg border border-border bg-background hover:bg-muted text-center cursor-pointer text-2xs font-medium transition-colors"
+                      >
+                        Band II (6)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => applyVocabPreset("band3")}
+                        className="p-1.5 rounded-lg border border-border bg-background hover:bg-muted text-center cursor-pointer text-2xs font-medium transition-colors"
+                      >
+                        Band III (6)
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Selected Words Chips Tray */}

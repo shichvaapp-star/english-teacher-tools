@@ -51,13 +51,15 @@ function scoreVoice(v: SpeechSynthesisVoice): number {
   const name = v.name.toLowerCase();
   const uri = v.voiceURI.toLowerCase();
 
+  // Exclude Siri voices entirely: Web Speech API on macOS / iOS blocks web access to them, causing silent failure
+  if (name.includes("siri") || uri.includes("siri")) return -999;
+
   // Prefer local offline voices for rock-solid stability without network hiccups
   if (v.localService) score += 25;
 
   if (name.includes("natural") || uri.includes("natural")) score += 40;
   if (name.includes("enhanced") || uri.includes("enhanced")) score += 35;
   if (name.includes("premium") || uri.includes("premium")) score += 30;
-  if (name.includes("siri") || uri.includes("siri")) score += 30;
   if (name.includes("google") || uri.includes("google")) score += 20;
   if (name.includes("online") || uri.includes("online")) score += 10;
 
@@ -152,6 +154,9 @@ export function useSpeechPlayer(paragraphs: string[]) {
 
       const englishVoices = allVoices.filter((v) => {
         const l = v.lang.toLowerCase();
+        const n = v.name.toLowerCase();
+        const u = v.voiceURI.toLowerCase();
+        if (n.includes("siri") || u.includes("siri")) return false;
         return l.startsWith("en-") || l.startsWith("en_") || l === "en";
       });
 
@@ -288,6 +293,9 @@ export function useSpeechPlayer(paragraphs: string[]) {
         if (window.speechSynthesis.speaking || window.speechSynthesis.pending) {
           window.speechSynthesis.cancel();
         }
+        if (window.speechSynthesis.paused) {
+          window.speechSynthesis.resume();
+        }
       } catch {}
 
       const sentenceObj = sentences[index];
@@ -299,86 +307,84 @@ export function useSpeechPlayer(paragraphs: string[]) {
       setIsPaused(false);
       sentenceStartTimeRef.current = Date.now();
 
-      // Small 25ms delay to allow browser speech engine queue to flush cleanly after cancel
-      playTimeoutRef.current = setTimeout(() => {
-        try {
-          ensureSpeechSynthesisUnpaused();
+      // Execute speak immediately and synchronously to preserve user activation gesture
+      try {
+        ensureSpeechSynthesisUnpaused();
 
-          const utterance = new SpeechSynthesisUtterance(sentenceObj.text);
-          activeUtteranceRef.current = utterance;
-          retainUtterance(utterance);
+        const utterance = new SpeechSynthesisUtterance(sentenceObj.text);
+        activeUtteranceRef.current = utterance;
+        retainUtterance(utterance);
 
-          utterance.lang = "en-US";
-          utterance.rate = rateRef.current;
-          utterance.pitch = 1.0;
+        utterance.lang = "en-US";
+        utterance.rate = rateRef.current;
+        utterance.pitch = 1.0;
 
-          if (!fallbackWithoutVoice && selectedVoiceRef.current) {
-            utterance.voice = selectedVoiceRef.current;
-          }
-
-          utterance.onstart = () => {
-            ensureSpeechSynthesisUnpaused();
-          };
-
-          utterance.onend = () => {
-            releaseUtterance(utterance);
-            if (!isPlayingRef.current || isPausedRef.current) return;
-
-            const nextIndex = currentSentenceRef.current + 1;
-            if (nextIndex < sentences.length) {
-              // Add a natural 180ms breath pause between sentences for realistic human cadence
-              interSentenceTimeoutRef.current = setTimeout(() => {
-                playSentence(nextIndex);
-              }, 180);
-            } else {
-              // Finished entire passage
-              setIsPlaying(false);
-              setIsPaused(false);
-              setCurrentSentenceIndex(0);
-            }
-          };
-
-          utterance.onerror = (e) => {
-            releaseUtterance(utterance);
-            // "interrupted" or "canceled" errors happen naturally when user skips, pauses, or changes stories
-            if (e.error === "interrupted" || e.error === "canceled") {
-              return;
-            }
-
-            console.warn("[SpeechPlayer] Error on utterance:", e.error);
-
-            // If voice synthesis failed with a custom voice (e.g. network timeout on Google voice),
-            // immediately retry this sentence with the browser's default system voice!
-            if (!fallbackWithoutVoice && utterance.voice) {
-              console.info("[SpeechPlayer] Retrying sentence with default system voice fallback...");
-              playSentence(index, true);
-              return;
-            }
-
-            // If it still errored, advance to next sentence smoothly or pause
-            const nextIndex = currentSentenceRef.current + 1;
-            if (nextIndex < sentences.length && isPlayingRef.current) {
-              interSentenceTimeoutRef.current = setTimeout(() => {
-                playSentence(nextIndex);
-              }, 200);
-            } else {
-              setIsPlaying(false);
-              setIsPaused(false);
-            }
-          };
-
-          ensureSpeechSynthesisUnpaused();
-          window.speechSynthesis.speak(utterance);
-
-          // Extra safety check: if browser paused immediately after speak, unpause it
-          if (window.speechSynthesis.paused) {
-            window.speechSynthesis.resume();
-          }
-        } catch (err) {
-          console.error("[SpeechPlayer] Exception during speak:", err);
-          setIsPlaying(false);
+        if (!fallbackWithoutVoice && selectedVoiceRef.current) {
+          utterance.voice = selectedVoiceRef.current;
         }
-      }, 25);
+
+        utterance.onstart = () => {
+          ensureSpeechSynthesisUnpaused();
+        };
+
+        utterance.onend = () => {
+          releaseUtterance(utterance);
+          if (!isPlayingRef.current || isPausedRef.current) return;
+
+          const nextIndex = currentSentenceRef.current + 1;
+          if (nextIndex < sentences.length) {
+            // Add a natural 180ms breath pause between sentences for realistic human cadence
+            interSentenceTimeoutRef.current = setTimeout(() => {
+              playSentence(nextIndex);
+            }, 180);
+          } else {
+            // Finished entire passage
+            setIsPlaying(false);
+            setIsPaused(false);
+            setCurrentSentenceIndex(0);
+          }
+        };
+
+        utterance.onerror = (e) => {
+          releaseUtterance(utterance);
+          // "interrupted" or "canceled" errors happen naturally when user skips, pauses, or changes stories
+          if (e.error === "interrupted" || e.error === "canceled") {
+            return;
+          }
+
+          console.warn("[SpeechPlayer] Error on utterance:", e.error);
+
+          // If voice synthesis failed with a custom voice (e.g. network timeout on Google voice),
+          // immediately retry this sentence with the browser's default system voice!
+          if (!fallbackWithoutVoice && utterance.voice) {
+            console.info("[SpeechPlayer] Retrying sentence with default system voice fallback...");
+            playSentence(index, true);
+            return;
+          }
+
+          // If it still errored, advance to next sentence smoothly or pause
+          const nextIndex = currentSentenceRef.current + 1;
+          if (nextIndex < sentences.length && isPlayingRef.current) {
+            interSentenceTimeoutRef.current = setTimeout(() => {
+              playSentence(nextIndex);
+            }, 200);
+          } else {
+            setIsPlaying(false);
+            setIsPaused(false);
+          }
+        };
+
+        ensureSpeechSynthesisUnpaused();
+        window.speechSynthesis.speak(utterance);
+
+        // Extra safety check: if browser paused immediately after speak, unpause it
+        if (window.speechSynthesis.paused) {
+          window.speechSynthesis.resume();
+        }
+      } catch (err) {
+        console.error("[SpeechPlayer] Exception during speak:", err);
+        setIsPlaying(false);
+      }
     },
     [sentences]
   );

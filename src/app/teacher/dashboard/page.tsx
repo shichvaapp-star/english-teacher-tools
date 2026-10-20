@@ -52,20 +52,29 @@ import {
   Layers,
   Plus,
   MessageSquarePlus,
+  BookA,
 } from "lucide-react";
 
 import { SubmissionItem } from "@/types/submission";
 import { StudentProfile, StudentGroup } from "@/types/auth";
 import { TeacherAssignment } from "@/types/assignment";
 import { SiteSuggestion } from "@/types/suggestion";
+import { TeacherVocabBank } from "@/types/vocab-bank";
 import { ALL_WRITING_TASKS } from "@/data/writing-tasks";
 import type { WritingEvaluationResult } from "@/app/api/evaluate-writing/route";
+import {
+  loadTeacherVocabBanks,
+  saveTeacherVocabBank,
+  deleteTeacherVocabBank,
+} from "@/lib/vocab-bank-storage";
 
 import { TurnInsTable, parseSubmissionTimestamp } from "./turn-ins-table";
 import { ReviewDialog } from "./review-dialog";
 import { AssignTaskModal } from "./assign-task-modal";
 import { AssignedTasksView } from "./assigned-tasks-view";
 import { AdminSuggestionsView } from "./admin-suggestions-view";
+import { CustomVocabBanksView } from "./custom-vocab-banks-view";
+import { VocabBankModal } from "./vocab-bank-modal";
 
 const LOCAL_SUBMISSIONS_KEY = "ett_writing_submissions";
 const LOCAL_ASSIGNMENTS_KEY = "ett_teacher_assignments";
@@ -81,7 +90,13 @@ export default function TeacherDashboardPage() {
   } = useAuth();
 
   // Active navigation view tab
-  const [activeTab, setActiveTab] = useState<"submissions" | "assignments" | "students" | "suggestions">("submissions");
+  const [activeTab, setActiveTab] = useState<"submissions" | "assignments" | "students" | "banks" | "suggestions">("submissions");
+
+  // Custom Vocabulary Banks State
+  const [vocabBanks, setVocabBanks] = useState<TeacherVocabBank[]>([]);
+  const [vocabBankModalOpen, setVocabBankModalOpen] = useState(false);
+  const [editingBank, setEditingBank] = useState<TeacherVocabBank | null>(null);
+  const [preselectedBankForAssign, setPreselectedBankForAssign] = useState<TeacherVocabBank | null>(null);
 
   // Site Suggestions State (Admin)
   const [suggestions, setSuggestions] = useState<SiteSuggestion[]>([]);
@@ -339,6 +354,41 @@ export default function TeacherDashboardPage() {
     }
   };
 
+  // Fetch Custom Vocab Banks
+  const fetchVocabBanks = async () => {
+    if (!user) return;
+    const list = await loadTeacherVocabBanks(user.id);
+    setVocabBanks(list);
+  };
+
+  const handleSaveVocabBank = async (bank: TeacherVocabBank) => {
+    if (!user) return;
+    const saved = await saveTeacherVocabBank(bank, user.id);
+    setVocabBanks((prev) => {
+      const idx = prev.findIndex((b) => b.id === saved.id);
+      if (idx !== -1) {
+        const copy = [...prev];
+        copy[idx] = saved;
+        return copy;
+      }
+      return [saved, ...prev];
+    });
+    setEditingBank(null);
+  };
+
+  const handleDeleteVocabBank = async (bankId: string, bankName: string) => {
+    if (!user) return;
+    if (confirm(`האם למחוק את מאגר המילים "${bankName}"?`)) {
+      await deleteTeacherVocabBank(bankId, user.id);
+      setVocabBanks((prev) => prev.filter((b) => b.id !== bankId));
+    }
+  };
+
+  const handleAssignFromBank = (bank: TeacherVocabBank) => {
+    setPreselectedBankForAssign(bank);
+    setAssignModalOpen(true);
+  };
+
   // Initial load
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -354,6 +404,7 @@ export default function TeacherDashboardPage() {
       fetchStudents();
       fetchAssignments();
       fetchSuggestions();
+      fetchVocabBanks();
     }
   }, [user]);
 
@@ -439,7 +490,7 @@ export default function TeacherDashboardPage() {
 
   // Refresh all
   const handleRefreshAll = async () => {
-    await Promise.all([fetchSubmissions(), fetchStudents(), fetchAssignments()]);
+    await Promise.all([fetchSubmissions(), fetchStudents(), fetchAssignments(), fetchVocabBanks()]);
   };
 
 
@@ -1193,6 +1244,24 @@ export default function TeacherDashboardPage() {
 
             <button
               type="button"
+              onClick={() => setActiveTab("banks")}
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer shrink-0 ${
+                activeTab === "banks"
+                  ? "bg-primary text-primary-foreground shadow-xs"
+                  : "bg-muted/40 text-muted-foreground hover:text-foreground hover:bg-muted"
+              }`}
+            >
+              <BookA className="h-4 w-4" />
+              <span>מאגרי מילים שלי</span>
+              <span className={`px-2 py-0.2 rounded-full text-[11px] font-bold ${
+                activeTab === "banks" ? "bg-primary-foreground/20 text-primary-foreground" : "bg-muted text-muted-foreground"
+              }`}>
+                {vocabBanks.length}
+              </span>
+            </button>
+
+            <button
+              type="button"
               onClick={() => setActiveTab("suggestions")}
               className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer shrink-0 ${
                 activeTab === "suggestions"
@@ -1214,6 +1283,22 @@ export default function TeacherDashboardPage() {
               )}
             </button>
           </div>
+
+          {activeTab === "banks" && (
+            <div className="flex items-center gap-2 shrink-0">
+              <Button
+                size="sm"
+                onClick={() => {
+                  setEditingBank(null);
+                  setVocabBankModalOpen(true);
+                }}
+                className="h-8 text-xs font-bold gap-1.5 cursor-pointer bg-primary text-primary-foreground hover:bg-primary/90"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                <span>+ ייבוא מאגר מקובץ / יצירה</span>
+              </Button>
+            </div>
+          )}
 
           {activeTab === "students" && (
             <div className="flex items-center gap-2 shrink-0">
@@ -1571,7 +1656,28 @@ export default function TeacherDashboardPage() {
         )}
 
         {/* -------------------------------------------------------------------
-            TAB 4: SITE SUGGESTIONS & EDITS (ADMIN VIEW)
+            TAB 4: CUSTOM VOCABULARY BANKS VIEW
+            ------------------------------------------------------------------- */}
+        {activeTab === "banks" && (
+          <div className="print:hidden">
+            <CustomVocabBanksView
+              banks={vocabBanks}
+              onOpenCreateModal={() => {
+                setEditingBank(null);
+                setVocabBankModalOpen(true);
+              }}
+              onEditBank={(bank) => {
+                setEditingBank(bank);
+                setVocabBankModalOpen(true);
+              }}
+              onDeleteBank={handleDeleteVocabBank}
+              onAssignFromBank={handleAssignFromBank}
+            />
+          </div>
+        )}
+
+        {/* -------------------------------------------------------------------
+            TAB 5: SITE SUGGESTIONS & EDITS (ADMIN VIEW)
             ------------------------------------------------------------------- */}
         {activeTab === "suggestions" && (
           <div className="print:hidden">
@@ -1861,7 +1967,10 @@ export default function TeacherDashboardPage() {
         open={assignModalOpen}
         onOpenChange={(open) => {
           setAssignModalOpen(open);
-          if (!open) setAssignPreselectedStudentId(null);
+          if (!open) {
+            setAssignPreselectedStudentId(null);
+            setPreselectedBankForAssign(null);
+          }
         }}
         teacherId={user.id}
         teacherName={user.name}
@@ -1869,7 +1978,25 @@ export default function TeacherDashboardPage() {
         availableClasses={availableClasses}
         onTaskAssigned={handleTaskAssigned}
         preselectedStudentId={assignPreselectedStudentId}
+        customBanks={vocabBanks}
+        preselectedVocabBank={preselectedBankForAssign}
       />
+
+      {/* -------------------------------------------------------------------
+          MODAL: CREATE / IMPORT VOCABULARY BANK
+          ------------------------------------------------------------------- */}
+      {vocabBankModalOpen && (
+        <VocabBankModal
+          open={vocabBankModalOpen}
+          onOpenChange={(open) => {
+            setVocabBankModalOpen(open);
+            if (!open) setEditingBank(null);
+          }}
+          teacherId={user.id}
+          bankToEdit={editingBank}
+          onSave={handleSaveVocabBank}
+        />
+      )}
 
       {/* -------------------------------------------------------------------
           PRINTABLE CLASS ROSTER VIEW (window.print())
