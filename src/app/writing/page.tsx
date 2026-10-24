@@ -28,6 +28,8 @@ import { TutorVocabReviewItem } from "@/types/tutor";
 import { TeacherAssignment } from "@/types/assignment";
 import type { WritingEvaluationResult } from "@/app/api/evaluate-writing/route";
 import type { ScaffoldingResult } from "@/app/api/scaffold-writing/route";
+import { saveDraft, deleteDraft, findDraft, getDraftById } from "@/lib/drafts-storage";
+import type { InProgressWorkItem } from "@/types/draft";
 import {
   PenTool,
   ArrowLeft,
@@ -48,6 +50,9 @@ import {
   X,
   Compass,
   BookOpen,
+  Save,
+  RotateCcw,
+  Clock,
   BookMarked,
   Volume2,
   Target,
@@ -83,7 +88,9 @@ interface SubmissionRecord {
   grade?: number;
   submittedAt: string;
   receiptCode: string;
-  status: "submitted" | "reviewed";
+  status: "submitted" | "reviewed" | "completed";
+  mode?: "practice" | "graded";
+  writingRubric?: any;
 }
 
 const LOCAL_SUBMISSIONS_KEY = "ett_writing_submissions";
@@ -266,6 +273,129 @@ export default function WritingPracticePage() {
     if (user?.role === "teacher" && user.name) return `מורה: ${user.name}`;
     return "";
   });
+
+  // Draft Auto-Save & Resumption State
+  const [draftStatus, setDraftStatus] = useState<"idle" | "saving" | "saved">("idle");
+  const [lastSavedTimeText, setLastSavedTimeText] = useState<string | null>(null);
+  const [activeDraftPrompt, setActiveDraftPrompt] = useState<InProgressWorkItem | null>(null);
+
+  // Check for saved draft for the current task
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const draftIdParam = params.get("draftId");
+    let matched: InProgressWorkItem | null = null;
+
+    if (draftIdParam) {
+      matched = getDraftById(draftIdParam);
+    } else {
+      const targetDraftId = currentAssignmentId
+        ? `draft_writing_assign_${currentAssignmentId}`
+        : `draft_writing_${currentTask.id}`;
+      matched = getDraftById(targetDraftId);
+    }
+
+    if (matched && matched.type === "writing") {
+      const payload = matched.payload as any;
+      if (payload && payload.essayText && (!essayText || essayText.trim() === "")) {
+        setActiveDraftPrompt(matched);
+      }
+    }
+  }, [currentTask.id, currentAssignmentId]);
+
+  // Restore draft handler
+  const handleRestoreDraft = (draft: InProgressWorkItem) => {
+    const payload = draft.payload as any;
+    if (payload?.essayText) {
+      setEssayText(payload.essayText);
+      if (payload.customTopic?.prompt) {
+        setCustomTopicInput(payload.customTopic.prompt);
+      }
+      setStage("writing");
+      setActiveDraftPrompt(null);
+    }
+  };
+
+  // Discard draft handler
+  const handleDiscardDraft = (draft: InProgressWorkItem) => {
+    deleteDraft(draft.id, user?.id);
+    setActiveDraftPrompt(null);
+  };
+
+  // Debounced auto-save hook
+  useEffect(() => {
+    if (stage !== "writing" || !essayText.trim() || essayText.trim().length < 5) {
+      return;
+    }
+    setDraftStatus("saving");
+    const timer = setTimeout(async () => {
+      const draftId = currentAssignmentId
+        ? `draft_writing_assign_${currentAssignmentId}`
+        : `draft_writing_${currentTask.id}`;
+      const words = essayText.trim().split(/\s+/).filter(Boolean).length;
+      const targetMin = currentTask.minWords || 30;
+      const progressPercent = Math.min(100, Math.round((words / targetMin) * 100));
+
+      await saveDraft({
+        id: draftId,
+        type: "writing",
+        studentId: user?.id || "guest",
+        studentName: user?.name,
+        title: currentTask.title,
+        hebrewTitle: currentTask.hebrewTitle,
+        progressPercent,
+        summaryText: `${words} מילים נכתבו (יעד: ${targetMin})`,
+        resumeUrl: `/writing?task=${currentTask.id}&draftId=${draftId}${
+          currentAssignmentId ? `&assignmentId=${currentAssignmentId}` : ""
+        }`,
+        assignmentId: currentAssignmentId || undefined,
+        payload: {
+          taskId: currentTask.id,
+          writingLevel: selectedLevel,
+          essayText,
+          customTopic: customTopicInput ? { prompt: customTopicInput } : undefined,
+        },
+      });
+      setDraftStatus("saved");
+      setLastSavedTimeText(new Date().toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" }));
+    }, 1200);
+
+    return () => clearTimeout(timer);
+  }, [essayText, stage, currentTask.id, selectedLevel, currentAssignmentId, user?.id, user?.name, customTopicInput]);
+
+  // Save and exit back to student portal
+  const handleSaveAndExit = async () => {
+    if (essayText.trim().length >= 3) {
+      const draftId = currentAssignmentId
+        ? `draft_writing_assign_${currentAssignmentId}`
+        : `draft_writing_${currentTask.id}`;
+      const words = essayText.trim().split(/\s+/).filter(Boolean).length;
+      const targetMin = currentTask.minWords || 30;
+      const progressPercent = Math.min(100, Math.round((words / targetMin) * 100));
+
+      await saveDraft({
+        id: draftId,
+        type: "writing",
+        studentId: user?.id || "guest",
+        studentName: user?.name,
+        title: currentTask.title,
+        hebrewTitle: currentTask.hebrewTitle,
+        progressPercent,
+        summaryText: `${words} מילים נכתבו (יעד: ${targetMin})`,
+        resumeUrl: `/writing?task=${currentTask.id}&draftId=${draftId}${
+          currentAssignmentId ? `&assignmentId=${currentAssignmentId}` : ""
+        }`,
+        assignmentId: currentAssignmentId || undefined,
+        payload: {
+          taskId: currentTask.id,
+          writingLevel: selectedLevel,
+          essayText,
+          customTopic: customTopicInput ? { prompt: customTopicInput } : undefined,
+        },
+      });
+    }
+    window.location.href = "/student";
+  };
   const [selectedTeacherId, setSelectedTeacherId] = useState(() => {
     return user?.teacherId || "";
   });
@@ -589,6 +719,49 @@ export default function WritingPracticePage() {
           setShowPracticeConfetti(true);
           setTimeout(() => setShowPracticeConfetti(false), 3500);
         }
+
+        // Save completed practice writing session in history
+        try {
+          const practiceRecord: SubmissionRecord = {
+            id: `sub-practice-${Date.now()}`,
+            type: "writing",
+            studentId: user?.id || `guest-${Date.now()}`,
+            studentName: user?.name || "תלמיד/ה",
+            teacherId: teachers[0]?.id || "",
+            teacherName: teachers[0]?.name || "מורה לאנגלית",
+            studentClass: user?.fullClass || user?.classGrade || "חטיבת ביניים",
+            studentGroup: user?.group || undefined,
+            assignmentId: currentAssignmentId || undefined,
+            taskId: currentTask.id,
+            taskTitle: currentTask.title,
+            hebrewTitle: currentTask.hebrewTitle,
+            category: currentTask.category,
+            level: currentTask.level,
+            essayText: essayText.trim(),
+            wordCount: wordCount,
+            score: data.evaluation.score,
+            grade: data.evaluation.score,
+            submittedAt: new Date().toLocaleString("he-IL"),
+            receiptCode: `PRACTICE-WR-${Math.floor(100000 + Math.random() * 900000)}`,
+            status: "completed",
+            mode: "practice",
+            writingRubric: data.evaluation,
+          };
+          const existingJson = localStorage.getItem(LOCAL_SUBMISSIONS_KEY);
+          const list: SubmissionRecord[] = existingJson ? JSON.parse(existingJson) : [];
+          list.unshift(practiceRecord);
+          localStorage.setItem(LOCAL_SUBMISSIONS_KEY, JSON.stringify(list));
+
+          if (db) {
+            const payload = cleanForFirestore({
+              ...practiceRecord,
+              timestamp: new Date().toISOString(),
+            });
+            setDoc(doc(db, "submissions", practiceRecord.id), payload, { merge: true }).catch(() => {});
+          }
+        } catch (e) {
+          console.warn("Failed to save completed practice writing session:", e);
+        }
       } else {
         alert(data.error || "אירעה שגיאה בבדיקת החיבור. אנא נסו שוב.");
       }
@@ -604,7 +777,7 @@ export default function WritingPracticePage() {
   const handleTurnInToDavid = async (existingEval?: WritingEvaluationResult) => {
     const trimmed = essayText.trim();
     if (!trimmed || trimmed.split(/\s+/).filter(Boolean).length < 3) {
-      alert("אנא כתבו לפחות משפט או שניים באנגלית לפני ההגשה לדוד.");
+      alert("אנא כתבו לפחות משפט או שניים באנגלית לפני ההגשה.");
       return;
     }
 
@@ -691,7 +864,7 @@ export default function WritingPracticePage() {
           teacherName: activeAssignment?.teacherName || (teacherObj ? teacherObj.name : teachers[0]?.name || "מורה לאנגלית"),
           studentClass: studentClass || user?.fullClass || "חטיבת ביניים",
           studentGroup: user?.group || undefined,
-          studentNote: "הוגש בליווי המורה הפרטי דוד 🎓",
+          studentNote: "הוגש באופן עצמאי 🎓",
           assignmentId: currentAssignmentId,
           taskId: currentTask.id,
           taskTitle: currentTask.title,
@@ -875,6 +1048,12 @@ export default function WritingPracticePage() {
         console.warn("Tutor task completion tracking notice:", e);
       }
 
+      // Clean up in-progress draft
+      const draftId = currentAssignmentId
+        ? `draft_writing_assign_${currentAssignmentId}`
+        : `draft_writing_${currentTask.id}`;
+      deleteDraft(draftId, user?.id);
+
       setSubmissionSuccess(newSubmission);
     } catch (err) {
       console.error("Submission error:", err);
@@ -979,6 +1158,33 @@ export default function WritingPracticePage() {
           </div>
 
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            {stage === "writing" && (
+              <>
+                {draftStatus === "saving" ? (
+                  <span className="text-[10px] text-muted-foreground flex items-center gap-1 font-hebrew">
+                    <Clock className="h-3 w-3 animate-spin text-amber-500" />
+                    <span className="hidden sm:inline">שומר טיוטה...</span>
+                  </span>
+                ) : draftStatus === "saved" ? (
+                  <span className="text-[10px] text-emerald-600 dark:text-emerald-400 flex items-center gap-1 font-hebrew">
+                    <Check className="h-3 w-3" />
+                    <span className="hidden sm:inline">נשמר {lastSavedTimeText || ""}</span>
+                  </span>
+                ) : null}
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSaveAndExit}
+                  className="h-8 text-xs font-bold gap-1 cursor-pointer border-border/80 font-hebrew"
+                  title="שמור טיוטה וחזור לאזור התלמיד"
+                >
+                  <Save className="h-3.5 w-3.5 text-primary" />
+                  <span className="hidden sm:inline">שמור וצא</span>
+                </Button>
+              </>
+            )}
+
             {stage === "settings" && (
               <HeaderTooltip label="התחלת כתיבה">
                 <Button
@@ -1047,6 +1253,39 @@ export default function WritingPracticePage() {
           </div>
         </div>
       </header>
+
+      {/* Active In-Progress Draft Banner */}
+      {activeDraftPrompt && (
+        <div className="bg-primary/10 border-b border-primary/25 px-4 py-3 print:hidden" dir="rtl">
+          <div className="container mx-auto max-w-4xl flex flex-wrap items-center justify-between gap-3 text-xs">
+            <div className="flex items-center gap-2">
+              <Clock className="h-4 w-4 text-primary shrink-0" />
+              <span className="font-bold text-foreground">
+                נמצאה טיוטת כתיבה שנשמרה לאחרונה ({activeDraftPrompt.summaryText}):
+              </span>
+              <span className="text-muted-foreground font-medium">{activeDraftPrompt.hebrewTitle || activeDraftPrompt.title}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                onClick={() => handleRestoreDraft(activeDraftPrompt)}
+                className="h-7 text-xs font-bold bg-primary text-primary-foreground hover:bg-primary/90 cursor-pointer gap-1"
+              >
+                <RotateCcw className="h-3 w-3" />
+                <span>המשך מהטיוטה</span>
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => handleDiscardDraft(activeDraftPrompt)}
+                className="h-7 text-xs text-muted-foreground hover:text-destructive cursor-pointer"
+              >
+                מחק טיוטה
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* =========================================================================
           STAGE 1: SETTINGS / SETUP VIEW
@@ -1495,28 +1734,6 @@ export default function WritingPracticePage() {
             </div>
           )}
 
-          {/* Active Private Lesson with David Banner */}
-          {isFromDavid && (
-            <div className="p-3.5 rounded-2xl bg-sky-500/10 border-2 border-sky-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs sm:text-sm" dir="rtl">
-              <div className="flex items-center gap-2.5">
-                <div className="flex h-8 w-8 rounded-xl bg-sky-600 text-white items-center justify-center shrink-0 shadow-xs">
-                  <GraduationCap className="h-4 w-4" />
-                </div>
-                <div>
-                  <span className="font-bold text-foreground block">משימה בשיעור פרטי עם דוד המורה האישי 🎓</span>
-                  <span className="text-xs text-muted-foreground">
-                    כתבו את החיבור שלכם ובסיום לחצו על <strong>&ldquo;הגש משימה לדוד&rdquo;</strong> כדי לקבל משוב, לתרגל אוצר מילים ולהמשיך בשיעור!
-                  </span>
-                </div>
-              </div>
-              <Link href="/tutor" className="shrink-0">
-                <Button variant="outline" size="sm" className="h-8 text-xs font-bold gap-1.5 border-sky-500/40 cursor-pointer">
-                  <span>חזרה לדוד</span>
-                  <ArrowLeft className="h-3.5 w-3.5" />
-                </Button>
-              </Link>
-            </div>
-          )}
 
           {/* Clean Task Card */}
           <Card className="border border-border/80 shadow-xs">
@@ -2194,21 +2411,6 @@ export default function WritingPracticePage() {
                 </Button>
 
                 <Button
-                  onClick={() => handleTurnInToDavid(feedback || undefined)}
-                  disabled={isEvaluating || isTurningInToDavid}
-                  className="flex-1 h-11 text-xs sm:text-sm font-bold cursor-pointer gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs"
-                >
-                  <GraduationCap className="h-4 w-4" />
-                  <span>
-                    {isTurningInToDavid
-                      ? "מגיש לדוד ומכין משוב..."
-                      : feedback
-                      ? "הגש משימה לדוד והמשך בשיעור 🎓"
-                      : "בדוק והגש משימה לדוד 🎓"}
-                  </span>
-                </Button>
-
-                <Button
                   onClick={() => setActiveMode("submit")}
                   variant="outline"
                   className="flex-1 h-11 text-xs sm:text-sm font-bold cursor-pointer gap-2 border-purple-500/50 bg-purple-500/10 hover:bg-purple-500/20 text-purple-700 dark:text-purple-300 shadow-xs"
@@ -2366,31 +2568,21 @@ export default function WritingPracticePage() {
                   )}
 
                   {/* 5. Next Step Action Callout */}
-                  <div className="p-4 rounded-xl bg-emerald-500/10 border-2 border-emerald-500/35 flex flex-col sm:flex-row items-center justify-between gap-3 text-right">
+                  <div className="p-4 rounded-xl bg-purple-500/10 border-2 border-purple-500/35 flex flex-col sm:flex-row items-center justify-between gap-3 text-right">
                     <div className="space-y-0.5">
                       <h5 className="text-xs sm:text-sm font-bold text-foreground flex items-center gap-1.5">
-                        <img src="/images/logos/david-logo.png" alt="David" className="h-4 w-4 rounded-full object-cover object-top shrink-0" />
-                        <span>סיימת את החיבור? הגש/י אותו לדוד להמשך השיעור הפרטי!</span>
+                        <Send className="h-4 w-4 text-purple-600 dark:text-purple-400 shrink-0" />
+                        <span>סיימת את החיבור? הגש/י אותו למורה בכיתה לקבלת ציון!</span>
                       </h5>
                       <p className="text-[11px] sm:text-xs text-muted-foreground">
-                        דוד יעבור איתך על החיבור, יתרגל איתך 5–8 מילים חשובות מהמשימה (וישמור במילון האישי מילים חדשות), ויוביל אותך לתרגול הבא.
+                        החיבור יישלח למורה לאנגלית לבדיקה, ותוכל/י לראות את המשוב והציון באזור האישי שלך.
                       </p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2 shrink-0 w-full sm:w-auto">
                       <Button
                         size="sm"
-                        disabled={isTurningInToDavid}
-                        onClick={() => handleTurnInToDavid(feedback)}
-                        className="flex-1 sm:flex-initial h-10 px-5 text-xs sm:text-sm font-bold bg-emerald-600 hover:bg-emerald-700 text-white shrink-0 cursor-pointer gap-1.5 shadow-xs"
-                      >
-                        <img src="/images/logos/david-logo.png" alt="David" className="h-4 w-4 rounded-full object-cover object-top shrink-0" />
-                        <span>{isTurningInToDavid ? "מגיש לדוד..." : "הגש משימה לדוד 🎓"}</span>
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
                         onClick={() => setActiveMode("submit")}
-                        className="flex-1 sm:flex-initial h-10 px-4 text-xs font-bold border-purple-500/40 text-purple-700 dark:text-purple-300 hover:bg-purple-500/10 shrink-0 cursor-pointer gap-1.5"
+                        className="flex-1 sm:flex-initial h-10 px-5 text-xs sm:text-sm font-bold bg-purple-600 hover:bg-purple-700 text-white shrink-0 cursor-pointer gap-1.5 shadow-xs"
                       >
                         <Send className="h-3.5 w-3.5" />
                         <span>הגש למורה בכיתה 📤</span>

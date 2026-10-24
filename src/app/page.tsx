@@ -20,13 +20,22 @@ import {
   ArrowLeft,
   LayoutDashboard,
   Bot,
+  Clock,
+  Play,
 } from "lucide-react";
 import { StudentAssignedTaskPrompt } from "@/components/student/student-assigned-task-prompt";
+import { getStoredDrafts } from "@/lib/drafts-storage";
+import type { InProgressWorkItem } from "@/types/draft";
 
 export default function Home() {
   const { user } = useAuth();
   const [studentSubmissions, setStudentSubmissions] = useState<SubmissionItem[]>([]);
   const [loadingSubmissions, setLoadingSubmissions] = useState(false);
+  const [activeDrafts, setActiveDrafts] = useState<InProgressWorkItem[]>([]);
+
+  useEffect(() => {
+    setActiveDrafts(getStoredDrafts(user?.id));
+  }, [user?.id]);
 
   useEffect(() => {
     if (!user || user.role !== "student") return;
@@ -173,16 +182,6 @@ export default function Home() {
               </HeaderTooltip>
             )}
 
-            <HeaderTooltip label="המורה הפרטי שלי (דוד)">
-              <Link
-                href="/tutor"
-                className="inline-flex items-center justify-center h-9 w-9 rounded-lg border border-indigo-500/30 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 transition shadow-2xs shrink-0 p-1 overflow-hidden"
-                aria-label="המורה הפרטי שלי (דוד)"
-              >
-                <img src="/images/logos/david-logo.png" alt="David" className="h-full w-full object-cover object-top rounded-md" />
-              </Link>
-            </HeaderTooltip>
-
             <ThemeToggle />
             <div className="h-4 w-[1px] bg-border hidden sm:block" />
             <UserNav />
@@ -223,6 +222,41 @@ export default function Home() {
                 ההתקדמות שלך נשמרת אוטומטית.
               </span>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Quick Resume Active Draft Banner */}
+      {activeDrafts.length > 0 && (
+        <div className="bg-primary/10 border-b border-primary/20 py-2.5 px-4" dir="rtl">
+          <div className="container mx-auto flex flex-wrap items-center justify-between gap-3 text-xs">
+            <div className="flex items-center gap-2">
+              <Clock className="h-4 w-4 text-primary shrink-0" />
+              <span className="font-bold text-foreground">
+                יש לך {activeDrafts.length === 1 ? "עבודה אחת שלא הסתיימה:" : `${activeDrafts.length} עבודות בתהליך:`}
+              </span>
+              <span className="text-muted-foreground font-medium">
+                {activeDrafts[0].hebrewTitle || activeDrafts[0].title} ({activeDrafts[0].summaryText})
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Link
+                href={activeDrafts[0].resumeUrl}
+                className="inline-flex items-center gap-1 px-3 py-1 bg-primary text-primary-foreground font-bold rounded-lg hover:bg-primary/90 transition text-xs cursor-pointer"
+              >
+                <Play className="h-3 w-3 fill-current" />
+                <span>המשך עבודה</span>
+              </Link>
+              {activeDrafts.length > 1 && (
+                <Link
+                  href="/student"
+                  className="text-xs text-primary underline underline-offset-2 hover:text-primary/80 font-bold"
+                >
+                  לכל הטיוטות ({activeDrafts.length})
+                </Link>
+              )}
+            </div>
           </div>
         </div>
       )}

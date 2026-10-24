@@ -505,11 +505,11 @@ export function AssignTaskModal({
       hebrewTitle = customHebrewTitle.trim() || `משימת אוצר מילים (${selectedVocabWords.length} מילים)`;
     } else if (isAdaptiveDavid) {
       if (taskType === "writing") {
-        title = `Adaptive Writing Mission with David${levelSuffixEnglish}`;
-        hebrewTitle = `משימת כתיבה מותאמת אישית עם דוד 🎓${levelSuffixHebrew}`;
+        title = `Adaptive Writing Mission${levelSuffixEnglish}`;
+        hebrewTitle = `משימת כתיבה מותאמת אישית 🎓${levelSuffixHebrew}`;
       } else {
-        title = `Adaptive Unseen Reading with David${levelSuffixEnglish}`;
-        hebrewTitle = `משימת קריאה (Unseen) מותאמת אישית עם דוד 🎓${levelSuffixHebrew}`;
+        title = `Adaptive Unseen Reading${levelSuffixEnglish}`;
+        hebrewTitle = `משימת קריאה (Unseen) מותאמת אישית 🎓${levelSuffixHebrew}`;
       }
     } else if (isFreeChoice) {
       if (taskType === "writing") {
@@ -692,61 +692,6 @@ export function AssignTaskModal({
                 <span>🔤 אוצר מילים</span>
               </button>
             </div>
-          </div>
-
-          {/* 2. Optional Toggle: Use David AI Tutor (OFF by default) */}
-          <div
-            className={`p-3 rounded-xl border transition-all flex items-center justify-between gap-3 ${
-              coachWithDavid
-                ? "border-indigo-500/60 bg-indigo-500/10"
-                : "border-border/80 bg-muted/20"
-            }`}
-          >
-            <div className="flex items-start gap-2.5">
-              <div
-                className={`h-9 w-9 rounded-xl shrink-0 mt-0.5 overflow-hidden border ${
-                  coachWithDavid
-                    ? "border-indigo-500 shadow-xs"
-                    : "border-border/60 opacity-80"
-                }`}
-              >
-                <img src="/images/logos/david-logo.png" alt="David" className="h-full w-full object-cover object-top" />
-              </div>
-              <div className="space-y-0.5">
-                <div className="flex items-center gap-2">
-                  <span className="font-bold text-xs text-foreground">
-                    שילוב ליווי של דוד (המורה הפרטי הווירטואלי)
-                  </span>
-                  <Badge
-                    variant={coachWithDavid ? "default" : "secondary"}
-                    className={`text-[10px] py-0 px-1.5 ${
-                      coachWithDavid ? "bg-indigo-600 text-white" : "text-muted-foreground"
-                    }`}
-                  >
-                    {coachWithDavid ? "פעיל" : "כבוי (ברירת מחדל)"}
-                  </Badge>
-                </div>
-                <p className="text-[11px] text-muted-foreground leading-relaxed">
-                  כשמופעל, דוד יציג לתלמיד את המשימה, יערוך הכנה מוקדמת ומבדק אוצר מילים בסיום.
-                </p>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              role="switch"
-              aria-checked={coachWithDavid}
-              onClick={() => handleToggleDavid(!coachWithDavid)}
-              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                coachWithDavid ? "bg-indigo-600" : "bg-muted-foreground/30"
-              }`}
-            >
-              <span
-                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
-                  coachWithDavid ? "-translate-x-5" : "translate-x-0"
-                }`}
-              />
-            </button>
           </div>
 
           {taskType === "vocab" ? (
@@ -1187,28 +1132,6 @@ export function AssignTaskModal({
                     </p>
                   </button>
 
-                  {coachWithDavid && (
-                    <button
-                      type="button"
-                      onClick={() => setSelectionMode("adaptive_david")}
-                      className={`p-2.5 rounded-xl border text-right transition-all cursor-pointer flex flex-col justify-between ${
-                        selectionMode === "adaptive_david"
-                          ? "border-indigo-500 bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 font-bold shadow-2xs ring-1 ring-indigo-500/40"
-                          : "border-border text-muted-foreground hover:bg-muted/40"
-                      }`}
-                    >
-                      <div className="flex items-center gap-1.5 font-bold text-xs">
-                        <img src="/images/logos/david-logo.png" alt="David" className="h-4 w-4 rounded-full object-cover object-top shrink-0" />
-                        <span>מותאם רמה ע״י דוד</span>
-                      </div>
-                      <p className="text-[10px] text-muted-foreground mt-1">
-                        {selectedLevel !== "all"
-                          ? `דוד יתמקד ברמה ${selectedLevel}`
-                          : "דוד מתאים לכל תלמיד לפי רמתו (Level 1-3)"}
-                      </p>
-                    </button>
-                  )}
-
                   <button
                     type="button"
                     onClick={() => setSelectionMode("free_choice")}
@@ -1292,21 +1215,6 @@ export function AssignTaskModal({
                         )}
                       </select>
                     )}
-                  </div>
-                ) : selectionMode === "adaptive_david" && coachWithDavid ? (
-                  <div className="p-3 rounded-xl bg-indigo-500/10 border border-indigo-500/30 flex items-start gap-2.5 text-xs text-indigo-950 dark:text-indigo-200">
-                    <img src="/images/logos/david-logo.png" alt="David" className="h-5 w-5 rounded-full object-cover object-top shrink-0 mt-0.5" />
-                    <div className="space-y-1">
-                      <span className="font-bold block">
-                        דוד יתאים לכל תלמיד/ה {taskType === "writing" ? "משימת כתיבה" : "קטע קריאה (Unseen)"}
-                        {selectedLevel !== "all" ? ` ברמה ${selectedLevel}!` : " בדיוק לפי רמתו/ה!"}
-                      </span>
-                      <p className="text-[11px] text-muted-foreground leading-relaxed">
-                        מתאים במיוחד לכיתות הטרוגניות: התלמיד יקבל מדוד משימה
-                        {selectedLevel !== "all" ? ` ברמה ${selectedLevel}` : " ברמתו האישית"},
-                        יבחר נושא שמעניין אותו, יעבור מבדק אוצר מילים בסיום, והציון יופיע אוטומטית בלוח המורה.
-                      </p>
-                    </div>
                   </div>
                 ) : (
                   <div className="p-3 rounded-xl bg-purple-500/10 border border-purple-500/30 flex items-start gap-2.5 text-xs text-purple-900 dark:text-purple-200">
@@ -1714,31 +1622,10 @@ export function AssignTaskModal({
           </div>
 
           {/* 4. Teacher Focus Words for David's Vocabulary Quiz (only when David is enabled) */}
-          {coachWithDavid && (
-            <div className="space-y-1 p-2.5 rounded-xl border border-indigo-500/30 bg-indigo-500/5 animate-in fade-in duration-150">
-              <label className="font-bold text-foreground flex items-center gap-1.5">
-                <img src="/images/logos/david-logo.png" alt="David" className="h-4 w-4 rounded-full object-cover object-top shrink-0" />
-                <span>מילות מפתח באנגלית לתרגול ומבדק עם דוד (אופציונלי):</span>
-              </label>
-              <Input
-                placeholder="e.g., environment, pollute, recycle, solution, protect"
-                value={focusWordsInput}
-                onChange={(e) => setFocusWordsInput(e.target.value)}
-                className="h-8 text-xs font-sans text-left bg-background"
-                dir="ltr"
-              />
-              <span className="text-[10px] text-muted-foreground block">
-                דוד ילמד את התלמידים את המילים האלו לפני המשימה ויבחן אותם עליהן בסיום (מילים שלא ידעו יישמרו אוטומטית במילון האישי שלהם).
-              </span>
-            </div>
-          )}
-
           {/* 5. Teacher Custom Instructions */}
           <div className="space-y-1">
             <label className="font-bold text-foreground block">
-              {coachWithDavid
-                ? "הנחיות ודגשים מהמורה לתלמידים ולדוד (אופציונלי):"
-                : "הנחיות ודגשים מהמורה לתלמידים (אופציונלי):"}
+              הנחיות ודגשים מהמורה לתלמידים (אופציונלי):
             </label>
             <Textarea
               placeholder="למשל: נא לכתוב לפחות 60 מילים, להקפיד על שימוש באותיות גדולות (Capital Letters) ובמילות קישור שלמדנו השבוע."

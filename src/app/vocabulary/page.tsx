@@ -25,6 +25,8 @@ import { doc, getDoc, setDoc } from "firebase/firestore";
 import { cleanForFirestore, cn } from "@/lib/utils";
 import { TeacherAssignment } from "@/types/assignment";
 import { SubmissionItem } from "@/types/submission";
+import { saveDraft, deleteDraft, getDraftById, findDraft } from "@/lib/drafts-storage";
+import type { InProgressWorkItem } from "@/types/draft";
 import { Confetti } from "@/components/confetti";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -57,6 +59,8 @@ import {
   ArrowUpDown,
   CheckCheck,
   Bookmark,
+  Save,
+  Clock,
 } from "lucide-react";
 
 // Pure deterministic shuffle helper
@@ -210,6 +214,64 @@ export default function VocabularyPage() {
   const [selectedQuizOption, setSelectedQuizOption] = useState<string | null>(null);
   const [quizScore, setQuizScore] = useState(0);
 
+  // Draft Auto-Save & Resumption State
+  const [draftStatus, setDraftStatus] = useState<"idle" | "saving" | "saved">("idle");
+  const [lastSavedTimeText, setLastSavedTimeText] = useState<string | null>(null);
+  const [activeDraftPrompt, setActiveDraftPrompt] = useState<InProgressWorkItem | null>(null);
+
+  // Check for saved draft for current vocab category or assignment
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const draftIdParam = params.get("draftId");
+    let matched: InProgressWorkItem | null = null;
+
+    if (draftIdParam) {
+      matched = getDraftById(draftIdParam);
+    } else {
+      const targetDraftId = activeAssignment
+        ? `draft_vocab_assign_${activeAssignment.id}`
+        : `draft_vocab_${activeCategory}`;
+      matched = getDraftById(targetDraftId);
+    }
+
+    if (matched && matched.type === "vocab") {
+      const payload = matched.payload as any;
+      if (
+        (payload?.cardIndex > 0 || (payload?.masteredIds && payload.masteredIds.length > 0) || payload?.quizIndex > 0) &&
+        cardIndex === 0 &&
+        masteredIds.size === 0 &&
+        quizIndex === 0
+      ) {
+        setActiveDraftPrompt(matched);
+      }
+    }
+  }, [activeCategory, activeAssignment?.id]);
+
+  // Restore draft handler
+  const handleRestoreDraft = (draft: InProgressWorkItem) => {
+    const payload = draft.payload as any;
+    if (payload) {
+      if (payload.cardIndex !== undefined) setCardIndex(payload.cardIndex);
+      if (payload.masteredIds && Array.isArray(payload.masteredIds)) {
+        setMasteredIds(new Set(payload.masteredIds));
+      }
+      if (payload.quizIndex !== undefined) setQuizIndex(payload.quizIndex);
+      if (payload.quizScore !== undefined) setQuizScore(payload.quizScore);
+      if (payload.studyMode) setStudyMode(payload.studyMode);
+      if (payload.completedModes && Array.isArray(payload.completedModes)) {
+        setCompletedModes(new Set(payload.completedModes));
+      }
+      setActiveDraftPrompt(null);
+    }
+  };
+
+  // Discard draft handler
+  const handleDiscardDraft = (draft: InProgressWorkItem) => {
+    deleteDraft(draft.id, user?.id);
+    setActiveDraftPrompt(null);
+  };
+
   // Active word list based on category
   const activePool = useMemo(() => {
     if (activeCategory === "assignment") {
@@ -222,6 +284,88 @@ export default function VocabularyPage() {
     if (activeCategory === "grade8") return MIDDLE_SCHOOL_MEDIUM;
     return MIDDLE_SCHOOL_HARD;
   }, [activeCategory, savedUnseenWords, assignmentWords]);
+
+  // Debounced auto-save hook for vocabulary practice
+  useEffect(() => {
+    const hasProgress = cardIndex > 0 || masteredIds.size > 0 || quizIndex > 0;
+    if (!hasProgress) return;
+
+    setDraftStatus("saving");
+    const timer = setTimeout(async () => {
+      const draftId = activeAssignment
+        ? `draft_vocab_assign_${activeAssignment.id}`
+        : `draft_vocab_${activeCategory}`;
+      const totalWords = activePool.length || 10;
+      const progressCount = Math.max(cardIndex, masteredIds.size, quizIndex);
+      const progressPercent = Math.min(100, Math.round((progressCount / totalWords) * 100));
+
+      await saveDraft({
+        id: draftId,
+        type: "vocab",
+        studentId: user?.id || "guest",
+        studentName: user?.name,
+        title: activeAssignment?.title || `Vocabulary Practice (${activeCategory})`,
+        hebrewTitle: activeAssignment?.hebrewTitle || `אוצר מילים (${activeCategory === "saved" ? "מילון אישי" : activeCategory})`,
+        progressPercent,
+        summaryText: `${masteredIds.size} מילים נשלטו מתוך ${totalWords}`,
+        resumeUrl: `/vocabulary?category=${activeCategory}&studyMode=${studyMode}&draftId=${draftId}${
+          activeAssignment ? `&assignmentId=${activeAssignment.id}` : ""
+        }`,
+        assignmentId: activeAssignment?.id || undefined,
+        payload: {
+          category: activeCategory,
+          studyMode,
+          cardIndex,
+          masteredIds: Array.from(masteredIds),
+          quizIndex,
+          quizScore,
+          completedModes: Array.from(completedModes),
+        },
+      });
+      setDraftStatus("saved");
+      setLastSavedTimeText(new Date().toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" }));
+    }, 1200);
+
+    return () => clearTimeout(timer);
+  }, [cardIndex, masteredIds, quizIndex, quizScore, studyMode, activeCategory, activeAssignment?.id, activePool.length, completedModes, user?.id, user?.name]);
+
+  // Save and exit back to student portal
+  const handleSaveAndExit = async () => {
+    const hasProgress = cardIndex > 0 || masteredIds.size > 0 || quizIndex > 0;
+    if (hasProgress) {
+      const draftId = activeAssignment
+        ? `draft_vocab_assign_${activeAssignment.id}`
+        : `draft_vocab_${activeCategory}`;
+      const totalWords = activePool.length || 10;
+      const progressCount = Math.max(cardIndex, masteredIds.size, quizIndex);
+      const progressPercent = Math.min(100, Math.round((progressCount / totalWords) * 100));
+
+      await saveDraft({
+        id: draftId,
+        type: "vocab",
+        studentId: user?.id || "guest",
+        studentName: user?.name,
+        title: activeAssignment?.title || `Vocabulary Practice (${activeCategory})`,
+        hebrewTitle: activeAssignment?.hebrewTitle || `אוצר מילים (${activeCategory === "saved" ? "מילון אישי" : activeCategory})`,
+        progressPercent,
+        summaryText: `${masteredIds.size} מילים נשלטו מתוך ${totalWords}`,
+        resumeUrl: `/vocabulary?category=${activeCategory}&studyMode=${studyMode}&draftId=${draftId}${
+          activeAssignment ? `&assignmentId=${activeAssignment.id}` : ""
+        }`,
+        assignmentId: activeAssignment?.id || undefined,
+        payload: {
+          category: activeCategory,
+          studyMode,
+          cardIndex,
+          masteredIds: Array.from(masteredIds),
+          quizIndex,
+          quizScore,
+          completedModes: Array.from(completedModes),
+        },
+      });
+    }
+    window.location.href = "/student";
+  };
 
   // Enrich words with persistent status overrides (starred & mastered)
   const enrichedWords = useMemo(() => {
@@ -619,6 +763,83 @@ export default function VocabularyPage() {
     setTurnInModalOpen(false);
     setSubmissionSuccessReceipt(receiptCode);
     setShowConfetti(true);
+
+    // Clean up in-progress draft
+    const draftId = activeAssignment
+      ? `draft_vocab_assign_${activeAssignment.id}`
+      : `draft_vocab_${activeCategory}`;
+    deleteDraft(draftId, user?.id);
+  };
+
+  // Save self-practice session to completed history
+  const handleSavePracticeToHistory = async () => {
+    const pool = activePool.length > 0 ? activePool : MIDDLE_SCHOOL_EASY;
+    const totalWords = pool.length;
+    const masteredCount = masteredIds.size;
+    const accuracy = totalWords > 0 ? Math.round((masteredCount / totalWords) * 100) : 100;
+    const calculatedScore = quizScore > 0 ? Math.min(100, Math.round((quizScore + accuracy) / 2)) : Math.max(80, accuracy);
+    const receiptCode = `PRACTICE-VOCAB-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+
+    const newSubmission: SubmissionItem = {
+      id: `sub-vocab-${Date.now()}`,
+      type: "vocab",
+      mode: "practice",
+      status: "completed",
+      studentId: user?.id || "guest-student",
+      studentName: user?.name || "תלמיד/ה",
+      studentClass: user?.fullClass || user?.classGrade || "חטיבת ביניים",
+      studentGroup: user?.group || undefined,
+      teacherId: "",
+      teacherName: "תרגול עצמאי",
+      taskId: `vocab-${activeCategory}`,
+      taskTitle: `Vocabulary Practice (${activeCategory})`,
+      hebrewTitle: `אוצר מילים (${activeCategory === "saved" ? "מילון אישי" : activeCategory})`,
+      score: calculatedScore,
+      grade: calculatedScore,
+      vocabSummary: {
+        totalWords,
+        masteredCount,
+        quizScore: quizScore > 0 ? quizScore : undefined,
+        completedModes: Array.from(completedModes),
+        wordsPracticed: pool.map((w) => ({
+          english: w.english,
+          hebrew: w.hebrew,
+          partOfSpeech: w.partOfSpeech,
+          mastered: masteredIds.has(w.id),
+        })),
+      },
+      submittedAt: new Date().toLocaleString("he-IL"),
+      receiptCode,
+    };
+
+    try {
+      const raw = localStorage.getItem("ett_writing_submissions");
+      const list: SubmissionItem[] = raw ? JSON.parse(raw) : [];
+      list.unshift(newSubmission);
+      localStorage.setItem("ett_writing_submissions", JSON.stringify(list));
+    } catch (err) {
+      console.warn("Error saving practice locally:", err);
+    }
+
+    if (db) {
+      try {
+        const payload = cleanForFirestore({
+          ...newSubmission,
+          timestamp: new Date().toISOString(),
+        });
+        await setDoc(doc(db, "submissions", newSubmission.id), payload, { merge: true });
+      } catch (err) {
+        console.warn("Error saving practice to Firestore:", err);
+      }
+    }
+
+    const draftId = activeAssignment
+      ? `draft_vocab_assign_${activeAssignment.id}`
+      : `draft_vocab_${activeCategory}`;
+    deleteDraft(draftId, user?.id);
+
+    setSubmissionSuccessReceipt(receiptCode);
+    setShowConfetti(true);
   };
 
   const handleTurnInToDavid = async () => {
@@ -648,7 +869,7 @@ export default function VocabularyPage() {
       improvements: [
         {
           suggestion: "Active Recall Practice",
-          explanationHebrew: "כעת דוד יבחן אותך על 5-8 מילים מתוך התרגול כדי לוודא שהן יושבות היטב בזיכרון.",
+          explanationHebrew: "כעת נערוך מבדק קצר על 5-8 מילים מתוך התרגול כדי לוודא שהן יושבות היטב בזיכרון.",
         },
       ],
       vocabToReview,
@@ -687,6 +908,31 @@ export default function VocabularyPage() {
           </div>
 
           <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
+            {draftStatus === "saving" ? (
+              <span className="text-[10px] text-muted-foreground flex items-center gap-1 font-hebrew">
+                <Clock className="h-3 w-3 animate-spin text-amber-500" />
+                <span className="hidden sm:inline">שומר טיוטה...</span>
+              </span>
+            ) : draftStatus === "saved" ? (
+              <span className="text-[10px] text-emerald-600 dark:text-emerald-400 flex items-center gap-1 font-hebrew">
+                <Check className="h-3 w-3" />
+                <span className="hidden sm:inline">נשמר {lastSavedTimeText || ""}</span>
+              </span>
+            ) : null}
+
+            {(cardIndex > 0 || masteredIds.size > 0 || quizIndex > 0) && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleSaveAndExit}
+                className="h-8 text-xs font-bold gap-1 cursor-pointer border-border/80 font-hebrew"
+                title="שמור טיוטה וחזור לאזור התלמיד"
+              >
+                <Save className="h-3.5 w-3.5 text-primary" />
+                <span className="hidden sm:inline">שמור וצא</span>
+              </Button>
+            )}
+
             {activeAssignment && (
               <Button
                 type="button"
@@ -699,18 +945,6 @@ export default function VocabularyPage() {
                 <span>הגש למורה</span>
               </Button>
             )}
-
-            <Button
-              type="button"
-              size="sm"
-              onClick={handleTurnInToDavid}
-              disabled={isTurningInToDavid}
-              className="h-9 text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white cursor-pointer gap-1.5 shadow-xs shrink-0"
-              dir="rtl"
-            >
-              <GraduationCap className="h-4 w-4" />
-              <span>{isTurningInToDavid ? "מגיש לדוד..." : "סיימתי תרגול – חזור לדוד 🎓"}</span>
-            </Button>
 
             {/* Quick Add Word Button in Navbar */}
             <HeaderTooltip label="הוספת מילה חדשה לפנקס">
@@ -733,6 +967,39 @@ export default function VocabularyPage() {
           </div>
         </div>
       </header>
+
+      {/* Active In-Progress Draft Banner */}
+      {activeDraftPrompt && (
+        <div className="bg-primary/10 border-b border-primary/25 px-4 py-3 print:hidden" dir="rtl">
+          <div className="container mx-auto max-w-4xl flex flex-wrap items-center justify-between gap-3 text-xs">
+            <div className="flex items-center gap-2">
+              <Clock className="h-4 w-4 text-primary shrink-0" />
+              <span className="font-bold text-foreground">
+                נמצא תרגול אוצר מילים שלא הושלם ({activeDraftPrompt.summaryText}):
+              </span>
+              <span className="text-muted-foreground font-medium">{activeDraftPrompt.hebrewTitle || activeDraftPrompt.title}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                onClick={() => handleRestoreDraft(activeDraftPrompt)}
+                className="h-7 text-xs font-bold bg-primary text-primary-foreground hover:bg-primary/90 cursor-pointer gap-1"
+              >
+                <RotateCcw className="h-3 w-3" />
+                <span>המשך תרגול</span>
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => handleDiscardDraft(activeDraftPrompt)}
+                className="h-7 text-xs text-muted-foreground hover:text-destructive cursor-pointer"
+              >
+                התחל מחדש
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Main Container */}
       <main className="flex-1 container mx-auto px-3 sm:px-8 py-5 sm:py-8 space-y-5 sm:space-y-6 print:p-0 print:m-0">
@@ -789,26 +1056,6 @@ export default function VocabularyPage() {
           </div>
         )}
 
-        {isFromDavid && (
-          <div className="p-3.5 rounded-xl bg-indigo-500/10 border border-indigo-500/30 flex flex-wrap items-center justify-between gap-3 text-xs text-indigo-900 dark:text-indigo-200" dir="rtl">
-            <div className="flex items-center gap-2">
-              <GraduationCap className="h-4 w-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
-              <span className="font-semibold">
-                שיעור פרטי עם המורה דוד: תרגלו את המילים בכרטיסיות או במשחק ההתאמה, ובסיום לחצו על <strong>&ldquo;סיימתי תרגול – חזור לדוד 🎓&rdquo;</strong> כדי לעבור למבדק המילים ולמשימה הבאה!
-              </span>
-            </div>
-            <Button
-              type="button"
-              size="sm"
-              onClick={handleTurnInToDavid}
-              disabled={isTurningInToDavid}
-              className="h-8 text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white cursor-pointer gap-1.5 shrink-0"
-            >
-              <GraduationCap className="h-3.5 w-3.5" />
-              <span>{isTurningInToDavid ? "מגיש לדוד..." : "סיימתי תרגול – חזור לדוד 🎓"}</span>
-            </Button>
-          </div>
-        )}
 
         {/* Success Toast Banner */}
         {successToast && (

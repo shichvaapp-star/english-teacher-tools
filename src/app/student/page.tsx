@@ -7,6 +7,8 @@ import { db } from "@/lib/firebase";
 import { collection, query, where, getDocs, doc, setDoc } from "firebase/firestore";
 import { cleanForFirestore } from "@/lib/utils";
 import { SubmissionItem } from "@/types/submission";
+import { InProgressWorkItem } from "@/types/draft";
+import { getStoredDrafts, deleteDraft, syncDraftsFromFirestore, DRAFTS_CHANGED_EVENT } from "@/lib/drafts-storage";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { UserNav } from "@/components/auth/user-nav";
 import { HeaderTooltip } from "@/components/ui/header-tooltip";
@@ -33,7 +35,10 @@ import {
   Sparkles,
   AlertCircle,
   HelpCircle,
-  Bot,
+  Play,
+  RotateCcw,
+  Trash2,
+  Target,
 } from "lucide-react";
 import { StudentAssignedTaskPrompt } from "@/components/student/student-assigned-task-prompt";
 
@@ -43,10 +48,11 @@ export default function StudentPortalPage() {
   const { user } = useAuth();
 
   const [submissions, setSubmissions] = useState<SubmissionItem[]>([]);
+  const [drafts, setDrafts] = useState<InProgressWorkItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<"all" | "writing" | "unseen" | "vocab">("all");
-  const [statusFilter, setStatusFilter] = useState<"all" | "submitted" | "reviewed">("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "submitted" | "reviewed" | "practice">("all");
 
   // Selected item for details modal
   const [selectedItem, setSelectedItem] = useState<SubmissionItem | null>(null);
@@ -56,6 +62,42 @@ export default function StudentPortalPage() {
 
   // Login modal trigger for guests
   const [loginModalOpen, setLoginModalOpen] = useState(false);
+
+  // Load and sync drafts
+  const loadDraftsList = async () => {
+    const list = getStoredDrafts(user?.id);
+    setDrafts(list);
+    if (user?.id) {
+      try {
+        const synced = await syncDraftsFromFirestore(user.id);
+        setDrafts(synced);
+      } catch {}
+    }
+  };
+
+  useEffect(() => {
+    loadDraftsList();
+    const handleDraftsChange = () => {
+      loadDraftsList();
+    };
+    window.addEventListener(DRAFTS_CHANGED_EVENT, handleDraftsChange);
+    return () => window.removeEventListener(DRAFTS_CHANGED_EVENT, handleDraftsChange);
+  }, [user?.id]);
+
+  const handleDeleteDraft = (draftId: string) => {
+    deleteDraft(draftId, user?.id);
+    setDrafts((prev) => prev.filter((d) => d.id !== draftId));
+  };
+
+  const handleRetryTask = (sub: SubmissionItem) => {
+    if (sub.type === "unseen") {
+      window.location.href = `/unseen?passageId=${sub.taskId}&stage=exercise&mode=practice`;
+    } else if (sub.type === "writing") {
+      window.location.href = `/writing?task=${sub.taskId}`;
+    } else if (sub.type === "vocab") {
+      window.location.href = `/vocabulary?category=${sub.assignmentId ? "assignment" : "saved"}`;
+    }
+  };
 
   // Fetch student submissions
   const fetchStudentSubmissions = async () => {
@@ -168,8 +210,14 @@ export default function StudentPortalPage() {
         return false;
       }
 
-      if (statusFilter !== "all" && item.status !== statusFilter) {
-        return false;
+      if (statusFilter !== "all") {
+        if (statusFilter === "practice") {
+          if (item.mode !== "practice" && item.status !== "completed") return false;
+        } else if (statusFilter === "submitted") {
+          if (item.status !== "submitted") return false;
+        } else if (statusFilter === "reviewed") {
+          if (item.status !== "reviewed") return false;
+        }
       }
 
       return true;
@@ -180,6 +228,7 @@ export default function StudentPortalPage() {
   const totalCount = submissions.length;
   const reviewedCount = submissions.filter((s) => s.status === "reviewed").length;
   const pendingCount = submissions.filter((s) => s.status === "submitted").length;
+  const practiceCount = submissions.filter((s) => s.mode === "practice" || s.status === "completed").length;
 
   return (
     <div className="flex flex-col min-h-screen bg-background text-foreground">
@@ -221,16 +270,6 @@ export default function StudentPortalPage() {
                   className={`h-4 w-4 ${isLoading ? "animate-spin text-primary" : ""}`}
                 />
               </Button>
-            </HeaderTooltip>
-
-            <HeaderTooltip label="המורה הפרטי שלי (דוד)">
-              <Link
-                href="/tutor"
-                className="inline-flex items-center justify-center h-9 w-9 rounded-lg border border-sky-500/30 bg-sky-500/10 hover:bg-sky-500/20 text-sky-700 dark:text-sky-300 transition shadow-2xs shrink-0"
-                aria-label="המורה הפרטי שלי (דוד)"
-              >
-                <Bot className="h-4 w-4 text-sky-600 dark:text-sky-400" />
-              </Link>
             </HeaderTooltip>
 
             <ThemeToggle />
@@ -286,10 +325,10 @@ export default function StudentPortalPage() {
         <StudentAssignedTaskPrompt />
 
         {/* Stats Row */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4" dir="rtl">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4" dir="rtl">
           <Card className="p-4 flex items-center justify-between border-border/70 shadow-xs">
             <div className="space-y-0.5">
-              <span className="text-xs text-muted-foreground font-semibold">סה&quot;כ עבודות שהוגשו</span>
+              <span className="text-xs text-muted-foreground font-semibold">סה&quot;כ משימות</span>
               <div className="text-2xl font-black text-foreground">{totalCount}</div>
             </div>
             <div className="p-2.5 rounded-xl bg-primary/10 text-primary">
@@ -299,7 +338,7 @@ export default function StudentPortalPage() {
 
           <Card className="p-4 flex items-center justify-between border-border/70 shadow-xs">
             <div className="space-y-0.5">
-              <span className="text-xs text-muted-foreground font-semibold">עבודות שנבדקו (עם ציון)</span>
+              <span className="text-xs text-muted-foreground font-semibold">עבודות שנבדקו</span>
               <div className="text-2xl font-black text-emerald-600 dark:text-emerald-400">
                 {reviewedCount}
               </div>
@@ -311,7 +350,7 @@ export default function StudentPortalPage() {
 
           <Card className="p-4 flex items-center justify-between border-border/70 shadow-xs">
             <div className="space-y-0.5">
-              <span className="text-xs text-muted-foreground font-semibold">ממתין לבדיקת המורה</span>
+              <span className="text-xs text-muted-foreground font-semibold">ממתין למורה</span>
               <div className="text-2xl font-black text-amber-600 dark:text-amber-400">
                 {pendingCount}
               </div>
@@ -320,7 +359,115 @@ export default function StudentPortalPage() {
               <Clock className="h-5 w-5" />
             </div>
           </Card>
+
+          <Card className="p-4 flex items-center justify-between border-border/70 shadow-xs">
+            <div className="space-y-0.5">
+              <span className="text-xs text-muted-foreground font-semibold">תרגולים עצמאיים</span>
+              <div className="text-2xl font-black text-sky-600 dark:text-sky-400">
+                {practiceCount}
+              </div>
+            </div>
+            <div className="p-2.5 rounded-xl bg-sky-500/10 text-sky-600 dark:text-sky-400">
+              <Target className="h-5 w-5" />
+            </div>
+          </Card>
         </div>
+
+        {/* Active In-Progress Drafts Section */}
+        {drafts.length > 0 && (
+          <div className="space-y-3 pt-2" dir="rtl">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                  <Clock className="h-4 w-4" />
+                </div>
+                <h2 className="text-base font-black text-foreground">
+                  עבודות בתהליך (טיוטות להמשך)
+                </h2>
+                <Badge variant="secondary" className="text-xs font-bold">
+                  {drafts.length}
+                </Badge>
+              </div>
+              <span className="text-xs text-muted-foreground hidden sm:inline">
+                עבודות שהתחלת וטרם הגשת &bull; המשך בדיוק מאיפה שהפסקת
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {drafts.map((draft) => (
+                <Card
+                  key={draft.id}
+                  className="border-border/80 hover:border-primary/50 transition-all shadow-xs bg-card/60 backdrop-blur-xs flex flex-col justify-between"
+                >
+                  <CardContent className="p-4 space-y-3">
+                    <div className="flex items-center justify-between gap-2 border-b border-border/40 pb-2">
+                      <Badge variant="secondary" className="text-[10px]">
+                        {draft.type === "vocab"
+                          ? "🔤 אוצר מילים"
+                          : draft.type === "writing"
+                          ? "✍️ מטלת כתיבה"
+                          : "📖 מבחן אנסין"}
+                      </Badge>
+                      <span className="text-[11px] text-muted-foreground font-sans">
+                        {new Date(draft.lastUpdated || 0).toLocaleDateString("he-IL", {
+                          day: "numeric",
+                          month: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </span>
+                    </div>
+
+                    <div>
+                      <h3 className="font-black text-sm text-foreground line-clamp-1">
+                        {draft.hebrewTitle || draft.title}
+                      </h3>
+                      <p className="text-xs text-muted-foreground line-clamp-1" dir="ltr">
+                        {draft.title}
+                      </p>
+                    </div>
+
+                    {/* Progress Bar */}
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-[11px] text-muted-foreground">
+                        <span>{draft.summaryText}</span>
+                        <span className="font-bold">{draft.progressPercent}%</span>
+                      </div>
+                      <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-primary rounded-full transition-all duration-300"
+                          style={{ width: `${Math.min(100, Math.max(5, draft.progressPercent))}%` }}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-2 border-t border-border/40">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => handleDeleteDraft(draft.id)}
+                        className="h-7 text-xs text-muted-foreground hover:text-destructive cursor-pointer gap-1 px-2"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                        <span>מחק</span>
+                      </Button>
+
+                      <Link href={draft.resumeUrl}>
+                        <Button
+                          size="sm"
+                          className="h-7 text-xs font-bold gap-1 bg-primary text-primary-foreground hover:bg-primary/90 cursor-pointer px-3"
+                        >
+                          <Play className="h-3 w-3 fill-current" />
+                          <span>המשך עבודה</span>
+                        </Button>
+                      </Link>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Filter Controls */}
         <div
@@ -355,13 +502,14 @@ export default function StudentPortalPage() {
             <select
               value={statusFilter}
               onChange={(e) =>
-                setStatusFilter(e.target.value as "all" | "submitted" | "reviewed")
+                setStatusFilter(e.target.value as "all" | "submitted" | "reviewed" | "practice")
               }
               className="h-9 rounded-md border border-input bg-background px-3 text-xs shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring cursor-pointer"
             >
-              <option value="all">כל הסטטוסים</option>
-              <option value="reviewed">✓ נבדקו עם ציון</option>
-              <option value="submitted">⏳ ממתינים לבדיקה</option>
+              <option value="all">כל הסטטוסים והתרגולים ({submissions.length})</option>
+              <option value="practice">🎯 תרגולים עצמאיים שהושלמו ({practiceCount})</option>
+              <option value="submitted">⏳ ממתינים לבדיקת מורה ({pendingCount})</option>
+              <option value="reviewed">✓ נבדקו ע״י מורה ({reviewedCount})</option>
             </select>
           </div>
         </div>
@@ -427,7 +575,15 @@ export default function StudentPortalPage() {
                       )}
 
                       {/* Status Badge */}
-                      {isReviewed ? (
+                      {sub.mode === "practice" || sub.status === "completed" ? (
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] text-sky-600 dark:text-sky-400 border-sky-500/40 bg-sky-500/10 font-bold gap-1"
+                        >
+                          <Target className="h-3 w-3" />
+                          <span>תרגול עצמאי{displayGrade !== undefined ? ` • ציון: ${displayGrade}` : ""}</span>
+                        </Badge>
+                      ) : isReviewed ? (
                         <Badge className="text-[10px] bg-emerald-600 text-white font-bold gap-1">
                           <CheckCircle2 className="h-3 w-3" />
                           <span>נבדק • ציון: {displayGrade} / 100</span>
@@ -450,6 +606,16 @@ export default function StudentPortalPage() {
 
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <span>{sub.submittedAt}</span>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleRetryTask(sub)}
+                        className="h-7 text-xs font-bold gap-1 cursor-pointer border-border/80 hover:bg-muted"
+                        title="התחל תרגול מחדש בדף זה"
+                      >
+                        <RotateCcw className="h-3 w-3 text-primary" />
+                        <span className="hidden sm:inline">תרגל שוב</span>
+                      </Button>
                       <Button
                         size="sm"
                         onClick={() => setSelectedItem(sub)}
@@ -866,12 +1032,22 @@ export default function StudentPortalPage() {
               </div>
             )}
 
-            <div className="border-t border-border pt-3 flex justify-end">
+            <div className="border-t border-border pt-3 flex items-center justify-between">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleRetryTask(selectedItem)}
+                className="gap-1.5 text-xs font-bold cursor-pointer border-border/80 hover:bg-muted"
+              >
+                <RotateCcw className="h-3.5 w-3.5 text-primary" />
+                <span>תרגל משימה זו שוב</span>
+              </Button>
+
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setSelectedItem(null)}
-                className="text-xs cursor-pointer"
+                className="text-xs cursor-pointer px-4 font-bold"
               >
                 סגור
               </Button>

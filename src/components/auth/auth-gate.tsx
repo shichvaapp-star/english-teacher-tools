@@ -17,7 +17,7 @@ import {
   Search,
   BookA,
   PenTool,
-  Bot,
+  Sparkles,
   Loader2,
   ShieldCheck,
 } from "lucide-react";
@@ -85,9 +85,9 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
       color: "text-purple-600 dark:text-purple-400 bg-purple-500/10 border-purple-500/20",
     },
     {
-      title: "David AI Tutor",
-      hebrew: "מורה פרטי אישי",
-      icon: Bot,
+      title: "Vocabulary Training",
+      hebrew: "אימון אוצר מילים ומבחנים",
+      icon: Sparkles,
       color: "text-amber-600 dark:text-amber-400 bg-amber-500/10 border-amber-500/20",
     },
   ];

@@ -301,32 +301,6 @@ export function AssignedTasksView({
                     <span>יעד להגשה: {assignment.dueDate}</span>
                   </div>
                 )}
-
-                {/* David Tutor Toggle Row */}
-                <div className="flex items-center justify-between pt-1">
-                  <span className="text-[11px] text-muted-foreground flex items-center gap-1.5 font-medium">
-                    <img src="/images/logos/david-logo.png" alt="David" className="h-4 w-4 rounded-full object-cover object-top shrink-0" />
-                    <span>ליווי עם דוד (מורה פרטי):</span>
-                  </span>
-                  {onToggleDavid ? (
-                    <button
-                      type="button"
-                      onClick={() => onToggleDavid(assignment.id, !isDavidEnabled)}
-                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full border transition-all cursor-pointer ${
-                        isDavidEnabled
-                          ? "border-indigo-500/50 bg-indigo-500/15 text-indigo-700 dark:text-indigo-300"
-                          : "border-border bg-muted/40 text-muted-foreground hover:text-foreground"
-                      }`}
-                      title="לחץ להפעלה או כיבוי של ליווי דוד למשימה זו"
-                    >
-                      {isDavidEnabled ? "פעיל ✓" : "כבוי"}
-                    </button>
-                  ) : (
-                    <Badge variant="outline" className="text-[10px]">
-                      {isDavidEnabled ? "פעיל" : "כבוי"}
-                    </Badge>
-                  )}
-                </div>
               </div>
 
               {/* Progress Bar & Ratio */}

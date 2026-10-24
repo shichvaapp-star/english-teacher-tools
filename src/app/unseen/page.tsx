@@ -21,6 +21,8 @@ import { TeacherAssignment } from "@/types/assignment";
 import { useSpeechPlayer } from "@/lib/use-speech-player";
 import { UnseenAudioDock } from "@/components/unseen/unseen-audio-dock";
 import { Confetti } from "@/components/confetti";
+import { saveDraft, deleteDraft, getDraftById, findDraft } from "@/lib/drafts-storage";
+import type { InProgressWorkItem } from "@/types/draft";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -54,6 +56,8 @@ import {
   Edit3,
   GraduationCap,
   ChevronDown,
+  Save,
+  Clock,
 } from "lucide-react";
 
 const LOCAL_SUBMISSIONS_KEY = "ett_writing_submissions";
@@ -367,6 +371,140 @@ export default function UnseenPracticePage() {
       // Ignore
     }
   }, []);
+
+  // In-Progress Draft Auto-Save & Resumption State
+  const [draftStatus, setDraftStatus] = useState<"idle" | "saving" | "saved">("idle");
+  const [lastSavedTimeText, setLastSavedTimeText] = useState<string | null>(null);
+  const [activeDraftPrompt, setActiveDraftPrompt] = useState<InProgressWorkItem | null>(null);
+
+  // Check for saved draft for the current story or assignment
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const draftIdParam = params.get("draftId");
+    let matched: InProgressWorkItem | null = null;
+
+    if (draftIdParam) {
+      matched = getDraftById(draftIdParam);
+    } else {
+      const targetDraftId = currentAssignmentId
+        ? `draft_unseen_assign_${currentAssignmentId}`
+        : `draft_unseen_${currentStory.id}`;
+      matched = getDraftById(targetDraftId);
+    }
+
+    if (matched && matched.type === "unseen") {
+      const payload = matched.payload as any;
+      const ans = payload?.userAnswers;
+      if (ans && Object.keys(ans).length > 0 && Object.keys(userAnswers).length === 0 && !isSubmitted) {
+        setActiveDraftPrompt(matched);
+      }
+    }
+  }, [currentStory.id, currentAssignmentId]);
+
+  // Restore draft handler
+  const handleRestoreDraft = (draft: InProgressWorkItem) => {
+    const payload = draft.payload as any;
+    if (payload?.userAnswers) {
+      setUserAnswers(payload.userAnswers);
+      if (payload.checkedQuestions) setCheckedQuestions(payload.checkedQuestions);
+      if (payload.activeQuestionIndex !== undefined) setActiveQuestionIndex(payload.activeQuestionIndex);
+      if (payload.mode) setMode(payload.mode);
+      setStage("exercise");
+      setActiveDraftPrompt(null);
+    }
+  };
+
+  // Discard draft handler
+  const handleDiscardDraft = (draft: InProgressWorkItem) => {
+    deleteDraft(draft.id, user?.id);
+    setActiveDraftPrompt(null);
+  };
+
+  // Debounced auto-save hook for unseen answers
+  useEffect(() => {
+    const answeredCount = Object.keys(userAnswers).filter(
+      (k) => userAnswers[k] !== undefined && userAnswers[k] !== ""
+    ).length;
+    if (stage !== "exercise" || answeredCount === 0 || isSubmitted) {
+      return;
+    }
+    setDraftStatus("saving");
+    const timer = setTimeout(async () => {
+      const draftId = currentAssignmentId
+        ? `draft_unseen_assign_${currentAssignmentId}`
+        : `draft_unseen_${currentStory.id}`;
+      const totalQ = currentStory.questions.length || 5;
+      const progressPercent = Math.min(100, Math.round((answeredCount / totalQ) * 100));
+
+      await saveDraft({
+        id: draftId,
+        type: "unseen",
+        studentId: user?.id || "guest",
+        studentName: user?.name,
+        title: currentStory.title,
+        hebrewTitle: currentStory.hebrewTitle,
+        progressPercent,
+        summaryText: `${answeredCount} מתוך ${totalQ} שאלות נענו`,
+        resumeUrl: `/unseen?passageId=${currentStory.id}&mode=${mode}&draftId=${draftId}${
+          currentAssignmentId ? `&assignmentId=${currentAssignmentId}` : ""
+        }`,
+        assignmentId: currentAssignmentId || undefined,
+        payload: {
+          storyId: currentStory.id,
+          level: selectedLevel,
+          mode,
+          userAnswers,
+          checkedQuestions,
+          activeQuestionIndex,
+          aiStoryData: currentStory.isAiGenerated ? currentStory : undefined,
+        },
+      });
+      setDraftStatus("saved");
+      setLastSavedTimeText(new Date().toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" }));
+    }, 1200);
+
+    return () => clearTimeout(timer);
+  }, [userAnswers, checkedQuestions, activeQuestionIndex, stage, currentStory.id, selectedLevel, mode, currentAssignmentId, isSubmitted, user?.id, user?.name]);
+
+  // Save and exit back to student portal
+  const handleSaveAndExit = async () => {
+    const answeredCount = Object.keys(userAnswers).filter(
+      (k) => userAnswers[k] !== undefined && userAnswers[k] !== ""
+    ).length;
+    if (answeredCount > 0) {
+      const draftId = currentAssignmentId
+        ? `draft_unseen_assign_${currentAssignmentId}`
+        : `draft_unseen_${currentStory.id}`;
+      const totalQ = currentStory.questions.length || 5;
+      const progressPercent = Math.min(100, Math.round((answeredCount / totalQ) * 100));
+
+      await saveDraft({
+        id: draftId,
+        type: "unseen",
+        studentId: user?.id || "guest",
+        studentName: user?.name,
+        title: currentStory.title,
+        hebrewTitle: currentStory.hebrewTitle,
+        progressPercent,
+        summaryText: `${answeredCount} מתוך ${totalQ} שאלות נענו`,
+        resumeUrl: `/unseen?passageId=${currentStory.id}&mode=${mode}&draftId=${draftId}${
+          currentAssignmentId ? `&assignmentId=${currentAssignmentId}` : ""
+        }`,
+        assignmentId: currentAssignmentId || undefined,
+        payload: {
+          storyId: currentStory.id,
+          level: selectedLevel,
+          mode,
+          userAnswers,
+          checkedQuestions,
+          activeQuestionIndex,
+          aiStoryData: currentStory.isAiGenerated ? currentStory : undefined,
+        },
+      });
+    }
+    window.location.href = "/student";
+  };
 
   // Word Click & Translation Popup
   const [clickedWord, setClickedWord] = useState<{
@@ -981,6 +1119,12 @@ export default function UnseenPracticePage() {
       console.warn("Tutor task completion tracking notice:", e);
     }
 
+    // Clean up in-progress draft
+    const draftId = currentAssignmentId
+      ? `draft_unseen_assign_${currentAssignmentId}`
+      : `draft_unseen_${currentStory.id}`;
+    deleteDraft(draftId, user?.id);
+
     setIsSubmitting(false);
     setGradedScore(earned);
     setIsSubmitted(true);
@@ -1099,21 +1243,24 @@ export default function UnseenPracticePage() {
       }
     }
 
-    // If this was a teacher assignment and hasn't been recorded in teacher submissions yet, save it!
-    if (currentAssignmentId && !isSubmitted) {
+    // Save completed unseen practice or assignment
+    if (!isSubmitted) {
+      const isGradedAssignment = Boolean(currentAssignmentId);
       const teacherObj = teachers.find((t) => t.id === selectedTeacherId) || teachers[0];
-      const receiptCode = `ETT-UN-${Math.floor(100000 + Math.random() * 900000)}`;
+      const receiptCode = `${isGradedAssignment ? "ETT-UN" : "PRACTICE-UN"}-${Math.floor(100000 + Math.random() * 900000)}`;
       const autoSub: SubmissionItem = {
         id: `sub-${Date.now()}`,
         type: "unseen",
+        mode: isGradedAssignment ? "graded" : "practice",
+        status: isGradedAssignment ? "submitted" : "completed",
         studentId: user?.id || `guest-${Date.now()}`,
         studentName: (studentNameInput.trim() || user?.name || "תלמיד/ה").trim(),
         teacherId: activeAssignment?.teacherId || (teacherObj ? teacherObj.id : teachers[0]?.id || ""),
         teacherName: activeAssignment?.teacherName || (teacherObj ? teacherObj.name : teachers[0]?.name || "מורה לאנגלית"),
         studentClass: studentClassInput || user?.fullClass || "חטיבת ביניים",
         studentGroup: user?.group || undefined,
-        studentNote: "הוגש בליווי המורה הפרטי דוד 🎓",
-        assignmentId: currentAssignmentId,
+        studentNote: isGradedAssignment ? "הוגש באופן עצמאי" : "תרגול אנסין עצמאי שהושלם",
+        assignmentId: currentAssignmentId || undefined,
         taskId: currentStory.id,
         taskTitle: currentStory.title,
         hebrewTitle: currentStory.hebrewTitle,
@@ -1121,11 +1268,10 @@ export default function UnseenPracticePage() {
         passageText: currentStory.paragraphs.join("\n\n"),
         score: finalScore,
         grade: finalScore,
-        encouragement: "סיימת בהצלחה את משימת האנסין בליווי דוד!",
+        encouragement: "סיימת בהצלחה את תרגול האנסין!",
         strengths,
         submittedAt: new Date().toLocaleString("he-IL"),
         receiptCode,
-        status: "submitted",
       };
       try {
         const existingJson = localStorage.getItem(LOCAL_SUBMISSIONS_KEY);
@@ -1142,6 +1288,12 @@ export default function UnseenPracticePage() {
           await setDoc(doc(db, "submissions", autoSub.id), payload, { merge: true });
         } catch {}
       }
+
+      // Clean up in-progress draft
+      const draftId = currentAssignmentId
+        ? `draft_unseen_assign_${currentAssignmentId}`
+        : `draft_unseen_${currentStory.id}`;
+      deleteDraft(draftId, user?.id);
     }
 
     await submitTaskToDavid(user?.id || "guest", {
@@ -1263,6 +1415,33 @@ export default function UnseenPracticePage() {
           </div>
 
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            {stage === "exercise" && (
+              <>
+                {draftStatus === "saving" ? (
+                  <span className="text-[10px] text-muted-foreground flex items-center gap-1 font-hebrew">
+                    <Clock className="h-3 w-3 animate-spin text-amber-500" />
+                    <span className="hidden sm:inline">שומר טיוטה...</span>
+                  </span>
+                ) : draftStatus === "saved" ? (
+                  <span className="text-[10px] text-emerald-600 dark:text-emerald-400 flex items-center gap-1 font-hebrew">
+                    <Check className="h-3 w-3" />
+                    <span className="hidden sm:inline">נשמר {lastSavedTimeText || ""}</span>
+                  </span>
+                ) : null}
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSaveAndExit}
+                  className="h-8 text-xs font-bold gap-1 cursor-pointer border-border/80 font-hebrew"
+                  title="שמור טיוטה וחזור לאזור התלמיד"
+                >
+                  <Save className="h-3.5 w-3.5 text-primary" />
+                  <span className="hidden sm:inline">שמור וצא</span>
+                </Button>
+              </>
+            )}
+
             {stage === "settings" && (
               <HeaderTooltip label="התחלת תרגול">
                 <Button
@@ -1296,6 +1475,39 @@ export default function UnseenPracticePage() {
           </div>
         </div>
       </header>
+
+      {/* Active In-Progress Draft Banner */}
+      {activeDraftPrompt && (
+        <div className="bg-primary/10 border-b border-primary/25 px-4 py-3 print:hidden" dir="rtl">
+          <div className="container mx-auto max-w-4xl flex flex-wrap items-center justify-between gap-3 text-xs">
+            <div className="flex items-center gap-2">
+              <Clock className="h-4 w-4 text-primary shrink-0" />
+              <span className="font-bold text-foreground">
+                נמצאה טיוטת מענה שנשמרה לאחרונה ({activeDraftPrompt.summaryText}):
+              </span>
+              <span className="text-muted-foreground font-medium">{activeDraftPrompt.hebrewTitle || activeDraftPrompt.title}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                onClick={() => handleRestoreDraft(activeDraftPrompt)}
+                className="h-7 text-xs font-bold bg-primary text-primary-foreground hover:bg-primary/90 cursor-pointer gap-1"
+              >
+                <RotateCcw className="h-3 w-3" />
+                <span>המשך מהטיוטה</span>
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => handleDiscardDraft(activeDraftPrompt)}
+                className="h-7 text-xs text-muted-foreground hover:text-destructive cursor-pointer"
+              >
+                מחק טיוטה
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* =========================================================================
           STAGE 1: SETTINGS / SETUP VIEW
@@ -1820,18 +2032,6 @@ export default function UnseenPracticePage() {
             </div>
 
             <div className="flex items-center gap-2 mr-auto sm:mr-0 shrink-0">
-              {!isSubmitted && (
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={handleTurnInToDavid}
-                  disabled={isTurningInToDavid}
-                  className="h-7 text-[11px] font-bold bg-indigo-600 hover:bg-indigo-700 text-white cursor-pointer gap-1 shadow-xs"
-                >
-                  <GraduationCap className="h-3.5 w-3.5" />
-                  <span>{isTurningInToDavid ? "מגיש לדוד..." : `הגש משימה לדוד (${answeredCount}/10)`}</span>
-                </Button>
-              )}
               {mode === "practice" && !isSubmitted && (
                 <Button
                   type="button"
@@ -1863,27 +2063,6 @@ export default function UnseenPracticePage() {
             </div>
           </div>
 
-          {/* Active Private Lesson with David Banner */}
-          {isFromDavid && (
-            <div className="p-3 rounded-xl bg-indigo-500/10 border border-indigo-500/30 flex flex-wrap items-center justify-between gap-3 text-xs text-indigo-900 dark:text-indigo-200" dir="rtl">
-              <div className="flex items-center gap-2">
-                <img src="/images/logos/david-logo.png" alt="David" className="h-4 w-4 rounded-full object-cover object-top shrink-0" />
-                <span className="font-semibold">
-                  שיעור פרטי עם המורה דוד: קראו את הקטע וענו על השאלות. בסיום לחצו על <strong>&ldquo;הגש משימה לדוד 🎓&rdquo;</strong> כדי שדוד יבדוק את העבודה שלכם ויבחן אתכם על אוצר מילים!
-                </span>
-              </div>
-              <Button
-                type="button"
-                size="sm"
-                onClick={handleTurnInToDavid}
-                disabled={isTurningInToDavid}
-                className="h-8 text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white cursor-pointer gap-1.5 shrink-0"
-              >
-                <img src="/images/logos/david-logo.png" alt="David" className="h-3.5 w-3.5 rounded-full object-cover object-top shrink-0" />
-                <span>{isTurningInToDavid ? "מגיש לדוד..." : `הגש משימה לדוד 🎓 (${answeredCount}/10)`}</span>
-              </Button>
-            </div>
-          )}
 
           {/* Teacher Assignment Notification Banner */}
           {assignedNotice && (
@@ -2523,19 +2702,6 @@ export default function UnseenPracticePage() {
                           <span>הגש מבחן ({answeredCount}/10)</span>
                         </Button>
                       )}
-
-                      {(isFromDavid || answeredCount > 0) && (
-                        <Button
-                          type="button"
-                          size="sm"
-                          onClick={handleTurnInToDavid}
-                          disabled={isTurningInToDavid}
-                          className="cursor-pointer gap-1.5 text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-bold shadow-xs"
-                        >
-                          <GraduationCap className="h-3.5 w-3.5" />
-                          <span>{isTurningInToDavid ? "מגיש לדוד..." : `הגש משימה לדוד 🎓 (${answeredCount}/10)`}</span>
-                        </Button>
-                      )}
                     </div>
                   </CardFooter>
                 </Card>
@@ -2779,16 +2945,6 @@ export default function UnseenPracticePage() {
 
                   {/* Actions */}
                   <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
-                    <Button
-                      size="sm"
-                      onClick={handleTurnInToDavid}
-                      disabled={isTurningInToDavid}
-                      className="cursor-pointer text-xs gap-1.5 font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs"
-                    >
-                      <GraduationCap className="h-4 w-4" />
-                      <span>{isTurningInToDavid ? "מגיש לדוד..." : "הגש משימה לדוד והמשך בשיעור 🎓"}</span>
-                    </Button>
-
                     <Button
                       variant="outline"
                       size="sm"
@@ -3553,16 +3709,6 @@ export default function UnseenPracticePage() {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
-              <Button
-                variant="default"
-                size="sm"
-                onClick={handleTurnInToDavid}
-                disabled={isTurningInToDavid}
-                className="cursor-pointer text-xs font-bold gap-1.5 h-10 bg-indigo-600 hover:bg-indigo-700 text-white sm:col-span-2 shadow-sm"
-              >
-                <GraduationCap className="h-4 w-4" />
-                <span>{isTurningInToDavid ? "מגיש לדוד..." : "הגש משימה לדוד והמשך בשיעור 🎓"}</span>
-              </Button>
               <Button
                 variant="outline"
                 size="sm"

@@ -169,20 +169,18 @@ export function StudentAssignedTaskPrompt() {
 
   // Focus on first pending assignment
   const assignment = pendingAssignments[0];
-  const useDavid = Boolean(assignment.coachWithDavid || assignment.isAdaptiveDavid);
-  const davidSuffix = useDavid ? "&from=david" : "";
   const levelParam = assignment.level ? `&level=${encodeURIComponent(assignment.level)}` : "";
   const isFreeChoice = assignment.isFreeChoice || assignment.isAdaptiveDavid || assignment.taskId === "free_choice" || assignment.taskId === "adaptive_david";
   const targetUrl =
     assignment.type === "vocab"
-      ? `/vocabulary?assignmentId=${assignment.id}${davidSuffix}`
+      ? `/vocabulary?assignmentId=${assignment.id}`
       : assignment.type === "writing"
       ? (isFreeChoice
-          ? `/writing?assignmentId=${assignment.id}${davidSuffix}${levelParam}`
-          : `/writing?task=${assignment.taskId || ""}&assignmentId=${assignment.id}${davidSuffix}${levelParam}`)
+          ? `/writing?assignmentId=${assignment.id}${levelParam}`
+          : `/writing?task=${assignment.taskId || ""}&assignmentId=${assignment.id}${levelParam}`)
       : (isFreeChoice
-          ? `/unseen?assignmentId=${assignment.id}${davidSuffix}${levelParam}`
-          : `/unseen?passageId=${assignment.taskId || ""}&assignmentId=${assignment.id}${davidSuffix}${levelParam}`);
+          ? `/unseen?assignmentId=${assignment.id}${levelParam}`
+          : `/unseen?passageId=${assignment.taskId || ""}&assignmentId=${assignment.id}${levelParam}`);
 
   return (
     <div
@@ -254,14 +252,7 @@ export function StudentAssignedTaskPrompt() {
                 </Badge>
               )}
 
-              {useDavid && (
-                <Badge variant="outline" className="text-3xs font-bold border-indigo-500/40 text-indigo-700 dark:text-indigo-300 bg-indigo-500/10 gap-1 pl-1.5">
-                  <img src="/images/logos/david-logo.png" alt="David" className="h-3 w-3 rounded-full object-cover object-top" />
-                  <span>{assignment.isAdaptiveDavid ? "מותאם אישית עם דוד" : "בליווי דוד"}</span>
-                </Badge>
-              )}
-
-              {isFreeChoice && !assignment.isAdaptiveDavid && (
+              {isFreeChoice && (
                 <Badge variant="outline" className="text-3xs font-bold border-amber-500/40 text-amber-700 dark:text-amber-300 bg-amber-500/10 gap-1">
                   <Sparkles className="h-2.5 w-2.5 text-amber-500" />
                   <span>בחירה חופשית</span>
@@ -297,19 +288,6 @@ export function StudentAssignedTaskPrompt() {
           >
             הזכר לי אחר כך
           </button>
-
-          {useDavid && (
-            <Link href="/tutor">
-              <Button
-                size="sm"
-                variant="outline"
-                className="text-xs font-bold gap-1.5 cursor-pointer border-indigo-500/50 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 px-3"
-              >
-                <img src="/images/logos/david-logo.png" alt="David" className="h-4 w-4 rounded-full object-cover object-top" />
-                <span>פתור בליווי דוד 🎓</span>
-              </Button>
-            </Link>
-          )}
 
           <Link href={targetUrl}>
             <Button

@@ -77,7 +77,8 @@ export interface SubmissionItem {
   teacherFeedback?: string;
   submittedAt: string;
   receiptCode: string;
-  status: "submitted" | "reviewed";
+  status: "submitted" | "reviewed" | "completed";
+  mode?: "practice" | "graded";
   reviewedAt?: string;
 }
 
