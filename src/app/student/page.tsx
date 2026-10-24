@@ -39,6 +39,7 @@ import {
   RotateCcw,
   Trash2,
   Target,
+  Volume2,
 } from "lucide-react";
 import { StudentAssignedTaskPrompt } from "@/components/student/student-assigned-task-prompt";
 
@@ -96,6 +97,48 @@ export default function StudentPortalPage() {
       window.location.href = `/writing?task=${sub.taskId}`;
     } else if (sub.type === "vocab") {
       window.location.href = `/vocabulary?category=${sub.assignmentId ? "assignment" : "saved"}`;
+    }
+  };
+
+  const [playingQuestionId, setPlayingQuestionId] = useState<string | null>(null);
+
+  const handleSpeakQuestion = (text: string, id: string) => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    try {
+      if (playingQuestionId === id) {
+        window.speechSynthesis.cancel();
+        setPlayingQuestionId(null);
+        return;
+      }
+      window.speechSynthesis.cancel();
+    } catch {}
+
+    try {
+      const clean = text.replace(/_+/g, " blank ").trim();
+      const utterance = new SpeechSynthesisUtterance(clean);
+      utterance.lang = "en-US";
+      utterance.rate = 0.88;
+
+      const allVoices = window.speechSynthesis.getVoices();
+      const preferred = allVoices.find(
+        (v) =>
+          (v.lang.startsWith("en") || v.lang.startsWith("EN")) &&
+          !v.name.toLowerCase().includes("siri") &&
+          (v.name.toLowerCase().includes("natural") ||
+            v.name.toLowerCase().includes("enhanced") ||
+            v.name.toLowerCase().includes("samantha") ||
+            v.name.toLowerCase().includes("google"))
+      );
+      if (preferred) {
+        utterance.voice = preferred;
+      }
+
+      setPlayingQuestionId(id);
+      utterance.onend = () => setPlayingQuestionId(null);
+      utterance.onerror = () => setPlayingQuestionId(null);
+      window.speechSynthesis.speak(utterance);
+    } catch {
+      setPlayingQuestionId(null);
     }
   };
 
@@ -940,13 +983,28 @@ export default function StudentPortalPage() {
                                 : "border-destructive/30 bg-destructive/5"
                             }`}
                           >
-                            <div className="flex items-center justify-between">
-                              <span className="font-bold text-foreground">
-                                שאלה {q.number}: {q.prompt}
-                              </span>
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-1.5 min-w-0">
+                                <button
+                                  type="button"
+                                  onClick={() => handleSpeakQuestion(q.prompt, q.id)}
+                                  className={`p-1 rounded-md transition-colors cursor-pointer shrink-0 ${
+                                    playingQuestionId === q.id
+                                      ? "bg-primary text-primary-foreground animate-pulse"
+                                      : "text-muted-foreground hover:text-primary hover:bg-muted"
+                                  }`}
+                                  title="האזנה לשאלה באנגלית"
+                                  aria-label="האזנה לשאלה"
+                                >
+                                  <Volume2 className="h-3.5 w-3.5" />
+                                </button>
+                                <span className="font-bold text-foreground">
+                                  שאלה {q.number}: {q.prompt}
+                                </span>
+                              </div>
                               <Badge
                                 variant={earnedPts >= 8 ? "default" : earnedPts >= 5 ? "secondary" : "destructive"}
-                                className="text-[10px]"
+                                className="text-[10px] shrink-0"
                               >
                                 {earnedPts}/10 נק׳
                               </Badge>

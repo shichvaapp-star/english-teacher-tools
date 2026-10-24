@@ -308,6 +308,88 @@ export default function UnseenPracticePage() {
 
   const [isChangingTeacher, setIsChangingTeacher] = useState(false);
 
+  // Question Audio Reading State
+  const [isSpeakingQuestion, setIsSpeakingQuestion] = useState(false);
+  const [speakingQuestionId, setSpeakingQuestionId] = useState<string | null>(null);
+
+  const handleSpeakText = (text: string, id?: string) => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    try {
+      if (window.speechSynthesis.paused) {
+        window.speechSynthesis.resume();
+      }
+      if (isSpeakingQuestion && speakingQuestionId === id) {
+        window.speechSynthesis.cancel();
+        setIsSpeakingQuestion(false);
+        setSpeakingQuestionId(null);
+        return;
+      }
+      window.speechSynthesis.cancel();
+      // If passage speech player is playing, pause it to prevent conflicting sounds
+      if (speech.isPlaying) {
+        speech.pause();
+      }
+    } catch {}
+
+    try {
+      // Clean up multiple underscores or ellipses so speech synthesis pronounces "blank" or reads smoothly
+      const clean = text
+        .replace(/_+/g, " blank ")
+        .replace(/\(\d+\)/g, "")
+        .trim();
+      const utterance = new SpeechSynthesisUtterance(clean);
+      utterance.lang = "en-US";
+      utterance.rate = 0.88;
+
+      const allVoices = window.speechSynthesis.getVoices();
+      const preferred = allVoices.find(
+        (v) =>
+          (v.lang.startsWith("en") || v.lang.startsWith("EN")) &&
+          !v.name.toLowerCase().includes("siri") &&
+          (v.name.toLowerCase().includes("natural") ||
+            v.name.toLowerCase().includes("enhanced") ||
+            v.name.toLowerCase().includes("samantha") ||
+            v.name.toLowerCase().includes("google"))
+      );
+      if (preferred) {
+        utterance.voice = preferred;
+      }
+
+      const w = window as any;
+      w.__questionUtterance = utterance;
+      setIsSpeakingQuestion(true);
+      setSpeakingQuestionId(id || text);
+
+      utterance.onend = () => {
+        w.__questionUtterance = null;
+        setIsSpeakingQuestion(false);
+        setSpeakingQuestionId(null);
+      };
+      utterance.onerror = () => {
+        w.__questionUtterance = null;
+        setIsSpeakingQuestion(false);
+        setSpeakingQuestionId(null);
+      };
+
+      window.speechSynthesis.speak(utterance);
+    } catch (err) {
+      console.warn("[unseen] handleSpeakText error:", err);
+      setIsSpeakingQuestion(false);
+      setSpeakingQuestionId(null);
+    }
+  };
+
+  // Stop speaking when user changes question
+  useEffect(() => {
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      if (isSpeakingQuestion) {
+        window.speechSynthesis.cancel();
+        setIsSpeakingQuestion(false);
+        setSpeakingQuestionId(null);
+      }
+    }
+  }, [activeQuestionIndex]);
+
   // Resolved selected teacher
   const selectedTeacher =
     teachers.find((t) => t.id === selectedTeacherId) ||
@@ -2471,12 +2553,44 @@ export default function UnseenPracticePage() {
                       </p>
                     )}
 
-                    <h3 className="text-sm font-semibold text-foreground mt-2 leading-relaxed notranslate" translate="no" lang="en">
-                      <InteractiveEnglishText
-                        text={activeQuestion.prompt}
-                        onWordClick={handleWordClick}
-                      />
-                    </h3>
+                    <div className="flex items-start justify-between gap-3 mt-2">
+                      <h3 className="text-sm font-semibold text-foreground leading-relaxed notranslate flex-1" translate="no" lang="en">
+                        <InteractiveEnglishText
+                          text={activeQuestion.prompt}
+                          onWordClick={handleWordClick}
+                        />
+                      </h3>
+
+                      <Button
+                        type="button"
+                        variant={isSpeakingQuestion && speakingQuestionId === activeQuestion.id ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => handleSpeakText(activeQuestion.prompt, activeQuestion.id)}
+                        className={`h-8 px-2.5 text-xs font-bold gap-1.5 cursor-pointer shrink-0 transition-all ${
+                          isSpeakingQuestion && speakingQuestionId === activeQuestion.id
+                            ? "bg-primary text-primary-foreground animate-pulse"
+                            : "border-border/70 text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                        }`}
+                        title={
+                          isSpeakingQuestion && speakingQuestionId === activeQuestion.id
+                            ? "עצור הקראת שאלה"
+                            : "האזנה לשאלה באנגלית"
+                        }
+                        aria-label="האזנה לשאלה"
+                      >
+                        {isSpeakingQuestion && speakingQuestionId === activeQuestion.id ? (
+                          <>
+                            <Pause className="h-3.5 w-3.5" />
+                            <span className="hidden sm:inline">עצור</span>
+                          </>
+                        ) : (
+                          <>
+                            <Volume2 className="h-3.5 w-3.5 text-primary" />
+                            <span className="hidden sm:inline">האזן לשאלה</span>
+                          </>
+                        )}
+                      </Button>
+                    </div>
                   </CardHeader>
 
                   <CardContent className="pt-4 space-y-3 notranslate" translate="no" lang="en">
@@ -2529,6 +2643,22 @@ export default function UnseenPracticePage() {
                                   stopEventPropagation
                                 />
                               </span>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleSpeakText(option, `${activeQuestion.id}-opt-${optIdx}`);
+                                }}
+                                className={`p-1 rounded-md transition-colors cursor-pointer shrink-0 mt-0.5 ${
+                                  isSpeakingQuestion && speakingQuestionId === `${activeQuestion.id}-opt-${optIdx}`
+                                    ? "bg-primary text-primary-foreground"
+                                    : "text-muted-foreground/60 hover:text-primary hover:bg-primary/10"
+                                }`}
+                                title="האזנה לאפשרות זו באנגלית"
+                                aria-label="האזנה לאפשרות"
+                              >
+                                <Volume2 className="h-3.5 w-3.5" />
+                              </button>
                               {mode === "practice" && isChecked && isCorrectOption && (
                                 <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
                               )}
@@ -3025,14 +3155,29 @@ export default function UnseenPracticePage() {
                                 : "border-destructive/30 bg-destructive/5"
                             }`}
                           >
-                            <div className="flex items-center justify-between">
-                              <span className="font-bold text-foreground">
-                                שאלה {q.number}:{" "}
-                                <InteractiveEnglishText text={q.prompt} onWordClick={handleWordClick} />
-                              </span>
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-1.5 min-w-0">
+                                <button
+                                  type="button"
+                                  onClick={() => handleSpeakText(q.prompt, `review-${q.id}`)}
+                                  className={`p-1 rounded-md transition-colors cursor-pointer shrink-0 ${
+                                    isSpeakingQuestion && speakingQuestionId === `review-${q.id}`
+                                      ? "bg-primary text-primary-foreground animate-pulse"
+                                      : "text-muted-foreground hover:text-primary hover:bg-muted"
+                                  }`}
+                                  title="האזנה לשאלה באנגלית"
+                                  aria-label="האזנה לשאלה"
+                                >
+                                  <Volume2 className="h-3.5 w-3.5" />
+                                </button>
+                                <span className="font-bold text-foreground truncate">
+                                  שאלה {q.number}:{" "}
+                                  <InteractiveEnglishText text={q.prompt} onWordClick={handleWordClick} />
+                                </span>
+                              </div>
                               <Badge
                                 variant={q.points >= 8 ? "default" : q.points >= 5 ? "secondary" : "destructive"}
-                                className="text-[10px]"
+                                className="text-[10px] shrink-0"
                               >
                                 {q.points}/10 נק׳
                               </Badge>
