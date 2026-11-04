@@ -7,6 +7,7 @@ import {
   createUserWithEmailAndPassword,
   signOut as fbSignOut,
   updateProfile,
+  onAuthStateChanged,
 } from "firebase/auth";
 import {
   collection,
@@ -112,6 +113,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     () => false
   );
   const isLoading = !isHydrated;
+
+  // Listen to Firebase Auth state
+  useEffect(() => {
+    if (!auth) return;
+    const unsubscribe = onAuthStateChanged(auth, (fbUser) => {
+      if (fbUser && fbUser.email) {
+        const email = fbUser.email.toLowerCase().trim();
+        const isSuperAdminEmail = ADMIN_DEFAULT_EMAILS.some((adm) => adm.toLowerCase() === email);
+        if (isSuperAdminEmail) {
+          setUser((curr) => {
+            if (curr && !curr.isAdmin) {
+              const updated = { ...curr, isAdmin: true };
+              try {
+                localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(updated));
+              } catch {
+                // Ignore
+              }
+              return updated;
+            }
+            return curr;
+          });
+        }
+      }
+    });
+    return () => unsubscribe();
+  }, []);
 
   // Sync real teachers from Firestore if available
   useEffect(() => {

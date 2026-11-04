@@ -173,7 +173,11 @@ export function AdminTeachersView({ teachers }: AdminTeachersViewProps) {
 
     setIsDeleting(false);
     if (!res.success) {
-      setDeleteError(res.error || "שגיאה במחיקת החשבון.");
+      if (res.error?.includes("permission") || res.error?.includes("insufficient")) {
+        setDeleteError("שגיאת הרשאות ב-Firebase (Missing permissions): יש לפרסם את חוקי האבטחה (firestore.rules) ב-Firebase Console -> Firestore Database -> Rules כדי לאפשר למנהל למחוק חשבונות.");
+      } else {
+        setDeleteError(res.error || "שגיאה במחיקת החשבון.");
+      }
     } else {
       const deletedName = deletingTeacher.name;
       setDeletingTeacher(null);
