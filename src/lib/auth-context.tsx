@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useSyncExternalStore } from "react";
-import { ActiveUser, StudentProfile, TeacherProfile, StudentGroup } from "@/types/auth";
+import { ActiveUser, StudentProfile, TeacherProfile, StudentGroup, ADMIN_DEFAULT_EMAILS } from "@/types/auth";
 import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
@@ -47,6 +47,10 @@ interface AuthContextType {
   }) => Promise<{ success: boolean; student?: StudentProfile; error?: string }>;
   updateStudent: (studentId: string, updates: Partial<StudentProfile>) => Promise<{ success: boolean; error?: string }>;
   deleteStudent: (studentId: string) => Promise<{ success: boolean; error?: string }>;
+  deleteTeacherAccount: (teacherId: string, options?: { transferToTeacherId?: string }) => Promise<{ success: boolean; error?: string }>;
+  updateTeacherAccount: (teacherId: string, updates: Partial<TeacherProfile>) => Promise<{ success: boolean; error?: string }>;
+  setTeacherAdminStatus: (teacherId: string, isAdmin: boolean) => Promise<{ success: boolean; error?: string }>;
+  claimAdminRole: () => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
   isLoading: boolean;
 }
@@ -120,6 +124,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const list: TeacherProfile[] = [];
           snap.forEach((docSnap) => {
             const data = docSnap.data();
+            const candEmail = (data.email || "").toLowerCase().trim();
+            const isSuperAdminEmail = ADMIN_DEFAULT_EMAILS.some((adm) => adm.toLowerCase() === candEmail);
             const candidate: TeacherProfile = {
               id: docSnap.id,
               name: data.name || "Teacher",
@@ -127,6 +133,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               schoolName: data.schoolName || "Ben Gurion Middle School",
               teacherCode: data.teacherCode || "",
               createdAt: data.createdAt || new Date().toISOString(),
+              isAdmin: isSuperAdminEmail || !!data.isAdmin,
             };
             if (!isMockTeacher(candidate)) {
               list.push(candidate);
@@ -140,6 +147,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             } catch {
               // Ignore storage quota
             }
+
+            // Sync admin status to active user session if needed
+            setUser((currentUser) => {
+              if (currentUser && currentUser.role === "teacher") {
+                const currentProfile = list.find((t) => t.id === currentUser.id || t.email.toLowerCase() === (currentUser.email || "").toLowerCase());
+                if (currentProfile && currentProfile.isAdmin !== currentUser.isAdmin) {
+                  const updatedUser = { ...currentUser, isAdmin: currentProfile.isAdmin };
+                  try {
+                    localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(updatedUser));
+                  } catch {
+                    // Ignore
+                  }
+                  return updatedUser;
+                }
+              }
+              return currentUser;
+            });
           }
         }
       } catch (err) {
@@ -203,6 +227,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Try finding teacher profile in existing list or Firestore
     let teacherProfile = teachers.find((t) => t.email.toLowerCase() === trimmedEmail || (uid && t.id === uid));
 
+    const isSuperAdminEmail = ADMIN_DEFAULT_EMAILS.some((adm) => adm.toLowerCase() === trimmedEmail);
+
     if (!teacherProfile && db && uid) {
       try {
         const docSnap = await getDoc(doc(db, "teachers", uid));
@@ -215,6 +241,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             schoolName: d.schoolName || "Ben Gurion Middle School",
             teacherCode: d.teacherCode || "TEACHER-01",
             createdAt: d.createdAt || new Date().toISOString(),
+            isAdmin: isSuperAdminEmail || !!d.isAdmin,
           };
         }
       } catch (dbErr) {
@@ -230,7 +257,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         schoolName: "Ben Gurion Middle School",
         teacherCode: `TEACHER-${Math.floor(10 + Math.random() * 90)}`,
         createdAt: new Date().toISOString(),
+        isAdmin: isSuperAdminEmail,
       };
+    } else if (isSuperAdminEmail && !teacherProfile.isAdmin) {
+      teacherProfile = { ...teacherProfile, isAdmin: true };
     }
 
     const activeUser: ActiveUser = {
@@ -240,6 +270,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       email: teacherProfile.email,
       schoolName: teacherProfile.schoolName,
       teacherCode: teacherProfile.teacherCode,
+      isAdmin: isSuperAdminEmail || !!teacherProfile.isAdmin,
     };
 
     setUser(activeUser);
@@ -305,6 +336,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     const codeBase = data.name.split(" ")[0].toUpperCase().replace(/[^A-Z]/g, "") || "TEACHER";
+    const isSuperAdminEmail = ADMIN_DEFAULT_EMAILS.some((adm) => adm.toLowerCase() === trimmedEmail);
     const newTeacher: TeacherProfile = {
       id: uid,
       name: data.name.trim(),
@@ -312,6 +344,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       schoolName: data.schoolName.trim() || "Ben Gurion Middle School",
       teacherCode: `${codeBase}-${Math.floor(10 + Math.random() * 90)}`,
       createdAt: new Date().toISOString(),
+      isAdmin: isSuperAdminEmail,
     };
 
     if (db) {
@@ -337,6 +370,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       email: newTeacher.email,
       schoolName: newTeacher.schoolName,
       teacherCode: newTeacher.teacherCode,
+      isAdmin: isSuperAdminEmail,
     };
 
     setUser(activeUser);
@@ -700,6 +734,179 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { success: true };
   };
 
+  const updateTeacherAccount = async (
+    teacherId: string,
+    updates: Partial<TeacherProfile>
+  ): Promise<{ success: boolean; error?: string }> => {
+    if (!teacherId) {
+      return { success: false, error: "Missing teacher ID." };
+    }
+
+    if (db) {
+      try {
+        await updateDoc(doc(db, "teachers", teacherId), updates);
+      } catch (dbErr) {
+        console.warn("Firestore update teacher error:", dbErr);
+      }
+    }
+
+    const updated = teachers.map((t) => (t.id === teacherId ? { ...t, ...updates } : t));
+    setTeachers(updated);
+    try {
+      localStorage.setItem(STORAGE_KEYS.TEACHERS, JSON.stringify(updated));
+    } catch {
+      // Ignore
+    }
+
+    if (user && user.id === teacherId) {
+      const updatedUser: ActiveUser = {
+        ...user,
+        ...(updates.name ? { name: updates.name } : {}),
+        ...(updates.email ? { email: updates.email } : {}),
+        ...(updates.schoolName ? { schoolName: updates.schoolName } : {}),
+        ...(updates.teacherCode ? { teacherCode: updates.teacherCode } : {}),
+        ...(typeof updates.isAdmin === "boolean" ? { isAdmin: updates.isAdmin } : {}),
+      };
+      setUser(updatedUser);
+      try {
+        localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(updatedUser));
+      } catch {
+        // Ignore
+      }
+    }
+
+    return { success: true };
+  };
+
+  const setTeacherAdminStatus = async (
+    teacherId: string,
+    isAdmin: boolean
+  ): Promise<{ success: boolean; error?: string }> => {
+    return updateTeacherAccount(teacherId, { isAdmin });
+  };
+
+  const claimAdminRole = async (): Promise<{ success: boolean; error?: string }> => {
+    if (!user || user.role !== "teacher") {
+      return { success: false, error: "You must be signed in as a teacher to activate admin privileges." };
+    }
+    const res = await updateTeacherAccount(user.id, { isAdmin: true });
+    if (res.success) {
+      const updatedUser: ActiveUser = { ...user, isAdmin: true };
+      setUser(updatedUser);
+      try {
+        localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(updatedUser));
+      } catch {
+        // Ignore
+      }
+    }
+    return res;
+  };
+
+  const deleteTeacherAccount = async (
+    teacherId: string,
+    options?: { transferToTeacherId?: string }
+  ): Promise<{ success: boolean; error?: string }> => {
+    if (!teacherId) {
+      return { success: false, error: "Missing teacher ID." };
+    }
+
+    if (user && user.id === teacherId) {
+      return { success: false, error: "Cannot delete your own active admin account." };
+    }
+
+    try {
+      // If a target teacher is chosen to absorb the duplicate account's students & assignments:
+      if (options?.transferToTeacherId) {
+        const targetTeacher = teachers.find((t) => t.id === options.transferToTeacherId);
+        if (!targetTeacher) {
+          return { success: false, error: "Target teacher to transfer records to was not found." };
+        }
+
+        if (db) {
+          // 1. Reassign students
+          try {
+            const studentsSnap = await getDocs(
+              query(collection(db, "students"), where("teacherId", "==", teacherId))
+            );
+            for (const sDoc of studentsSnap.docs) {
+              await updateDoc(doc(db, "students", sDoc.id), {
+                teacherId: targetTeacher.id,
+                teacherName: targetTeacher.name,
+              });
+            }
+          } catch (stErr) {
+            console.warn("Error transferring students in Firestore:", stErr);
+          }
+
+          // 2. Reassign assignments
+          try {
+            const assignSnap = await getDocs(
+              query(collection(db, "assignments"), where("teacherId", "==", teacherId))
+            );
+            for (const aDoc of assignSnap.docs) {
+              await updateDoc(doc(db, "assignments", aDoc.id), {
+                teacherId: targetTeacher.id,
+                teacherName: targetTeacher.name,
+              });
+            }
+          } catch (asErr) {
+            console.warn("Error transferring assignments in Firestore:", asErr);
+          }
+
+          // 3. Reassign submissions
+          try {
+            const subSnap = await getDocs(
+              query(collection(db, "submissions"), where("teacherId", "==", teacherId))
+            );
+            for (const subDoc of subSnap.docs) {
+              await updateDoc(doc(db, "submissions", subDoc.id), {
+                teacherId: targetTeacher.id,
+                teacherName: targetTeacher.name,
+              });
+            }
+          } catch (subErr) {
+            console.warn("Error transferring submissions in Firestore:", subErr);
+          }
+        }
+
+        // Migrate local storage records
+        try {
+          const storedStudentsRaw = localStorage.getItem(STORAGE_KEYS.STUDENTS);
+          if (storedStudentsRaw) {
+            const sList: StudentProfile[] = JSON.parse(storedStudentsRaw);
+            const updatedSList = sList.map((s) =>
+              s.teacherId === teacherId
+                ? { ...s, teacherId: targetTeacher.id, teacherName: targetTeacher.name }
+                : s
+            );
+            localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(updatedSList));
+          }
+        } catch (locErr) {
+          console.warn("Error transferring local students:", locErr);
+        }
+      }
+
+      // Delete the teacher doc from Firestore
+      if (db) {
+        await deleteDoc(doc(db, "teachers", teacherId));
+      }
+
+      // Remove teacher from state and local storage
+      const updatedTeachers = teachers.filter((t) => t.id !== teacherId);
+      setTeachers(updatedTeachers);
+      try {
+        localStorage.setItem(STORAGE_KEYS.TEACHERS, JSON.stringify(updatedTeachers));
+      } catch {
+        // Ignore
+      }
+
+      return { success: true };
+    } catch (err: unknown) {
+      console.error("deleteTeacherAccount error:", err);
+      return { success: false, error: (err as Error)?.message || "Failed to delete teacher account." };
+    }
+  };
+
   const logout = () => {
     setUser(null);
     try {
@@ -725,6 +932,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         addStudentByTeacher,
         updateStudent,
         deleteStudent,
+        deleteTeacherAccount,
+        updateTeacherAccount,
+        setTeacherAdminStatus,
+        claimAdminRole,
         logout,
         isLoading,
       }}

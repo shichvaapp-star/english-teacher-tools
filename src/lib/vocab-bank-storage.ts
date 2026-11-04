@@ -88,6 +88,14 @@ export async function saveTeacherVocabBank(
     try {
       const ref = doc(db, "teachers", teacherId, "vocabBanks", updatedBank.id);
       await setDoc(ref, cleanForFirestore(updatedBank), { merge: true });
+
+      // Sync to shared_vocab_banks collection
+      const sharedRef = doc(db, "shared_vocab_banks", updatedBank.id);
+      if (updatedBank.isShared) {
+        await setDoc(sharedRef, cleanForFirestore(updatedBank), { merge: true });
+      } else {
+        await deleteDoc(sharedRef).catch(() => {});
+      }
     } catch (err) {
       console.warn("Error saving vocab bank to Firestore:", err);
     }
@@ -105,10 +113,96 @@ export async function deleteTeacherVocabBank(bankId: string, teacherId?: string)
     try {
       const ref = doc(db, "teachers", teacherId, "vocabBanks", bankId);
       await deleteDoc(ref);
+      // Also remove from shared collection if present
+      const sharedRef = doc(db, "shared_vocab_banks", bankId);
+      await deleteDoc(sharedRef).catch(() => {});
     } catch (err) {
       console.warn("Error deleting vocab bank from Firestore:", err);
     }
   }
+}
+
+/**
+ * Load all shared vocabulary banks published by any teacher
+ */
+export async function loadSharedVocabBanks(): Promise<TeacherVocabBank[]> {
+  if (!db) return [];
+  try {
+    const snap = await getDocs(collection(db, "shared_vocab_banks"));
+    const list: TeacherVocabBank[] = [];
+    snap.forEach((d) => {
+      list.push({ ...(d.data() as TeacherVocabBank), id: d.id });
+    });
+    return list.sort(
+      (a, b) => new Date(b.sharedAt || b.createdAt || 0).getTime() - new Date(a.sharedAt || a.createdAt || 0).getTime()
+    );
+  } catch (err) {
+    console.warn("Error loading shared vocab banks:", err);
+    return [];
+  }
+}
+
+/**
+ * Toggle sharing status of a vocabulary bank to the shared school/community pool
+ */
+export async function toggleShareVocabBank(
+  bank: TeacherVocabBank,
+  isShared: boolean,
+  author: { id: string; name: string; schoolName?: string }
+): Promise<TeacherVocabBank> {
+  const updatedBank: TeacherVocabBank = {
+    ...bank,
+    isShared,
+    sharedAt: isShared ? new Date().toISOString() : undefined,
+    teacherName: author.name,
+    schoolName: author.schoolName || "",
+    updatedAt: new Date().toISOString(),
+  };
+
+  // Save in teacher's private storage & Firestore
+  await saveTeacherVocabBank(updatedBank, author.id);
+
+  // Sync to top-level shared collection
+  if (db) {
+    try {
+      const sharedRef = doc(db, "shared_vocab_banks", updatedBank.id);
+      if (isShared) {
+        await setDoc(sharedRef, cleanForFirestore(updatedBank), { merge: true });
+      } else {
+        await deleteDoc(sharedRef);
+      }
+    } catch (err) {
+      console.warn("Error updating shared_vocab_banks in Firestore:", err);
+    }
+  }
+
+  return updatedBank;
+}
+
+/**
+ * Clone a shared vocabulary bank into current teacher's private banks
+ */
+export async function cloneVocabBankToMyBanks(
+  sharedBank: TeacherVocabBank,
+  currentTeacher: { id: string; name: string }
+): Promise<TeacherVocabBank> {
+  const newId = `bank-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+  const clonedBank: TeacherVocabBank = {
+    ...sharedBank,
+    id: newId,
+    teacherId: currentTeacher.id,
+    name: `${sharedBank.name} (עותק)`,
+    isShared: false,
+    sharedAt: undefined,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    words: sharedBank.words.map((w) => ({
+      ...w,
+      id: `word-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+    })),
+  };
+
+  return saveTeacherVocabBank(clonedBank, currentTeacher.id);
 }
 
 /**

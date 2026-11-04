@@ -53,6 +53,8 @@ import {
   Plus,
   MessageSquarePlus,
   BookA,
+  ShieldCheck,
+  Share2,
 } from "lucide-react";
 
 import { SubmissionItem } from "@/types/submission";
@@ -66,6 +68,7 @@ import {
   loadTeacherVocabBanks,
   saveTeacherVocabBank,
   deleteTeacherVocabBank,
+  toggleShareVocabBank,
 } from "@/lib/vocab-bank-storage";
 
 import { TurnInsTable, parseSubmissionTimestamp } from "./turn-ins-table";
@@ -75,6 +78,8 @@ import { AssignedTasksView } from "./assigned-tasks-view";
 import { AdminSuggestionsView } from "./admin-suggestions-view";
 import { CustomVocabBanksView } from "./custom-vocab-banks-view";
 import { VocabBankModal } from "./vocab-bank-modal";
+import { AdminTeachersView } from "./admin-teachers-view";
+import { SharedResourcesView } from "./shared-resources-view";
 
 const LOCAL_SUBMISSIONS_KEY = "ett_writing_submissions";
 const LOCAL_ASSIGNMENTS_KEY = "ett_teacher_assignments";
@@ -83,6 +88,8 @@ const LOCAL_SUGGESTIONS_KEY = "ett_site_suggestions";
 export default function TeacherDashboardPage() {
   const {
     user,
+    teachers,
+    claimAdminRole,
     getStudentsByTeacher,
     addStudentByTeacher,
     updateStudent,
@@ -90,13 +97,14 @@ export default function TeacherDashboardPage() {
   } = useAuth();
 
   // Active navigation view tab
-  const [activeTab, setActiveTab] = useState<"submissions" | "assignments" | "students" | "banks" | "suggestions">("submissions");
+  const [activeTab, setActiveTab] = useState<"submissions" | "assignments" | "students" | "banks" | "shared" | "adminTeachers" | "suggestions">("submissions");
 
   // Custom Vocabulary Banks State
   const [vocabBanks, setVocabBanks] = useState<TeacherVocabBank[]>([]);
   const [vocabBankModalOpen, setVocabBankModalOpen] = useState(false);
   const [editingBank, setEditingBank] = useState<TeacherVocabBank | null>(null);
   const [preselectedBankForAssign, setPreselectedBankForAssign] = useState<TeacherVocabBank | null>(null);
+  const [sharedTemplateForAssign, setSharedTemplateForAssign] = useState<TeacherAssignment | null>(null);
 
   // Site Suggestions State (Admin)
   const [suggestions, setSuggestions] = useState<SiteSuggestion[]>([]);
@@ -363,7 +371,12 @@ export default function TeacherDashboardPage() {
 
   const handleSaveVocabBank = async (bank: TeacherVocabBank) => {
     if (!user) return;
-    const saved = await saveTeacherVocabBank(bank, user.id);
+    const bankToSave: TeacherVocabBank = {
+      ...bank,
+      teacherName: user.name,
+      schoolName: user.schoolName,
+    };
+    const saved = await saveTeacherVocabBank(bankToSave, user.id);
     setVocabBanks((prev) => {
       const idx = prev.findIndex((b) => b.id === saved.id);
       if (idx !== -1) {
@@ -374,6 +387,22 @@ export default function TeacherDashboardPage() {
       return [saved, ...prev];
     });
     setEditingBank(null);
+  };
+
+  const handleToggleShareBank = async (bank: TeacherVocabBank) => {
+    if (!user) return;
+    const nextShared = !bank.isShared;
+    const updated = await toggleShareVocabBank(bank, nextShared, {
+      id: user.id,
+      name: user.name,
+      schoolName: user.schoolName,
+    });
+    setVocabBanks((prev) => prev.map((b) => (b.id === updated.id ? updated : b)));
+  };
+
+  const handleUseSharedAssignment = (sharedAssignment: TeacherAssignment) => {
+    setSharedTemplateForAssign(sharedAssignment);
+    setAssignModalOpen(true);
   };
 
   const handleDeleteVocabBank = async (bankId: string, bankName: string) => {
@@ -396,6 +425,10 @@ export default function TeacherDashboardPage() {
       const tabParam = params.get("tab");
       if (tabParam === "suggestions") {
         setActiveTab("suggestions");
+      } else if (tabParam === "adminTeachers") {
+        setActiveTab("adminTeachers");
+      } else if (tabParam === "shared") {
+        setActiveTab("shared");
       }
     }
 
@@ -504,7 +537,12 @@ export default function TeacherDashboardPage() {
   // ---------------------------------------------------------------------------
   // TASK ASSIGNMENT ACTIONS
   // ---------------------------------------------------------------------------
-  const handleTaskAssigned = async (newAssignment: TeacherAssignment) => {
+  const handleTaskAssigned = async (assignmentData: TeacherAssignment) => {
+    const newAssignment: TeacherAssignment = {
+      ...assignmentData,
+      authorSchoolName: user?.schoolName || "",
+    };
+
     // 1. Save to local storage
     const updated = [newAssignment, ...assignments];
     setAssignments(updated);
@@ -522,6 +560,7 @@ export default function TeacherDashboardPage() {
         console.warn("Could not save assignment to Firestore:", err);
       }
     }
+    setSharedTemplateForAssign(null);
   };
 
   const handleArchiveAssignment = async (id: string) => {
@@ -1047,9 +1086,15 @@ export default function TeacherDashboardPage() {
               <div className="p-1.5 rounded-lg bg-primary/10 text-primary shrink-0">
                 <GraduationCap className="h-4 w-4" />
               </div>
-              <span className="font-bold text-xs sm:text-base truncate">
+              <span className="font-bold text-xs sm:text-base truncate flex items-center gap-1.5">
                 <span>לוח מורה</span>
                 <span className="hidden sm:inline"> &bull; {user.schoolName || "חטיבת ביניים"}</span>
+                {user.isAdmin && (
+                  <Badge className="text-[10px] bg-purple-600 text-white font-bold h-5 px-1.5 flex items-center gap-1">
+                    <ShieldCheck className="h-3 w-3" />
+                    Admin
+                  </Badge>
+                )}
               </span>
             </div>
           </div>
@@ -1260,28 +1305,66 @@ export default function TeacherDashboardPage() {
               </span>
             </button>
 
+            {/* Shared Content Hub */}
             <button
               type="button"
-              onClick={() => setActiveTab("suggestions")}
+              onClick={() => setActiveTab("shared")}
               className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer shrink-0 ${
-                activeTab === "suggestions"
+                activeTab === "shared"
                   ? "bg-primary text-primary-foreground shadow-xs"
                   : "bg-muted/40 text-muted-foreground hover:text-foreground hover:bg-muted"
               }`}
             >
-              <MessageSquarePlus className="h-4 w-4" />
-              <span>הצעות ומשוב (Admin)</span>
-              <span className={`px-2 py-0.2 rounded-full text-[11px] font-bold ${
-                activeTab === "suggestions" ? "bg-primary-foreground/20 text-primary-foreground" : "bg-muted text-muted-foreground"
-              }`}>
-                {suggestions.length}
-              </span>
-              {suggestions.filter((s) => s.status === "new").length > 0 && (
-                <span className="px-1.5 py-0.2 rounded-full text-[10px] font-black bg-amber-500 text-white">
-                  {suggestions.filter((s) => s.status === "new").length} חדשות
-                </span>
-              )}
+              <Share2 className="h-4 w-4" />
+              <span>מאגר משותף</span>
             </button>
+
+            {/* Admin: Teachers Management */}
+            {user?.isAdmin && (
+              <button
+                type="button"
+                onClick={() => setActiveTab("adminTeachers")}
+                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer shrink-0 ${
+                  activeTab === "adminTeachers"
+                    ? "bg-purple-600 text-white shadow-xs"
+                    : "bg-purple-500/10 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20"
+                }`}
+              >
+                <ShieldCheck className="h-4 w-4" />
+                <span>ניהול מורים (Admin)</span>
+                <span className={`px-2 py-0.2 rounded-full text-[11px] font-bold ${
+                  activeTab === "adminTeachers" ? "bg-white/20 text-white" : "bg-purple-500/20 text-purple-700 dark:text-purple-300"
+                }`}>
+                  {teachers.length}
+                </span>
+              </button>
+            )}
+
+            {/* Admin: Suggestions */}
+            {user?.isAdmin && (
+              <button
+                type="button"
+                onClick={() => setActiveTab("suggestions")}
+                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer shrink-0 ${
+                  activeTab === "suggestions"
+                    ? "bg-primary text-primary-foreground shadow-xs"
+                    : "bg-muted/40 text-muted-foreground hover:text-foreground hover:bg-muted"
+                }`}
+              >
+                <MessageSquarePlus className="h-4 w-4" />
+                <span>הצעות ומשוב (Admin)</span>
+                <span className={`px-2 py-0.2 rounded-full text-[11px] font-bold ${
+                  activeTab === "suggestions" ? "bg-primary-foreground/20 text-primary-foreground" : "bg-muted text-muted-foreground"
+                }`}>
+                  {suggestions.length}
+                </span>
+                {suggestions.filter((s) => s.status === "new").length > 0 && (
+                  <span className="px-1.5 py-0.2 rounded-full text-[10px] font-black bg-amber-500 text-white">
+                    {suggestions.filter((s) => s.status === "new").length} חדשות
+                  </span>
+                )}
+              </button>
+            )}
           </div>
 
           {activeTab === "banks" && (
@@ -1672,14 +1755,40 @@ export default function TeacherDashboardPage() {
               }}
               onDeleteBank={handleDeleteVocabBank}
               onAssignFromBank={handleAssignFromBank}
+              onToggleShare={handleToggleShareBank}
             />
           </div>
         )}
 
         {/* -------------------------------------------------------------------
-            TAB 5: SITE SUGGESTIONS & EDITS (ADMIN VIEW)
+            TAB 5: SHARED COMMUNITY RESOURCES VIEW
             ------------------------------------------------------------------- */}
-        {activeTab === "suggestions" && (
+        {activeTab === "shared" && (
+          <div className="print:hidden">
+            <SharedResourcesView
+              onAssignFromBank={(bank) => {
+                setPreselectedBankForAssign(bank);
+                setAssignModalOpen(true);
+              }}
+              onUseSharedAssignment={handleUseSharedAssignment}
+              onBankCloned={fetchVocabBanks}
+            />
+          </div>
+        )}
+
+        {/* -------------------------------------------------------------------
+            TAB 6: ADMIN TEACHERS MANAGEMENT VIEW
+            ------------------------------------------------------------------- */}
+        {activeTab === "adminTeachers" && user?.isAdmin && (
+          <div className="print:hidden">
+            <AdminTeachersView teachers={teachers} />
+          </div>
+        )}
+
+        {/* -------------------------------------------------------------------
+            TAB 7: SITE SUGGESTIONS & EDITS (ADMIN VIEW)
+            ------------------------------------------------------------------- */}
+        {activeTab === "suggestions" && user?.isAdmin && (
           <div className="print:hidden">
             <AdminSuggestionsView
               suggestions={suggestions}
@@ -1970,6 +2079,7 @@ export default function TeacherDashboardPage() {
           if (!open) {
             setAssignPreselectedStudentId(null);
             setPreselectedBankForAssign(null);
+            setSharedTemplateForAssign(null);
           }
         }}
         teacherId={user.id}
@@ -1980,6 +2090,7 @@ export default function TeacherDashboardPage() {
         preselectedStudentId={assignPreselectedStudentId}
         customBanks={vocabBanks}
         preselectedVocabBank={preselectedBankForAssign}
+        initialAssignmentTemplate={sharedTemplateForAssign}
       />
 
       {/* -------------------------------------------------------------------

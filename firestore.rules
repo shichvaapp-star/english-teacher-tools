@@ -1,10 +1,103 @@
 rules_version = '2';
+
+// ===============================================================
+// Assumed Data Model & Architecture
+// ===============================================================
+//
+// 1. Teachers: /teachers/{teacherId}
+//    - Fields: id, name, email, schoolName, teacherCode, isAdmin (optional boolean), createdAt, updatedAt
+//    - Access: Public read for student registration & roster lookup; write by teacher owner or system admins.
+//
+// 2. Teacher Vocabulary Banks: /teachers/{teacherId}/vocabBanks/{bankId}
+//    - Fields: id, name, words (array), isShared (boolean), createdAt, updatedAt, teacherName, schoolName
+//    - Access: Public read for sharing and cloning across teachers; write by owning teacher or system admin.
+//
+// 3. Shared Vocabulary Banks: /shared_vocab_banks/{bankId}
+//    - Fields: id, name, words (array), isShared (boolean), teacherName, schoolName, sharedAt, updatedAt
+//    - Access: Public read for teachers and students; write by authenticated teachers.
+//
+// 4. Students: /students/{studentId}
+//    - Fields: id, name, grade, classGroup, teacherId, teacherName, createdAt, updatedAt
+//    - Access: Open read/write for classroom workflows and student portal access.
+//
+// 5. Assignments: /assignments/{assignmentId}
+//    - Fields: id, title, type, teacherId, isShared (boolean), createdAt, dueDate, content
+//    - Access: Public read for students; write restricted to authenticated teachers.
+//
+// 6. Submissions: /submissions/{submissionId}
+//    - Fields: id, assignmentId, studentId, studentName, teacherId, score, answers, feedback, createdAt
+//    - Access: Open read/write for students submitting work and teachers grading.
+//
+// 7. Unseens: /unseens/{unseenId}
+//    - Fields: id, title, text, questions, level, authorId, createdAt
+//    - Access: Public read for reading comprehension; write restricted to authenticated users.
+//
+// 8. Site Suggestions: /site_suggestions/{suggestionId}
+//    - Fields: id, pageUrl, selectedText, suggestionType, userComment, status, createdAt
+//    - Access: Open read/write for feedback submission and teacher review.
+//
+// 9. Drafts: /drafts/{draftId}
+//    - Fields: id, studentId, type, title, state, updatedAt
+//    - Access: Open read/write for student in-progress auto-saving.
+//
+// 10. User Private Storage: /users/{userId}/{allUserPaths=**}
+//    - Fields: words, wordOverrides, tutorProfile
+//    - Access: Read/write by document owner.
+//
+// ===============================================================
+
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Teachers collection: public read for student teacher selection, write restricted to the teacher
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+
+    // Check if the request is from an authenticated user
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Check if the current user owns the teacher resource
+    function isTeacher(teacherId) {
+      return isAuthenticated() && request.auth.uid == teacherId;
+    }
+
+    // Check if the authenticated user has system admin privileges
+    function isAdmin() {
+      return isAuthenticated() && (
+        ('email' in request.auth.token && request.auth.token.email in ['niroari@gmail.com', 'shichva.app@gmail.com']) ||
+        (exists(/databases/$(database)/documents/teachers/$(request.auth.uid)) &&
+         'isAdmin' in get(/databases/$(database)/documents/teachers/$(request.auth.uid)).data &&
+         get(/databases/$(database)/documents/teachers/$(request.auth.uid)).data.isAdmin == true)
+      );
+    }
+
+    // ===============================================================
+    // Rules Definition
+    // ===============================================================
+
+    // Teachers collection: public read for student teacher selection and rosters.
+    // Teachers can write/update their own document. Admins can update and delete teacher documents.
     match /teachers/{teacherId} {
       allow read: if true;
-      allow write: if request.auth != null && request.auth.uid == teacherId;
+      allow write: if isTeacher(teacherId) || isAdmin();
+
+      // Teachers vocab banks subcollection:
+      // Teachers can read and write their own vocabulary banks. Admins can also write.
+      // Public read so other teachers / shared mechanisms can read and clone.
+      match /vocabBanks/{bankId} {
+        allow read: if true;
+        allow write: if isTeacher(teacherId) || isAdmin();
+      }
+    }
+
+    // Shared vocabulary banks collection:
+    // Public read for all teachers and students.
+    // Write allowed for authenticated teachers.
+    match /shared_vocab_banks/{bankId} {
+      allow read: if true;
+      allow write: if isAuthenticated();
     }
 
     // Students collection: read/write within class or by the student/teacher
@@ -15,7 +108,7 @@ service cloud.firestore {
     // Assignments: read by all students, write by teachers
     match /assignments/{assignmentId} {
       allow read: if true;
-      allow write: if request.auth != null;
+      allow write: if isAuthenticated();
     }
 
     // Submissions: students submit, teachers grade
@@ -26,7 +119,22 @@ service cloud.firestore {
     // Unseen library: cached reading texts
     match /unseens/{unseenId} {
       allow read: if true;
-      allow write: if request.auth != null;
+      allow write: if isAuthenticated();
+    }
+
+    // Site suggestions: public feedback / suggestions for exercises & texts
+    match /site_suggestions/{suggestionId} {
+      allow read, write: if true;
+    }
+
+    // Student drafts: auto-saved work in progress
+    match /drafts/{draftId} {
+      allow read, write: if true;
+    }
+
+    // User private workspace / learning profile (vocab builder, tutor profile)
+    match /users/{userId}/{allUserPaths=**} {
+      allow read, write: if isAuthenticated() && request.auth.uid == userId;
     }
   }
 }

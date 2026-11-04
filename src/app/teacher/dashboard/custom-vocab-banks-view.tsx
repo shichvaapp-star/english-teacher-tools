@@ -30,6 +30,7 @@ import {
   FileText,
   Clock,
   CheckCircle2,
+  Share2,
 } from "lucide-react";
 
 interface CustomVocabBanksViewProps {
@@ -38,6 +39,7 @@ interface CustomVocabBanksViewProps {
   onEditBank: (bank: TeacherVocabBank) => void;
   onDeleteBank: (bankId: string, bankName: string) => void;
   onAssignFromBank: (bank: TeacherVocabBank) => void;
+  onToggleShare?: (bank: TeacherVocabBank) => void;
 }
 
 export function CustomVocabBanksView({
@@ -46,6 +48,7 @@ export function CustomVocabBanksView({
   onEditBank,
   onDeleteBank,
   onAssignFromBank,
+  onToggleShare,
 }: CustomVocabBanksViewProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [gradeFilter, setGradeFilter] = useState<string>("all");
@@ -265,6 +268,13 @@ export function CustomVocabBanksView({
                     <Layers className="h-3 w-3" />
                     <span>{levelLabel}</span>
                   </span>
+
+                  {bank.isShared && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-500/10 text-blue-700 dark:text-blue-300 border border-blue-500/25">
+                      <Share2 className="h-3 w-3" />
+                      <span>משותף למורים</span>
+                    </span>
+                  )}
                 </div>
               </CardHeader>
 
@@ -334,6 +344,22 @@ export function CustomVocabBanksView({
                     >
                       <Download className="h-3.5 w-3.5" />
                     </button>
+
+                    {/* Share with teachers */}
+                    {onToggleShare && (
+                      <button
+                        type="button"
+                        onClick={() => onToggleShare(bank)}
+                        className={`p-1.5 rounded-md cursor-pointer transition-colors ${
+                          bank.isShared
+                            ? "text-blue-600 dark:text-blue-400 bg-blue-500/10 hover:bg-blue-500/20"
+                            : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                        }`}
+                        title={bank.isShared ? "בטל שיתוף במאגר המורים" : "שתף במאגר המורים המשותף"}
+                      >
+                        <Share2 className="h-3.5 w-3.5" />
+                      </button>
+                    )}
 
                     {/* Delete */}
                     <button

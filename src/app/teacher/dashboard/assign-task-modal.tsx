@@ -37,6 +37,7 @@ import {
   CheckSquare,
   Plus,
   Trash2,
+  Share2,
 } from "lucide-react";
 
 interface AssignTaskModalProps {
@@ -50,6 +51,7 @@ interface AssignTaskModalProps {
   preselectedStudentId?: string | null;
   customBanks?: TeacherVocabBank[];
   preselectedVocabBank?: TeacherVocabBank | null;
+  initialAssignmentTemplate?: TeacherAssignment | null;
 }
 
 export function AssignTaskModal({
@@ -63,6 +65,7 @@ export function AssignTaskModal({
   preselectedStudentId,
   customBanks,
   preselectedVocabBank,
+  initialAssignmentTemplate,
 }: AssignTaskModalProps) {
   const [taskType, setTaskType] = useState<AssignmentType>("writing");
   const [selectedLevel, setSelectedLevel] = useState<"all" | ExerciseLevel>("all");
@@ -123,6 +126,7 @@ export function AssignTaskModal({
   const [instructions, setInstructions] = useState("");
   const [focusWordsInput, setFocusWordsInput] = useState("");
   const [dueDate, setDueDate] = useState("");
+  const [isShared, setIsShared] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -135,6 +139,33 @@ export function AssignTaskModal({
       setSelectedLevel("all");
       setClassTargetScope("all");
       setStudentSearchQuery("");
+
+      if (initialAssignmentTemplate) {
+        setTaskType(initialAssignmentTemplate.type);
+        if (initialAssignmentTemplate.level) {
+          setSelectedLevel(initialAssignmentTemplate.level);
+        }
+        setCoachWithDavid(!!initialAssignmentTemplate.coachWithDavid);
+        if (initialAssignmentTemplate.instructions) {
+          setInstructions(initialAssignmentTemplate.instructions);
+        }
+        if (initialAssignmentTemplate.focusWords) {
+          setFocusWordsInput(initialAssignmentTemplate.focusWords.join(", "));
+        }
+        if (initialAssignmentTemplate.vocabWords) {
+          setSelectedVocabWords(initialAssignmentTemplate.vocabWords);
+        }
+        if (initialAssignmentTemplate.title) {
+          setCustomTitle(initialAssignmentTemplate.title);
+        }
+        if (initialAssignmentTemplate.hebrewTitle) {
+          setCustomHebrewTitle(initialAssignmentTemplate.hebrewTitle);
+        }
+        if (initialAssignmentTemplate.taskId) {
+          setSelectedTaskId(initialAssignmentTemplate.taskId);
+        }
+        setIsShared(true);
+      }
 
       if (preselectedVocabBank) {
         setTaskType("vocab");
@@ -591,6 +622,8 @@ export function AssignTaskModal({
       targetStudentIds: finalTargetType === "students" ? selectedStudentIds : undefined,
       instructions: instructions.trim(),
       dueDate: dueDate || undefined,
+      isShared,
+      sharedAt: isShared ? new Date().toISOString() : undefined,
       createdAt: new Date().toISOString(),
       status: "active",
     };
@@ -1644,6 +1677,27 @@ export function AssignTaskModal({
               onChange={(e) => setDueDate(e.target.value)}
               className="h-8 text-xs cursor-pointer"
             />
+          </div>
+
+          {/* 7. Community Share Toggle */}
+          <div className="pt-1">
+            <label className="flex items-center justify-between p-2.5 rounded-xl border border-primary/20 bg-primary/5 cursor-pointer hover:bg-primary/10 transition-colors">
+              <div className="space-y-0.5">
+                <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                  <Share2 className="h-3.5 w-3.5 text-primary" />
+                  <span>שתף משימה זו במאגר המורים המשותף</span>
+                </span>
+                <p className="text-[11px] text-muted-foreground">
+                  מורים עמיתים יוכלו לראות את המשימה הזו במאגר המשותף ולהקצות אותה לכיתות שלהם.
+                </p>
+              </div>
+              <input
+                type="checkbox"
+                checked={isShared}
+                onChange={(e) => setIsShared(e.target.checked)}
+                className="rounded border-border text-primary focus:ring-primary h-4 w-4 mr-2"
+              />
+            </label>
           </div>
 
           {/* Footer actions */}

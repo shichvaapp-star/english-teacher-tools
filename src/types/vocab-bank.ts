@@ -13,6 +13,8 @@ export interface TeacherVocabWord {
 export interface TeacherVocabBank {
   id: string;
   teacherId: string;
+  teacherName?: string;
+  schoolName?: string;
   name: string;
   description?: string;
   grade: VocabGrade | string;
@@ -22,6 +24,8 @@ export interface TeacherVocabBank {
   words: TeacherVocabWord[];
   createdAt: string;
   updatedAt: string;
+  isShared?: boolean; // When true, published to shared school/community library
+  sharedAt?: string;
 }
 
 export const GRADE_LABELS: Record<string, string> = {

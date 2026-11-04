@@ -31,6 +31,7 @@ import {
   Layers,
   GraduationCap,
   BookA,
+  Share2,
   X,
 } from "lucide-react";
 
@@ -55,6 +56,7 @@ export function VocabBankModal({
   const [levelType, setLevelType] = useState<"standard" | "custom">("standard");
   const [standardLevel, setStandardLevel] = useState<VocabStandardLevel>("א1");
   const [customLevelName, setCustomLevelName] = useState("");
+  const [isShared, setIsShared] = useState(false);
 
   const [words, setWords] = useState<TeacherVocabWord[]>([]);
   const [sourceTab, setSourceTab] = useState<"upload" | "paste" | "manual">("upload");
@@ -79,6 +81,7 @@ export function VocabBankModal({
       setStandardLevel(bankToEdit.standardLevel || "א1");
       setCustomLevelName(bankToEdit.customLevelName || "");
       setWords(bankToEdit.words || []);
+      setIsShared(!!bankToEdit.isShared);
       setSourceTab("manual");
     } else {
       setBankName("");
@@ -87,6 +90,7 @@ export function VocabBankModal({
       setLevelType("standard");
       setStandardLevel("א1");
       setCustomLevelName("");
+      setIsShared(false);
       setWords([]);
       setSourceTab("upload");
       setPasteText("");
@@ -214,6 +218,8 @@ export function VocabBankModal({
       standardLevel: levelType === "standard" ? standardLevel : undefined,
       customLevelName: levelType === "custom" ? customLevelName.trim() : undefined,
       words,
+      isShared,
+      sharedAt: isShared ? (bankToEdit?.sharedAt || new Date().toISOString()) : undefined,
       createdAt: bankToEdit?.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
@@ -371,6 +377,27 @@ export function VocabBankModal({
                   </div>
                 )}
               </div>
+            </div>
+
+            {/* Community Sharing Switch */}
+            <div className="pt-2 border-t border-border/50">
+              <label className="flex items-center justify-between p-2.5 rounded-xl border border-primary/20 bg-primary/5 cursor-pointer hover:bg-primary/10 transition-colors">
+                <div className="space-y-0.5">
+                  <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                    <Share2 className="h-3.5 w-3.5 text-primary" />
+                    <span>שתף במאגר המורים המשותף (Community Library)</span>
+                  </span>
+                  <p className="text-[11px] text-muted-foreground">
+                    מורים נוספים במערכת יוכלו לצפות במאגר זה, להעתיק אותו למאגרים שלהם ולהקצותו לתלמידיהם.
+                  </p>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={isShared}
+                  onChange={(e) => setIsShared(e.target.checked)}
+                  className="rounded border-border text-primary focus:ring-primary h-4 w-4 mr-2"
+                />
+              </label>
             </div>
           </div>
 

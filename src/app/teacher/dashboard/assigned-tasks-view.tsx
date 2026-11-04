@@ -19,6 +19,7 @@ import {
   Plus,
   Sparkles,
   GraduationCap,
+  Share2,
 } from "lucide-react";
 
 interface AssignedTasksViewProps {
@@ -205,6 +206,16 @@ export function AssignedTasksView({
                     {assignment.targetType === "all" && (
                       <Badge variant="outline" className="text-[10px] font-bold">
                         כל הכיתות
+                      </Badge>
+                    )}
+
+                    {assignment.isShared && (
+                      <Badge
+                        variant="outline"
+                        className="text-[10px] font-bold border-blue-500/40 text-blue-700 dark:text-blue-300 bg-blue-500/10 gap-1"
+                      >
+                        <Share2 className="h-3 w-3" />
+                        <span>משותף למורים</span>
                       </Badge>
                     )}
 

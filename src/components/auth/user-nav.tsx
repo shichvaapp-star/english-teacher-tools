@@ -4,14 +4,14 @@ import React, { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
-import { GraduationCap, User, LogOut, ChevronDown, School, RefreshCw, LayoutDashboard, CheckCircle2, MessageSquarePlus } from "lucide-react";
+import { GraduationCap, User, LogOut, ChevronDown, School, RefreshCw, LayoutDashboard, CheckCircle2, MessageSquarePlus, ShieldCheck, Share2 } from "lucide-react";
 import { TeacherAuthModal } from "./teacher-auth-modal";
 import { StudentLoginModal } from "./student-login-modal";
 import { HeaderTooltip } from "@/components/ui/header-tooltip";
 import { SuggestEditDialog } from "@/components/suggestions/suggest-edit-dialog";
 
 export function UserNav() {
-  const { user, logout } = useAuth();
+  const { user, logout, claimAdminRole } = useAuth();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [teacherModalOpen, setTeacherModalOpen] = useState(false);
   const [studentModalOpen, setStudentModalOpen] = useState(false);
@@ -101,9 +101,17 @@ export function UserNav() {
           <div className="px-3 py-2 border-b border-border/50">
             <div className="flex items-center justify-between gap-1">
               <p className="text-sm font-semibold text-foreground truncate">{user.name}</p>
-              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
-                {isTeacher ? "Teacher" : "Student"}
-              </span>
+              <div className="flex items-center gap-1">
+                {user.isAdmin && (
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-purple-600 text-white font-bold flex items-center gap-0.5">
+                    <ShieldCheck className="h-2.5 w-2.5" />
+                    Admin
+                  </span>
+                )}
+                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
+                  {isTeacher ? "Teacher" : "Student"}
+                </span>
+              </div>
             </div>
             {isTeacher && user.email && (
               <p className="text-xs text-muted-foreground truncate mt-0.5">{user.email}</p>
@@ -131,6 +139,40 @@ export function UserNav() {
                   <LayoutDashboard className="h-3.5 w-3.5 text-primary" />
                   <span>לוח בקרת מורה (Dashboard)</span>
                 </Link>
+
+                <Link
+                  href="/teacher/dashboard?tab=shared"
+                  onClick={() => setDropdownOpen(false)}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-xs text-foreground hover:bg-accent rounded-lg transition text-left cursor-pointer mb-1"
+                >
+                  <Share2 className="h-3.5 w-3.5 text-primary" />
+                  <span>מאגר תוכן משותף (Shared Hub)</span>
+                </Link>
+
+                {user.isAdmin && (
+                  <Link
+                    href="/teacher/dashboard?tab=adminTeachers"
+                    onClick={() => setDropdownOpen(false)}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-xs text-purple-700 dark:text-purple-300 hover:bg-purple-500/10 rounded-lg transition text-left cursor-pointer font-bold mb-1 border border-purple-500/20 bg-purple-500/5"
+                  >
+                    <ShieldCheck className="h-3.5 w-3.5 text-purple-600" />
+                    <span>ניהול מורים (Admin Control)</span>
+                  </Link>
+                )}
+
+                {!user.isAdmin && (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setDropdownOpen(false);
+                      await claimAdminRole();
+                    }}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-xs text-purple-700 dark:text-purple-300 hover:bg-purple-500/10 rounded-lg transition text-left cursor-pointer mb-1"
+                  >
+                    <ShieldCheck className="h-3.5 w-3.5 text-purple-600" />
+                    <span>הפעל הרשאות מנהל (Claim Admin)</span>
+                  </button>
+                )}
 
                 <button
                   type="button"

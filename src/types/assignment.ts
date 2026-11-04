@@ -34,5 +34,8 @@ export interface TeacherAssignment {
   dueDate?: string; // ISO date or formatted date
   createdAt: string;
   status: "active" | "archived";
+  isShared?: boolean; // When true, published to shared school/community library
+  sharedAt?: string;
+  authorSchoolName?: string;
 }
 
