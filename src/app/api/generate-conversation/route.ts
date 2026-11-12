@@ -389,10 +389,14 @@ Scenario Parameters:
 
 Dialogue Requirements:
 - 2 distinct speakers ("speaker_a" and "speaker_b") with realistic names, roles, avatar emojis, and genderHint ("male" or "female").
-- Exactly 10 dialogue turns (alternating between speaker_a and speaker_b, indexed 0 to 9, corresponding to Line 1 to Line 10).
+- Dialogue length depending on level:
+  * For Level 1: Exactly 10 dialogue turns (alternating between speaker_a and speaker_b, indexed 0 to 9, corresponding to Line 1 to Line 10).
+  * For Level 2: 16 to 18 dialogue turns (longer, realistic conversation with natural pacing).
+  * For Level 3: 20 to 22 dialogue turns (comprehensive, authentic in-depth dialogue with nuanced turns).
 - 5 useful phrases from the dialogue with accurate Hebrew translations.
 
 Questions Requirements (EXACTLY 10 questions, numbered 1 to 10):
+- Ensure "turnRefIndex" accurately references the relevant turn index (0-based) and "linesHint" matches "Line X" (where X = turnRefIndex + 1). For "copy" questions, "targetSentence" MUST appear verbatim inside that specific turn's text.
 - 3 to 4 Comprehension Multiple Choice questions ("type": "mcq") testing details, tone, or meaning of phrases in context.
 - 2 Sentence Copying questions ("type": "copy") asking the student to copy the exact sentence from a specific Line (e.g. "Copy the sentence from Line 4 that shows...").
 - 2 Open Comprehension questions ("type": "open") answered in the student's own words in English, with "modelAnswer" and 2-4 "keywords".
