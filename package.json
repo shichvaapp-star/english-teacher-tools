@@ -4,9 +4,11 @@
   "private": true,
   "scripts": {
     "dev": "next dev --webpack",
+    "prebuild": "npm run -s lint && npm run -s typecheck",
     "build": "next build --webpack",
     "start": "next start",
     "lint": "npm run -s check:admins && eslint",
+    "typecheck": "tsc --noEmit",
     "check:admins": "node scripts/check-admin-sync.mjs"
   },
   "dependencies": {

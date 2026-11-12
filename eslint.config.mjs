@@ -13,6 +13,11 @@ const eslintConfig = defineConfig([
         "error",
         { argsIgnorePattern: "^_", varsIgnorePattern: "^_", caughtErrorsIgnorePattern: "^_", ignoreRestSiblings: true },
       ],
+      // Warning, not error, for now. Most hits restore saved state (URL params,
+      // localStorage, sessionStorage) after the page mounts, which has to happen
+      // in an effect to avoid hydration mismatches; the rest are form prefills
+      // and autosave status. Revisit as page state moves into dedicated hooks.
+      "react-hooks/set-state-in-effect": "warn",
     },
   },
   // Override default ignores of eslint-config-next.
