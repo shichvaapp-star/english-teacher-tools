@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { errorMessage, extractJsonObject } from "@/lib/llm-json";
 
 export interface SentenceChunk {
   hebrew: string;
@@ -11,19 +12,6 @@ export interface ScaffoldingResult {
   alternativeSentence?: string;
   chunks: SentenceChunk[];
   goldenRule: string;
-}
-
-function extractJsonFromText(raw: string): any {
-  let cleaned = raw.trim();
-  if (cleaned.startsWith("```")) {
-    cleaned = cleaned.replace(/^```(?:json)?\s*\n?/, "").replace(/\n?```\s*$/, "");
-  }
-  const firstBrace = cleaned.indexOf("{");
-  const lastBrace = cleaned.lastIndexOf("}");
-  if (firstBrace !== -1 && lastBrace !== -1) {
-    cleaned = cleaned.slice(firstBrace, lastBrace + 1);
-  }
-  return JSON.parse(cleaned);
 }
 
 export async function POST(request: Request) {
@@ -246,15 +234,16 @@ RETURN STRICT RAW JSON ONLY in this format:
       try {
         const rawOutput = await step.execute();
         if (rawOutput) {
-          const parsed = extractJsonFromText(rawOutput) as ScaffoldingResult;
+          const parsed = extractJsonObject(rawOutput);
           if (parsed && parsed.fullSentence && Array.isArray(parsed.chunks) && parsed.chunks.length > 0) {
-            result = parsed;
+            // Shape checked above; the remaining fields are used as the model returned them.
+            result = parsed as unknown as ScaffoldingResult;
             successfulProvider = `${step.provider}:${step.model}`;
             break;
           }
         }
-      } catch (err: any) {
-        console.warn(`Scaffolding cascade failed on ${step.provider}:${step.model}:`, err.message);
+      } catch (err) {
+        console.warn(`Scaffolding cascade failed on ${step.provider}:${step.model}:`, errorMessage(err));
       }
     }
 
@@ -273,10 +262,10 @@ RETURN STRICT RAW JSON ONLY in this format:
       scaffolding: result,
       source: successfulProvider,
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error("Scaffold writing API error:", error);
     return NextResponse.json(
-      { success: false, error: error.message || "Failed to scaffold sentence." },
+      { success: false, error: (error instanceof Error && error.message) || "Failed to scaffold sentence." },
       { status: 500 }
     );
   }

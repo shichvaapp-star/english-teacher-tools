@@ -1,21 +1,9 @@
 import { NextResponse } from "next/server";
+import { extractJsonFromText, isJsonObject, type JsonValue } from "@/lib/llm-json";
 import { WritingTask, WritingLevel, TaskCategory } from "@/types/writing";
 
-function extractJsonFromText(raw: string): any {
-  let cleaned = raw.trim();
-  if (cleaned.startsWith("```")) {
-    cleaned = cleaned.replace(/^```(?:json)?\s*\n?/, "").replace(/\n?```\s*$/, "");
-  }
-  const firstBrace = cleaned.indexOf("{");
-  const lastBrace = cleaned.lastIndexOf("}");
-  if (firstBrace !== -1 && lastBrace !== -1) {
-    cleaned = cleaned.slice(firstBrace, lastBrace + 1);
-  }
-  return JSON.parse(cleaned);
-}
-
-function validateWritingTask(task: any): boolean {
-  if (!task || typeof task !== "object") return false;
+function validateWritingTask(task: JsonValue): boolean {
+  if (!isJsonObject(task)) return false;
   const prompt = String(task.prompt || "").trim();
   const title = String(task.title || "").trim();
   if (/[\u0590-\u05FF]/.test(prompt) || !/[a-zA-Z]/.test(prompt)) return false;

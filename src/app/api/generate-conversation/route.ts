@@ -10,43 +10,42 @@ import {
   REAL_LIFE_CONVERSATIONS,
   randomizeConversationQuestionsOptions,
 } from "@/data/conversations";
-
-function extractJsonFromText(raw: string): any {
-  let cleaned = raw.trim();
-  if (cleaned.startsWith("```")) {
-    cleaned = cleaned.replace(/^```(?:json)?\s*\n?/, "").replace(/\n?```\s*$/, "");
-  }
-  const firstBrace = cleaned.indexOf("{");
-  const lastBrace = cleaned.lastIndexOf("}");
-  if (firstBrace !== -1 && lastBrace !== -1) {
-    cleaned = cleaned.slice(firstBrace, lastBrace + 1);
-  }
-  return JSON.parse(cleaned);
-}
+import {
+  errorMessage,
+  extractJsonFromText,
+  isJsonObject,
+  jsonObjects,
+  jsonObject,
+  type JsonValue,
+} from "@/lib/llm-json";
 
 function validateAndFormatScenario(
-  rawObj: any,
+  rawObj: JsonValue,
   selectedLevel: "Level 1" | "Level 2" | "Level 3",
   fallbackCategory: ConversationCategory = "school_social"
 ): ConversationScenario | null {
-  if (!rawObj || typeof rawObj !== "object") return null;
+  if (!isJsonObject(rawObj)) return null;
 
   const hebrewRegex = /[\u0590-\u05FF]/g;
   const englishRegex = /[a-zA-Z]/g;
 
-  const rawTurns: any[] = Array.isArray(rawObj.turns) ? rawObj.turns : [];
+  const rawTurns = jsonObjects(rawObj.turns);
   if (rawTurns.length < 6) return null;
 
   const speakers: DialogueSpeaker[] =
     Array.isArray(rawObj.speakers) && rawObj.speakers.length >= 2
-      ? rawObj.speakers.slice(0, 2).map((s: any, idx: number) => ({
-          id: idx === 0 ? "speaker_a" : "speaker_b",
-          name: String(s?.name || (idx === 0 ? "Alex" : "Maya")).trim(),
-          role: String(s?.role || (idx === 0 ? "Speaker A" : "Speaker B")).trim(),
-          avatarEmoji: String(s?.avatarEmoji || (idx === 0 ? "🗣️" : "💬")).trim(),
-          genderHint: s?.genderHint === "female" || s?.genderHint === "male" ? s.genderHint : idx === 0 ? "male" : "female",
-          colorTheme: idx === 0 ? "sky" : "amber",
-        }))
+      ? rawObj.speakers.slice(0, 2).map((raw, idx): DialogueSpeaker => {
+          const s = jsonObject(raw);
+          const genderHint = s.genderHint === "female" || s.genderHint === "male" ? s.genderHint : idx === 0 ? "male" : "female";
+          return {
+            id: idx === 0 ? "speaker_a" : "speaker_b",
+            name: String(s.name || (idx === 0 ? "Alex" : "Maya")).trim(),
+            role: String(s.role || (idx === 0 ? "Speaker A" : "Speaker B")).trim(),
+            avatarEmoji: String(s.avatarEmoji || (idx === 0 ? "🗣️" : "💬")).trim(),
+            genderHint,
+            colorTheme: idx === 0 ? "sky" : "amber",
+          };
+        })
       : [
           {
             id: "speaker_a",
@@ -105,7 +104,7 @@ function validateAndFormatScenario(
     return null;
   }
 
-  const rawQuestions: any[] = Array.isArray(rawObj.questions) ? rawObj.questions : [];
+  const rawQuestions = jsonObjects(rawObj.questions);
   if (rawQuestions.length < 5) return null;
 
   for (const q of rawQuestions) {
@@ -166,7 +165,7 @@ function validateAndFormatScenario(
       ).trim();
       const rawKeywords = Array.isArray(q.keywords) ? q.keywords : [];
       const keywords = rawKeywords
-        .map((k: any) => String(k || "").trim().toLowerCase())
+        .map((k) => String(k || "").trim().toLowerCase())
         .filter((k: string) => k.length > 2);
 
       return {
@@ -193,7 +192,7 @@ function validateAndFormatScenario(
       Array.isArray(q.options) && q.options.length >= 2
         ? q.options
         : ["Yes, of course!", "No, thank you.", "Not mentioned", "None of the above"];
-    const options = rawOptions.slice(0, 4).map((opt: any) => String(opt || "").trim());
+    const options = rawOptions.slice(0, 4).map((opt) => String(opt || "").trim());
     while (options.length < 4) {
       options.push(`Option ${options.length + 1}`);
     }
@@ -260,9 +259,8 @@ function validateAndFormatScenario(
     "health",
     "tech_daily",
   ];
-  const category: ConversationCategory = validCategories.includes(rawObj.category)
-    ? rawObj.category
-    : fallbackCategory;
+  const rawCategory = validCategories.find((c) => c === rawObj.category);
+  const category: ConversationCategory = rawCategory ?? fallbackCategory;
 
   const categoryLabels: Record<ConversationCategory, string> = {
     travel: "טיולים והתמצאות",
@@ -274,9 +272,9 @@ function validateAndFormatScenario(
   };
 
   const usefulPhrases = Array.isArray(rawObj.usefulPhrases)
-    ? rawObj.usefulPhrases
-        .filter((p: any) => p && (p.phrase || p.word) && p.translation)
-        .map((p: any) => ({
+    ? jsonObjects(rawObj.usefulPhrases)
+        .filter((p) => (p.phrase || p.word) && p.translation)
+        .map((p) => ({
           phrase: String(p.phrase || p.word).trim(),
           translation: String(p.translation).trim(),
           usageNoteHebrew: p.usageNoteHebrew ? String(p.usageNoteHebrew).trim() : undefined,
@@ -566,7 +564,7 @@ Return ONLY a valid raw JSON object matching this exact structure:
       });
     }
 
-    let lastError: any = null;
+    let lastError: unknown = null;
     for (const step of cascadePlan) {
       try {
         const rawOutput = await step.execute();
@@ -584,7 +582,7 @@ Return ONLY a valid raw JSON object matching this exact structure:
             providerUsed: step.provider,
           });
         }
-      } catch (err: any) {
+      } catch (err) {
         lastError = err;
       }
     }
@@ -594,17 +592,17 @@ Return ONLY a valid raw JSON object matching this exact structure:
         success: false,
         reason: "all_models_busy",
         message: "כל מודלי ה-AI היו עמוסים זמנית. אנא נסו שוב בעוד מספר שניות.",
-        detail: lastError?.message,
+        detail: lastError ? errorMessage(lastError) : undefined,
       },
       { status: 503 }
     );
-  } catch (error: any) {
+  } catch (error) {
     return NextResponse.json(
       {
         success: false,
         reason: "internal_error",
         message: "אירעה שגיאה ביצירת השיחה. אנא נסו שוב.",
-        detail: error?.message,
+        detail: errorMessage(error),
       },
       { status: 500 }
     );

@@ -119,8 +119,8 @@ export function VocabBankModal({
           setBankName(cleanName);
         }
       }
-    } catch (err: any) {
-      setFormError(`שגיאה בפענוח הקובץ: ${err?.message || "אנא נסו קובץ אחר"}`);
+    } catch (err) {
+      setFormError(`שגיאה בפענוח הקובץ: ${(err instanceof Error && err.message) || "אנא נסו קובץ אחר"}`);
     } finally {
       setIsProcessingFile(false);
       e.target.value = "";

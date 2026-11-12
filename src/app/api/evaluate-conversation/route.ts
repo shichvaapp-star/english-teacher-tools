@@ -6,6 +6,7 @@ import {
   ConversationRubric,
   DialogueTurn,
 } from "@/types/conversation";
+import { errorMessage, extractJsonObject, jsonObject, jsonObjects, type JsonObject } from "@/lib/llm-json";
 
 const evaluationCache = new Map<
   string,
@@ -44,19 +45,6 @@ function releaseSlot(): void {
     const next = waitQueue.shift();
     if (next) next();
   }
-}
-
-function extractJsonFromText(raw: string): any {
-  let cleaned = raw.trim();
-  if (cleaned.startsWith("```")) {
-    cleaned = cleaned.replace(/^```(?:json)?\s*\n?/, "").replace(/\n?```\s*$/, "");
-  }
-  const firstBrace = cleaned.indexOf("{");
-  const lastBrace = cleaned.lastIndexOf("}");
-  if (firstBrace !== -1 && lastBrace !== -1) {
-    cleaned = cleaned.slice(firstBrace, lastBrace + 1);
-  }
-  return JSON.parse(cleaned);
 }
 
 function normalizeString(str: string): string {
@@ -526,12 +514,12 @@ Return ONLY a valid JSON object matching this schema:
         });
       }
 
-      let aiParsed: any = null;
+      let aiParsed: JsonObject | null = null;
       for (const run of cascade) {
         try {
           const text = await run();
           if (text) {
-            aiParsed = extractJsonFromText(text);
+            aiParsed = extractJsonObject(text);
             if (aiParsed && Array.isArray(aiParsed.questionEvaluations)) break;
           }
         } catch {}
@@ -545,9 +533,12 @@ Return ONLY a valid JSON object matching this schema:
         });
       }
 
+      const aiQuestionEvaluations = jsonObjects(aiParsed.questionEvaluations);
+      const aiRubricComments = jsonObject(aiParsed.rubricComments);
+
       let finalScore = 0;
       const mergedBreakdown: ConversationQuestionEvaluation[] = baseHeuristic.breakdown.map((item) => {
-        const aiItem = aiParsed.questionEvaluations.find((x: any) => Number(x?.number) === item.number);
+        const aiItem = aiQuestionEvaluations.find((x) => Number(x.number) === item.number);
         if (!aiItem) {
           finalScore += item.points;
           return item;
@@ -591,14 +582,14 @@ Return ONLY a valid JSON object matching this schema:
             score: s1,
             max: 30,
             commentHebrew: String(
-              aiParsed.rubricComments?.explicitDetails || baseHeuristic.rubric.explicitDetails.commentHebrew
+              aiRubricComments.explicitDetails || baseHeuristic.rubric.explicitDetails.commentHebrew
             ),
           },
           inferenceAndPragmatics: {
             score: s2,
             max: 25,
             commentHebrew: String(
-              aiParsed.rubricComments?.inferenceAndPragmatics ||
+              aiRubricComments.inferenceAndPragmatics ||
                 baseHeuristic.rubric.inferenceAndPragmatics.commentHebrew
             ),
           },
@@ -606,14 +597,14 @@ Return ONLY a valid JSON object matching this schema:
             score: s3,
             max: 30,
             commentHebrew: String(
-              aiParsed.rubricComments?.realLifeResponse || baseHeuristic.rubric.realLifeResponse.commentHebrew
+              aiRubricComments.realLifeResponse || baseHeuristic.rubric.realLifeResponse.commentHebrew
             ),
           },
           languageAndAccuracy: {
             score: s4,
             max: 15,
             commentHebrew: String(
-              aiParsed.rubricComments?.languageAndAccuracy || baseHeuristic.rubric.languageAndAccuracy.commentHebrew
+              aiRubricComments.languageAndAccuracy || baseHeuristic.rubric.languageAndAccuracy.commentHebrew
             ),
           },
         },
@@ -628,12 +619,12 @@ Return ONLY a valid JSON object matching this schema:
     } finally {
       releaseSlot();
     }
-  } catch (error: any) {
+  } catch (error) {
     return NextResponse.json(
       {
         success: false,
         message: "שגיאה בבדיקת התשובות.",
-        detail: error?.message,
+        detail: errorMessage(error),
       },
       { status: 500 }
     );

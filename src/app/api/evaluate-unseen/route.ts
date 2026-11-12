@@ -1,6 +1,15 @@
 import { NextResponse } from "next/server";
 import { MSUnseenQuestion } from "@/data/unseen-middle-school";
 import { UnseenEvaluationResult, UnseenQuestionEvaluation } from "@/types/unseen";
+import {
+  errorMessage,
+  extractJsonObject,
+  jsonNumber,
+  jsonObject,
+  jsonObjects,
+  jsonString,
+  jsonStringArray,
+} from "@/lib/llm-json";
 
 // Simple in-memory LRU cache for identical submissions (reduces load drastically)
 const evaluationCache = new Map<string, { result: UnseenEvaluationResult; timestamp: number }>();
@@ -43,20 +52,6 @@ function releaseSlot(): void {
     const next = waitQueue.shift();
     if (next) next();
   }
-}
-
-// Clean and extract JSON from markdown wrappers or raw text
-function extractJsonFromText(raw: string): any {
-  let cleaned = raw.trim();
-  if (cleaned.startsWith("```")) {
-    cleaned = cleaned.replace(/^```(?:json)?\s*\n?/, "").replace(/\n?```\s*$/, "");
-  }
-  const firstBrace = cleaned.indexOf("{");
-  const lastBrace = cleaned.lastIndexOf("}");
-  if (firstBrace !== -1 && lastBrace !== -1) {
-    cleaned = cleaned.slice(firstBrace, lastBrace + 1);
-  }
-  return JSON.parse(cleaned);
 }
 
 // Helper: Normalize strings for fuzzy comparison
@@ -682,16 +677,16 @@ Return ONLY a raw, valid JSON object matching this schema (NO MARKDOWN CODE FENC
         try {
           const rawOutput = await step.execute();
           if (rawOutput) {
-            const parsed = extractJsonFromText(rawOutput);
+            const parsed = extractJsonObject(rawOutput);
             if (parsed && Array.isArray(parsed.openEvaluations)) {
               // Assemble full 10-question breakdown
               const openEvalMap = new Map<string, { points: number; isCorrect: boolean; feedbackHebrew: string }>();
-              for (const item of parsed.openEvaluations) {
-                if (item && item.id) {
+              for (const item of jsonObjects(parsed.openEvaluations)) {
+                if (typeof item.id === "string" && item.id) {
                   openEvalMap.set(item.id, {
                     points: typeof item.points === "number" ? Math.min(10, Math.max(0, item.points)) : 0,
                     isCorrect: Boolean(item.isCorrect),
-                    feedbackHebrew: item.feedbackHebrew || "",
+                    feedbackHebrew: jsonString(item.feedbackHebrew) || "",
                   });
                 }
               }
@@ -774,44 +769,50 @@ Return ONLY a raw, valid JSON object matching this schema (NO MARKDOWN CODE FENC
               const totalScore = Math.min(100, Math.max(0, Math.round((totalPointsEarned / maxPossible) * 100)));
 
               // Normalize rubric scores
-              const r = parsed.rubric || {};
-              const explicitScore = Math.min(35, Math.max(0, r.explicitDetails?.score ?? Math.round((totalScore / 100) * 35)));
-              const inferenceScore = Math.min(25, Math.max(0, r.inferenceAndContext?.score ?? Math.round((totalScore / 100) * 25)));
-              const globalScore = Math.min(25, Math.max(0, r.globalUnderstanding?.score ?? Math.round((totalScore / 100) * 25)));
+              const r = jsonObject(parsed.rubric);
+              const rExplicit = jsonObject(r.explicitDetails);
+              const rInference = jsonObject(r.inferenceAndContext);
+              const rGlobal = jsonObject(r.globalUnderstanding);
+              const rAccuracy = jsonObject(r.languageAndAccuracy);
+              const explicitScore = Math.min(35, Math.max(0, jsonNumber(rExplicit.score) ?? Math.round((totalScore / 100) * 35)));
+              const inferenceScore = Math.min(25, Math.max(0, jsonNumber(rInference.score) ?? Math.round((totalScore / 100) * 25)));
+              const globalScore = Math.min(25, Math.max(0, jsonNumber(rGlobal.score) ?? Math.round((totalScore / 100) * 25)));
+              const aiStrengths = jsonStringArray(parsed.strengths);
+              const aiTips = jsonStringArray(parsed.tips);
               const accuracyScore = Math.min(15, Math.max(0, totalScore - (explicitScore + inferenceScore + globalScore)));
 
               const finalResult: UnseenEvaluationResult = {
                 score: totalScore,
                 maxScore: 100,
                 percentage: totalScore,
-                encouragement: parsed.encouragement || "עבודה יפה במבחן האנסין!",
-                teacherNote: parsed.teacherNote || `כל הכבוד על סיום מבחן האנסין! ציונך המשוקלל הוא ${totalScore}/100.`,
-                strengths: Array.isArray(parsed.strengths) && parsed.strengths.length > 0
-                  ? parsed.strengths
+                encouragement: jsonString(parsed.encouragement) || "עבודה יפה במבחן האנסין!",
+                teacherNote: jsonString(parsed.teacherNote) || `כל הכבוד על סיום מבחן האנסין! ציונך המשוקלל הוא ${totalScore}/100.`,
+                strengths: aiStrengths.length > 0
+                  ? aiStrengths
                   : ["איתור פרטים והתמדה לאורך כל קטע הקריאה."],
-                tips: Array.isArray(parsed.tips) && parsed.tips.length > 0
-                  ? parsed.tips
+                tips: aiTips.length > 0
+                  ? aiTips
                   : ["הקפידו על אותיות גדולות בתחילת משפט ובשאלות פתוחות נסחו משפטים מלאים."],
                 rubric: {
                   explicitDetails: {
                     score: explicitScore,
                     max: 35,
-                    commentHebrew: r.explicitDetails?.commentHebrew || `איתור מידע מפורש: ${explicitScore}/35`,
+                    commentHebrew: jsonString(rExplicit.commentHebrew) || `איתור מידע מפורש: ${explicitScore}/35`,
                   },
                   inferenceAndContext: {
                     score: inferenceScore,
                     max: 25,
-                    commentHebrew: r.inferenceAndContext?.commentHebrew || `הסקת מסקנות ורמזי הקשר: ${inferenceScore}/25`,
+                    commentHebrew: jsonString(rInference.commentHebrew) || `הסקת מסקנות ורמזי הקשר: ${inferenceScore}/25`,
                   },
                   globalUnderstanding: {
                     score: globalScore,
                     max: 25,
-                    commentHebrew: r.globalUnderstanding?.commentHebrew || `הבנה כוללת ורעיון מרכזי: ${globalScore}/25`,
+                    commentHebrew: jsonString(rGlobal.commentHebrew) || `הבנה כוללת ורעיון מרכזי: ${globalScore}/25`,
                   },
                   languageAndAccuracy: {
                     score: accuracyScore,
                     max: 15,
-                    commentHebrew: r.languageAndAccuracy?.commentHebrew || `דיוק בניסוח ובהעתקת משפטים: ${accuracyScore}/15`,
+                    commentHebrew: jsonString(rAccuracy.commentHebrew) || `דיוק בניסוח ובהעתקת משפטים: ${accuracyScore}/15`,
                   },
                 },
                 breakdown: fullBreakdown,
@@ -826,8 +827,8 @@ Return ONLY a raw, valid JSON object matching this schema (NO MARKDOWN CODE FENC
               });
             }
           }
-        } catch (err: any) {
-          console.warn(`[Evaluate Unseen] Step ${step.provider}:${step.model} failed:`, err?.message || err);
+        } catch (err) {
+          console.warn(`[Evaluate Unseen] Step ${step.provider}:${step.model} failed:`, errorMessage(err));
         }
       }
     } finally {
@@ -843,7 +844,7 @@ Return ONLY a raw, valid JSON object matching this schema (NO MARKDOWN CODE FENC
       evaluation: fallbackResult,
       source: "heuristic_fallback",
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error("Error in evaluate-unseen API:", error);
     return NextResponse.json(
       { success: false, error: "Failed to evaluate unseen answers." },
