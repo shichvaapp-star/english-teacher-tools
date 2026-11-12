@@ -2264,7 +2264,7 @@ export default function ConversationPracticePage() {
                 onMouseUp={handlePassageSelectionUp}
                 onTouchEnd={handlePassageSelectionUp}
                 onKeyUp={handlePassageSelectionUp}
-                className={`lg:col-span-5 print:hidden ${
+                className={`lg:col-span-5 lg:self-stretch print:hidden ${
                   mobileTab === "questions" ? "block" : "hidden lg:block"
                 }`}
               >
