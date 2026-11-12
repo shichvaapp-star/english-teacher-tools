@@ -1,7 +1,10 @@
 import { db } from "@/lib/firebase";
-import { doc, setDoc, deleteDoc } from "firebase/firestore";
+import { collection, doc, getDocs, setDoc, deleteDoc } from "firebase/firestore";
+import { MIDDLE_SCHOOL_UNSEENS } from "@/data/unseen-middle-school";
+import { ALL_WRITING_TASKS } from "@/data/writing-tasks";
+import { REAL_LIFE_CONVERSATIONS } from "@/data/conversations";
 
-export type VocabSourceType = "unseen" | "writing" | "tutor" | "manual" | "curriculum";
+export type VocabSourceType = "unseen" | "writing" | "tutor" | "manual" | "curriculum" | "conversation";
 
 export interface VocabItem {
   id: string;
@@ -32,6 +35,116 @@ export function normalizeVocabWord(word: string): string {
 }
 
 /**
+ * Attempts to match an English word to a known Unseen story when legacy items lack `sourceTitle`.
+ */
+function inferUnseenStoryForWord(englishWord: string): { title: string; category: string } | null {
+  const norm = normalizeVocabWord(englishWord);
+  if (!norm) return null;
+
+  // 1. Check active unseen snapshot in sessionStorage first (covers AI-generated or active story)
+  if (typeof window !== "undefined") {
+    try {
+      const rawSnap = sessionStorage.getItem("ett_unseen_return_snapshot");
+      if (rawSnap) {
+        const snap = JSON.parse(rawSnap);
+        const cur = snap?.currentStory;
+        if (cur && cur.title && Array.isArray(cur.paragraphs)) {
+          const escaped = norm.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+          const regex = new RegExp(`\\b${escaped}\\b`, "i");
+          const inHints =
+            Array.isArray(cur.vocabularyHints) &&
+            cur.vocabularyHints.some((h: { word?: string }) => normalizeVocabWord(h.word || "") === norm);
+          const inText = cur.paragraphs.some((p: string) => regex.test(p)) || regex.test(cur.title);
+          if (inHints || inText) {
+            return {
+              title: cur.title,
+              category: cur.level ? `Unseen (${cur.level})` : "Unseen Passage",
+            };
+          }
+        }
+      }
+    } catch {}
+  }
+
+  // 2. Check vocabularyHints in built-in MIDDLE_SCHOOL_UNSEENS
+  for (const story of MIDDLE_SCHOOL_UNSEENS) {
+    if (
+      story.vocabularyHints?.some(
+        (h) => normalizeVocabWord(h.word) === norm
+      )
+    ) {
+      return {
+        title: story.title,
+        category: `Unseen (${story.level})`,
+      };
+    }
+  }
+
+  // 3. Check full text paragraphs in built-in MIDDLE_SCHOOL_UNSEENS
+  const escaped = norm.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const wordRegex = new RegExp(`\\b${escaped}\\b`, "i");
+  for (const story of MIDDLE_SCHOOL_UNSEENS) {
+    if (
+      wordRegex.test(story.title) ||
+      story.paragraphs.some((p) => wordRegex.test(p))
+    ) {
+      return {
+        title: story.title,
+        category: `Unseen (${story.level})`,
+      };
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Formats an exercise `sourceTitle` with its Hebrew + English title when it matches a built-in Unseen or Writing task.
+ */
+export function formatExerciseDisplayTitle(
+  sourceType: VocabSourceType,
+  sourceTitle?: string
+): string {
+  if (!sourceTitle) return "";
+  const clean = sourceTitle.trim();
+
+  if (sourceType === "unseen") {
+    const matchedStory = MIDDLE_SCHOOL_UNSEENS.find(
+      (s) =>
+        s.title.toLowerCase() === clean.toLowerCase() ||
+        s.hebrewTitle === clean
+    );
+    if (matchedStory) {
+      return `${matchedStory.hebrewTitle} (${matchedStory.title})`;
+    }
+  }
+
+  if (sourceType === "writing") {
+    const matchedTask = ALL_WRITING_TASKS.find(
+      (t) =>
+        t.title.toLowerCase() === clean.toLowerCase() ||
+        t.hebrewTitle === clean
+    );
+    if (matchedTask) {
+      return `${matchedTask.hebrewTitle} (${matchedTask.title})`;
+    }
+  }
+
+  if (sourceType === "conversation") {
+    const matchedScenario = REAL_LIFE_CONVERSATIONS.find(
+      (c) =>
+        c.title.toLowerCase() === clean.toLowerCase() ||
+        c.hebrewTitle === clean
+    );
+    if (matchedScenario) {
+      return `${matchedScenario.hebrewTitle} (${matchedScenario.title})`;
+    }
+  }
+
+  return clean;
+}
+
+/**
  * Infers structured source metadata for both new and legacy saved vocabulary items.
  */
 export function inferVocabSource(item: VocabItem): {
@@ -39,7 +152,19 @@ export function inferVocabSource(item: VocabItem): {
   sourceTitle?: string;
   sourceCategory?: string;
 } {
+  const example = item.example || "";
+  const fromMatch = example.match(/^From\s+"([^"]+)"/i);
+
   if (item.sourceType) {
+    if (item.sourceType === "unseen" && !item.sourceTitle) {
+      const fromTitle = fromMatch ? fromMatch[1] : undefined;
+      const matched = !fromTitle ? inferUnseenStoryForWord(item.english) : null;
+      return {
+        sourceType: "unseen",
+        sourceTitle: fromTitle || matched?.title,
+        sourceCategory: item.sourceCategory || matched?.category || "Unseen Passage",
+      };
+    }
     return {
       sourceType: item.sourceType,
       sourceTitle: item.sourceTitle,
@@ -47,13 +172,13 @@ export function inferVocabSource(item: VocabItem): {
     };
   }
 
-  const example = item.example || "";
-  const fromMatch = example.match(/^From\s+"([^"]+)"/i);
   if (item.level === "Saved from Unseen" || fromMatch) {
+    const fromTitle = item.sourceTitle || (fromMatch ? fromMatch[1] : undefined);
+    const matched = !fromTitle ? inferUnseenStoryForWord(item.english) : null;
     return {
       sourceType: "unseen",
-      sourceTitle: item.sourceTitle || (fromMatch ? fromMatch[1] : undefined),
-      sourceCategory: item.sourceCategory || "Unseen Passage",
+      sourceTitle: fromTitle || matched?.title,
+      sourceCategory: item.sourceCategory || matched?.category || "Unseen Passage",
     };
   }
 
@@ -85,17 +210,18 @@ export function inferVocabSource(item: VocabItem): {
  */
 export function formatVocabSourceLabel(item: VocabItem): string {
   const { sourceType, sourceTitle, sourceCategory } = inferVocabSource(item);
+  const displayTitle = formatExerciseDisplayTitle(sourceType, sourceTitle);
   switch (sourceType) {
     case "unseen":
-      return sourceTitle ? `📖 אנסין: ${sourceTitle}` : "📖 קטע קריאה (אנסין)";
+      return displayTitle ? `📖 אנסין: ${displayTitle}` : "📖 קטע קריאה (אנסין)";
     case "writing":
-      return sourceTitle
-        ? `✍️ כתיבה: ${sourceTitle}`
+      return displayTitle
+        ? `✍️ כתיבה: ${displayTitle}`
         : sourceCategory
         ? `✍️ כתיבה (${sourceCategory})`
         : "✍️ סדנת כתיבה";
     case "tutor":
-      return sourceTitle ? `🤖 דוד: ${sourceTitle}` : "🤖 אימון עם דוד";
+      return displayTitle ? `🤖 דוד: ${displayTitle}` : "🤖 אימון עם דוד";
     case "curriculum":
       return sourceCategory ? `📚 מאגר (${sourceCategory})` : "📚 מאגר בית ספרי";
     case "manual":
@@ -145,15 +271,31 @@ export function loadSavedWords(userId?: string): VocabItem[] {
   try {
     const key = userId ? `${STORAGE_KEY}_${userId}` : `${STORAGE_KEY}_guest`;
     const raw = localStorage.getItem(key);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
+    const parsedUserList: VocabItem[] = raw ? JSON.parse(raw) : [];
+    const combinedRaw: VocabItem[] = Array.isArray(parsedUserList) ? [...parsedUserList] : [];
+
+    // Also include any words saved under guest session on this browser so nothing is lost on hydration/login
+    if (userId) {
+      try {
+        const guestRaw = localStorage.getItem(`${STORAGE_KEY}_guest`);
+        if (guestRaw) {
+          const guestList = JSON.parse(guestRaw);
+          if (Array.isArray(guestList) && guestList.length > 0) {
+            combinedRaw.push(...guestList);
+          }
+        }
+      } catch {
+        // Ignore guest read errors
+      }
+    }
+
+    if (combinedRaw.length === 0) return [];
 
     // Deduplicate by normalized English word and enrich legacy source fields
     const byWord = new Map<string, VocabItem>();
     let hadDuplicatesOrChanges = false;
 
-    for (const rawItem of parsed as VocabItem[]) {
+    for (const rawItem of combinedRaw) {
       if (!rawItem || typeof rawItem.english !== "string") {
         hadDuplicatesOrChanges = true;
         continue;
@@ -199,7 +341,7 @@ export function loadSavedWords(userId?: string): VocabItem[] {
     }
 
     const deduped = Array.from(byWord.values());
-    if (hadDuplicatesOrChanges) {
+    if (hadDuplicatesOrChanges || deduped.length !== parsedUserList.length) {
       try {
         localStorage.setItem(key, JSON.stringify(deduped));
       } catch {
@@ -211,6 +353,62 @@ export function loadSavedWords(userId?: string): VocabItem[] {
   } catch {
     return [];
   }
+}
+
+export async function syncSavedWordsFromFirestore(userId?: string): Promise<VocabItem[]> {
+  const localWords = loadSavedWords(userId);
+  if (typeof window === "undefined" || !userId || !db) {
+    return localWords;
+  }
+
+  try {
+    const colRef = collection(db, "users", userId, "words");
+    const snap = await getDocs(colRef);
+    if (snap.empty) {
+      return localWords;
+    }
+
+    const byWord = new Map<string, VocabItem>();
+    for (const item of localWords) {
+      const norm = normalizeVocabWord(item.english);
+      if (norm) byWord.set(norm, item);
+    }
+
+    let changed = false;
+    snap.forEach((docSnap) => {
+      const data = docSnap.data() as VocabItem;
+      if (!data || typeof data.english !== "string") return;
+      const norm = normalizeVocabWord(data.english);
+      if (!norm) return;
+      if (!byWord.has(norm)) {
+        const inferred = inferVocabSource(data);
+        byWord.set(norm, {
+          ...data,
+          id: data.id || docSnap.id,
+          english: norm,
+          sourceType: data.sourceType || inferred.sourceType,
+          sourceTitle: data.sourceTitle || inferred.sourceTitle,
+          sourceCategory: data.sourceCategory || inferred.sourceCategory,
+        });
+        changed = true;
+      }
+    });
+
+    if (changed) {
+      const merged = Array.from(byWord.values());
+      const key = `${STORAGE_KEY}_${userId}`;
+      try {
+        localStorage.setItem(key, JSON.stringify(merged));
+      } catch {
+        // Ignore storage quota errors
+      }
+      return merged;
+    }
+  } catch {
+    // Ignore Firestore sync errors when offline
+  }
+
+  return localWords;
 }
 
 export function isWordSaved(english: string, userId?: string): boolean {

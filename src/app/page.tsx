@@ -22,6 +22,7 @@ import {
   Bot,
   Clock,
   Play,
+  MessageSquare,
 } from "lucide-react";
 import { StudentAssignedTaskPrompt } from "@/components/student/student-assigned-task-prompt";
 import { getStoredDrafts } from "@/lib/drafts-storage";
@@ -130,6 +131,16 @@ export default function Home() {
       bgColor: "bg-purple-500/10",
       borderColor: "hover:border-purple-500/40",
       href: "/writing",
+    },
+    {
+      englishTitle: "Conversation Practice",
+      hebrewTitle: "שיחות מהחיים האמיתיים",
+      logo: "/images/logos/conversation-logo.svg",
+      icon: MessageSquare,
+      color: "text-amber-500 dark:text-amber-400",
+      bgColor: "bg-amber-500/10",
+      borderColor: "hover:border-amber-500/40",
+      href: "/conversation",
     },
   ];
 
@@ -275,12 +286,12 @@ export default function Home() {
           </p>
 
           <p className="text-sm sm:text-base text-muted-foreground max-w-xl mx-auto leading-relaxed pt-1" dir="rtl">
-            ברוכים הבאים למרחב התרגול באנגלית. בחרו באחד התחומים למטה כדי להתחיל לתרגל קריאת אנסין, שינון אוצר מילים וכתיבה!
+            ברוכים הבאים למרחב התרגול באנגלית. בחרו באחד התחומים למטה כדי להתחיל לתרגל קריאת אנסין, שינון אוצר מילים, כתיבה ושיחות מהחיים!
           </p>
         </div>
 
-        {/* 3 Core Section Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5 lg:gap-6 max-w-6xl mx-auto">
+        {/* 4 Core Section Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 lg:gap-6 max-w-6xl mx-auto">
           {sections.map((sec) => {
             return (
               <Link
@@ -361,7 +372,13 @@ export default function Home() {
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
                           <Badge variant="secondary" className="text-3xs">
-                            {sub.type === "unseen" ? "📖 אנסין" : "✍️ כתיבה"}
+                            {sub.type === "unseen"
+                              ? "📖 אנסין"
+                              : sub.type === "conversation"
+                              ? "💬 שיחה"
+                              : sub.type === "vocab"
+                              ? "🔤 אוצר מילים"
+                              : "✍️ כתיבה"}
                           </Badge>
                           {isReviewed ? (
                             <Badge className="text-3xs bg-emerald-600 text-white font-normal">
@@ -430,6 +447,9 @@ export default function Home() {
             </Link>
             <Link href="/writing" className="hover:text-foreground transition">
               סדנת כתיבה
+            </Link>
+            <Link href="/conversation" className="hover:text-foreground transition">
+              שיחות מהחיים
             </Link>
           </div>
         </div>

@@ -52,7 +52,7 @@ export default function StudentPortalPage() {
   const [drafts, setDrafts] = useState<InProgressWorkItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [typeFilter, setTypeFilter] = useState<"all" | "writing" | "unseen" | "vocab">("all");
+  const [typeFilter, setTypeFilter] = useState<"all" | "writing" | "unseen" | "vocab" | "conversation">("all");
   const [statusFilter, setStatusFilter] = useState<"all" | "submitted" | "reviewed" | "practice">("all");
 
   // Selected item for details modal
@@ -97,6 +97,8 @@ export default function StudentPortalPage() {
       window.location.href = `/writing?task=${sub.taskId}`;
     } else if (sub.type === "vocab") {
       window.location.href = `/vocabulary?category=${sub.assignmentId ? "assignment" : "saved"}`;
+    } else if (sub.type === "conversation") {
+      window.location.href = `/conversation?scenarioId=${sub.taskId}&stage=exercise&mode=practice`;
     }
   };
 
@@ -449,6 +451,8 @@ export default function StudentPortalPage() {
                           ? "🔤 אוצר מילים"
                           : draft.type === "writing"
                           ? "✍️ מטלת כתיבה"
+                          : draft.type === "conversation"
+                          ? "💬 שיחות מהחיים"
                           : "📖 מבחן אנסין"}
                       </Badge>
                       <span className="text-[11px] text-muted-foreground font-sans">
@@ -532,13 +536,14 @@ export default function StudentPortalPage() {
             {/* Type Filter */}
             <select
               value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value as "all" | "writing" | "unseen" | "vocab")}
+              onChange={(e) => setTypeFilter(e.target.value as "all" | "writing" | "unseen" | "vocab" | "conversation")}
               className="h-9 rounded-md border border-input bg-background px-3 text-xs shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring cursor-pointer"
             >
               <option value="all">כל סוגי המשימות (הכל)</option>
               <option value="vocab">🔤 אימון אוצר מילים (Vocabulary)</option>
               <option value="unseen">📖 מבחני אנסין (Unseen)</option>
               <option value="writing">✍️ מטלות כתיבה (Writing)</option>
+              <option value="conversation">💬 שיחות מהחיים (Conversation)</option>
             </select>
 
             {/* Status Filter */}
@@ -601,7 +606,13 @@ export default function StudentPortalPage() {
                   <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/40 pb-2.5">
                     <div className="flex items-center gap-2">
                       <Badge variant="secondary" className="text-[10px]">
-                        {sub.type === "vocab" ? "🔤 אוצר מילים" : sub.type === "writing" ? "✍️ מטלת כתיבה" : "📖 מבחן אנסין"}
+                        {sub.type === "vocab"
+                          ? "🔤 אוצר מילים"
+                          : sub.type === "writing"
+                          ? "✍️ מטלת כתיבה"
+                          : sub.type === "conversation"
+                          ? "💬 שיחות מהחיים"
+                          : "📖 מבחן אנסין"}
                       </Badge>
 
                       <span className="font-black text-sm sm:text-base text-foreground">
@@ -638,7 +649,7 @@ export default function StudentPortalPage() {
                         >
                           <Clock className="h-3 w-3" />
                           <span>ממתין לבדיקת המורה</span>
-                          {sub.type === "unseen" && sub.score !== undefined && (
+                          {(sub.type === "unseen" || sub.type === "conversation") && sub.score !== undefined && (
                             <span className="text-muted-foreground font-normal">
                               (ציון ממוחשב: {sub.score})
                             </span>
@@ -678,7 +689,7 @@ export default function StudentPortalPage() {
                     </div>
 
                     <div>
-                      {sub.type === "unseen" ? (
+                      {sub.type === "unseen" || sub.type === "conversation" ? (
                         <span>רמה: <strong className="text-foreground">{sub.storyLevel || "חטיבת ביניים"}</strong></span>
                       ) : (
                         <span>ספירת מילים: <strong className="text-foreground">{sub.wordCount || 0} מילים</strong></span>
@@ -742,7 +753,15 @@ export default function StudentPortalPage() {
             <div className="flex items-center justify-between border-b border-border pb-3">
               <div className="flex items-center gap-2.5">
                 <div className="p-2 rounded-xl bg-primary/10 text-primary">
-                  {selectedItem.type === "vocab" ? <BookA className="h-5 w-5" /> : selectedItem.type === "unseen" ? <BookOpen className="h-5 w-5" /> : <PenTool className="h-5 w-5" />}
+                  {selectedItem.type === "vocab" ? (
+                    <BookA className="h-5 w-5" />
+                  ) : selectedItem.type === "unseen" ? (
+                    <BookOpen className="h-5 w-5" />
+                  ) : selectedItem.type === "conversation" ? (
+                    <MessageSquare className="h-5 w-5" />
+                  ) : (
+                    <PenTool className="h-5 w-5" />
+                  )}
                 </div>
                 <div>
                   <h3 className="font-black text-lg text-foreground">
@@ -844,7 +863,7 @@ export default function StudentPortalPage() {
                   )}
                 </div>
               </div>
-            ) : selectedItem.type === "unseen" ? (
+            ) : selectedItem.type === "unseen" || selectedItem.type === "conversation" ? (
               <div className="space-y-4">
                 {/* AI Encouragement & Teacher Note */}
                 {(selectedItem.encouragement || selectedItem.teacherNote) && (
@@ -935,6 +954,45 @@ export default function StudentPortalPage() {
                   </div>
                 )}
 
+                {/* 4-Pillar Conversation Rubric */}
+                {selectedItem.conversationRubric && (
+                  <div className="space-y-2 text-right">
+                    <span className="font-bold text-xs text-foreground block">
+                      ציוני מיומנויות שיחה ותקשורת (משרד החינוך):
+                    </span>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div className="p-2 rounded-lg border border-border/70 bg-card space-y-1">
+                        <div className="flex justify-between font-bold text-[11px]">
+                          <span>הבנת פרטי השיחה</span>
+                          <span className="text-primary font-mono">{selectedItem.conversationRubric.explicitDetails.score}/{selectedItem.conversationRubric.explicitDetails.max}</span>
+                        </div>
+                        <p className="text-[10px] text-muted-foreground">{selectedItem.conversationRubric.explicitDetails.commentHebrew}</p>
+                      </div>
+                      <div className="p-2 rounded-lg border border-border/70 bg-card space-y-1">
+                        <div className="flex justify-between font-bold text-[11px]">
+                          <span>טון ופרגמטיקה</span>
+                          <span className="text-primary font-mono">{selectedItem.conversationRubric.inferenceAndPragmatics.score}/{selectedItem.conversationRubric.inferenceAndPragmatics.max}</span>
+                        </div>
+                        <p className="text-[10px] text-muted-foreground">{selectedItem.conversationRubric.inferenceAndPragmatics.commentHebrew}</p>
+                      </div>
+                      <div className="p-2 rounded-lg border border-border/70 bg-card space-y-1">
+                        <div className="flex justify-between font-bold text-[11px]">
+                          <span>תגובה טבעית לסיטואציה</span>
+                          <span className="text-primary font-mono">{selectedItem.conversationRubric.realLifeResponse.score}/{selectedItem.conversationRubric.realLifeResponse.max}</span>
+                        </div>
+                        <p className="text-[10px] text-muted-foreground">{selectedItem.conversationRubric.realLifeResponse.commentHebrew}</p>
+                      </div>
+                      <div className="p-2 rounded-lg border border-border/70 bg-card space-y-1">
+                        <div className="flex justify-between font-bold text-[11px]">
+                          <span>דיוק לשוני והעתקה</span>
+                          <span className="text-primary font-mono">{selectedItem.conversationRubric.languageAndAccuracy.score}/{selectedItem.conversationRubric.languageAndAccuracy.max}</span>
+                        </div>
+                        <p className="text-[10px] text-muted-foreground">{selectedItem.conversationRubric.languageAndAccuracy.commentHebrew}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Generation Prompt Info (if AI-generated) */}
                 {selectedItem.generationPrompt && (
                   <div className="p-3 rounded-xl border border-purple-500/30 bg-purple-500/5 space-y-1.5 text-xs">
@@ -948,11 +1006,11 @@ export default function StudentPortalPage() {
                   </div>
                 )}
 
-                {/* Passage */}
+                {/* Passage / Dialogue Transcript */}
                 {selectedItem.passageText && (
                   <div className="space-y-1.5">
                     <span className="font-bold text-xs text-foreground block">
-                      טקסט קטע הקריאה:
+                      {selectedItem.type === "conversation" ? "תמליל השיחה המלאה:" : "טקסט קטע הקריאה:"}
                     </span>
                     <div
                       className="p-3.5 rounded-xl border border-border bg-muted/20 text-xs font-sans leading-relaxed text-foreground whitespace-pre-wrap max-h-40 overflow-y-auto"

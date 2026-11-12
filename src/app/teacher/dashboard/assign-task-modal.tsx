@@ -5,6 +5,7 @@ import { StudentProfile, StudentGroup } from "@/types/auth";
 import { TeacherAssignment, AssignmentTargetType, ExerciseLevel, AssignedVocabWord, AssignmentType } from "@/types/assignment";
 import { ALL_WRITING_TASKS } from "@/data/writing-tasks";
 import { MIDDLE_SCHOOL_UNSEENS } from "@/data/unseen-middle-school";
+import { REAL_LIFE_CONVERSATIONS } from "@/data/conversations";
 import { MINISTRY_VOCAB_WORDS } from "@/data/vocabulary-bands";
 import {
   MIDDLE_SCHOOL_EASY,
@@ -38,6 +39,7 @@ import {
   Plus,
   Trash2,
   Share2,
+  MessageSquare,
 } from "lucide-react";
 
 interface AssignTaskModalProps {
@@ -224,12 +226,22 @@ export function AssignTaskModal({
     return MIDDLE_SCHOOL_UNSEENS.filter((s) => s.level === selectedLevel);
   }, [selectedLevel]);
 
+  const availableConversations = useMemo(() => {
+    if (selectedLevel === "all") return REAL_LIFE_CONVERSATIONS;
+    return REAL_LIFE_CONVERSATIONS.filter((s) => s.level === selectedLevel);
+  }, [selectedLevel]);
+
   // When changing level, ensure selectedTaskId points to a valid task in that level
   const handleLevelChange = (lvl: "all" | ExerciseLevel) => {
     setSelectedLevel(lvl);
     if (taskType === "writing") {
       const pool = lvl === "all" ? ALL_WRITING_TASKS : ALL_WRITING_TASKS.filter((t) => t.level === lvl);
       if (!pool.some((t) => t.id === selectedTaskId)) {
+        setSelectedTaskId(pool[0]?.id || "");
+      }
+    } else if (taskType === "conversation") {
+      const pool = lvl === "all" ? REAL_LIFE_CONVERSATIONS : REAL_LIFE_CONVERSATIONS.filter((s) => s.level === lvl);
+      if (!pool.some((s) => s.id === selectedTaskId)) {
         setSelectedTaskId(pool[0]?.id || "");
       }
     } else {
@@ -249,6 +261,9 @@ export function AssignTaskModal({
     } else if (type === "unseen") {
       const pool = selectedLevel === "all" ? MIDDLE_SCHOOL_UNSEENS : MIDDLE_SCHOOL_UNSEENS.filter((s) => s.level === selectedLevel);
       setSelectedTaskId(pool[0]?.id || MIDDLE_SCHOOL_UNSEENS[0]?.id || "");
+    } else if (type === "conversation") {
+      const pool = selectedLevel === "all" ? REAL_LIFE_CONVERSATIONS : REAL_LIFE_CONVERSATIONS.filter((s) => s.level === selectedLevel);
+      setSelectedTaskId(pool[0]?.id || REAL_LIFE_CONVERSATIONS[0]?.id || "");
     } else {
       setSelectedTaskId("vocab_assigned");
       if (selectedVocabWords.length === 0) {
@@ -538,6 +553,9 @@ export function AssignTaskModal({
       if (taskType === "writing") {
         title = `Adaptive Writing Mission${levelSuffixEnglish}`;
         hebrewTitle = `משימת כתיבה מותאמת אישית 🎓${levelSuffixHebrew}`;
+      } else if (taskType === "conversation") {
+        title = `Adaptive Conversation Practice${levelSuffixEnglish}`;
+        hebrewTitle = `משימת שיחה מהחיים מותאמת אישית 🎓${levelSuffixHebrew}`;
       } else {
         title = `Adaptive Unseen Reading${levelSuffixEnglish}`;
         hebrewTitle = `משימת קריאה (Unseen) מותאמת אישית 🎓${levelSuffixHebrew}`;
@@ -546,6 +564,9 @@ export function AssignTaskModal({
       if (taskType === "writing") {
         title = `Free Choice Essay${levelSuffixEnglish}`;
         hebrewTitle = `חיבור בבחירה חופשית${levelSuffixHebrew}`;
+      } else if (taskType === "conversation") {
+        title = `Free Choice Conversation Practice${levelSuffixEnglish}`;
+        hebrewTitle = `שיחה מהחיים בבחירה חופשית${levelSuffixHebrew}`;
       } else {
         title = `Free Choice Reading Comprehension${levelSuffixEnglish}`;
         hebrewTitle = `אנסין בבחירה חופשית${levelSuffixHebrew}`;
@@ -554,6 +575,10 @@ export function AssignTaskModal({
       const matched = ALL_WRITING_TASKS.find((t) => t.id === selectedTaskId);
       title = matched ? matched.title : customTitle.trim() || "Writing Assignment";
       hebrewTitle = matched ? matched.hebrewTitle : customTitle.trim() || "מטלת כתיבה";
+    } else if (taskType === "conversation") {
+      const matched = REAL_LIFE_CONVERSATIONS.find((s) => s.id === selectedTaskId);
+      title = matched ? matched.title : "Conversation Practice";
+      hebrewTitle = matched ? matched.hebrewTitle : "תרגול שיחה מהחיים";
     } else {
       const matched = MIDDLE_SCHOOL_UNSEENS.find((s) => s.id === selectedTaskId);
       title = matched ? matched.title : "Unseen Test";
@@ -685,7 +710,7 @@ export function AssignTaskModal({
           {/* 1. Task Type Switcher */}
           <div className="space-y-1.5">
             <label className="font-bold text-foreground block">סוג המשימה:</label>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               <button
                 type="button"
                 onClick={() => handleTypeChange("writing")}
@@ -709,7 +734,20 @@ export function AssignTaskModal({
                 }`}
               >
                 <BookOpen className="h-4 w-4 text-sky-500 shrink-0" />
-                <span>📖 הבנת הנקרא</span>
+                <span>📖 אנסין</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleTypeChange("conversation")}
+                className={`flex flex-col sm:flex-row items-center justify-center gap-1.5 p-2.5 rounded-xl border text-xs font-bold transition-all cursor-pointer text-center ${
+                  taskType === "conversation"
+                    ? "border-amber-500 bg-amber-500/15 text-amber-700 dark:text-amber-300 font-bold shadow-2xs ring-1 ring-amber-500/40"
+                    : "border-border hover:bg-muted/40 text-muted-foreground"
+                }`}
+              >
+                <MessageSquare className="h-4 w-4 text-amber-500 shrink-0" />
+                <span>💬 שיחות</span>
               </button>
 
               <button
@@ -722,7 +760,7 @@ export function AssignTaskModal({
                 }`}
               >
                 <BookA className="h-4 w-4 text-emerald-500 shrink-0" />
-                <span>🔤 אוצר מילים</span>
+                <span>🔤 מילים</span>
               </button>
             </div>
           </div>
@@ -1161,7 +1199,11 @@ export function AssignTaskModal({
                       <span>משימה ספציפית מהמאגר</span>
                     </div>
                     <p className="text-[10px] text-muted-foreground mt-1">
-                      {taskType === "writing" ? "בחירת נושא קבוע מהמאגר" : "בחירת קטע אנסין מוגדר"}
+                      {taskType === "writing"
+                        ? "בחירת נושא קבוע מהמאגר"
+                        : taskType === "conversation"
+                        ? "בחירת תרחיש שיחה מוגדר"
+                        : "בחירת קטע אנסין מוגדר"}
                     </p>
                   </button>
 
@@ -1191,10 +1233,18 @@ export function AssignTaskModal({
                   <div className="space-y-1 pt-1">
                     <div className="flex items-center justify-between text-[11px] text-muted-foreground">
                       <label className="block">
-                        {taskType === "writing" ? "בחירת נושא החיבור מתוך המאגר:" : "בחירת קטע קריאה (Unseen):"}
+                        {taskType === "writing"
+                          ? "בחירת נושא החיבור מתוך המאגר:"
+                          : taskType === "conversation"
+                          ? "בחירת תרחיש שיחה מהמאגר:"
+                          : "בחירת קטע קריאה (Unseen):"}
                       </label>
                       <span>
-                        ({taskType === "writing" ? availableWritingTasks.length : availableUnseens.length} זמינים)
+                        ({taskType === "writing"
+                          ? availableWritingTasks.length
+                          : taskType === "conversation"
+                          ? availableConversations.length
+                          : availableUnseens.length} זמינים)
                       </span>
                     </div>
                     {taskType === "writing" ? (
@@ -1206,6 +1256,18 @@ export function AssignTaskModal({
                         {availableWritingTasks.map((t) => (
                           <option key={t.id} value={t.id}>
                             {t.hebrewTitle} — {t.title} ({t.level})
+                          </option>
+                        ))}
+                      </select>
+                    ) : taskType === "conversation" ? (
+                      <select
+                        value={selectedTaskId}
+                        onChange={(e) => setSelectedTaskId(e.target.value)}
+                        className="w-full h-9 rounded-lg border border-input bg-background px-3 text-xs shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring cursor-pointer"
+                      >
+                        {availableConversations.map((s, idx) => (
+                          <option key={s.id} value={s.id}>
+                            #{idx + 1} {s.hebrewTitle} — {s.title} ({s.level})
                           </option>
                         ))}
                       </select>
@@ -1256,11 +1318,15 @@ export function AssignTaskModal({
                       <span className="font-bold block">
                         {taskType === "writing"
                           ? `התלמידים יבחרו בעצמם על מה לכתוב${selectedLevel !== "all" ? ` (רמה ${selectedLevel})` : ""}`
+                          : taskType === "conversation"
+                          ? `התלמידים יבחרו בעצמם איזה תרחיש שיחה לתרגל${selectedLevel !== "all" ? ` (רמה ${selectedLevel})` : ""}`
                           : `התלמידים יבחרו בעצמם איזה קטע אנסין לקרוא${selectedLevel !== "all" ? ` (רמה ${selectedLevel})` : ""}`}
                       </span>
                       <p className="text-[11px] text-muted-foreground leading-relaxed">
                         {taskType === "writing"
                           ? `התלמידים יוכלו לבחור כל נושא מתוך המאגר${selectedLevel !== "all" ? ` ברמה ${selectedLevel}` : ""}, לכתוב נושא חופשי או להיעזר ב-AI. המערכת תשייך את ההגשה למשימה זו.`
+                          : taskType === "conversation"
+                          ? `התלמידים יוכלו לבחור תרחיש שיחה${selectedLevel !== "all" ? ` ברמה ${selectedLevel}` : ""} או לחולל שיחה חדשה ב-AI. המערכת תשייך את ההגשה למשימה זו.`
                           : `התלמידים יוכלו לבחור קטע קריאה${selectedLevel !== "all" ? ` ברמה ${selectedLevel}` : ""} או לחולל קטע חדש ב-AI. המערכת תשייך את ההגשה למשימה זו.`}
                       </p>
                     </div>

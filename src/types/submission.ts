@@ -1,11 +1,13 @@
 import type { UnseenRubric } from "./unseen";
+import type { ConversationRubric, ConversationQuestionType } from "./conversation";
 
 export interface SubmissionQuestionBreakdown {
   id: string;
   number: number;
-  type: "mcq" | "open" | "copy";
+  type: "mcq" | "open" | "copy" | ConversationQuestionType;
   prompt: string;
   promptHebrew?: string;
+  situationContext?: string;
   options?: string[];
   userAnswer?: string | number;
   correctAnswer?: string | number;
@@ -18,7 +20,7 @@ export interface SubmissionQuestionBreakdown {
   feedbackHebrew?: string; // Nuanced teacher feedback specifically on student's answer
 }
 
-export type SubmissionType = "writing" | "unseen" | "vocab";
+export type SubmissionType = "writing" | "unseen" | "vocab" | "conversation";
 
 export interface VocabPracticedWord {
   english: string;
@@ -67,6 +69,7 @@ export interface SubmissionItem {
   strengths?: string[];
   tips?: string[];
   unseenRubric?: UnseenRubric;
+  conversationRubric?: ConversationRubric;
   // Writing AI Evaluation Feedback
   writingRubric?: any;
   corrections?: any[];

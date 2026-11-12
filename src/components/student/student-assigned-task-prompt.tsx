@@ -14,6 +14,7 @@ import {
   PenTool,
   BookOpen,
   BookA,
+  MessageSquare,
   Calendar,
   ArrowLeft,
   X,
@@ -178,6 +179,10 @@ export function StudentAssignedTaskPrompt() {
       ? (isFreeChoice
           ? `/writing?assignmentId=${assignment.id}${levelParam}`
           : `/writing?task=${assignment.taskId || ""}&assignmentId=${assignment.id}${levelParam}`)
+      : assignment.type === "conversation"
+      ? (isFreeChoice
+          ? `/conversation?assignmentId=${assignment.id}${levelParam}`
+          : `/conversation?scenarioId=${assignment.taskId || ""}&assignmentId=${assignment.id}${levelParam}`)
       : (isFreeChoice
           ? `/unseen?assignmentId=${assignment.id}${levelParam}`
           : `/unseen?passageId=${assignment.taskId || ""}&assignmentId=${assignment.id}${levelParam}`);
@@ -210,6 +215,11 @@ export function StudentAssignedTaskPrompt() {
                   <>
                     <PenTool className="h-2.5 w-2.5 text-purple-500" />
                     <span>חיבור כתיבה</span>
+                  </>
+                ) : assignment.type === "conversation" ? (
+                  <>
+                    <MessageSquare className="h-2.5 w-2.5 text-amber-500" />
+                    <span>שיחות מהחיים</span>
                   </>
                 ) : (
                   <>

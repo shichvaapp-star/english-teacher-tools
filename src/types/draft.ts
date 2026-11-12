@@ -1,4 +1,15 @@
-export type WorkType = "unseen" | "writing" | "vocab";
+export type WorkType = "unseen" | "writing" | "vocab" | "conversation";
+
+export interface ConversationDraftPayload {
+  scenarioId: string;
+  level: "Level 1" | "Level 2" | "Level 3";
+  mode: "practice" | "graded";
+  userAnswers: Record<string, string | number>;
+  checkedQuestions?: Record<string, boolean>;
+  activeQuestionIndex?: number;
+  scenarioData?: any;
+  aiScenarioData?: any;
+}
 
 export interface UnseenDraftPayload {
   storyId: string;

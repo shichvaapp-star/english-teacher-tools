@@ -814,7 +814,7 @@ export function TutorChatBox({
   };
 
   // Launch Step 3 (Next Practice Mission) after completing Step 2 (Vocabulary Test)
-  const handleStartNextMissionAfterTurnIn = (completedType: "unseen" | "writing" | "vocab") => {
+  const handleStartNextMissionAfterTurnIn = (completedType: "unseen" | "writing" | "vocab" | "conversation") => {
     const nextSkill: "unseen" | "writing" = completedType === "unseen" ? "writing" : "unseen";
     const nextMission = generateNextMission(profile, nextSkill);
 

@@ -109,7 +109,7 @@ export function ReviewDialog({
               <p className="text-xs text-muted-foreground">
                 {reviewItem.hebrewTitle} &bull; {reviewItem.studentClass || "חטיבת ביניים"}
                 {reviewItem.studentGroup && ` • הקבצה ${reviewItem.studentGroup}`} (
-                {reviewItem.type === "vocab" ? "אימון אוצר מילים" : reviewItem.type === "unseen" ? "מבחן אנסין" : "חיבור כתיבה"})
+                {reviewItem.type === "vocab" ? "אימון אוצר מילים" : reviewItem.type === "conversation" ? "תרגול שיחה מהחיים" : reviewItem.type === "unseen" ? "מבחן אנסין" : "חיבור כתיבה"})
               </p>
             </div>
           </div>
@@ -214,14 +214,14 @@ export function ReviewDialog({
                 )}
               </div>
             </div>
-          ) : reviewItem.type === "unseen" ? (
+          ) : reviewItem.type === "unseen" || reviewItem.type === "conversation" ? (
             <>
               {reviewItem.generationPrompt ? (
                 <div className="p-3.5 rounded-xl border border-purple-500/30 bg-purple-500/5 space-y-2">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-1.5 font-bold text-purple-700 dark:text-purple-300">
                       <Sparkles className="h-4 w-4 text-purple-500 shrink-0" />
-                      <span>פרומפט התלמיד/ה ליצירת הטקסט ב-AI:</span>
+                      <span>{reviewItem.type === "conversation" ? "פרומפט התלמיד/ה ליצירת השיחה ב-AI:" : "פרומפט התלמיד/ה ליצירת הטקסט ב-AI:"}</span>
                     </div>
                     <Badge variant="outline" className="text-[10px] bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/30 font-bold">
                       ✨ נוצר ב-AI
@@ -234,23 +234,25 @@ export function ReviewDialog({
               ) : (
                 <div className="flex items-center gap-2 p-2 rounded-lg bg-muted/30 border border-border/40 text-[11px] text-muted-foreground">
                   <BookOpen className="h-3.5 w-3.5 shrink-0" />
-                  <span>טקסט ממאגר הסיפורים המובנה</span>
+                  <span>{reviewItem.type === "conversation" ? "שיחה ממאגר השיחות המובנה" : "טקסט ממאגר הסיפורים המובנה"}</span>
                 </div>
               )}
 
               {/* Passage Viewer */}
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between text-muted-foreground">
-                  <span className="font-bold text-foreground">קטע הקריאה (Reading Passage):</span>
+                  <span className="font-bold text-foreground">
+                    {reviewItem.type === "conversation" ? "תמליל השיחה (Conversation Transcript):" : "קטע הקריאה (Reading Passage):"}
+                  </span>
                   <Badge variant="outline" className="text-[11px]">
-                    {reviewItem.storyLevel || "Unseen"} &bull; ציון ממוחשב: {reviewItem.score ?? 0}/100
+                    {reviewItem.type === "conversation" ? "Conversation" : reviewItem.storyLevel || "Unseen"} &bull; ציון ממוחשב: {reviewItem.score ?? 0}/100
                   </Badge>
                 </div>
                 <div
                   className="p-3.5 rounded-xl border border-border bg-muted/20 text-xs font-sans leading-relaxed text-foreground whitespace-pre-wrap max-h-44 overflow-y-auto"
                   dir="ltr"
                 >
-                  {reviewItem.passageText || "קטע קריאה לא זמין"}
+                  {reviewItem.passageText || (reviewItem.type === "conversation" ? "תמליל שיחה לא זמין" : "קטע קריאה לא זמין")}
                 </div>
               </div>
 

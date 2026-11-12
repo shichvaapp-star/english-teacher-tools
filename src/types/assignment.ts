@@ -2,7 +2,7 @@ import { StudentGroup } from "./auth";
 
 export type AssignmentTargetType = "all" | "class" | "group" | "students";
 export type ExerciseLevel = "Level 1" | "Level 2" | "Level 3";
-export type AssignmentType = "writing" | "unseen" | "vocab";
+export type AssignmentType = "writing" | "unseen" | "vocab" | "conversation";
 
 export interface AssignedVocabWord {
   id: string;

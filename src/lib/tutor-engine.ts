@@ -1993,7 +1993,7 @@ export function buildVocabPoolForTask(
  */
 export async function recordTaskCompletion(
   studentId: string,
-  type: "unseen" | "writing" | "vocab",
+  type: "unseen" | "writing" | "vocab" | "conversation",
   score: number,
   taskTitle: string
 ): Promise<{ updatedProfile: StudentTutorProfile; tutorNote: string }> {
@@ -2005,6 +2005,9 @@ export async function recordTaskCompletion(
     newSkills.reading = Math.min(100, Math.round(newSkills.reading * 0.7 + score * 0.3));
   } else if (type === "writing") {
     newSkills.writing = Math.min(100, Math.round(newSkills.writing * 0.7 + score * 0.3));
+  } else if (type === "conversation") {
+    newSkills.reading = Math.min(100, Math.round(newSkills.reading * 0.8 + score * 0.2));
+    newSkills.vocabulary = Math.min(100, Math.round(newSkills.vocabulary * 0.8 + score * 0.2));
   } else {
     newSkills.vocabulary = Math.min(100, newSkills.vocabulary + 5);
   }

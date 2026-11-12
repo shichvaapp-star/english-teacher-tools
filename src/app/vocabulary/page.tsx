@@ -11,6 +11,7 @@ import {
   MIDDLE_SCHOOL_MEDIUM,
   MIDDLE_SCHOOL_HARD,
   loadSavedWords,
+  syncSavedWordsFromFirestore,
   saveWordToBuilder,
   removeWordFromBuilder,
   loadWordStatusOverrides,
@@ -19,6 +20,7 @@ import {
   toggleWordMastered,
   inferVocabSource,
   formatVocabSourceLabel,
+  formatExerciseDisplayTitle,
   VocabSourceType,
   VocabItem,
 } from "@/lib/vocab-storage";
@@ -87,6 +89,11 @@ export default function VocabularyPage() {
   // Sync saved words whenever active user changes
   useEffect(() => {
     setSavedUnseenWords(loadSavedWords(user?.id));
+    if (user?.id) {
+      syncSavedWordsFromFirestore(user.id).then((merged) => {
+        setSavedUnseenWords(merged);
+      });
+    }
   }, [user?.id]);
 
   const [activeCategory, setActiveCategory] = useState<
@@ -197,7 +204,8 @@ export default function VocabularyPage() {
     | "newest"
   >("starred_first");
   const [filterOption, setFilterOption] = useState<"all" | "starred" | "unlearned" | "learned">("all");
-  const [sourceFilter, setSourceFilter] = useState<"all" | VocabSourceType>("all");
+  const [sourceFilter, setSourceFilter] = useState<string>("all");
+  const [exerciseFilter, setExerciseFilter] = useState<string>("all");
   const [statusOverrides, setStatusOverrides] = useState<
     Record<string, { starred?: boolean; mastered?: boolean }>
   >({});
@@ -438,6 +446,69 @@ export default function VocabularyPage() {
     return { total, starred, learned, unlearned };
   }, [enrichedWords]);
 
+  // Distinct exercises (Unseen stories, Writing tasks, Tutor sessions) present in current word pool
+  const availableExercises = useMemo(() => {
+    const map = new Map<
+      string,
+      {
+        key: string;
+        sourceType: VocabSourceType;
+        sourceTitle: string;
+        displayLabel: string;
+        shortLabel: string;
+        count: number;
+      }
+    >();
+
+    enrichedWords.forEach((w) => {
+      const src = inferVocabSource(w);
+      if (
+        src.sourceTitle &&
+        (src.sourceType === "unseen" || src.sourceType === "writing" || src.sourceType === "tutor" || src.sourceType === "conversation")
+      ) {
+        const cleanTitle = src.sourceTitle.trim();
+        if (!cleanTitle) return;
+        const key = `${src.sourceType}::${cleanTitle.toLowerCase()}`;
+        const existing = map.get(key);
+        if (existing) {
+          existing.count += 1;
+        } else {
+          const formattedTitle = formatExerciseDisplayTitle(src.sourceType, cleanTitle);
+          const icon =
+            src.sourceType === "unseen"
+              ? "📖"
+              : src.sourceType === "writing"
+              ? "✍️"
+              : src.sourceType === "conversation"
+              ? "💬"
+              : "🤖";
+          map.set(key, {
+            key,
+            sourceType: src.sourceType,
+            sourceTitle: cleanTitle,
+            displayLabel: `${icon} ${formattedTitle}`,
+            shortLabel: formattedTitle,
+            count: 1,
+          });
+        }
+      }
+    });
+
+    return Array.from(map.values());
+  }, [enrichedWords]);
+
+  // Exercises matching the currently selected general sourceFilter (or all if sourceFilter is 'all')
+  const exercisesForCurrentSource = useMemo(() => {
+    if (
+      sourceFilter === "unseen" ||
+      sourceFilter === "writing" ||
+      sourceFilter === "tutor"
+    ) {
+      return availableExercises.filter((ex) => ex.sourceType === sourceFilter);
+    }
+    return availableExercises;
+  }, [availableExercises, sourceFilter]);
+
   // Filter and Sort Active Words
   const filteredWords = useMemo(() => {
     let list = enrichedWords;
@@ -451,9 +522,19 @@ export default function VocabularyPage() {
       list = list.filter((w) => !w.mastered);
     }
 
-    // Filter by source type when in Personal Word Bank
-    if (activeCategory === "saved" && sourceFilter !== "all") {
-      list = list.filter((w) => inferVocabSource(w).sourceType === sourceFilter);
+    // Filter by source type or specific exercise when in Personal Word Bank
+    if (activeCategory === "saved") {
+      if (sourceFilter !== "all") {
+        list = list.filter((w) => inferVocabSource(w).sourceType === sourceFilter);
+      }
+
+      if (exerciseFilter !== "all") {
+        list = list.filter((w) => {
+          const src = inferVocabSource(w);
+          const wKey = `${src.sourceType}::${(src.sourceTitle || "").trim().toLowerCase()}`;
+          return wKey === exerciseFilter;
+        });
+      }
     }
 
     // Search query filter (matches English, Hebrew, example sentence, or source title)
@@ -461,11 +542,13 @@ export default function VocabularyPage() {
     if (q) {
       list = list.filter((w) => {
         const src = inferVocabSource(w);
+        const formattedTitle = formatExerciseDisplayTitle(src.sourceType, src.sourceTitle);
         return (
           w.english.toLowerCase().includes(q) ||
           w.hebrew.includes(q) ||
           (w.example && w.example.toLowerCase().includes(q)) ||
           (src.sourceTitle && src.sourceTitle.toLowerCase().includes(q)) ||
+          (formattedTitle && formattedTitle.toLowerCase().includes(q)) ||
           (src.sourceCategory && src.sourceCategory.toLowerCase().includes(q))
         );
       });
@@ -474,9 +557,10 @@ export default function VocabularyPage() {
     const SOURCE_ORDER: Record<VocabSourceType, number> = {
       unseen: 1,
       writing: 2,
-      tutor: 3,
-      manual: 4,
-      curriculum: 5,
+      conversation: 3,
+      tutor: 4,
+      manual: 5,
+      curriculum: 6,
     };
 
     // Sorting
@@ -530,7 +614,7 @@ export default function VocabularyPage() {
     });
 
     return sorted;
-  }, [enrichedWords, filterOption, activeCategory, sourceFilter, searchQuery, sortOption]);
+  }, [enrichedWords, filterOption, activeCategory, sourceFilter, exerciseFilter, searchQuery, sortOption]);
 
   // Star & Mastered Handlers
   const handleToggleStar = (wordId: string, currentVal?: boolean) => {
@@ -1444,26 +1528,104 @@ export default function VocabularyPage() {
             </button>
           </div>
 
-          {/* Source Filter & Sort Selector */}
+          {/* Source Filter, Specific Exercise Filter & Sort Selector */}
           <div className="flex flex-wrap items-center gap-2 text-xs mr-auto">
             {activeCategory === "saved" && (
-              <div className="flex items-center gap-1.5">
-                <span className="text-[11px] font-medium text-muted-foreground">מקור:</span>
-                <select
-                  value={sourceFilter}
-                  onChange={(e) => {
-                    setSourceFilter(e.target.value as "all" | VocabSourceType);
-                    setCardIndex(0);
-                  }}
-                  className="h-8 px-2.5 py-1 rounded-lg border border-border bg-background text-xs text-foreground cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary font-medium"
-                >
-                  <option value="all">כל המקורות</option>
-                  <option value="unseen">📖 קטעי קריאה (אנסין)</option>
-                  <option value="writing">✍️ סדנת כתיבה</option>
-                  <option value="tutor">🤖 המורה דוד</option>
-                  <option value="manual">✏️ הזנה ידנית</option>
-                </select>
-              </div>
+              <>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[11px] font-medium text-muted-foreground">מקור:</span>
+                  <select
+                    value={exerciseFilter !== "all" ? `exercise::${exerciseFilter}` : sourceFilter}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val.startsWith("exercise::")) {
+                        const exKey = val.replace(/^exercise::/, "");
+                        const matchedEx = availableExercises.find((ex) => ex.key === exKey);
+                        setSourceFilter(matchedEx ? matchedEx.sourceType : "all");
+                        setExerciseFilter(exKey);
+                      } else {
+                        setSourceFilter(val);
+                        setExerciseFilter("all");
+                      }
+                      setCardIndex(0);
+                    }}
+                    className="h-8 px-2.5 py-1 rounded-lg border border-border bg-background text-xs text-foreground cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary font-medium max-w-[230px]"
+                  >
+                    <option value="all">כל המקורות</option>
+                    <option value="unseen">📖 כל קטעי הקריאה (אנסין)</option>
+                    <option value="writing">✍️ כל סדנת הכתיבה</option>
+                    <option value="tutor">🤖 המורה דוד</option>
+                    <option value="manual">✏️ הזנה ידנית</option>
+                    {availableExercises.some((ex) => ex.sourceType === "unseen") && (
+                      <optgroup label="📖 בחירת תרגיל אנסין ספציפי">
+                        {availableExercises
+                          .filter((ex) => ex.sourceType === "unseen")
+                          .map((ex) => (
+                            <option key={ex.key} value={`exercise::${ex.key}`}>
+                              📖 {ex.shortLabel} ({ex.count} מילים)
+                            </option>
+                          ))}
+                      </optgroup>
+                    )}
+                    {availableExercises.some((ex) => ex.sourceType === "writing") && (
+                      <optgroup label="✍️ בחירת משימת כתיבה ספציפית">
+                        {availableExercises
+                          .filter((ex) => ex.sourceType === "writing")
+                          .map((ex) => (
+                            <option key={ex.key} value={`exercise::${ex.key}`}>
+                              ✍️ {ex.shortLabel} ({ex.count} מילים)
+                            </option>
+                          ))}
+                      </optgroup>
+                    )}
+                    {availableExercises.some((ex) => ex.sourceType === "conversation") && (
+                      <optgroup label="💬 בחירת שיחה מהחיים ספציפית">
+                        {availableExercises
+                          .filter((ex) => ex.sourceType === "conversation")
+                          .map((ex) => (
+                            <option key={ex.key} value={`exercise::${ex.key}`}>
+                              💬 {ex.shortLabel} ({ex.count} מילים)
+                            </option>
+                          ))}
+                      </optgroup>
+                    )}
+                    {availableExercises.some((ex) => ex.sourceType === "tutor") && (
+                      <optgroup label="🤖 בחירת תרגול עם המורה דוד">
+                        {availableExercises
+                          .filter((ex) => ex.sourceType === "tutor")
+                          .map((ex) => (
+                            <option key={ex.key} value={`exercise::${ex.key}`}>
+                              🤖 {ex.shortLabel} ({ex.count} מילים)
+                            </option>
+                          ))}
+                      </optgroup>
+                    )}
+                  </select>
+                </div>
+
+                {exercisesForCurrentSource.length > 0 && (
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[11px] font-medium text-muted-foreground">תרגיל:</span>
+                    <select
+                      value={exerciseFilter}
+                      onChange={(e) => {
+                        setExerciseFilter(e.target.value);
+                        setCardIndex(0);
+                      }}
+                      className="h-8 px-2.5 py-1 rounded-lg border border-primary/40 bg-primary/5 text-xs text-foreground cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary font-semibold max-w-[240px]"
+                    >
+                      <option value="all">
+                        כל התרגילים ({exercisesForCurrentSource.length})
+                      </option>
+                      {exercisesForCurrentSource.map((ex) => (
+                        <option key={ex.key} value={ex.key}>
+                          {ex.displayLabel} ({ex.count} מילים)
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </>
             )}
 
             <div className="flex items-center gap-1.5">
@@ -1493,6 +1655,62 @@ export default function VocabularyPage() {
           </div>
         </div>
 
+        {/* Specific Exercise Quick-Filter Pills Bar */}
+        {activeCategory === "saved" && exercisesForCurrentSource.length > 0 && (
+          <div
+            className="flex flex-wrap items-center gap-1.5 print:hidden bg-primary/5 px-3 py-2 rounded-xl border border-primary/20 text-xs"
+            dir="rtl"
+          >
+            <span className="text-[11px] font-bold text-primary ml-1 shrink-0">
+              🎯 תרגול מילים מתוך תרגיל ספציפי:
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                setExerciseFilter("all");
+                setCardIndex(0);
+              }}
+              className={cn(
+                "px-2.5 py-1 rounded-full text-[11px] font-medium transition-colors cursor-pointer shrink-0",
+                exerciseFilter === "all"
+                  ? "bg-primary text-primary-foreground font-bold shadow-2xs"
+                  : "bg-background hover:bg-muted text-muted-foreground hover:text-foreground border border-border/60"
+              )}
+            >
+              כל התרגילים ({exercisesForCurrentSource.reduce((acc, ex) => acc + ex.count, 0)})
+            </button>
+            {exercisesForCurrentSource.map((ex) => (
+              <button
+                key={ex.key}
+                type="button"
+                onClick={() => {
+                  setExerciseFilter(exerciseFilter === ex.key ? "all" : ex.key);
+                  setCardIndex(0);
+                }}
+                className={cn(
+                  "px-2.5 py-1 rounded-full text-[11px] font-medium transition-colors cursor-pointer shrink-0 flex items-center gap-1 max-w-[260px]",
+                  exerciseFilter === ex.key
+                    ? "bg-primary text-primary-foreground font-bold shadow-2xs"
+                    : "bg-background hover:bg-muted text-foreground/90 border border-border/60"
+                )}
+                title={`${ex.displayLabel} (${ex.count} מילים)`}
+              >
+                <span className="truncate">{ex.displayLabel}</span>
+                <span
+                  className={cn(
+                    "text-[10px] px-1.5 py-0 rounded-full shrink-0",
+                    exerciseFilter === ex.key
+                      ? "bg-primary-foreground/20 text-primary-foreground"
+                      : "bg-muted text-muted-foreground"
+                  )}
+                >
+                  {ex.count}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
+
         {/* EMPTY STATE (When category or filter has no words) */}
         {filteredWords.length === 0 && (
           <div className="max-w-md mx-auto py-12 text-center space-y-4" dir="rtl">
@@ -1501,34 +1719,35 @@ export default function VocabularyPage() {
             </div>
             <div className="space-y-1.5">
               <h3 className="text-lg font-bold text-foreground">
-                {filterOption !== "all" || sourceFilter !== "all"
+                {filterOption !== "all" || sourceFilter !== "all" || exerciseFilter !== "all"
                   ? filterOption === "starred"
                     ? "אין עדיין מילים שסומנו במועדפים ⭐"
                     : filterOption === "unlearned"
                     ? "כל הכבוד! אין כרגע מילים הדורשות תרגול"
                     : filterOption === "learned"
                     ? "עדיין לא סומנו מילים כנלמדו"
-                    : "אין מילים מהמקור שנבחר"
+                    : "אין מילים מהתרגיל או המקור שנבחר"
                   : activeCategory === "saved"
                   ? "עדיין לא הוספת מילים לאוצר המילים שלך"
                   : "לא נמצאו מילים התואמות לחיפוש"}
               </h3>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                {filterOption !== "all" || sourceFilter !== "all"
-                  ? "תוכל להציג את כל המילים או לשנות את סינון הסטטוס והמקור."
+                {filterOption !== "all" || sourceFilter !== "all" || exerciseFilter !== "all"
+                  ? "תוכל להציג את כל המילים או לשנות את סינון הסטטוס והתרגיל."
                   : activeCategory === "saved"
                   ? "תוכל להזין מילים חדשות ידנית בעצמך (עם מילה, תרגום ומשפט לדוגמה) או לשמור מילים מתורגמות מתוך קריאת אנסין וסדנת הכתיבה."
                   : "נסו לחפש מילה אחרת או נקו את שורת החיפוש."}
               </p>
             </div>
 
-            {filterOption !== "all" || sourceFilter !== "all" ? (
+            {filterOption !== "all" || sourceFilter !== "all" || exerciseFilter !== "all" ? (
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => {
                   setFilterOption("all");
                   setSourceFilter("all");
+                  setExerciseFilter("all");
                 }}
                 className="text-xs cursor-pointer font-medium"
               >

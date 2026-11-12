@@ -21,7 +21,7 @@ export interface TaskTopicOption {
 
 export interface TutorTaskRecommendation {
   id: string;
-  type: "unseen" | "vocab" | "writing";
+  type: "unseen" | "vocab" | "writing" | "conversation";
   title: string;
   hebrewTitle: string;
   descriptionHebrew: string;
@@ -71,7 +71,7 @@ export interface TutorVocabReviewItem {
 
 export interface TutorTurnInPayload {
   id: string;
-  type: "unseen" | "writing" | "vocab";
+  type: "unseen" | "writing" | "vocab" | "conversation";
   taskId: string;
   taskTitle: string;
   taskTitleHebrew: string;

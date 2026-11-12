@@ -20,6 +20,7 @@ import {
   Sparkles,
   GraduationCap,
   Share2,
+  MessageSquare,
 } from "lucide-react";
 
 interface AssignedTasksViewProps {
@@ -155,6 +156,11 @@ export function AssignedTasksView({
                         <>
                           <BookA className="h-2.5 w-2.5 text-emerald-500" />
                           <span>אוצר מילים</span>
+                        </>
+                      ) : assignment.type === "conversation" ? (
+                        <>
+                          <MessageSquare className="h-2.5 w-2.5 text-amber-500" />
+                          <span>שיחות</span>
                         </>
                       ) : assignment.type === "writing" ? (
                         <>

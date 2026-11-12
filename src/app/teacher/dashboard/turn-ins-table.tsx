@@ -261,6 +261,11 @@ export function TurnInsTable({
                               <BookA className="h-2.5 w-2.5 text-emerald-500" />
                               <span>אוצר מילים</span>
                             </>
+                          ) : sub.type === "conversation" ? (
+                            <>
+                              <MessageSquare className="h-2.5 w-2.5 text-amber-500" />
+                              <span>שיחות</span>
+                            </>
                           ) : sub.type === "writing" ? (
                             <>
                               <PenTool className="h-2.5 w-2.5 text-purple-500" />
@@ -447,7 +452,9 @@ export function TurnInsTable({
                             <div className="space-y-2">
                               {sub.passageText && (
                                 <div className="space-y-1">
-                                  <span className="font-semibold text-foreground block">קטע הקריאה (Unseen):</span>
+                                  <span className="font-semibold text-foreground block">
+                                    {sub.type === "conversation" ? "תמליל השיחה (Conversation):" : "קטע הקריאה (Unseen):"}
+                                  </span>
                                   <div
                                     className="p-3 rounded-lg border border-border/60 bg-muted/20 text-xs font-sans leading-relaxed text-foreground whitespace-pre-wrap max-h-32 overflow-y-auto"
                                     dir="ltr"

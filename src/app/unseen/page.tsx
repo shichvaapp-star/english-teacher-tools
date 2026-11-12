@@ -14,7 +14,15 @@ import { formatTeacherDisplayName } from "@/types/auth";
 import { UnseenEvaluationResult } from "@/types/unseen";
 import { MIDDLE_SCHOOL_UNSEENS, MSUnseenStory, MSUnseenQuestion, randomizeQuestionsOptions } from "@/data/unseen-middle-school";
 import { lookupBuiltInTranslation } from "@/data/built-in-dictionary";
-import { saveWordToBuilder, VocabItem, loadSavedWords, isWordSaved } from "@/lib/vocab-storage";
+import {
+  saveWordToBuilder,
+  removeWordFromBuilder,
+  VocabItem,
+  loadSavedWords,
+  syncSavedWordsFromFirestore,
+  isWordSaved,
+  normalizeVocabWord,
+} from "@/lib/vocab-storage";
 import { recordTaskCompletion, submitTaskToDavid, resolveFocusWordToReviewItem } from "@/lib/tutor-engine";
 import { TutorVocabReviewItem } from "@/types/tutor";
 import { TeacherAssignment } from "@/types/assignment";
@@ -60,36 +68,265 @@ import {
   Save,
   Clock,
   Languages,
+  Trash2,
 } from "lucide-react";
 
 const LOCAL_SUBMISSIONS_KEY = "ett_writing_submissions";
 
+function splitOuterPunctuation(raw: string): {
+  leadingPunct: string;
+  coreText: string;
+  trailingPunct: string;
+} {
+  const match = raw.match(/^([^a-zA-Z0-9]*)([\s\S]*?[a-zA-Z0-9]|[a-zA-Z0-9])([^a-zA-Z0-9]*)$/);
+  if (!match) {
+    return { leadingPunct: "", coreText: raw, trailingPunct: "" };
+  }
+  return {
+    leadingPunct: match[1] || "",
+    coreText: match[2] || raw,
+    trailingPunct: match[3] || "",
+  };
+}
+
+function formatCompactHebrewGloss(hebrew: string): string {
+  const clean = hebrew.trim();
+  if (clean.length <= 20) return clean;
+  const parts = clean
+    .split(/[,;/]/)
+    .map((p) => p.trim())
+    .filter(Boolean);
+  if (parts.length > 1) {
+    const firstTwo = `${parts[0]}, ${parts[1]}`;
+    return firstTwo.length <= 20 ? firstTwo : parts[0];
+  }
+  return clean;
+}
+
+/**
+ * Resolves a single English word token against the student's saved vocabulary map,
+ * supporting both exact normalized matches and common morphological inflections
+ * so every occurrence of a saved vocabulary word in the passage is recognized.
+ */
+function lookupSavedVocabForWord(
+  rawWord: string,
+  savedVocabMap?: ReadonlyMap<string, VocabItem>
+): VocabItem | undefined {
+  if (!savedVocabMap || savedVocabMap.size === 0) return undefined;
+  const norm = normalizeVocabWord(rawWord);
+  if (!norm) return undefined;
+
+  const exact = savedVocabMap.get(norm);
+  if (exact) return exact;
+
+  const base = norm.replace(/(?:'s|’s)$/i, "");
+  if (base !== norm) {
+    const possessiveMatch = savedVocabMap.get(base);
+    if (possessiveMatch) return possessiveMatch;
+  }
+
+  if (base.length < 4) return undefined;
+
+  const candidates: string[] = [];
+  if (base.endsWith("ies") && base.length >= 5) {
+    candidates.push(`${base.slice(0, -3)}y`);
+  }
+  if (base.endsWith("es") && base.length >= 5) {
+    candidates.push(base.slice(0, -2), base.slice(0, -1));
+  }
+  if (base.endsWith("s") && !base.endsWith("ss") && base.length >= 4) {
+    candidates.push(base.slice(0, -1));
+  }
+  if (base.endsWith("ied") && base.length >= 5) {
+    candidates.push(`${base.slice(0, -3)}y`);
+  }
+  if (base.endsWith("ed") && base.length >= 5) {
+    candidates.push(base.slice(0, -2), base.slice(0, -1));
+  }
+  if (base.endsWith("ing") && base.length >= 6) {
+    candidates.push(base.slice(0, -3), `${base.slice(0, -3)}e`);
+  }
+
+  // Also check if the student saved an inflected form in the text and another occurrence is the base/sibling form
+  candidates.push(`${base}s`, `${base}es`, `${base}d`, `${base}ed`, `${base}ing`);
+
+  for (const cand of candidates) {
+    if (cand.length >= 4) {
+      const matched = savedVocabMap.get(cand);
+      if (matched) return matched;
+    }
+  }
+
+  return undefined;
+}
+
+interface PassageTextSegment {
+  type: "space" | "text";
+  raw: string;
+  leadingPunct: string;
+  coreText: string;
+  trailingPunct: string;
+  savedItem?: VocabItem;
+}
+
+function segmentTextWithSavedVocab(
+  text: string,
+  savedVocabMap?: ReadonlyMap<string, VocabItem>
+): PassageTextSegment[] {
+  const rawTokens = text.split(/(\s+)/);
+  if (!savedVocabMap || savedVocabMap.size === 0) {
+    return rawTokens.map((token) => {
+      if (/^\s+$/.test(token)) {
+        return { type: "space", raw: token, leadingPunct: "", coreText: token, trailingPunct: "" };
+      }
+      const { leadingPunct, coreText, trailingPunct } = splitOuterPunctuation(token);
+      return { type: "text", raw: token, leadingPunct, coreText, trailingPunct };
+    });
+  }
+
+  const segments: PassageTextSegment[] = [];
+  let i = 0;
+
+  while (i < rawTokens.length) {
+    const token = rawTokens[i];
+    if (/^\s+$/.test(token) || !/[a-zA-Z]/.test(token)) {
+      segments.push({
+        type: /^\s+$/.test(token) ? "space" : "text",
+        raw: token,
+        leadingPunct: "",
+        coreText: token,
+        trailingPunct: "",
+      });
+      i += 1;
+      continue;
+    }
+
+    // Check multi-word phrases (up to 5 words) saved in vocabulary
+    let matchedMultiWord = false;
+    for (let wordCount = 5; wordCount >= 2; wordCount -= 1) {
+      const endTokenIdx = i + (wordCount - 1) * 2;
+      if (endTokenIdx >= rawTokens.length) continue;
+
+      let validPhraseSpan = true;
+      for (let t = i; t <= endTokenIdx; t += 1) {
+        if ((t - i) % 2 === 1) {
+          if (!/^[ \t]+$/.test(rawTokens[t])) {
+            validPhraseSpan = false;
+            break;
+          }
+        } else {
+          if (!/[a-zA-Z]/.test(rawTokens[t])) {
+            validPhraseSpan = false;
+            break;
+          }
+          if (t < endTokenIdx && /[.,;:!?)"'\]]$/.test(rawTokens[t])) {
+            validPhraseSpan = false;
+            break;
+          }
+        }
+      }
+
+      if (!validPhraseSpan) continue;
+
+      const combinedRaw = rawTokens.slice(i, endTokenIdx + 1).join("");
+      const { leadingPunct, coreText, trailingPunct } = splitOuterPunctuation(combinedRaw);
+      const phraseNorm = normalizeVocabWord(coreText);
+      const phraseMatch = phraseNorm ? savedVocabMap.get(phraseNorm) : undefined;
+      if (phraseMatch) {
+        segments.push({
+          type: "text",
+          raw: combinedRaw,
+          leadingPunct,
+          coreText,
+          trailingPunct,
+          savedItem: phraseMatch,
+        });
+        i = endTokenIdx + 1;
+        matchedMultiWord = true;
+        break;
+      }
+    }
+
+    if (matchedMultiWord) continue;
+
+    const { leadingPunct, coreText, trailingPunct } = splitOuterPunctuation(token);
+    const savedItem = lookupSavedVocabForWord(coreText, savedVocabMap);
+    segments.push({
+      type: "text",
+      raw: token,
+      leadingPunct,
+      coreText,
+      trailingPunct,
+      savedItem,
+    });
+    i += 1;
+  }
+
+  return segments;
+}
+
 /**
  * Renders English text where every word is an interactive clickable token that
  * triggers the instant translation toast and adds the word to the student's word bank.
+ * Words that the student has added to their vocabulary are remembered and highlighted
+ * with a compact Hebrew translation above them.
  */
 function InteractiveEnglishText({
   text,
   onWordClick,
+  savedVocabMap,
   className = "",
   stopEventPropagation = false,
 }: {
   text: string;
   onWordClick: (word: string) => void;
+  savedVocabMap?: ReadonlyMap<string, VocabItem>;
   className?: string;
   stopEventPropagation?: boolean;
 }) {
   if (!text) return null;
-  const tokens = text.split(/(\s+)/);
+  const segments = segmentTextWithSavedVocab(text, savedVocabMap);
 
   return (
     <span className={className}>
-      {tokens.map((token, idx) => {
-        const isSpace = /^\s+$/.test(token);
-        if (isSpace) return <span key={idx}>{token}</span>;
+      {segments.map((seg, idx) => {
+        if (seg.type === "space" || !/[a-zA-Z]/.test(seg.raw)) {
+          return <span key={idx}>{seg.raw}</span>;
+        }
 
-        const hasEnglish = /[a-zA-Z]/.test(token);
-        if (!hasEnglish) return <span key={idx}>{token}</span>;
+        if (seg.savedItem) {
+          const compactHeb = formatCompactHebrewGloss(seg.savedItem.hebrew);
+          return (
+            <span
+              key={idx}
+              onClick={(e) => {
+                if (typeof window !== "undefined") {
+                  const sel = window.getSelection();
+                  if (sel && !sel.isCollapsed && sel.toString().trim().length > 1) {
+                    return;
+                  }
+                }
+                if (stopEventPropagation) {
+                  e.stopPropagation();
+                }
+                onWordClick(seg.coreText || seg.raw);
+              }}
+              className="cursor-pointer hover:bg-primary/20 rounded px-0.5 transition-colors"
+              title={`${seg.coreText} — ${seg.savedItem.hebrew} (נשמר באוצר המילים)`}
+            >
+              {seg.leadingPunct}
+              <span
+                data-vocab-hebrew={compactHeb}
+                className="inline-flex flex-col items-center align-bottom leading-none mx-0.5 before:content-[attr(data-vocab-hebrew)] before:font-hebrew before:text-[10px] before:leading-tight before:font-bold before:text-primary before:mb-0.5 before:whitespace-nowrap before:select-none"
+              >
+                <span className="leading-normal font-medium text-primary underline decoration-primary/60 decoration-dotted underline-offset-2">
+                  {seg.coreText}
+                </span>
+              </span>
+              {seg.trailingPunct}
+            </span>
+          );
+        }
 
         return (
           <span
@@ -104,16 +341,63 @@ function InteractiveEnglishText({
               if (stopEventPropagation) {
                 e.stopPropagation();
               }
-              onWordClick(token);
+              onWordClick(seg.raw);
             }}
             className="cursor-pointer hover:bg-primary/20 hover:text-primary rounded px-0.5 transition-colors underline decoration-dotted decoration-muted-foreground/30 hover:decoration-primary"
-            title={`Click to translate "${token.replace(/^[^a-zA-Z]+|[^a-zA-Z]+$/g, "")}"`}
+            title={`Click to translate "${seg.coreText}"`}
           >
-            {token}
+            {seg.raw}
           </span>
         );
       })}
     </span>
+  );
+}
+
+/**
+ * Renders passage text for the printed worksheet/exam.
+ * Includes a small Hebrew translation directly above every occurrence of words
+ * that the user translated and added to their vocabulary (and ONLY for vocabulary words).
+ */
+function PrintedPassageText({
+  text,
+  savedVocabMap,
+}: {
+  text: string;
+  savedVocabMap: ReadonlyMap<string, VocabItem>;
+}) {
+  if (!text) return null;
+  const segments = segmentTextWithSavedVocab(text, savedVocabMap);
+
+  return (
+    <>
+      {segments.map((seg, idx) => {
+        if (!seg.savedItem) {
+          return <span key={idx}>{seg.raw}</span>;
+        }
+        const compactHeb = formatCompactHebrewGloss(seg.savedItem.hebrew);
+        return (
+          <span key={idx} className="inline">
+            {seg.leadingPunct}
+            <ruby className="ruby-vocab-print">
+              <span className="font-semibold text-slate-900 underline decoration-dotted decoration-slate-400 underline-offset-2">
+                {seg.coreText}
+              </span>
+              <rp>(</rp>
+              <rt
+                dir="rtl"
+                lang="he"
+                className="font-hebrew text-[9px] leading-none font-bold text-slate-700 select-none"
+              >
+                {compactHeb}
+              </rt>
+              <rp>)</rp>
+            </ruby>
+            {seg.trailingPunct}
+          </span>
+        );
+      })}
+    </>
   );
 }
 
@@ -780,6 +1064,46 @@ export default function UnseenPracticePage() {
   const [savedWords, setSavedWords] = useState<VocabItem[]>(() => loadSavedWords(user?.id));
   const [drawerOpen, setDrawerOpen] = useState(false);
 
+  // Sync saved words whenever active user changes or hydrates, and merge from Firestore
+  useEffect(() => {
+    setSavedWords(loadSavedWords(user?.id));
+    if (user?.id) {
+      syncSavedWordsFromFirestore(user.id).then((merged) => {
+        setSavedWords(merged);
+      });
+    }
+  }, [user?.id]);
+
+  // Lookup map of normalized English word/phrase -> saved VocabItem
+  const savedVocabMap = useMemo(() => {
+    const map = new Map<string, VocabItem>();
+    for (const item of savedWords) {
+      const norm = normalizeVocabWord(item.english);
+      if (norm && !map.has(norm)) {
+        map.set(norm, item);
+      }
+    }
+    return map;
+  }, [savedWords]);
+
+  // Unique saved vocabulary words that appear in the current story (title or paragraphs)
+  const passageSavedVocabWords = useMemo(() => {
+    if (savedVocabMap.size === 0) return [];
+    const seenIds = new Set<string>();
+    const result: VocabItem[] = [];
+    const allTexts = [currentStory.title, ...currentStory.paragraphs];
+    for (const txt of allTexts) {
+      const segments = segmentTextWithSavedVocab(txt, savedVocabMap);
+      for (const seg of segments) {
+        if (seg.savedItem && !seenIds.has(seg.savedItem.id)) {
+          seenIds.add(seg.savedItem.id);
+          result.push(seg.savedItem);
+        }
+      }
+    }
+    return result;
+  }, [currentStory.title, currentStory.paragraphs, savedVocabMap]);
+
   // Font Size
   const [fontSize, setFontSize] = useState<"sm" | "base" | "lg">("base");
 
@@ -1008,7 +1332,21 @@ export default function UnseenPracticePage() {
     const clean = rawWord.trim().toLowerCase().replace(/^[^a-zA-Z]+|[^a-zA-Z]+$/g, "");
     if (!clean || clean.length < 2) return;
 
-    const alreadySaved = isWordSaved(clean, user?.id);
+    const savedMatch = lookupSavedVocabForWord(clean, savedVocabMap);
+    const alreadySaved = Boolean(savedMatch) || isWordSaved(clean, user?.id);
+
+    // 0. If the word was already translated and added to vocabulary, recall it immediately
+    if (savedMatch) {
+      setClickedWord({
+        word: clean,
+        hebrew: savedMatch.hebrew,
+        partOfSpeech: savedMatch.partOfSpeech,
+        loading: false,
+        example: savedMatch.example || `From "${currentStory.title}"`,
+        saved: true,
+      });
+      return;
+    }
 
     setClickedWord({
       word: clean,
@@ -1182,8 +1520,23 @@ export default function UnseenPracticePage() {
       return;
     }
 
-    const alreadySaved = isWordSaved(clean, user?.id);
+    const normPhrase = normalizeVocabWord(clean);
+    const savedPhraseMatch = normPhrase ? savedVocabMap.get(normPhrase) : undefined;
+    const alreadySaved = Boolean(savedPhraseMatch) || isWordSaved(clean, user?.id);
     setSelectedPassageText(null);
+
+    if (savedPhraseMatch) {
+      setClickedWord({
+        word: clean,
+        hebrew: savedPhraseMatch.hebrew,
+        partOfSpeech: savedPhraseMatch.partOfSpeech,
+        loading: false,
+        example: savedPhraseMatch.example || `From "${currentStory.title}"`,
+        saved: true,
+        isSelection: true,
+      });
+      return;
+    }
 
     setClickedWord({
       word: clean,
@@ -2783,6 +3136,7 @@ export default function UnseenPracticePage() {
                           <InteractiveEnglishText
                             text={currentStory.title}
                             onWordClick={handleWordClick}
+                            savedVocabMap={savedVocabMap}
                             stopEventPropagation
                           />
                         </CardTitle>
@@ -2873,6 +3227,7 @@ export default function UnseenPracticePage() {
                                   <InteractiveEnglishText
                                     text={sObj.text}
                                     onWordClick={handleWordClick}
+                                    savedVocabMap={savedVocabMap}
                                     stopEventPropagation
                                   />
                                   {" "}
@@ -2883,6 +3238,7 @@ export default function UnseenPracticePage() {
                             <InteractiveEnglishText
                               text={para}
                               onWordClick={handleWordClick}
+                              savedVocabMap={savedVocabMap}
                             />
                           )}
                         </p>
@@ -2898,18 +3254,26 @@ export default function UnseenPracticePage() {
                         <span>Vocabulary Helpers (אוצר מילים בטקסט):</span>
                       </p>
                       <div className="flex flex-wrap gap-1.5">
-                        {currentStory.vocabularyHints.map((hint, hIdx) => (
-                          <button
-                            key={hIdx}
-                            type="button"
-                            onClick={() => handleWordClick(hint.word)}
-                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-secondary text-secondary-foreground text-xs hover:bg-primary/10 hover:text-primary transition cursor-pointer"
-                          >
-                            <span className="font-medium">{hint.word}</span>
-                            <span className="text-muted-foreground">&bull;</span>
-                            <span>{hint.translation}</span>
-                          </button>
-                        ))}
+                        {currentStory.vocabularyHints.map((hint, hIdx) => {
+                          const isHintSaved = Boolean(lookupSavedVocabForWord(hint.word, savedVocabMap));
+                          return (
+                            <button
+                              key={hIdx}
+                              type="button"
+                              onClick={() => handleWordClick(hint.word)}
+                              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs transition cursor-pointer ${
+                                isHintSaved
+                                  ? "bg-primary/15 text-primary border border-primary/30 font-semibold"
+                                  : "bg-secondary text-secondary-foreground hover:bg-primary/10 hover:text-primary"
+                              }`}
+                            >
+                              {isHintSaved && <Check className="h-3 w-3 text-primary shrink-0" />}
+                              <span className="font-medium">{hint.word}</span>
+                              <span className="text-muted-foreground">&bull;</span>
+                              <span>{hint.translation}</span>
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>
                   )}
@@ -3951,19 +4315,40 @@ export default function UnseenPracticePage() {
                   savedWords.map((item) => (
                     <div
                       key={item.id}
-                      className="p-2.5 rounded-lg border border-border/60 bg-muted/20 flex items-center justify-between"
+                      className="p-2.5 rounded-lg border border-border/60 bg-muted/20 flex items-center justify-between gap-2"
                     >
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
                         <button
                           type="button"
                           onClick={() => handleSpeak(item.english)}
-                          className="text-muted-foreground hover:text-primary cursor-pointer p-0.5"
+                          className="text-muted-foreground hover:text-primary cursor-pointer p-0.5 shrink-0"
                         >
                           <Volume2 className="h-3.5 w-3.5" />
                         </button>
-                        <span className="font-bold text-xs capitalize text-foreground">{item.english}</span>
+                        <span className="font-bold text-xs capitalize text-foreground truncate">{item.english}</span>
                       </div>
-                      <span className="text-xs font-semibold text-primary">{item.hebrew}</span>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="text-xs font-semibold text-primary" dir="rtl">{item.hebrew}</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            removeWordFromBuilder(item.id, user?.id);
+                            const nextWords = loadSavedWords(user?.id);
+                            setSavedWords(nextWords);
+                            if (
+                              clickedWord &&
+                              normalizeVocabWord(clickedWord.word) === normalizeVocabWord(item.english)
+                            ) {
+                              setClickedWord((prev) => (prev ? { ...prev, saved: false } : null));
+                            }
+                          }}
+                          className="text-muted-foreground/60 hover:text-destructive cursor-pointer p-0.5"
+                          title="הסר מאוצר המילים"
+                          aria-label="הסר מילה"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
                     </div>
                   ))
                 )}
@@ -4435,8 +4820,17 @@ export default function UnseenPracticePage() {
                     onChange={(e) => setPrintIncludeVocab(e.target.checked)}
                     className="rounded border-border text-primary focus:ring-primary h-4 w-4 cursor-pointer"
                   />
-                  <span>כלול תיבת מילים שימושיות (Vocabulary Helpers)</span>
+                  <span>כלול מילים מאוצר המילים שלי ותרגום קטן בעברית מעל המילים בקטע</span>
                 </label>
+
+                {passageSavedVocabWords.length > 0 && (
+                  <div className="p-2 rounded-lg bg-primary/10 border border-primary/25 text-[11px] text-foreground flex items-center gap-2">
+                    <BookMarked className="h-3.5 w-3.5 text-primary shrink-0" />
+                    <span>
+                      זוהו <strong>{passageSavedVocabWords.length} מילים</strong> שהוספת לאוצר המילים בקטע זה — בהדפסה יופיע תרגום קטן בעברית מעל כל מופע שלהן בטקסט.
+                    </span>
+                  </div>
+                )}
 
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
@@ -4643,6 +5037,18 @@ export default function UnseenPracticePage() {
               break-inside: avoid !important;
               page-break-inside: avoid !important;
             }
+            .ruby-vocab-print {
+              ruby-position: over;
+              ruby-align: center;
+            }
+            .ruby-vocab-print rt {
+              font-size: 9px !important;
+              line-height: 1.15 !important;
+              font-weight: 700 !important;
+              color: #334155 !important;
+              padding-bottom: 1px !important;
+              white-space: nowrap !important;
+            }
           }
         `}} />
         {/* SHEET 1: Reading Passage Page */}
@@ -4697,7 +5103,7 @@ export default function UnseenPracticePage() {
               {/* Passage Title */}
               <div className="text-center pb-2.5 border-b border-slate-200 mb-3.5">
                 <h1 className="text-xl font-extrabold tracking-tight text-slate-900 leading-tight">
-                  {currentStory.title}
+                  <PrintedPassageText text={currentStory.title} savedVocabMap={savedVocabMap} />
                 </h1>
                 {currentStory.hebrewTitle && (
                   <p className="text-xs font-medium text-slate-500 rtl mt-0.5">
@@ -4720,6 +5126,8 @@ export default function UnseenPracticePage() {
                     ? "print-line-spacing-double space-y-6"
                     : printLineSpacing === "comfortable"
                     ? "print-line-spacing-comfortable space-y-5"
+                    : passageSavedVocabWords.length > 0
+                    ? "print-line-spacing-comfortable space-y-4"
                     : "print-line-spacing-normal space-y-4"
                 }`}
               >
@@ -4728,22 +5136,24 @@ export default function UnseenPracticePage() {
                     <span className="w-5 h-5 rounded-full bg-slate-100 border border-slate-300 text-slate-700 font-bold text-[11px] flex items-center justify-center shrink-0 mt-0.5">
                       {idx + 1}
                     </span>
-                    <p className="m-0 flex-1">{para}</p>
+                    <p className="m-0 flex-1">
+                      <PrintedPassageText text={para} savedVocabMap={savedVocabMap} />
+                    </p>
                   </div>
                 ))}
               </div>
 
-              {/* Vocabulary Helpers (Clean 2 or 3-column pill grid) */}
-              {printIncludeVocab && currentStory.vocabularyHints && currentStory.vocabularyHints.length > 0 && (
+              {/* Saved Vocabulary Words from Passage (Only vocabulary words added by user) */}
+              {printIncludeVocab && passageSavedVocabWords.length > 0 && (
                 <div className="mt-5 p-3 rounded-lg border border-slate-200 bg-slate-50/60 print-avoid-break">
                   <div className="text-[10px] font-bold uppercase tracking-wider text-slate-600 mb-1.5">
-                    Useful Words &middot; מילים שימושיות:
+                    Vocabulary Words &middot; מילים מאוצר המילים:
                   </div>
                   <div className="grid grid-cols-3 sm:grid-cols-4 gap-x-3 gap-y-1.5 text-xs">
-                    {currentStory.vocabularyHints.map((h, i) => (
-                      <div key={i} className="flex items-baseline justify-between text-[11px] border-b border-dotted border-slate-200 pb-0.5">
-                        <span className="font-semibold text-slate-800">{h.word}</span>
-                        <span className="text-slate-600 rtl font-medium">{h.translation}</span>
+                    {passageSavedVocabWords.map((item) => (
+                      <div key={item.id} className="flex items-baseline justify-between text-[11px] border-b border-dotted border-slate-200 pb-0.5">
+                        <span className="font-semibold text-slate-800">{item.english}</span>
+                        <span className="text-slate-600 rtl font-medium">{item.hebrew}</span>
                       </div>
                     ))}
                   </div>
