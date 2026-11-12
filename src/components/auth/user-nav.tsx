@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
-import { GraduationCap, User, LogOut, ChevronDown, School, RefreshCw, LayoutDashboard, CheckCircle2, MessageSquarePlus, ShieldCheck, Share2 } from "lucide-react";
+import { GraduationCap, User, LogOut, School, RefreshCw, LayoutDashboard, CheckCircle2, MessageSquarePlus, ShieldCheck, Share2 } from "lucide-react";
 import { TeacherAuthModal } from "./teacher-auth-modal";
 import { StudentLoginModal } from "./student-login-modal";
 import { HeaderTooltip } from "@/components/ui/header-tooltip";

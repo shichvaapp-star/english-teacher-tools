@@ -19,7 +19,6 @@ import {
   CheckCircle2,
   ArrowLeft,
   LayoutDashboard,
-  Bot,
   Clock,
   Play,
   MessageSquare,

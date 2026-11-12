@@ -3,7 +3,6 @@
 import React, { useState, useMemo } from "react";
 import {
   TeacherVocabBank,
-  VocabGrade,
   GRADE_LABELS,
   STANDARD_LEVEL_LABELS,
 } from "@/types/vocab-bank";
@@ -17,19 +16,13 @@ import {
   BookA,
   Plus,
   Search,
-  Filter,
   Send,
   Edit2,
   Trash2,
   Download,
   GraduationCap,
   Layers,
-  Sparkles,
   Eye,
-  FileSpreadsheet,
-  FileText,
-  Clock,
-  CheckCircle2,
   Share2,
 } from "lucide-react";
 

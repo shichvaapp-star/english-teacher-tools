@@ -2,12 +2,13 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { UserNav } from "@/components/auth/user-nav";
 import { HeaderTooltip } from "@/components/ui/header-tooltip";
 import { db } from "@/lib/firebase";
-import { collection, addDoc, doc, setDoc } from "firebase/firestore";
+import { doc, setDoc } from "firebase/firestore";
 import { cleanForFirestore } from "@/lib/utils";
 import { SubmissionItem, SubmissionQuestionBreakdown } from "@/types/submission";
 import { formatTeacherDisplayName } from "@/types/auth";
@@ -30,7 +31,7 @@ import { useSpeechPlayer } from "@/lib/use-speech-player";
 import { UnseenAudioDock } from "@/components/unseen/unseen-audio-dock";
 import { DraggableTranslationPopup } from "@/components/unseen/draggable-translation-popup";
 import { Confetti } from "@/components/confetti";
-import { saveDraft, deleteDraft, getDraftById, findDraft } from "@/lib/drafts-storage";
+import { saveDraft, deleteDraft, getDraftById } from "@/lib/drafts-storage";
 import type { InProgressWorkItem } from "@/types/draft";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -402,6 +403,7 @@ function PrintedPassageText({
 }
 
 export default function UnseenPracticePage() {
+  const router = useRouter();
   const { user, teachers } = useAuth();
   const [stories, setStories] = useState<MSUnseenStory[]>(MIDDLE_SCHOOL_UNSEENS);
 
@@ -414,6 +416,7 @@ export default function UnseenPracticePage() {
   const [currentAssignmentId, setCurrentAssignmentId] = useState<string | null>(null);
   const [activeAssignment, setActiveAssignment] = useState<TeacherAssignment | null>(null);
   const [isFromDavid, setIsFromDavid] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- parked until the David tutor is re-enabled
   const [isTurningInToDavid, setIsTurningInToDavid] = useState(false);
   const isHydratedSnapshotRef = React.useRef(false);
 
@@ -976,7 +979,7 @@ export default function UnseenPracticePage() {
         },
       });
     }
-    window.location.href = "/student";
+    router.push("/student");
   };
 
   // Word Click & Translation Popup
@@ -2027,6 +2030,7 @@ export default function UnseenPracticePage() {
     }
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- parked until the David tutor is re-enabled
   const handleTurnInToDavid = async () => {
     setIsTurningInToDavid(true);
 
@@ -2204,7 +2208,7 @@ export default function UnseenPracticePage() {
     });
 
     if (typeof window !== "undefined") {
-      window.location.href = "/tutor?turnIn=1";
+      router.push("/tutor?turnIn=1");
     }
   };
 
@@ -2634,7 +2638,7 @@ export default function UnseenPracticePage() {
                 {filteredLibraryStories.length === 0 ? (
                   <div className="p-6 rounded-xl border border-dashed border-border/80 text-center space-y-2">
                     <p className="text-xs text-muted-foreground font-hebrew">
-                      לא נמצאו קטעי קריאה התואמים לחיפוש "{librarySearchQuery}"
+                      לא נמצאו קטעי קריאה התואמים לחיפוש &quot;{librarySearchQuery}&quot;
                     </p>
                     <Button
                       type="button"
@@ -4016,7 +4020,7 @@ export default function UnseenPracticePage() {
                             <Sparkles className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
                             <div>
                               <span>פרומפט ששימש ליצירת הטקסט: </span>
-                              <strong className="text-foreground font-sans" dir="auto">"{submissionRecord.generationPrompt}"</strong>
+                              <strong className="text-foreground font-sans" dir="auto">&quot;{submissionRecord.generationPrompt}&quot;</strong>
                             </div>
                           </div>
                         )}
@@ -4402,7 +4406,7 @@ export default function UnseenPracticePage() {
                     פרומפט ששימש ליצירת הטקסט:
                   </span>
                   <p className="text-foreground/90 font-medium font-sans" dir="auto">
-                    "{currentStory.generationPrompt}"
+                    &quot;{currentStory.generationPrompt}&quot;
                   </p>
                 </div>
               </div>

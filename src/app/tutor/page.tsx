@@ -18,7 +18,6 @@ import {
 } from "@/components/ui/dialog";
 import {
   ArrowLeft,
-  GraduationCap,
   BookOpen,
   BookA,
   PenTool,

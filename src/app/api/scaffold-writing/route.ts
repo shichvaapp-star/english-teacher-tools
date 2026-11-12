@@ -29,7 +29,7 @@ function extractJsonFromText(raw: string): any {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { hebrewText, level, taskTitle, currentEssay } = body;
+    const { hebrewText, level, taskTitle } = body;
 
     if (!hebrewText || typeof hebrewText !== "string" || !hebrewText.trim()) {
       return NextResponse.json(

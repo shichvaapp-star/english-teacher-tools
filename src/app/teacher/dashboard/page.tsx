@@ -20,7 +20,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { UserNav } from "@/components/auth/user-nav";
 import { HeaderTooltip } from "@/components/ui/header-tooltip";
 import { TeacherAuthModal } from "@/components/auth/teacher-auth-modal";
-import { Card, CardContent, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,8 +28,6 @@ import {
   GraduationCap,
   ArrowLeft,
   Search,
-  CheckCircle2,
-  Clock,
   FileText,
   User,
   Users,
@@ -46,10 +44,8 @@ import {
   Eye,
   EyeOff,
   Send,
-  Sparkles,
   Lock,
   Shuffle,
-  Layers,
   Plus,
   MessageSquarePlus,
   BookA,
@@ -89,7 +85,6 @@ export default function TeacherDashboardPage() {
   const {
     user,
     teachers,
-    claimAdminRole,
     getStudentsByTeacher,
     addStudentByTeacher,
     updateStudent,

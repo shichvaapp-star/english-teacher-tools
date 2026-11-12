@@ -17,9 +17,7 @@ import {
   MessageSquare,
   Calendar,
   ArrowLeft,
-  X,
   Sparkles,
-  GraduationCap,
 } from "lucide-react";
 
 const LOCAL_ASSIGNMENTS_KEY = "ett_teacher_assignments";
@@ -276,7 +274,7 @@ export function StudentAssignedTaskPrompt() {
 
             {assignment.instructions && (
               <p className="text-xs text-foreground/90 font-medium bg-background/60 p-2 rounded-lg border border-border/50 max-w-xl">
-                💬 הנחיית המורה: "{assignment.instructions}"
+                💬 הנחיית המורה: &quot;{assignment.instructions}&quot;
               </p>
             )}
 

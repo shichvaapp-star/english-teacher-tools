@@ -14,7 +14,6 @@ import {
   RotateCcw,
   Compass,
   CheckCircle2,
-  GraduationCap,
 } from "lucide-react";
 
 interface TutorProgressCardProps {

@@ -56,7 +56,7 @@ function extractJsonFromText(raw: string): any {
 function ensureCapitalizationChecks(
   essayText: string,
   existingCorrections: WritingCorrection[] = [],
-  level: string = "Level 2"
+  _level: string = "Level 2"
 ): WritingCorrection[] {
   const corrections = [...existingCorrections];
 
