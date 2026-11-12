@@ -291,16 +291,16 @@ export default function Home() {
         </div>
 
         {/* 4 Core Section Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 lg:gap-6 max-w-6xl mx-auto">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 lg:gap-4 xl:gap-6 max-w-6xl mx-auto">
           {sections.map((sec) => {
             return (
               <Link
                 key={sec.englishTitle}
                 href={sec.href}
-                className={`group flex flex-col items-center text-center justify-between p-5 sm:p-6 lg:p-7 rounded-2xl border border-border/70 bg-card hover:bg-card/90 hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200 cursor-pointer ${sec.borderColor}`}
+                className={`group flex flex-col items-center text-center justify-between p-5 sm:p-6 lg:px-3.5 lg:py-5 xl:p-6 rounded-2xl border border-border/70 bg-card hover:bg-card/90 hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200 cursor-pointer ${sec.borderColor}`}
               >
-                <div className="flex justify-center mb-5 sm:mb-6">
-                  <div className="h-16 w-16 sm:h-20 sm:w-20 rounded-2xl overflow-hidden border border-border/80 bg-[#121214] shadow-md transition-transform group-hover:scale-105 shrink-0 flex items-center justify-center">
+                <div className="flex justify-center mb-4 sm:mb-6 lg:mb-4 xl:mb-5">
+                  <div className="h-16 w-16 sm:h-20 sm:w-20 lg:h-16 lg:w-16 xl:h-20 xl:w-20 rounded-2xl overflow-hidden border border-border/80 bg-[#121214] shadow-md transition-transform group-hover:scale-105 shrink-0 flex items-center justify-center">
                     <img
                       src={sec.logo}
                       alt={sec.englishTitle}
@@ -311,7 +311,7 @@ export default function Home() {
                 </div>
 
                 <div className="space-y-1 w-full text-center">
-                  <h3 className="text-xl sm:text-2xl md:text-xl lg:text-2xl font-normal text-foreground font-sans tracking-tight whitespace-nowrap">
+                  <h3 className="text-lg sm:text-xl md:text-lg lg:text-base xl:text-lg font-normal text-foreground font-sans tracking-tight leading-snug break-words">
                     {sec.englishTitle}
                   </h3>
                   <p className="text-xs sm:text-sm font-normal text-primary truncate" dir="rtl" title={sec.hebrewTitle}>
