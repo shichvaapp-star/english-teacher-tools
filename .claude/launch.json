@@ -6,6 +6,18 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
       "port": 3000
+    },
+    {
+      "name": "dev-no-firebase",
+      "runtimeExecutable": "env",
+      "runtimeArgs": [
+        "NEXT_PUBLIC_FIREBASE_PROJECT_ID=demo-local-test",
+        "NEXT_PUBLIC_FIREBASE_API_KEY=local-test-invalid-key",
+        "npm",
+        "run",
+        "dev"
+      ],
+      "port": 3000
     }
   ]
 }
