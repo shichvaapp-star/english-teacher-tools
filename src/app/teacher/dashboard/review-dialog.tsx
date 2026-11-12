@@ -228,7 +228,7 @@ export function ReviewDialog({
                     </Badge>
                   </div>
                   <div className="p-2.5 rounded-lg bg-background/80 border border-border/60 text-foreground font-medium leading-relaxed font-sans" dir="auto">
-                    "{reviewItem.generationPrompt}"
+                    &quot;{reviewItem.generationPrompt}&quot;
                   </div>
                 </div>
               ) : (
@@ -374,7 +374,7 @@ export function ReviewDialog({
                         <span>בדיקת AI פדגוגית (מחוון משרד החינוך)</span>
                       </Badge>
                       <h4 className="text-sm font-black text-foreground mt-1">
-                        "{writingAiResult.encouragement}"
+                        &quot;{writingAiResult.encouragement}&quot;
                       </h4>
                     </div>
 

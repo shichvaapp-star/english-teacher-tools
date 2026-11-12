@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { errorMessage, extractJsonObject } from "@/lib/llm-json";
 
 export interface RubricCategoryScore {
   score: number; // 0 to max
@@ -38,25 +39,11 @@ export interface WritingEvaluationResult {
   hebrewInterferenceNotes?: string[];
 }
 
-// Clean and extract JSON from markdown wrappers or raw text
-function extractJsonFromText(raw: string): any {
-  let cleaned = raw.trim();
-  if (cleaned.startsWith("```")) {
-    cleaned = cleaned.replace(/^```(?:json)?\s*\n?/, "").replace(/\n?```\s*$/, "");
-  }
-  const firstBrace = cleaned.indexOf("{");
-  const lastBrace = cleaned.lastIndexOf("}");
-  if (firstBrace !== -1 && lastBrace !== -1) {
-    cleaned = cleaned.slice(firstBrace, lastBrace + 1);
-  }
-  return JSON.parse(cleaned);
-}
-
 // Rigorous validator ensuring all Capital Letter errors are flagged and explained
 function ensureCapitalizationChecks(
   essayText: string,
   existingCorrections: WritingCorrection[] = [],
-  level: string = "Level 2"
+  _level: string = "Level 2"
 ): WritingCorrection[] {
   const corrections = [...existingCorrections];
 
@@ -565,8 +552,10 @@ Return ONLY a valid, raw JSON object matching this exact schema (NO MARKDOWN COD
       try {
         const rawOutput = await step.execute();
         if (rawOutput) {
-          const parsed = extractJsonFromText(rawOutput) as WritingEvaluationResult;
-          if (parsed && typeof parsed.score === "number") {
+          const json = extractJsonObject(rawOutput);
+          // Only the score is required; the remaining fields are used as the model returned them.
+          const parsed = json && typeof json.score === "number" ? (json as unknown as WritingEvaluationResult) : null;
+          if (parsed) {
             // Rigorously enforce capitalization checks across all levels
             parsed.corrections = ensureCapitalizationChecks(essayText, parsed.corrections || [], currentLevel);
 
@@ -648,8 +637,8 @@ Return ONLY a valid, raw JSON object matching this exact schema (NO MARKDOWN COD
             });
           }
         }
-      } catch (err: any) {
-        console.warn(`Evaluation failed on ${step.provider}:${step.model}:`, err?.message || err);
+      } catch (err) {
+        console.warn(`Evaluation failed on ${step.provider}:${step.model}:`, errorMessage(err));
       }
     }
 

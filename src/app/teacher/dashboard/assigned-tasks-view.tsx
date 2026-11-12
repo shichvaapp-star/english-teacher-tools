@@ -11,14 +11,10 @@ import {
   PenTool,
   BookOpen,
   BookA,
-  Users,
-  Clock,
   Calendar,
-  CheckCircle2,
   Trash2,
   Plus,
   Sparkles,
-  GraduationCap,
   Share2,
   MessageSquare,
 } from "lucide-react";
@@ -38,6 +34,7 @@ export function AssignedTasksView({
   students,
   onArchiveAssignment,
   onOpenAssignModal,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- parked until the David tutor is re-enabled
   onToggleDavid,
 }: AssignedTasksViewProps) {
   // Helper to compute turn-in count for an assignment
@@ -141,6 +138,7 @@ export function AssignedTasksView({
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
         {assignments.map((assignment) => {
           const stats = getAssignmentStats(assignment);
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars -- parked until the David tutor is re-enabled
           const isDavidEnabled = Boolean(assignment.coachWithDavid || assignment.isAdaptiveDavid);
           return (
             <div
@@ -307,7 +305,7 @@ export function AssignedTasksView({
                 {/* Teacher Instructions */}
                 {assignment.instructions && (
                   <p className="text-xs text-muted-foreground line-clamp-2 bg-muted/30 p-2 rounded-lg border border-border/50">
-                    💬 "{assignment.instructions}"
+                    💬 &quot;{assignment.instructions}&quot;
                   </p>
                 )}
 

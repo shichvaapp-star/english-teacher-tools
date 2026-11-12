@@ -17,17 +17,12 @@ import {
   BookA,
   Send,
   Search,
-  Filter,
-  Copy,
   CheckCircle2,
   Sparkles,
-  School,
   User,
   GraduationCap,
   Layers,
   Eye,
-  FileText,
-  Clock,
   RefreshCw,
   FolderPlus,
 } from "lucide-react";
@@ -47,7 +42,7 @@ export function SharedResourcesView({
 
   const [activeSubTab, setActiveSubTab] = useState<"banks" | "assignments">("banks");
   const [searchQuery, setSearchQuery] = useState("");
-  const [gradeFilter, setGradeFilter] = useState<string>("all");
+  const [gradeFilter] = useState<string>("all");
 
   // Shared Data
   const [sharedBanks, setSharedBanks] = useState<TeacherVocabBank[]>([]);
@@ -248,7 +243,7 @@ export function SharedResourcesView({
               <div>
                 <p className="font-bold text-sm text-foreground">עדיין אין מאגרי מילים משותפים</p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  היו הראשונים לשתף מאגר מילים מתוך לשונית "מאגרי מילים שלי"!
+                  היו הראשונים לשתף מאגר מילים מתוך לשונית &quot;מאגרי מילים שלי&quot;!
                 </p>
               </div>
             </Card>
@@ -512,7 +507,7 @@ export function SharedResourcesView({
                     <span className="font-semibold text-primary">{w.hebrew}</span>
                   </div>
                   {w.example && (
-                    <p className="text-[11px] text-muted-foreground italic">"{w.example}"</p>
+                    <p className="text-[11px] text-muted-foreground italic">&quot;{w.example}&quot;</p>
                   )}
                 </div>
               ))}

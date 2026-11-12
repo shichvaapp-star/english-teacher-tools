@@ -2,16 +2,12 @@
 
 import React, { useState } from "react";
 import { SiteSuggestion, SuggestionStatus, SuggestionType } from "@/types/suggestion";
-import { db } from "@/lib/firebase";
-import { doc, updateDoc, deleteDoc } from "firebase/firestore";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Search,
-  Filter,
-  Copy,
   Check,
   Trash2,
   ExternalLink,
@@ -24,8 +20,6 @@ import {
   User,
   School,
   CheckCircle2,
-  AlertCircle,
-  Archive,
   RefreshCw,
   MessageSquarePlus,
 } from "lucide-react";

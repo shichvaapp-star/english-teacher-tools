@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { TeacherProfile, StudentProfile } from "@/types/auth";
 import { useAuth } from "@/lib/auth-context";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,21 +11,16 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import {
   Users,
   ShieldCheck,
-  ShieldAlert,
   Search,
   School,
   Mail,
-  KeyRound,
   Calendar,
   Edit2,
   Trash2,
   ArrowRightLeft,
   CheckCircle2,
   AlertTriangle,
-  RefreshCw,
-  UserCheck,
   GraduationCap,
-  Sparkles,
 } from "lucide-react";
 
 interface AdminTeachersViewProps {

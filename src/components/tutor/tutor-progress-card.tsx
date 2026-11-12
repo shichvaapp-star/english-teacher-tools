@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import React from "react";
 import { StudentTutorProfile } from "@/types/tutor";
 import { Card, CardContent } from "@/components/ui/card";
@@ -14,7 +15,6 @@ import {
   RotateCcw,
   Compass,
   CheckCircle2,
-  GraduationCap,
 } from "lucide-react";
 
 interface TutorProgressCardProps {
@@ -32,7 +32,7 @@ export function TutorProgressCard({ profile, onResetDiagnostic }: TutorProgressC
         <div className="p-4 border-b border-border/30 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-tr from-sky-500/20 via-indigo-500/20 to-purple-500/20 border border-indigo-500/30 overflow-hidden shadow-xs shrink-0">
-              <img src="/images/logos/david-logo.png" alt="David" className="h-full w-full object-cover object-top" />
+              <Image src="/images/logos/david-logo.png" alt="David" width={44} height={44} className="h-full w-full object-cover object-top" />
             </div>
             <div>
               <h3 className="font-bold text-foreground text-base">

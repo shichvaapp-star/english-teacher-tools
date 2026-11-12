@@ -2,9 +2,10 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { db } from "@/lib/firebase";
-import { collection, query, where, getDocs, doc, setDoc } from "firebase/firestore";
+import { collection, getDocs, doc, setDoc } from "firebase/firestore";
 import { cleanForFirestore } from "@/lib/utils";
 import { SubmissionItem } from "@/types/submission";
 import { InProgressWorkItem } from "@/types/draft";
@@ -13,7 +14,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { UserNav } from "@/components/auth/user-nav";
 import { HeaderTooltip } from "@/components/ui/header-tooltip";
 import { StudentLoginModal } from "@/components/auth/student-login-modal";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,7 +35,6 @@ import {
   GraduationCap,
   Sparkles,
   AlertCircle,
-  HelpCircle,
   Play,
   RotateCcw,
   Trash2,
@@ -46,6 +46,7 @@ import { StudentAssignedTaskPrompt } from "@/components/student/student-assigned
 const LOCAL_SUBMISSIONS_KEY = "ett_writing_submissions";
 
 export default function StudentPortalPage() {
+  const router = useRouter();
   const { user } = useAuth();
 
   const [submissions, setSubmissions] = useState<SubmissionItem[]>([]);
@@ -92,13 +93,13 @@ export default function StudentPortalPage() {
 
   const handleRetryTask = (sub: SubmissionItem) => {
     if (sub.type === "unseen") {
-      window.location.href = `/unseen?passageId=${sub.taskId}&stage=exercise&mode=practice`;
+      router.push(`/unseen?passageId=${sub.taskId}&stage=exercise&mode=practice`);
     } else if (sub.type === "writing") {
-      window.location.href = `/writing?task=${sub.taskId}`;
+      router.push(`/writing?task=${sub.taskId}`);
     } else if (sub.type === "vocab") {
-      window.location.href = `/vocabulary?category=${sub.assignmentId ? "assignment" : "saved"}`;
+      router.push(`/vocabulary?category=${sub.assignmentId ? "assignment" : "saved"}`);
     } else if (sub.type === "conversation") {
-      window.location.href = `/conversation?scenarioId=${sub.taskId}&stage=exercise&mode=practice`;
+      router.push(`/conversation?scenarioId=${sub.taskId}&stage=exercise&mode=practice`);
     }
   };
 
@@ -720,7 +721,7 @@ export default function StudentPortalPage() {
                         <Sparkles className="h-3.5 w-3.5 text-purple-600 dark:text-purple-400 shrink-0 mt-0.5" />
                         <div>
                           <span className="font-bold text-purple-900 dark:text-purple-200">פרומפט ליצירת הטקסט: </span>
-                          <span className="font-sans font-medium text-foreground/90" dir="auto">"{sub.generationPrompt}"</span>
+                          <span className="font-sans font-medium text-foreground/90" dir="auto">&quot;{sub.generationPrompt}&quot;</span>
                         </div>
                       </div>
                     )}
@@ -1001,7 +1002,7 @@ export default function StudentPortalPage() {
                       <span>פרומפט ששימש אותך ליצירת הטקסט:</span>
                     </div>
                     <p className="font-sans text-foreground/95 bg-background/70 p-2 rounded-lg border border-border/50 font-medium leading-relaxed" dir="auto">
-                      "{selectedItem.generationPrompt}"
+                      &quot;{selectedItem.generationPrompt}&quot;
                     </p>
                   </div>
                 )}

@@ -25,19 +25,14 @@ import {
   BookOpen,
   Users,
   Layers,
-  Calendar,
-  Check,
   X,
   AlertCircle,
   Sparkles,
-  GraduationCap,
   BookA,
   Search,
   Filter,
   User,
-  CheckSquare,
   Plus,
-  Trash2,
   Share2,
   MessageSquare,
 } from "lucide-react";
@@ -82,7 +77,7 @@ export function AssignTaskModal({
   // Vocabulary Assignment State
   const [vocabSourceMode, setVocabSourceMode] = useState<"custom" | "ministry">("custom");
   const [selectedBankGradeFilter, setSelectedBankGradeFilter] = useState<string>("all");
-  const [selectedBankLevelFilter, setSelectedBankLevelFilter] = useState<string>("all");
+  const [selectedBankLevelFilter] = useState<string>("all");
 
   const effectiveCustomBanks = useMemo(() => {
     if (customBanks && customBanks.length > 0) return customBanks;
@@ -114,7 +109,7 @@ export function AssignTaskModal({
   const [vocabSearchQuery, setVocabSearchQuery] = useState("");
   const [customVocabEng, setCustomVocabEng] = useState("");
   const [customVocabHeb, setCustomVocabHeb] = useState("");
-  const [customVocabPos, setCustomVocabPos] = useState<"noun" | "verb" | "adjective" | "adverb" | "phrase">("noun");
+  const [customVocabPos] = useState<"noun" | "verb" | "adjective" | "adverb" | "phrase">("noun");
   const [customVocabExample, setCustomVocabExample] = useState("");
   const [showAddCustomWord, setShowAddCustomWord] = useState(false);
 
@@ -203,6 +198,7 @@ export function AssignTaskModal({
     }
   }, [open, preselectedStudentId, preselectedVocabBank, students]);
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- parked until the David tutor is re-enabled
   const handleToggleDavid = (enabled: boolean) => {
     setCoachWithDavid(enabled);
     if (!enabled && selectionMode === "adaptive_david") {

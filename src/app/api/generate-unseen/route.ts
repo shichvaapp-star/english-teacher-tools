@@ -1,19 +1,13 @@
 import { NextResponse } from "next/server";
 import { MIDDLE_SCHOOL_UNSEENS, MSUnseenStory, MSUnseenQuestion, randomizeQuestionsOptions } from "@/data/unseen-middle-school";
-
-// Clean and extract JSON from markdown wrappers or raw text
-function extractJsonFromText(raw: string): any {
-  let cleaned = raw.trim();
-  if (cleaned.startsWith("```")) {
-    cleaned = cleaned.replace(/^```(?:json)?\s*\n?/, "").replace(/\n?```\s*$/, "");
-  }
-  const firstBrace = cleaned.indexOf("{");
-  const lastBrace = cleaned.lastIndexOf("}");
-  if (firstBrace !== -1 && lastBrace !== -1) {
-    cleaned = cleaned.slice(firstBrace, lastBrace + 1);
-  }
-  return JSON.parse(cleaned);
-}
+import {
+  errorMessage,
+  extractJsonFromText,
+  isJsonObject,
+  jsonObjects,
+  jsonStringArray,
+  type JsonValue,
+} from "@/lib/llm-json";
 
 // Helper to guarantee at least 4 open/copy questions per text
 function ensureMinimumOpenQuestions(
@@ -81,14 +75,12 @@ function ensureMinimumOpenQuestions(
 }
 
 function validateAndFormatStory(
-  rawObj: any,
+  rawObj: JsonValue,
   selectedLevel: "Level 1" | "Level 2" | "Level 3"
 ): MSUnseenStory | null {
-  if (!rawObj || typeof rawObj !== "object") return null;
+  if (!isJsonObject(rawObj)) return null;
 
-  const paragraphs: string[] = Array.isArray(rawObj.paragraphs)
-    ? rawObj.paragraphs.filter((p: any) => typeof p === "string" && p.trim().length > 0)
-    : [];
+  const paragraphs: string[] = jsonStringArray(rawObj.paragraphs).filter((p) => p.trim().length > 0);
 
   if (paragraphs.length < 3) return null;
 
@@ -128,7 +120,7 @@ function validateAndFormatStory(
     return null;
   }
 
-  const rawQuestions: any[] = Array.isArray(rawObj.questions) ? rawObj.questions : [];
+  const rawQuestions = jsonObjects(rawObj.questions);
   if (rawQuestions.length < 5) return null;
 
   // 3. Validate Questions: Prompts and options must be in English
@@ -201,7 +193,7 @@ function validateAndFormatStory(
       const modelAnswer = String(q.modelAnswer || "A complete answer based on the paragraph.").trim();
       const rawKeywords = Array.isArray(q.keywords) ? q.keywords : [];
       const keywords = rawKeywords
-        .map((k: any) => String(k || "").trim().toLowerCase())
+        .map((k) => String(k || "").trim().toLowerCase())
         .filter((k: string) => k.length > 2);
 
       return {
@@ -220,7 +212,7 @@ function validateAndFormatStory(
 
     // MCQ
     const rawOptions = Array.isArray(q.options) && q.options.length >= 2 ? q.options : ["True", "False", "Not mentioned", "None"];
-    const options = rawOptions.slice(0, 4).map((opt: any) => String(opt || "").trim());
+    const options = rawOptions.slice(0, 4).map((opt) => String(opt || "").trim());
     while (options.length < 4) {
       options.push(`Alternative ${options.length + 1}`);
     }
@@ -313,11 +305,9 @@ function validateAndFormatStory(
     "Level 3": { en: "A Deeper Understanding", he: "מבט מעמיק אל העולם" },
   };
 
-  const vocabularyHints = Array.isArray(rawObj.vocabularyHints)
-    ? rawObj.vocabularyHints
-        .filter((h: any) => h && h.word && h.translation)
-        .map((h: any) => ({ word: String(h.word).trim(), translation: String(h.translation).trim() }))
-    : [];
+  const vocabularyHints = jsonObjects(rawObj.vocabularyHints)
+    .filter((h) => h.word && h.translation)
+    .map((h) => ({ word: String(h.word).trim(), translation: String(h.translation).trim() }));
 
   return {
     id: `ai-story-${Date.now()}`,
@@ -650,7 +640,7 @@ Return ONLY a valid, raw JSON object matching this schema (NO MARKDOWN FENCES, N
     }
 
     // Run the cascade
-    let lastError: any = null;
+    let lastError: unknown = null;
 
     for (const step of cascadePlan) {
       try {
@@ -670,9 +660,9 @@ Return ONLY a valid, raw JSON object matching this schema (NO MARKDOWN FENCES, N
             providerUsed: step.provider,
           });
         }
-      } catch (err: any) {
+      } catch (err) {
         lastError = err;
-        console.warn(`[AI Cascade] Step ${step.provider} (${step.model}) failed, trying next... Reason:`, err.message);
+        console.warn(`[AI Cascade] Step ${step.provider} (${step.model}) failed, trying next... Reason:`, errorMessage(err));
       }
     }
 
@@ -699,18 +689,18 @@ Return ONLY a valid, raw JSON object matching this schema (NO MARKDOWN FENCES, N
         success: false,
         reason: "all_models_busy",
         message: "כל מודלי ה-AI היו עמוסים זמנית. אנא נסה שוב בעוד מספר שניות.",
-        detail: lastError?.message,
+        detail: lastError ? errorMessage(lastError) : undefined,
       },
       { status: 503 }
     );
-  } catch (error: any) {
+  } catch (error) {
     console.error("Generate unseen global error:", error);
     return NextResponse.json(
       {
         success: false,
         reason: "internal_error",
         message: "אירעה שגיאה בעיבוד הבקשה. אנא נסה שוב.",
-        detail: error?.message,
+        detail: errorMessage(error),
       },
       { status: 500 }
     );

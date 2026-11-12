@@ -1,5 +1,6 @@
 import type { UnseenRubric } from "./unseen";
 import type { ConversationRubric, ConversationQuestionType } from "./conversation";
+import type { WritingEvaluationResult, WritingCorrection, VocabularyUpgrade } from "@/app/api/evaluate-writing/route";
 
 export interface SubmissionQuestionBreakdown {
   id: string;
@@ -71,9 +72,9 @@ export interface SubmissionItem {
   unseenRubric?: UnseenRubric;
   conversationRubric?: ConversationRubric;
   // Writing AI Evaluation Feedback
-  writingRubric?: any;
-  corrections?: any[];
-  vocabularyUpgrades?: any[];
+  writingRubric?: WritingEvaluationResult["rubric"];
+  corrections?: WritingCorrection[];
+  vocabularyUpgrades?: VocabularyUpgrade[];
   // Grading & Feedback
   score?: number; // Auto-calculated score (e.g. 0-100)
   grade?: number; // Final teacher grade (0-100)

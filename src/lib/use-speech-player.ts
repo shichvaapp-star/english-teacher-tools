@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from "react";
 
 export interface SpeechSentence {
   id: string;
@@ -20,7 +20,7 @@ export interface CuratedVoice {
 // Prevent garbage collection in Chrome / Safari V8 engines
 function retainUtterance(u: SpeechSynthesisUtterance) {
   if (typeof window === "undefined") return;
-  const w = window as any;
+  const w = window;
   if (!w.__speechUtteranceSet) {
     w.__speechUtteranceSet = new Set<SpeechSynthesisUtterance>();
   }
@@ -29,7 +29,7 @@ function retainUtterance(u: SpeechSynthesisUtterance) {
 
 function releaseUtterance(u: SpeechSynthesisUtterance) {
   if (typeof window === "undefined") return;
-  const w = window as any;
+  const w = window;
   if (w.__speechUtteranceSet) {
     w.__speechUtteranceSet.delete(u);
   }
@@ -103,11 +103,13 @@ export function useSpeechPlayer(paragraphs: string[], title?: string) {
   const keepAliveIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const sentenceStartTimeRef = useRef<number>(0);
 
-  // Sync refs with state
-  isPlayingRef.current = isPlaying;
-  isPausedRef.current = isPaused;
-  currentSentenceRef.current = currentSentenceIndex;
-  rateRef.current = rate;
+  // Keep refs in sync with state after every render; the speech callbacks read them.
+  useLayoutEffect(() => {
+    isPlayingRef.current = isPlaying;
+    isPausedRef.current = isPaused;
+    currentSentenceRef.current = currentSentenceIndex;
+    rateRef.current = rate;
+  });
 
   // 1. Break title and paragraphs into structured sentences
   const sentences: SpeechSentence[] = useMemo(() => {
@@ -196,7 +198,7 @@ export function useSpeechPlayer(paragraphs: string[], title?: string) {
             _score: score,
           };
         })
-        .sort((a, b) => (b as any)._score - (a as any)._score);
+        .sort((a, b) => b._score - a._score);
 
       setVoices(curated);
 
@@ -284,6 +286,8 @@ export function useSpeechPlayer(paragraphs: string[], title?: string) {
   }, [paragraphs, title]);
 
   // 3. Play a specific sentence by index (with automatic fallback to default voice if custom voice fails)
+  // Lets playSentence call itself (retry / advance) without referencing itself before it is declared.
+  const playSentenceRef = useRef<(index: number, fallbackWithoutVoice?: boolean) => void>(() => {});
   const playSentence = useCallback(
     (index: number, fallbackWithoutVoice = false) => {
       if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
@@ -350,7 +354,7 @@ export function useSpeechPlayer(paragraphs: string[], title?: string) {
             // Add a natural breath pause between sentences (slightly longer after the title)
             const pauseMs = sentenceObj.paragraphIndex === -1 ? 350 : 180;
             interSentenceTimeoutRef.current = setTimeout(() => {
-              playSentence(nextIndex);
+              playSentenceRef.current(nextIndex);
             }, pauseMs);
           } else {
             // Finished entire passage
@@ -373,7 +377,7 @@ export function useSpeechPlayer(paragraphs: string[], title?: string) {
           // immediately retry this sentence with the browser's default system voice!
           if (!fallbackWithoutVoice && utterance.voice) {
             console.info("[SpeechPlayer] Retrying sentence with default system voice fallback...");
-            playSentence(index, true);
+            playSentenceRef.current(index, true);
             return;
           }
 
@@ -381,7 +385,7 @@ export function useSpeechPlayer(paragraphs: string[], title?: string) {
           const nextIndex = currentSentenceRef.current + 1;
           if (nextIndex < sentences.length && isPlayingRef.current) {
             interSentenceTimeoutRef.current = setTimeout(() => {
-              playSentence(nextIndex);
+              playSentenceRef.current(nextIndex);
             }, 200);
           } else {
             setIsPlaying(false);
@@ -403,6 +407,9 @@ export function useSpeechPlayer(paragraphs: string[], title?: string) {
     },
     [sentences]
   );
+  useLayoutEffect(() => {
+    playSentenceRef.current = playSentence;
+  }, [playSentence]);
 
   // 4. Public Controls
   const startPlayer = useCallback(() => {

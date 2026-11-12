@@ -2,19 +2,14 @@
 
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   Play,
   Pause,
   SkipBack,
   SkipForward,
   X,
-  Volume2,
   Gauge,
-  Sparkles,
   Keyboard,
-  ChevronDown,
-  ChevronUp,
 } from "lucide-react";
 import { CuratedVoice } from "@/lib/use-speech-player";
 

@@ -2,12 +2,13 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { UserNav } from "@/components/auth/user-nav";
 import { HeaderTooltip } from "@/components/ui/header-tooltip";
 import { db } from "@/lib/firebase";
-import { collection, addDoc, doc, setDoc } from "firebase/firestore";
+import { doc, setDoc } from "firebase/firestore";
 import { cleanForFirestore } from "@/lib/utils";
 import { SubmissionItem, SubmissionQuestionBreakdown } from "@/types/submission";
 import { formatTeacherDisplayName } from "@/types/auth";
@@ -30,8 +31,8 @@ import { useSpeechPlayer } from "@/lib/use-speech-player";
 import { UnseenAudioDock } from "@/components/unseen/unseen-audio-dock";
 import { DraggableTranslationPopup } from "@/components/unseen/draggable-translation-popup";
 import { Confetti } from "@/components/confetti";
-import { saveDraft, deleteDraft, getDraftById, findDraft } from "@/lib/drafts-storage";
-import type { InProgressWorkItem } from "@/types/draft";
+import { saveDraft, deleteDraft, getDraftById } from "@/lib/drafts-storage";
+import type { InProgressWorkItem, UnseenDraftPayload } from "@/types/draft";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -402,6 +403,7 @@ function PrintedPassageText({
 }
 
 export default function UnseenPracticePage() {
+  const router = useRouter();
   const { user, teachers } = useAuth();
   const [stories, setStories] = useState<MSUnseenStory[]>(MIDDLE_SCHOOL_UNSEENS);
 
@@ -414,7 +416,34 @@ export default function UnseenPracticePage() {
   const [currentAssignmentId, setCurrentAssignmentId] = useState<string | null>(null);
   const [activeAssignment, setActiveAssignment] = useState<TeacherAssignment | null>(null);
   const [isFromDavid, setIsFromDavid] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- parked until the David tutor is re-enabled
   const [isTurningInToDavid, setIsTurningInToDavid] = useState(false);
+  // Core exercise state. Declared before the snapshot-restore effect below, which sets it.
+  // Level Selection (No grade references)
+  const [selectedLevel, setSelectedLevel] = useState<"Level 1" | "Level 2" | "Level 3">("Level 2");
+  // Mode Selection: Practice (immediate feedback) vs. Graded (submit for score)
+  const [mode, setMode] = useState<"practice" | "graded">("practice");
+  // Active Story (starts on the first story of the default level)
+  const [selectedStoryId, setSelectedStoryId] = useState<string>(
+    () => MIDDLE_SCHOOL_UNSEENS.find((s) => s.level === "Level 2")?.id || MIDDLE_SCHOOL_UNSEENS[0].id
+  );
+  // Active Question in 10-Question navigation
+  const [activeQuestionIndex, setActiveQuestionIndex] = useState(0);
+  // Answers & Checking
+  const [userAnswers, setUserAnswers] = useState<Record<string, string | number>>({});
+  const [checkedQuestions, setCheckedQuestions] = useState<Record<string, boolean>>({});
+  const [practiceEvaluation, setPracticeEvaluation] = useState<
+    Record<string, { points: number; feedback: string }>
+  >({});
+  // Graded Mode Submission State
+  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [gradedScore, setGradedScore] = useState<number | null>(null);
+  const [submissionRecord, setSubmissionRecord] = useState<SubmissionItem | null>(null);
+  // Saved Words in Notebook Drawer
+  const [savedWords, setSavedWords] = useState<VocabItem[]>(() => loadSavedWords(user?.id));
+  // Font Size
+  const [fontSize, setFontSize] = useState<"sm" | "base" | "lg">("base");
+
   const isHydratedSnapshotRef = React.useRef(false);
 
   React.useEffect(() => {
@@ -531,17 +560,10 @@ export default function UnseenPracticePage() {
     }
   }, []);
 
-  // Level Selection (No grade references)
-  const [selectedLevel, setSelectedLevel] = useState<"Level 1" | "Level 2" | "Level 3">("Level 2");
-
-  // Mode Selection: Practice (immediate feedback) vs. Graded (submit for score)
-  const [mode, setMode] = useState<"practice" | "graded">("practice");
-
   // Filtered stories for selected level
   const levelStories = stories.filter((s) => s.level === selectedLevel);
 
   // Active Story
-  const [selectedStoryId, setSelectedStoryId] = useState<string>(levelStories[0]?.id || MIDDLE_SCHOOL_UNSEENS[0].id);
   const currentStory: MSUnseenStory =
     stories.find((s) => s.id === selectedStoryId) || levelStories[0] || MIDDLE_SCHOOL_UNSEENS[0];
 
@@ -584,6 +606,7 @@ export default function UnseenPracticePage() {
   const handleRandomStorySelect = () => {
     if (levelStories.length === 0) return;
     const pool = filteredLibraryStories.length > 0 ? filteredLibraryStories : levelStories;
+    // eslint-disable-next-line react-hooks/purity -- runs only in the click handler, not during render
     const randomIndex = Math.floor(Math.random() * pool.length);
     const chosen = pool[randomIndex];
     if (chosen) {
@@ -626,25 +649,14 @@ export default function UnseenPracticePage() {
   };
 
   // Active Question in 10-Question navigation
-  const [activeQuestionIndex, setActiveQuestionIndex] = useState(0);
   const activeQuestion: MSUnseenQuestion = currentStory.questions[activeQuestionIndex] || currentStory.questions[0];
 
-  // Answers & Checking
-  const [userAnswers, setUserAnswers] = useState<Record<string, string | number>>({});
-  const [checkedQuestions, setCheckedQuestions] = useState<Record<string, boolean>>({});
-  const [practiceEvaluation, setPracticeEvaluation] = useState<
-    Record<string, { points: number; feedback: string }>
-  >({});
-
   // Graded Mode Submission State
-  const [isSubmitted, setIsSubmitted] = useState(false);
-  const [gradedScore, setGradedScore] = useState<number | null>(null);
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [studentNameInput, setStudentNameInput] = useState("");
   const [studentClassInput, setStudentClassInput] = useState("ז׳1");
   const [selectedTeacherId, setSelectedTeacherId] = useState("");
   const [studentNoteInput, setStudentNoteInput] = useState("");
-  const [submissionRecord, setSubmissionRecord] = useState<SubmissionItem | null>(null);
   const [copiedReceipt, setCopiedReceipt] = useState(false);
   const [showReviewAnswers, setShowReviewAnswers] = useState(false);
   const [showDetailedUnseenRubric, setShowDetailedUnseenRubric] = useState(false);
@@ -704,7 +716,7 @@ export default function UnseenPracticePage() {
         utterance.voice = preferred;
       }
 
-      const w = window as any;
+      const w = window;
       w.__questionUtterance = utterance;
       setIsSpeakingQuestion(true);
       setSpeakingQuestionId(id || text);
@@ -826,7 +838,7 @@ export default function UnseenPracticePage() {
     }
 
     if (matched && matched.type === "unseen") {
-      const payload = matched.payload as any;
+      const payload = matched.payload as UnseenDraftPayload;
       const ans = payload?.userAnswers;
       if (ans && Object.keys(ans).length > 0 && !isSubmitted) {
         const savedStory: MSUnseenStory | undefined = payload.storyData || payload.aiStoryData;
@@ -859,7 +871,7 @@ export default function UnseenPracticePage() {
 
   // Restore draft handler
   const handleRestoreDraft = (draft: InProgressWorkItem) => {
-    const payload = draft.payload as any;
+    const payload = draft.payload as UnseenDraftPayload;
     if (payload?.userAnswers) {
       setUserAnswers(payload.userAnswers);
       if (payload.checkedQuestions) setCheckedQuestions(payload.checkedQuestions);
@@ -976,7 +988,7 @@ export default function UnseenPracticePage() {
         },
       });
     }
-    window.location.href = "/student";
+    router.push("/student");
   };
 
   // Word Click & Translation Popup
@@ -1060,8 +1072,7 @@ export default function UnseenPracticePage() {
     }, 15);
   };
 
-  // Saved Words in Notebook Drawer
-  const [savedWords, setSavedWords] = useState<VocabItem[]>(() => loadSavedWords(user?.id));
+  // Notebook drawer
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   // Sync saved words whenever active user changes or hydrates, and merge from Firestore
@@ -1103,9 +1114,6 @@ export default function UnseenPracticePage() {
     }
     return result;
   }, [currentStory.title, currentStory.paragraphs, savedVocabMap]);
-
-  // Font Size
-  const [fontSize, setFontSize] = useState<"sm" | "base" | "lg">("base");
 
   // Save current Unseen session snapshot so the user can return seamlessly from Vocabulary practice
   const saveUnseenReturnSnapshot = React.useCallback(() => {
@@ -1218,11 +1226,11 @@ export default function UnseenPracticePage() {
     const hasDraftAnswers =
       existingDraft &&
       existingDraft.type === "unseen" &&
-      (existingDraft.payload as any)?.userAnswers &&
-      Object.keys((existingDraft.payload as any).userAnswers).length > 0;
+      (existingDraft.payload as UnseenDraftPayload).userAnswers &&
+      Object.keys((existingDraft.payload as UnseenDraftPayload).userAnswers).length > 0;
 
     if (hasDraftAnswers) {
-      const payload = existingDraft.payload as any;
+      const payload = existingDraft.payload as UnseenDraftPayload;
       setUserAnswers(payload.userAnswers);
       if (payload.checkedQuestions) setCheckedQuestions(payload.checkedQuestions);
       if (payload.activeQuestionIndex !== undefined) setActiveQuestionIndex(payload.activeQuestionIndex);
@@ -1746,7 +1754,7 @@ export default function UnseenPracticePage() {
       }
 
       // Prevent GC in Chrome/Safari
-      const w = window as any;
+      const w = window;
       w.__unseenWordUtterance = utterance;
 
       utterance.onend = () => {
@@ -2027,6 +2035,7 @@ export default function UnseenPracticePage() {
     }
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- parked until the David tutor is re-enabled
   const handleTurnInToDavid = async () => {
     setIsTurningInToDavid(true);
 
@@ -2204,7 +2213,7 @@ export default function UnseenPracticePage() {
     });
 
     if (typeof window !== "undefined") {
-      window.location.href = "/tutor?turnIn=1";
+      router.push("/tutor?turnIn=1");
     }
   };
 
@@ -2634,7 +2643,7 @@ export default function UnseenPracticePage() {
                 {filteredLibraryStories.length === 0 ? (
                   <div className="p-6 rounded-xl border border-dashed border-border/80 text-center space-y-2">
                     <p className="text-xs text-muted-foreground font-hebrew">
-                      לא נמצאו קטעי קריאה התואמים לחיפוש "{librarySearchQuery}"
+                      לא נמצאו קטעי קריאה התואמים לחיפוש &quot;{librarySearchQuery}&quot;
                     </p>
                     <Button
                       type="button"
@@ -4016,7 +4025,7 @@ export default function UnseenPracticePage() {
                             <Sparkles className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
                             <div>
                               <span>פרומפט ששימש ליצירת הטקסט: </span>
-                              <strong className="text-foreground font-sans" dir="auto">"{submissionRecord.generationPrompt}"</strong>
+                              <strong className="text-foreground font-sans" dir="auto">&quot;{submissionRecord.generationPrompt}&quot;</strong>
                             </div>
                           </div>
                         )}
@@ -4402,7 +4411,7 @@ export default function UnseenPracticePage() {
                     פרומפט ששימש ליצירת הטקסט:
                   </span>
                   <p className="text-foreground/90 font-medium font-sans" dir="auto">
-                    "{currentStory.generationPrompt}"
+                    &quot;{currentStory.generationPrompt}&quot;
                   </p>
                 </div>
               </div>

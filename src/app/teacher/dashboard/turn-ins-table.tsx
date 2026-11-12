@@ -90,6 +90,9 @@ export function TurnInsTable({
   onQuickSaveGrade,
   loadingAiSubId,
 }: TurnInsTableProps) {
+  // "Now" for the recent-turn-in badge, taken once when the table mounts
+  const [nowMs] = useState(() => Date.now());
+
   // Set of currently expanded row IDs
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
 
@@ -183,7 +186,7 @@ export function TurnInsTable({
 
             // Relative time and raw time
             const compactTime = formatCompactTime(sub.submittedAt);
-            const isRecent = Date.now() - parseSubmissionTimestamp(sub.submittedAt) < 24 * 3600 * 1000;
+            const isRecent = nowMs - parseSubmissionTimestamp(sub.submittedAt) < 24 * 3600 * 1000;
 
             return (
               <React.Fragment key={sub.id}>

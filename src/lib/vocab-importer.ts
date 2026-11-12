@@ -233,7 +233,7 @@ export async function parseVocabFile(file: File): Promise<ParsedVocabResult> {
   try {
     const text = await file.text();
     return parseRawText(text);
-  } catch (err) {
+  } catch {
     return {
       words: [],
       warnings: [`פורמט הקובץ .${ext} אינו נתמך. אנא השתמשו בקובץ Excel, Word, או CSV.`],

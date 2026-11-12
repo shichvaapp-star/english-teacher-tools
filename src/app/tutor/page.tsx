@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useAuth } from "@/lib/auth-context";
 import { StudentTutorProfile } from "@/types/tutor";
 import { getOrInitTutorProfile, saveTutorProfile } from "@/lib/tutor-engine";
@@ -18,7 +19,6 @@ import {
 } from "@/components/ui/dialog";
 import {
   ArrowLeft,
-  GraduationCap,
   BookOpen,
   BookA,
   PenTool,
@@ -82,7 +82,7 @@ export default function PrivateTutorPage() {
 
             <div className="flex items-center gap-2">
               <div className="flex h-8 w-8 items-center justify-center rounded-xl overflow-hidden border border-indigo-500/30 bg-muted/20 shadow-xs shrink-0">
-                <img src="/images/logos/david-logo.png" alt="David" className="h-full w-full object-cover object-top" />
+                <Image src="/images/logos/david-logo.png" alt="David" width={32} height={32} className="h-full w-full object-cover object-top" />
               </div>
               <span className="font-bold text-sm sm:text-base text-foreground">
                 המורה הפרטי שלי (David)

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useAuth } from "@/lib/auth-context";
 import { db } from "@/lib/firebase";
 import { collection, getDocs } from "firebase/firestore";
@@ -19,7 +20,6 @@ import {
   CheckCircle2,
   ArrowLeft,
   LayoutDashboard,
-  Bot,
   Clock,
   Play,
   MessageSquare,
@@ -301,9 +301,11 @@ export default function Home() {
               >
                 <div className="flex justify-center mb-4 sm:mb-6 lg:mb-4 xl:mb-5">
                   <div className="h-16 w-16 sm:h-20 sm:w-20 lg:h-16 lg:w-16 xl:h-20 xl:w-20 rounded-2xl overflow-hidden border border-border/80 bg-[#121214] shadow-md transition-transform group-hover:scale-105 shrink-0 flex items-center justify-center">
-                    <img
+                    <Image
                       src={sec.logo}
                       alt={sec.englishTitle}
+                      width={80}
+                      height={80}
                       className="w-full h-full object-cover rounded-2xl"
                       loading="eager"
                     />

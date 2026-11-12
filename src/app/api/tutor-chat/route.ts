@@ -1,24 +1,11 @@
 import { NextResponse } from "next/server";
+import { extractJsonObject, jsonString, jsonStringArray } from "@/lib/llm-json";
 import { StudentTutorProfile, TutorLevel } from "@/types/tutor";
 import {
   lookupBilingualQuery,
   getUnseenTopicsForLevel,
   getWritingTopicsForLevel,
 } from "@/lib/tutor-engine";
-
-// Clean and extract JSON from markdown wrappers or raw text
-function extractJsonFromText(raw: string): any {
-  let cleaned = raw.trim();
-  if (cleaned.startsWith("```")) {
-    cleaned = cleaned.replace(/^```(?:json)?\s*\n?/, "").replace(/\n?```\s*$/, "");
-  }
-  const firstBrace = cleaned.indexOf("{");
-  const lastBrace = cleaned.lastIndexOf("}");
-  if (firstBrace !== -1 && lastBrace !== -1) {
-    cleaned = cleaned.slice(firstBrace, lastBrace + 1);
-  }
-  return JSON.parse(cleaned);
-}
 
 // Deterministic offline/zero-cost pedagogical response engine with full Level 1 Hebrew scaffolding parity
 function generateDeterministicTutorResponse(
@@ -263,6 +250,15 @@ function generateDeterministicTutorResponse(
   };
 }
 
+/** Read the model's JSON reply as a tutor message. An empty message means the reply was unusable. */
+function toTutorReply(content: string): { message: string; quickReplies: string[] } {
+  const parsed = extractJsonObject(content);
+  return {
+    message: jsonString(parsed?.message) || "",
+    quickReplies: jsonStringArray(parsed?.quickReplies),
+  };
+}
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -337,7 +333,7 @@ Return ONLY a raw JSON object (NO markdown code fences, NO backticks) with this 
 }`;
 
     // Format chat history for LLM
-    const formattedHistory = messages.slice(-6).map((m: any) => ({
+    const formattedHistory = messages.slice(-6).map((m: { sender: string; text: string }) => ({
       role: m.sender === "student" ? "user" : "assistant",
       content: m.text,
     }));
@@ -369,7 +365,7 @@ Return ONLY a raw JSON object (NO markdown code fences, NO backticks) with this 
         if (!res.ok) throw new Error(`Groq ${res.status}`);
         const data = await res.json();
         const content = data.choices?.[0]?.message?.content || "";
-        return extractJsonFromText(content);
+        return toTutorReply(content);
       });
     }
 
@@ -401,7 +397,7 @@ Return ONLY a raw JSON object (NO markdown code fences, NO backticks) with this 
         if (!res.ok) throw new Error(`Gemini ${res.status}`);
         const data = await res.json();
         const content = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
-        return extractJsonFromText(content);
+        return toTutorReply(content);
       });
     }
 
@@ -412,7 +408,7 @@ Return ONLY a raw JSON object (NO markdown code fences, NO backticks) with this 
           return NextResponse.json({
             success: true,
             message: result.message,
-            quickReplies: Array.isArray(result.quickReplies) ? result.quickReplies : ["מעולה!", "בוא נמשיך"],
+            quickReplies: result.quickReplies.length > 0 ? result.quickReplies : ["מעולה!", "בוא נמשיך"],
             source: "ai",
           });
         }
@@ -429,7 +425,7 @@ Return ONLY a raw JSON object (NO markdown code fences, NO backticks) with this 
       quickReplies: fallback.quickReplies,
       source: "fallback",
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error("Tutor API error:", error);
     return NextResponse.json({
       success: true,

@@ -2,6 +2,9 @@
 
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { toPartOfSpeech } from "@/types/vocabulary";
+import type { ConversationDraftPayload } from "@/types/draft";
 import { useAuth } from "@/lib/auth-context";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { UserNav } from "@/components/auth/user-nav";
@@ -42,7 +45,6 @@ import {
 } from "@/components/unseen/draggable-translation-popup";
 import { Confetti } from "@/components/confetti";
 import { saveDraft, deleteDraft, getDraftById } from "@/lib/drafts-storage";
-import type { InProgressWorkItem } from "@/types/draft";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -65,19 +67,14 @@ import {
   X,
   Award,
   HelpCircle,
-  RotateCcw,
   Check,
   Target,
   Send,
   Sliders,
-  BookOpen,
-  AlertCircle,
-  GraduationCap,
   Save,
   Clock,
   Languages,
   Loader2,
-  UserCheck,
   ChevronDown,
 } from "lucide-react";
 
@@ -133,6 +130,7 @@ function InteractiveEnglishText({
 }
 
 export default function ConversationPracticePage() {
+  const router = useRouter();
   const { user, teachers } = useAuth();
   const [scenarios, setScenarios] = useState<ConversationScenario[]>(REAL_LIFE_CONVERSATIONS);
 
@@ -152,6 +150,7 @@ export default function ConversationPracticePage() {
   const [assignedNotice, setAssignedNotice] = useState<string | null>(null);
   const [currentAssignmentId, setCurrentAssignmentId] = useState<string | null>(null);
   const [activeAssignment, setActiveAssignment] = useState<TeacherAssignment | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- parked until the David tutor is re-enabled
   const [isFromDavid, setIsFromDavid] = useState(false);
   const [isTurningInToDavid, setIsTurningInToDavid] = useState(false);
 
@@ -192,13 +191,11 @@ export default function ConversationPracticePage() {
 
   // Celebration & Print State
   const [showPracticeConfetti, setShowPracticeConfetti] = useState(false);
-  const [showPracticeCompleteModal, setShowPracticeCompleteModal] = useState(false);
   const [hasCelebratedPractice, setHasCelebratedPractice] = useState(false);
 
   // Draft State
   const [draftStatus, setDraftStatus] = useState<"idle" | "saving" | "saved">("idle");
   const [lastSavedTimeText, setLastSavedTimeText] = useState<string | null>(null);
-  const [activeDraftPrompt, setActiveDraftPrompt] = useState<InProgressWorkItem | null>(null);
 
   // Question TTS State
   const [isSpeakingQuestion, setIsSpeakingQuestion] = useState(false);
@@ -345,7 +342,7 @@ export default function ConversationPracticePage() {
 
     const matched = getDraftById(targetDraftId);
     if (matched && matched.type === "conversation") {
-      const payload = matched.payload as any;
+      const payload = matched.payload as ConversationDraftPayload;
       if (payload?.userAnswers && Object.keys(payload.userAnswers).length > 0 && !isSubmitted) {
         if (payload.scenarioData) {
           const restored = payload.scenarioData as ConversationScenario;
@@ -359,7 +356,6 @@ export default function ConversationPracticePage() {
         }
         if (payload.mode) setMode(payload.mode);
         if (draftIdParam) setStage("exercise");
-        setActiveDraftPrompt(matched);
       }
     }
   }, [currentScenario.id, currentAssignmentId, isSubmitted]);
@@ -624,7 +620,7 @@ export default function ConversationPracticePage() {
       {
         english: clickedWord.word,
         hebrew: clickedWord.hebrew,
-        partOfSpeech: (clickedWord.partOfSpeech as any) || "phrase",
+        partOfSpeech: toPartOfSpeech(clickedWord.partOfSpeech) || "phrase",
         example: clickedWord.example || `From "${currentScenario.title}"`,
         level: "Personal Word",
         sourceType: "conversation",
@@ -1274,7 +1270,7 @@ export default function ConversationPracticePage() {
     });
 
     if (typeof window !== "undefined") {
-      window.location.href = "/tutor?turnIn=1";
+      router.push("/tutor?turnIn=1");
     }
   };
 
@@ -1292,7 +1288,6 @@ export default function ConversationPracticePage() {
   useEffect(() => {
     if (mode === "practice" && stage === "exercise" && isAllPracticeAnswered && !hasCelebratedPractice) {
       setShowPracticeConfetti(true);
-      setShowPracticeCompleteModal(true);
       setHasCelebratedPractice(true);
     }
   }, [isAllPracticeAnswered, mode, stage, hasCelebratedPractice]);
@@ -1315,7 +1310,7 @@ export default function ConversationPracticePage() {
           })
         );
       } catch {}
-      window.location.href = "/vocabulary?from=conversation";
+      router.push("/vocabulary?from=conversation");
     }
   };
 

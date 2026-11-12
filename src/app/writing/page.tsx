@@ -2,12 +2,13 @@
 
 import React, { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { UserNav } from "@/components/auth/user-nav";
 import { HeaderTooltip } from "@/components/ui/header-tooltip";
 import { useAuth } from "@/lib/auth-context";
 import { db } from "@/lib/firebase";
-import { collection, addDoc, getDocs, query, where, doc, setDoc } from "firebase/firestore";
+import { collection, getDocs, query, where, doc, setDoc } from "firebase/firestore";
 import { cleanForFirestore } from "@/lib/utils";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -16,7 +17,6 @@ import { Input } from "@/components/ui/input";
 import { Confetti } from "@/components/confetti";
 import {
   ALL_WRITING_TASKS,
-  MS_CONNECTORS,
   WritingTask,
   WritingLevel,
   TaskCategory,
@@ -28,8 +28,8 @@ import { TutorVocabReviewItem } from "@/types/tutor";
 import { TeacherAssignment } from "@/types/assignment";
 import type { WritingEvaluationResult } from "@/app/api/evaluate-writing/route";
 import type { ScaffoldingResult } from "@/app/api/scaffold-writing/route";
-import { saveDraft, deleteDraft, findDraft, getDraftById } from "@/lib/drafts-storage";
-import type { InProgressWorkItem } from "@/types/draft";
+import { saveDraft, deleteDraft, getDraftById } from "@/lib/drafts-storage";
+import type { InProgressWorkItem, WritingDraftPayload } from "@/types/draft";
 import {
   PenTool,
   ArrowLeft,
@@ -90,7 +90,7 @@ interface SubmissionRecord {
   receiptCode: string;
   status: "submitted" | "reviewed" | "completed";
   mode?: "practice" | "graded";
-  writingRubric?: any;
+  writingRubric?: WritingEvaluationResult["rubric"];
 }
 
 const LOCAL_SUBMISSIONS_KEY = "ett_writing_submissions";
@@ -118,6 +118,7 @@ function renderBiDiText(text: string) {
 }
 
 export default function WritingPracticePage() {
+  const router = useRouter();
   const { user, teachers } = useAuth();
 
   // App Stage: "settings" vs "writing"
@@ -185,6 +186,7 @@ export default function WritingPracticePage() {
   const [assignedNotice, setAssignedNotice] = useState<string | null>(null);
   const [currentAssignmentId, setCurrentAssignmentId] = useState<string | null>(null);
   const [activeAssignment, setActiveAssignment] = useState<TeacherAssignment | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- parked until the David tutor is re-enabled
   const [isFromDavid, setIsFromDavid] = useState(false);
   const [isTurningInToDavid, setIsTurningInToDavid] = useState(false);
 
@@ -296,7 +298,7 @@ export default function WritingPracticePage() {
     }
 
     if (matched && matched.type === "writing") {
-      const payload = matched.payload as any;
+      const payload = matched.payload as WritingDraftPayload;
       if (payload && payload.essayText) {
         if (payload.taskData) {
           const savedTask = payload.taskData as WritingTask;
@@ -328,7 +330,7 @@ export default function WritingPracticePage() {
 
   // Restore draft handler
   const handleRestoreDraft = (draft: InProgressWorkItem) => {
-    const payload = draft.payload as any;
+    const payload = draft.payload as WritingDraftPayload;
     if (payload?.essayText) {
       setEssayText(payload.essayText);
       if (payload.customTopic?.prompt) {
@@ -422,7 +424,7 @@ export default function WritingPracticePage() {
         },
       });
     }
-    window.location.href = "/student";
+    router.push("/student");
   };
   const [selectedTeacherId, setSelectedTeacherId] = useState(() => {
     return user?.teacherId || "";
@@ -568,7 +570,7 @@ export default function WritingPracticePage() {
         utterance.lang = "en-US";
         utterance.rate = selectedLevel === "Level 1" ? 0.85 : 0.95;
 
-        const w = window as any;
+        const w = window;
         w.__writingUtterance = utterance;
 
         utterance.onend = () => {
@@ -773,7 +775,7 @@ export default function WritingPracticePage() {
             receiptCode: `PRACTICE-WR-${Math.floor(100000 + Math.random() * 900000)}`,
             status: "completed",
             mode: "practice",
-            writingRubric: data.evaluation,
+            writingRubric: data.evaluation.rubric,
           };
           const existingJson = localStorage.getItem(LOCAL_SUBMISSIONS_KEY);
           const list: SubmissionRecord[] = existingJson ? JSON.parse(existingJson) : [];
@@ -802,6 +804,7 @@ export default function WritingPracticePage() {
   };
 
   // Turn in completed writing assignment directly to David (Private Tutor Flow)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- parked until the David tutor is re-enabled
   const handleTurnInToDavid = async (existingEval?: WritingEvaluationResult) => {
     const trimmed = essayText.trim();
     if (!trimmed || trimmed.split(/\s+/).filter(Boolean).length < 3) {
@@ -948,10 +951,10 @@ export default function WritingPracticePage() {
         teacherNote: evalData?.teacherNote,
       });
 
-      window.location.href = "/tutor?turnIn=1";
+      router.push("/tutor?turnIn=1");
     } catch (e) {
       console.error("Turn in to David error:", e);
-      window.location.href = "/tutor?turnIn=1";
+      router.push("/tutor?turnIn=1");
     } finally {
       setIsTurningInToDavid(false);
     }

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import {
   TutorMessage,
   StudentTutorProfile,
@@ -40,7 +41,6 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -68,7 +68,6 @@ import {
   Award,
   MoreVertical,
   RefreshCw,
-  Loader2,
   CheckCircle2,
   BookMarked,
   HelpCircle,
@@ -552,6 +551,13 @@ function TurnInLessonFlowCard({
   );
 }
 
+let messageCounter = 0;
+/** Unique chat message id: timestamp plus a counter, so ids created in the same millisecond still differ. */
+function newMessageId(prefix: string): string {
+  messageCounter += 1;
+  return `${prefix}-${Date.now()}-${messageCounter}`;
+}
+
 export function TutorChatBox({
   profile,
   onProfileUpdate,
@@ -578,7 +584,7 @@ export function TutorChatBox({
   const [diagnosticAnswers, setDiagnosticAnswers] = useState<DiagnosticAnswer[]>([]);
 
   const chatEndRef = useRef<HTMLDivElement>(null);
-  const recognitionRef = useRef<any>(null);
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const selectedVoiceRef = useRef<SpeechSynthesisVoice | null>(null);
   const [showMenu, setShowMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -648,6 +654,28 @@ export function TutorChatBox({
     }
   }, [messages, isSending]);
 
+  // Text to Speech
+  const speakText = (text: string) => {
+    if (!speechEnabled || typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    try {
+      window.speechSynthesis.cancel();
+      const cleanEnglish = text
+        .replace(/\([^)]*[\u0590-\u05FF][^)]*\)/g, "")
+        .replace(/\*+/g, "")
+        .trim();
+
+      if (!cleanEnglish) return;
+
+      const utterance = new SpeechSynthesisUtterance(cleanEnglish);
+      if (selectedVoiceRef.current) {
+        utterance.voice = selectedVoiceRef.current;
+      }
+      utterance.rate = 0.95;
+      utterance.pitch = 1.05;
+      window.speechSynthesis.speak(utterance);
+    } catch {}
+  };
+
   // Load chat history or create clean initial greeting, and consume any pending turn-in from an assignment
   useEffect(() => {
     const saved = loadTutorChat(profile.studentId);
@@ -666,7 +694,7 @@ export function TutorChatBox({
       setDiagnosticIndex(null);
     } else if (profile.diagnosticCompleted) {
       const initialGreeting: TutorMessage = {
-        id: `msg-${Date.now()}`,
+        id: newMessageId("msg"),
         sender: "tutor",
         text: `Hello ${studentName}! 👋 איזה כיף לראות אותך!\nאנחנו מתרגלים יחד ברמת **${profile.level} (${profile.vocabBand})**.\n\nבמה תרצה/י שנתמקד היום – קריאת סיפור קצר, אוצר מילים, או כתיבה?`,
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
@@ -682,7 +710,7 @@ export function TutorChatBox({
     } else {
       const onboarding = getInitialOnboardingGreeting(studentName);
       const initialGreeting: TutorMessage = {
-        id: `msg-${Date.now()}`,
+        id: newMessageId("msg"),
         sender: "tutor",
         text: onboarding.text,
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
@@ -713,7 +741,7 @@ export function TutorChatBox({
           ? ` (משימה מהמורה ${pendingTurnIn.teacherName})`
           : "";
         const turnInMsg: TutorMessage = {
-          id: `msg-turnin-${Date.now()}`,
+          id: newMessageId("msg-turnin"),
           sender: "tutor",
           text: `Well done ${studentName}! 🎉\nכל הכבוד! קיבלת **${pendingTurnIn.score}/100** במשימה "${pendingTurnIn.taskTitleHebrew || pendingTurnIn.taskTitle}"${teacherAck}.\n\nבוא/י נעבור יחד על המשוב שלך, נבדוק **${pendingTurnIn.vocabToReview.length} מילים חשובות** מהמשימה (כל מילה שלא תכיר/י תישמר אוטומטית במילון האישי שלך! 📌), ואז נמשיך לתרגול הבא:`,
           timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
@@ -786,7 +814,7 @@ export function TutorChatBox({
   // Pre-teach vocabulary and strategy tips for a teacher assignment
   const handlePrepTeacherAssignment = (mission: TutorTaskRecommendation) => {
     const studentReqMsg: TutorMessage = {
-      id: `msg-prep-req-${Date.now()}`,
+      id: newMessageId("msg-prep-req"),
       sender: "student",
       text: "💡 דוד, אשמח להכנה מהירה לפני שאני מתחיל את משימת המורה!",
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
@@ -794,7 +822,7 @@ export function TutorChatBox({
 
     const prepText = generateTeacherAssignmentPrepMessage(mission, studentName);
     const tutorPrepMsg: TutorMessage = {
-      id: `msg-prep-res-${Date.now() + 1}`,
+      id: newMessageId("msg-prep-res"),
       sender: "tutor",
       text: prepText,
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
@@ -827,7 +855,7 @@ export function TutorChatBox({
 
     const missionTypeHebrew = nextMission.type === "unseen" ? "קריאה (Unseen)" : "כתיבה (Writing)";
     const nextMsg: TutorMessage = {
-      id: `msg-next-${Date.now()}`,
+      id: newMessageId("msg-next"),
       sender: "tutor",
       text: `Awesome work on your vocabulary check! 🎉\n(כל הכבוד על סיום מבדק המילים!)\n\nNow let's move to your next practice: a **${missionTypeHebrew}** task.\nPick a topic below that interests you, or click 'דוד, בחר עבורי':`,
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
@@ -884,34 +912,12 @@ export function TutorChatBox({
     }
   };
 
-  // Text to Speech
-  const speakText = (text: string) => {
-    if (!speechEnabled || typeof window === "undefined" || !("speechSynthesis" in window)) return;
-    try {
-      window.speechSynthesis.cancel();
-      const cleanEnglish = text
-        .replace(/\([^)]*[\u0590-\u05FF][^)]*\)/g, "")
-        .replace(/\*+/g, "")
-        .trim();
-
-      if (!cleanEnglish) return;
-
-      const utterance = new SpeechSynthesisUtterance(cleanEnglish);
-      if (selectedVoiceRef.current) {
-        utterance.voice = selectedVoiceRef.current;
-      }
-      utterance.rate = 0.95;
-      utterance.pitch = 1.05;
-      window.speechSynthesis.speak(utterance);
-    } catch {}
-  };
-
   // Speech to Text (Web Speech API)
   const toggleListening = () => {
     if (typeof window === "undefined") return;
 
     const SpeechRecognition =
-      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      window.SpeechRecognition || window.webkitSpeechRecognition;
 
     if (!SpeechRecognition) {
       alert("Voice input is not supported in this browser. Please type your message.");
@@ -934,7 +940,7 @@ export function TutorChatBox({
       recognition.onend = () => setIsListening(false);
       recognition.onerror = () => setIsListening(false);
 
-      recognition.onresult = (event: any) => {
+      recognition.onresult = (event) => {
         const transcript = event.results[0][0].transcript;
         if (transcript) {
           setInputText((prev) => (prev ? `${prev} ${transcript}` : transcript));
@@ -954,19 +960,22 @@ export function TutorChatBox({
     if (msgIdx === -1 || !messages[msgIdx].taskRecommendation) return;
 
     const currentRec = messages[msgIdx].taskRecommendation!;
-    let updatedRec = currentRec;
+    // Build a new object: updateMissionTopic can return currentRec itself, which is React state.
+    let updatedRec: TutorTaskRecommendation = currentRec;
 
     if (topicId === "default") {
       const firstTopic = currentRec.availableTopics?.[0];
       if (firstTopic) {
-        updatedRec = updateMissionTopic(currentRec, firstTopic.id);
-        updatedRec.selectedTopicId = "default";
-        updatedRec.selectedTopicNameHebrew = "בחירת דוד";
+        updatedRec = {
+          ...updateMissionTopic(currentRec, firstTopic.id),
+          selectedTopicId: "default",
+          selectedTopicNameHebrew: "בחירת דוד",
+        };
       }
     } else {
       updatedRec = updateMissionTopic(currentRec, topicId);
     }
-    updatedRec.needsTopicSelection = false;
+    updatedRec = { ...updatedRec, needsTopicSelection: false };
 
     const topicLabel =
       topicId === "default"
@@ -979,7 +988,7 @@ export function TutorChatBox({
         : `Awesome choice! We'll practice ${updatedRec.selectedTopicNameHebrew || ""}. You are all set!`;
 
     const confirmationMsg: TutorMessage = {
-      id: `msg-${Date.now()}`,
+      id: newMessageId("msg"),
       sender: "tutor",
       text: `מעולה! בחרנו בנושא: **${topicLabel}**. המשימה מוכנה עבורך למטה – אפשר להתחיל!`,
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
@@ -1044,7 +1053,7 @@ export function TutorChatBox({
     }
 
     const userMsg: TutorMessage = {
-      id: `msg-${Date.now()}`,
+      id: newMessageId("msg"),
       sender: "student",
       text,
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
@@ -1065,7 +1074,7 @@ export function TutorChatBox({
         setDiagnosticAnswers(nextAnswers);
 
         const tutorHelpMsg: TutorMessage = {
-          id: `msg-${Date.now() + 1}`,
+          id: newMessageId("msg"),
           sender: "tutor",
           text: nextTurnData.text,
           timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
@@ -1086,7 +1095,7 @@ export function TutorChatBox({
         setDiagnosticAnswers(nextAnswers);
 
         const tutorFollowUp: TutorMessage = {
-          id: `msg-${Date.now() + 1}`,
+          id: newMessageId("msg"),
           sender: "tutor",
           text: nextTurnData.text,
           timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
@@ -1178,7 +1187,7 @@ export function TutorChatBox({
         mission && (mission.type === "unseen" || mission.type === "writing");
 
       const completionMessage: TutorMessage = {
-        id: `msg-${Date.now() + 2}`,
+        id: newMessageId("msg"),
         sender: "tutor",
         text: `Thank you for chatting with me, ${studentName}! 🎉\n(תודה על השיחה הנעימה שלנו! כל הכבוד על ההשתתפות! 👏)\n\nבניתי עבורך תוכנית תרגול אישית ומותאמת בדיוק לקצב שלך ברמת **${updatedProfile.level} (${updatedProfile.vocabBand})**.\n\n${
           isUnseenOrWriting
@@ -1341,7 +1350,7 @@ export function TutorChatBox({
       }
 
       const tutorMsg: TutorMessage = {
-        id: `msg-${Date.now() + 1}`,
+        id: newMessageId("msg"),
         sender: "tutor",
         text: finalTutorText,
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
@@ -1355,7 +1364,7 @@ export function TutorChatBox({
       speakText(finalTutorText);
     } catch {
       const errorMsg: TutorMessage = {
-        id: `msg-${Date.now() + 1}`,
+        id: newMessageId("msg"),
         sender: "tutor",
         text: "I'm with you! Keep practicing on the site tools, and let me know whenever you need guidance.\n(אני כאן איתך! בחר באחד הכלים באתר כדי להמשיך לתרגל)",
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
@@ -1373,7 +1382,7 @@ export function TutorChatBox({
     setDiagnosticIndex(0);
     setDiagnosticAnswers([]);
     const resetGreeting: TutorMessage = {
-      id: `msg-${Date.now()}`,
+      id: newMessageId("msg"),
       sender: "tutor",
       text: onboarding.text,
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
@@ -1391,7 +1400,7 @@ export function TutorChatBox({
         <div className="flex items-center gap-3">
           <div className="relative">
             <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-tr from-sky-500/20 via-indigo-500/20 to-purple-500/20 border border-indigo-500/30 overflow-hidden shadow-xs">
-              <img src="/images/logos/david-logo.png" alt="David" className="h-full w-full object-cover object-top" />
+              <Image src="/images/logos/david-logo.png" alt="David" width={40} height={40} className="h-full w-full object-cover object-top" />
             </div>
             <span className="absolute bottom-0 left-0 h-3 w-3 rounded-full bg-emerald-500 ring-2 ring-background" title="דוד מחובר וזמין" />
           </div>
@@ -1575,7 +1584,7 @@ export function TutorChatBox({
                 {msg.sender === "student" ? (
                   <User className="h-4 w-4" />
                 ) : (
-                  <img src="/images/logos/david-logo.png" alt="David" className="h-full w-full object-cover object-top" />
+                  <Image src="/images/logos/david-logo.png" alt="David" width={40} height={40} className="h-full w-full object-cover object-top" />
                 )}
               </div>
 
@@ -1804,7 +1813,7 @@ export function TutorChatBox({
         {isSending && (
           <div className="flex items-center gap-2.5 text-sm text-muted-foreground mr-11">
             <div className="flex h-8 w-8 rounded-xl items-center justify-center bg-gradient-to-tr from-sky-500/20 via-indigo-500/20 to-purple-500/20 border border-indigo-500/30 overflow-hidden shrink-0 shadow-xs">
-              <img src="/images/logos/david-logo.png" alt="David" className="h-full w-full object-cover object-top" />
+              <Image src="/images/logos/david-logo.png" alt="David" width={40} height={40} className="h-full w-full object-cover object-top" />
             </div>
             <div className="bg-muted/60 px-4 py-2.5 rounded-2xl border border-border/40 flex items-center gap-2 text-sm">
               <span className="animate-pulse">

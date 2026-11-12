@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { UserNav } from "@/components/auth/user-nav";
@@ -30,8 +31,8 @@ import { doc, getDoc, setDoc } from "firebase/firestore";
 import { cleanForFirestore, cn } from "@/lib/utils";
 import { TeacherAssignment } from "@/types/assignment";
 import { SubmissionItem } from "@/types/submission";
-import { saveDraft, deleteDraft, getDraftById, findDraft } from "@/lib/drafts-storage";
-import type { InProgressWorkItem } from "@/types/draft";
+import { saveDraft, deleteDraft, getDraftById } from "@/lib/drafts-storage";
+import type { InProgressWorkItem, VocabDraftPayload } from "@/types/draft";
 import { Confetti } from "@/components/confetti";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -54,17 +55,14 @@ import {
   Trash2,
   X,
   AlertCircle,
-  Sparkles,
   Check,
   BookOpen,
-  GraduationCap,
   Send,
   Copy,
   Star,
   SlidersHorizontal,
   ArrowUpDown,
   CheckCheck,
-  Bookmark,
   Save,
   Clock,
 } from "lucide-react";
@@ -79,6 +77,7 @@ function deterministicShuffle<T extends { id: string }>(items: T[], seed: number
 }
 
 export default function VocabularyPage() {
+  const router = useRouter();
   const { user } = useAuth();
 
   // Load words saved from reading unseens & manual inputs
@@ -99,7 +98,9 @@ export default function VocabularyPage() {
   const [activeCategory, setActiveCategory] = useState<
     "saved" | "grade7" | "grade8" | "grade9" | "assignment"
   >("saved");
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- parked until the David tutor is re-enabled
   const [isFromDavid, setIsFromDavid] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- parked until the David tutor is re-enabled
   const [isTurningInToDavid, setIsTurningInToDavid] = useState(false);
   const [returnToUnseen, setReturnToUnseen] = useState<{
     storyTitle?: string;
@@ -163,7 +164,8 @@ export default function VocabularyPage() {
               id: w.id || `assign-word-${idx}`,
               english: w.english,
               hebrew: w.hebrew,
-              partOfSpeech: (w.partOfSpeech as any) || "noun",
+              // The practice deck has no "preposition" category; show those as phrases.
+              partOfSpeech: w.partOfSpeech === "preposition" ? "phrase" : w.partOfSpeech || "noun",
               example: w.example || "",
               level: "Personal Word",
               mastered: false,
@@ -210,6 +212,9 @@ export default function VocabularyPage() {
     Record<string, { starred?: boolean; mastered?: boolean }>
   >({});
 
+  // Flashcard "mastered" set (declared here because the effect below seeds it)
+  const [masteredIds, setMasteredIds] = useState<Set<string>>(new Set());
+
   // Sync status overrides when user changes
   useEffect(() => {
     const overrides = loadWordStatusOverrides(user?.id);
@@ -236,7 +241,6 @@ export default function VocabularyPage() {
   // Flashcards state
   const [cardIndex, setCardIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
-  const [masteredIds, setMasteredIds] = useState<Set<string>>(new Set());
 
   // Speed Match state
   const [selectedEng, setSelectedEng] = useState<string | null>(null);
@@ -272,9 +276,9 @@ export default function VocabularyPage() {
     }
 
     if (matched && matched.type === "vocab") {
-      const payload = matched.payload as any;
+      const payload = matched.payload as VocabDraftPayload;
       if (
-        (payload?.cardIndex > 0 || (payload?.masteredIds && payload.masteredIds.length > 0) || payload?.quizIndex > 0) &&
+        ((payload.cardIndex ?? 0) > 0 || (payload.masteredIds && payload.masteredIds.length > 0) || (payload.quizIndex ?? 0) > 0) &&
         cardIndex === 0 &&
         masteredIds.size === 0 &&
         quizIndex === 0
@@ -296,24 +300,6 @@ export default function VocabularyPage() {
       }
     }
   }, [activeCategory, activeAssignment?.id]);
-
-  // Restore draft handler
-  const handleRestoreDraft = (draft: InProgressWorkItem) => {
-    const payload = draft.payload as any;
-    if (payload) {
-      if (payload.cardIndex !== undefined) setCardIndex(payload.cardIndex);
-      if (payload.masteredIds && Array.isArray(payload.masteredIds)) {
-        setMasteredIds(new Set(payload.masteredIds));
-      }
-      if (payload.quizIndex !== undefined) setQuizIndex(payload.quizIndex);
-      if (payload.quizScore !== undefined) setQuizScore(payload.quizScore);
-      if (payload.studyMode) setStudyMode(payload.studyMode);
-      if (payload.completedModes && Array.isArray(payload.completedModes)) {
-        setCompletedModes(new Set(payload.completedModes));
-      }
-      setActiveDraftPrompt(null);
-    }
-  };
 
   // Discard draft and reset progress to start fresh
   const handleDiscardDraft = (draft: InProgressWorkItem) => {
@@ -418,7 +404,7 @@ export default function VocabularyPage() {
         },
       });
     }
-    window.location.href = "/student";
+    router.push("/student");
   };
 
   // Enrich words with persistent status overrides (starred & mastered)
@@ -787,7 +773,7 @@ export default function VocabularyPage() {
         utterance.voice = preferred;
       }
 
-      const w = window as any;
+      const w = window;
       w.__vocabUtterance = utterance;
       setSpeakingWord(text);
 
@@ -823,11 +809,6 @@ export default function VocabularyPage() {
     if (filteredWords.length === 0) return;
     setIsFlipped(false);
     setCardIndex((prev) => (prev - 1 + filteredWords.length) % filteredWords.length);
-  };
-
-  const toggleMastered = (id: string) => {
-    const isCurrentlyMastered = statusOverrides[id]?.mastered ?? masteredIds.has(id);
-    markCardMastered(id, !isCurrentlyMastered);
   };
 
   // Speed Match Pool
@@ -969,77 +950,7 @@ export default function VocabularyPage() {
     deleteDraft(draftId, user?.id);
   };
 
-  // Save self-practice session to completed history
-  const handleSavePracticeToHistory = async () => {
-    const pool = activePool.length > 0 ? activePool : MIDDLE_SCHOOL_EASY;
-    const totalWords = pool.length;
-    const masteredCount = masteredIds.size;
-    const accuracy = totalWords > 0 ? Math.round((masteredCount / totalWords) * 100) : 100;
-    const calculatedScore = quizScore > 0 ? Math.min(100, Math.round((quizScore + accuracy) / 2)) : Math.max(80, accuracy);
-    const receiptCode = `PRACTICE-VOCAB-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
-
-    const newSubmission: SubmissionItem = {
-      id: `sub-vocab-${Date.now()}`,
-      type: "vocab",
-      mode: "practice",
-      status: "completed",
-      studentId: user?.id || "guest-student",
-      studentName: user?.name || "תלמיד/ה",
-      studentClass: user?.fullClass || user?.classGrade || "חטיבת ביניים",
-      studentGroup: user?.group || undefined,
-      teacherId: "",
-      teacherName: "תרגול עצמאי",
-      taskId: `vocab-${activeCategory}`,
-      taskTitle: `Vocabulary Practice (${activeCategory})`,
-      hebrewTitle: `אוצר מילים (${activeCategory === "saved" ? "מילון אישי" : activeCategory})`,
-      score: calculatedScore,
-      grade: calculatedScore,
-      vocabSummary: {
-        totalWords,
-        masteredCount,
-        quizScore: quizScore > 0 ? quizScore : undefined,
-        completedModes: Array.from(completedModes),
-        wordsPracticed: pool.map((w) => ({
-          english: w.english,
-          hebrew: w.hebrew,
-          partOfSpeech: w.partOfSpeech,
-          mastered: masteredIds.has(w.id),
-        })),
-      },
-      submittedAt: new Date().toLocaleString("he-IL"),
-      receiptCode,
-    };
-
-    try {
-      const raw = localStorage.getItem("ett_writing_submissions");
-      const list: SubmissionItem[] = raw ? JSON.parse(raw) : [];
-      list.unshift(newSubmission);
-      localStorage.setItem("ett_writing_submissions", JSON.stringify(list));
-    } catch (err) {
-      console.warn("Error saving practice locally:", err);
-    }
-
-    if (db) {
-      try {
-        const payload = cleanForFirestore({
-          ...newSubmission,
-          timestamp: new Date().toISOString(),
-        });
-        await setDoc(doc(db, "submissions", newSubmission.id), payload, { merge: true });
-      } catch (err) {
-        console.warn("Error saving practice to Firestore:", err);
-      }
-    }
-
-    const draftId = activeAssignment
-      ? `draft_vocab_assign_${activeAssignment.id}`
-      : `draft_vocab_${activeCategory}`;
-    deleteDraft(draftId, user?.id);
-
-    setSubmissionSuccessReceipt(receiptCode);
-    setShowConfetti(true);
-  };
-
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- parked until the David tutor is re-enabled
   const handleTurnInToDavid = async () => {
     setIsTurningInToDavid(true);
     const pool = activePool.length > 0 ? activePool : MIDDLE_SCHOOL_EASY;
@@ -1074,7 +985,7 @@ export default function VocabularyPage() {
     });
 
     if (typeof window !== "undefined") {
-      window.location.href = "/tutor?turnIn=1";
+      router.push("/tutor?turnIn=1");
     }
   };
 
@@ -1636,7 +1547,7 @@ export default function VocabularyPage() {
               <select
                 value={sortOption}
                 onChange={(e) => {
-                  setSortOption(e.target.value as any);
+                  setSortOption(e.target.value as typeof sortOption);
                   setCardIndex(0);
                 }}
                 className="h-8 px-2.5 py-1 rounded-lg border border-border bg-background text-xs text-foreground cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary font-medium"

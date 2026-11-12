@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useLayoutEffect, useRef, useCallback } from "react";
 import { DialogueSpeaker, DialogueTurn } from "@/types/conversation";
 import { CuratedVoice } from "@/lib/use-speech-player";
 
@@ -118,10 +118,13 @@ export function useDialoguePlayer(turns: DialogueTurn[], speakers: DialogueSpeak
   const interTurnTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const keepAliveIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  isPlayingRef.current = isPlaying;
-  isPausedRef.current = isPaused;
-  currentTurnRef.current = currentTurnIndex;
-  rateRef.current = rate;
+  // Keep refs in sync with state after every render; the speech callbacks read them.
+  useLayoutEffect(() => {
+    isPlayingRef.current = isPlaying;
+    isPausedRef.current = isPaused;
+    currentTurnRef.current = currentTurnIndex;
+    rateRef.current = rate;
+  });
 
   // Discover and curate English voices, then pick two contrasting voices for Speaker A & Speaker B
   useEffect(() => {
@@ -255,6 +258,8 @@ export function useDialoguePlayer(turns: DialogueTurn[], speakers: DialogueSpeak
     };
   }, [turns]);
 
+  // Lets playTurn call itself (retry / advance) without referencing itself before it is declared.
+  const playTurnRef = useRef<(index: number, singleOnly?: boolean, fallbackWithoutVoice?: boolean) => void>(() => {});
   const playTurn = useCallback(
     (index: number, singleOnly = false, fallbackWithoutVoice = false) => {
       if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
@@ -328,7 +333,7 @@ export function useDialoguePlayer(turns: DialogueTurn[], speakers: DialogueSpeak
           const nextIndex = currentTurnRef.current + 1;
           if (nextIndex < turns.length) {
             interTurnTimeoutRef.current = setTimeout(() => {
-              playTurn(nextIndex, false);
+              playTurnRef.current(nextIndex, false);
             }, 340);
           } else {
             setIsPlaying(false);
@@ -342,7 +347,7 @@ export function useDialoguePlayer(turns: DialogueTurn[], speakers: DialogueSpeak
           if (e.error === "interrupted" || e.error === "canceled") return;
 
           if (!fallbackWithoutVoice && utterance.voice) {
-            playTurn(index, singleOnly, true);
+            playTurnRef.current(index, singleOnly, true);
             return;
           }
 
@@ -360,6 +365,9 @@ export function useDialoguePlayer(turns: DialogueTurn[], speakers: DialogueSpeak
     },
     [turns, speakers]
   );
+  useLayoutEffect(() => {
+    playTurnRef.current = playTurn;
+  }, [playTurn]);
 
   const startDialogue = useCallback(() => {
     setIsActive(true);

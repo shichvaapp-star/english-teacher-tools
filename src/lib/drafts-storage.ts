@@ -98,7 +98,7 @@ export async function saveDraft(draft: InProgressWorkItem): Promise<void> {
 /**
  * Deletes a draft by ID from localStorage and Firestore.
  */
-export async function deleteDraft(draftId: string, studentId?: string): Promise<void> {
+export async function deleteDraft(draftId: string, _studentId?: string): Promise<void> {
   if (typeof window === "undefined") return;
 
   try {
