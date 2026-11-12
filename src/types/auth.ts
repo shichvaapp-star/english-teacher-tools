@@ -1,12 +1,6 @@
 export type UserRole = "teacher" | "student" | null;
 export type StudentGroup = "א1" | "א2" | "ב";
 
-// Designated super-admins who automatically receive admin privileges
-export const ADMIN_DEFAULT_EMAILS: string[] = [
-  "niroari@gmail.com",
-  "shichva.app@gmail.com",
-];
-
 export interface TeacherProfile {
   id: string;
   name: string;

@@ -1,7 +1,8 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useSyncExternalStore } from "react";
-import { ActiveUser, StudentProfile, TeacherProfile, StudentGroup, ADMIN_DEFAULT_EMAILS } from "@/types/auth";
+import { ActiveUser, StudentProfile, TeacherProfile, StudentGroup } from "@/types/auth";
+import { isBuiltInAdminEmail } from "@/config/admins";
 import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
@@ -120,7 +121,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const unsubscribe = onAuthStateChanged(auth, (fbUser) => {
       if (fbUser && fbUser.email) {
         const email = fbUser.email.toLowerCase().trim();
-        const isSuperAdminEmail = ADMIN_DEFAULT_EMAILS.some((adm) => adm.toLowerCase() === email);
+        const isSuperAdminEmail = isBuiltInAdminEmail(email);
         if (isSuperAdminEmail) {
           setUser((curr) => {
             if (curr && !curr.isAdmin) {
@@ -152,7 +153,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           snap.forEach((docSnap) => {
             const data = docSnap.data();
             const candEmail = (data.email || "").toLowerCase().trim();
-            const isSuperAdminEmail = ADMIN_DEFAULT_EMAILS.some((adm) => adm.toLowerCase() === candEmail);
+            const isSuperAdminEmail = isBuiltInAdminEmail(candEmail);
             const candidate: TeacherProfile = {
               id: docSnap.id,
               name: data.name || "Teacher",
@@ -254,7 +255,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Try finding teacher profile in existing list or Firestore
     let teacherProfile = teachers.find((t) => t.email.toLowerCase() === trimmedEmail || (uid && t.id === uid));
 
-    const isSuperAdminEmail = ADMIN_DEFAULT_EMAILS.some((adm) => adm.toLowerCase() === trimmedEmail);
+    const isSuperAdminEmail = isBuiltInAdminEmail(trimmedEmail);
 
     if (!teacherProfile && db && uid) {
       try {
@@ -363,7 +364,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     const codeBase = data.name.split(" ")[0].toUpperCase().replace(/[^A-Z]/g, "") || "TEACHER";
-    const isSuperAdminEmail = ADMIN_DEFAULT_EMAILS.some((adm) => adm.toLowerCase() === trimmedEmail);
+    const isSuperAdminEmail = isBuiltInAdminEmail(trimmedEmail);
     const newTeacher: TeacherProfile = {
       id: uid,
       name: data.name.trim(),

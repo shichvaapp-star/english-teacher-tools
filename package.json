@@ -6,7 +6,8 @@
     "dev": "next dev --webpack",
     "build": "next build --webpack",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "npm run -s check:admins && eslint",
+    "check:admins": "node scripts/check-admin-sync.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",
