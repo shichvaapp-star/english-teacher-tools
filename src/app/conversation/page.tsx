@@ -1889,32 +1889,56 @@ export default function ConversationPracticePage() {
                       </p>
                     </div>
 
-                    {/* Scenario Setting Banner */}
+                    {/* Scenario Setting & Sides of Conversation Banner */}
                     <div
-                      className="mt-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/25 text-xs text-foreground space-y-1.5"
+                      className="mt-3 p-3.5 rounded-xl bg-muted/40 border border-border/70 text-xs text-foreground space-y-2.5"
                       dir="ltr"
                     >
-                      <div className="flex items-center justify-between">
-                        <span className="font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider text-2xs">
-                          📍 Real-World Setting & Speakers
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border/50 pb-2">
+                        <span className="font-bold text-muted-foreground uppercase tracking-wider text-2xs flex items-center gap-1.5">
+                          <span>📍 Setting:</span>
+                          <span className="normal-case font-normal text-foreground">
+                            <InteractiveEnglishText
+                              text={currentScenario.settingDescription}
+                              onWordClick={handleWordClick}
+                            />
+                          </span>
                         </span>
-                        <div className="flex items-center gap-2 text-2xs">
-                          {currentScenario.speakers.map((spk) => (
-                            <span
-                              key={spk.id}
-                              className="px-2 py-0.5 rounded-full bg-background/80 border border-border/60 font-medium"
-                            >
-                              {spk.avatarEmoji} {spk.name} ({spk.role})
-                            </span>
-                          ))}
+                      </div>
+
+                      {/* Sides of the Conversation Legend */}
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <span className="text-2xs font-extrabold uppercase tracking-wider text-muted-foreground">
+                          Sides of the dialogue:
+                        </span>
+                        <div className="flex items-center gap-2 flex-wrap text-xs">
+                          {/* Side A Chip */}
+                          <div className="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-sky-500/15 border border-sky-500/40 text-sky-900 dark:text-sky-100 font-medium shadow-2xs">
+                            <span className="text-base">{currentScenario.speakers[0]?.avatarEmoji || "🗣️"}</span>
+                            <div className="flex items-center gap-1.5">
+                              <span className="px-1.5 py-0.5 rounded text-3xs font-black uppercase tracking-wide bg-sky-500/25 text-sky-800 dark:text-sky-200">
+                                🔵 Side A
+                              </span>
+                              <strong className="font-bold text-xs">{currentScenario.speakers[0]?.name}</strong>
+                              <span className="text-3xs text-muted-foreground">({currentScenario.speakers[0]?.role})</span>
+                            </div>
+                          </div>
+
+                          <span className="text-muted-foreground text-xs font-bold">↔️</span>
+
+                          {/* Side B Chip */}
+                          <div className="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-emerald-500/15 border border-emerald-500/40 text-emerald-900 dark:text-emerald-100 font-medium shadow-2xs">
+                            <span className="text-base">{currentScenario.speakers[1]?.avatarEmoji || "🗣️"}</span>
+                            <div className="flex items-center gap-1.5">
+                              <span className="px-1.5 py-0.5 rounded text-3xs font-black uppercase tracking-wide bg-emerald-500/25 text-emerald-800 dark:text-emerald-200">
+                                🟢 Side B
+                              </span>
+                              <strong className="font-bold text-xs">{currentScenario.speakers[1]?.name}</strong>
+                              <span className="text-3xs text-muted-foreground">({currentScenario.speakers[1]?.role})</span>
+                            </div>
+                          </div>
                         </div>
                       </div>
-                      <p className="leading-relaxed text-foreground/90">
-                        <InteractiveEnglishText
-                          text={currentScenario.settingDescription}
-                          onWordClick={handleWordClick}
-                        />
-                      </p>
                     </div>
 
                     <div
@@ -1960,66 +1984,112 @@ export default function ConversationPracticePage() {
                         <div
                           key={tIdx}
                           id={`dialogue-turn-${tIdx}`}
-                          className={`flex items-start gap-3 p-3.5 rounded-2xl border transition-all ${
+                          className={`flex items-start gap-3 p-3.5 sm:p-4 rounded-2xl border transition-all ${
+                            /* Left/Right indentation to create an authentic chat messenger zigzag */
+                            isSpeakerA
+                              ? "mr-3 sm:mr-10 md:mr-14 rounded-tl-xs border-l-4 border-l-sky-500"
+                              : "ml-3 sm:ml-10 md:ml-14 rounded-tr-xs border-r-4 border-r-emerald-500"
+                          } ${
                             isSpokenNow
-                              ? "border-primary bg-primary/15 ring-2 ring-primary/40 shadow-sm"
+                              ? isSpeakerA
+                                ? "border-sky-500 bg-sky-500/20 ring-2 ring-sky-500/50 shadow-md"
+                                : "border-emerald-500 bg-emerald-500/20 ring-2 ring-emerald-500/50 shadow-md"
                               : isQuestionTarget
-                              ? "border-amber-500/50 bg-amber-500/5 shadow-xs"
+                              ? "border-amber-500 bg-amber-500/10 ring-2 ring-amber-500/40 shadow-xs"
                               : isSpeakerA
-                              ? "border-border/50 bg-card hover:border-border"
-                              : "border-border/50 bg-muted/25 hover:border-border"
+                              ? "border-sky-500/30 dark:border-sky-500/35 bg-sky-500/[0.05] dark:bg-sky-500/[0.10] hover:border-sky-500/50 shadow-2xs"
+                              : "border-emerald-500/30 dark:border-emerald-500/35 bg-emerald-500/[0.05] dark:bg-emerald-500/[0.10] hover:border-emerald-500/50 shadow-2xs"
                           }`}
                         >
-                          <div className="flex flex-col items-center gap-1 shrink-0">
-                            <div className="h-9 w-9 rounded-full bg-secondary flex items-center justify-center text-lg border border-border/60 shadow-2xs">
-                              {speaker?.avatarEmoji || "🗣️"}
+                          {/* Avatar & Line Indicator */}
+                          <div className="flex flex-col items-center gap-1.5 shrink-0 pt-0.5">
+                            <div
+                              className={`h-10 w-10 rounded-2xl flex items-center justify-center text-xl shadow-xs transition-transform ${
+                                isSpeakerA
+                                  ? "bg-sky-500/15 text-sky-800 dark:text-sky-200 ring-2 ring-sky-500/30 border border-sky-500/40"
+                                  : "bg-emerald-500/15 text-emerald-800 dark:text-emerald-200 ring-2 ring-emerald-500/30 border border-emerald-500/40"
+                              } ${isSpokenNow ? "scale-110 animate-pulse" : ""}`}
+                            >
+                              {speaker?.avatarEmoji || (isSpeakerA ? "👤" : "👥")}
                             </div>
-                            <span className="text-3xs font-bold text-muted-foreground uppercase">
+                            <span
+                              className={`px-1.5 py-0.5 rounded text-3xs font-black uppercase tracking-wider border ${
+                                isSpeakerA
+                                  ? "bg-sky-500/15 text-sky-700 dark:text-sky-300 border-sky-500/30"
+                                  : "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30"
+                              }`}
+                            >
                               Line {tIdx + 1}
                             </span>
                           </div>
 
-                          <div className="flex-1 min-w-0 space-y-1">
-                            <div className="flex items-center justify-between gap-2">
-                              <div className="flex items-center gap-1.5 flex-wrap">
-                                <span className="text-xs font-bold text-foreground">
-                                  {speaker?.name}
+                          {/* Bubble Content */}
+                          <div className="flex-1 min-w-0 space-y-1.5">
+                            <div className="flex items-center justify-between gap-2 flex-wrap">
+                              {/* Prominent Side & Speaker Badge */}
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span
+                                  className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-2xs font-bold border ${
+                                    isSpeakerA
+                                      ? "bg-sky-500/15 text-sky-900 dark:text-sky-100 border-sky-500/35"
+                                      : "bg-emerald-500/15 text-emerald-900 dark:text-emerald-100 border-emerald-500/35"
+                                  }`}
+                                >
+                                  <span className="font-extrabold">
+                                    {isSpeakerA ? "🔵 Side A" : "🟢 Side B"}
+                                  </span>
+                                  <span>&bull;</span>
+                                  <span className="font-black">{speaker?.name}</span>
                                 </span>
-                                <span className="text-2xs text-muted-foreground">
+
+                                <span className="text-2xs text-muted-foreground font-medium">
                                   ({speaker?.role})
                                 </span>
+
                                 {turn.stageDirection && (
-                                  <span className="text-2xs italic text-muted-foreground">
+                                  <span className="text-2xs italic text-muted-foreground px-2 py-0.5 rounded-md bg-background/70 border border-border/50">
                                     {turn.stageDirection}
                                   </span>
                                 )}
                               </div>
 
+                              {/* Action Buttons: Translate & Audio */}
                               <div className="flex items-center gap-1 shrink-0 print:hidden">
                                 <button
                                   type="button"
                                   onClick={() => handleTranslateSelection(turn.text)}
-                                  className="p-1 rounded-md text-muted-foreground hover:text-primary hover:bg-primary/10 transition cursor-pointer"
+                                  className={`p-1.5 rounded-lg transition cursor-pointer ${
+                                    isSpeakerA
+                                      ? "text-sky-700 dark:text-sky-300 hover:bg-sky-500/15"
+                                      : "text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/15"
+                                  }`}
                                   title="תרגם שורה זו לעברית"
+                                  aria-label="תרגם שורה זו"
                                 >
-                                  <Languages className="h-3.5 w-3.5" />
+                                  <Languages className="h-4 w-4" />
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => dialoguePlayer.playSingleTurn(tIdx)}
-                                  className={`p-1 rounded-md transition cursor-pointer ${
+                                  className={`p-1.5 rounded-lg transition cursor-pointer ${
                                     isSpokenNow && dialoguePlayer.isPlaying
-                                      ? "bg-primary text-primary-foreground"
-                                      : "text-muted-foreground hover:text-primary hover:bg-primary/10"
+                                      ? isSpeakerA
+                                        ? "bg-sky-600 text-white shadow-xs"
+                                        : "bg-emerald-600 text-white shadow-xs"
+                                      : isSpeakerA
+                                      ? "text-sky-700 dark:text-sky-300 hover:bg-sky-500/15"
+                                      : "text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/15"
                                   }`}
                                   title="האזן לשורה זו"
+                                  aria-label="האזן לשורה זו"
                                 >
-                                  <Volume2 className="h-3.5 w-3.5" />
+                                  <Volume2 className="h-4 w-4" />
                                 </button>
                               </div>
                             </div>
 
-                            <p className={`${textSizeClass} text-foreground/95 font-sans`}>
+                            {/* Spoken Text */}
+                            <p className={`${textSizeClass} text-foreground font-sans pt-0.5 leading-relaxed`}>
                               <InteractiveEnglishText
                                 text={turn.text}
                                 onWordClick={handleWordClick}
@@ -2720,6 +2790,32 @@ export default function ConversationPracticePage() {
               <span className="text-xs text-muted-foreground font-medium ml-2">
                 Line {dialoguePlayer.currentTurnIndex + 1} / {dialoguePlayer.totalTurns}
               </span>
+
+              {dialoguePlayer.isActive && (() => {
+                const currentTurn = currentScenario.turns[dialoguePlayer.currentTurnIndex];
+                const currentSpk = currentTurn
+                  ? currentScenario.speakers.find((s) => s.id === currentTurn.speakerId) ||
+                    currentScenario.speakers[dialoguePlayer.currentTurnIndex % 2]
+                  : null;
+                const isSpkA = currentSpk?.id === currentScenario.speakers[0]?.id;
+                return currentSpk ? (
+                  <div
+                    className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-2xs font-bold border transition-colors ${
+                      isSpkA
+                        ? "bg-sky-500/15 text-sky-800 dark:text-sky-200 border-sky-500/35"
+                        : "bg-emerald-500/15 text-emerald-800 dark:text-emerald-200 border-emerald-500/35"
+                    }`}
+                  >
+                    <span className="relative flex h-2 w-2">
+                      <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${isSpkA ? "bg-sky-400" : "bg-emerald-400"}`} />
+                      <span className={`relative inline-flex rounded-full h-2 w-2 ${isSpkA ? "bg-sky-500" : "bg-emerald-500"}`} />
+                    </span>
+                    <span>{isSpkA ? "🔵 Side A:" : "🟢 Side B:"}</span>
+                    <span>{currentSpk.name}</span>
+                    <span className="text-muted-foreground font-normal">({currentSpk.role})</span>
+                  </div>
+                ) : null;
+              })()}
             </div>
 
             {/* Speed & Dual Speaker Voice Controls */}

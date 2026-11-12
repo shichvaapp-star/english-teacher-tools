@@ -1012,12 +1012,38 @@ export default function StudentPortalPage() {
                     <span className="font-bold text-xs text-foreground block">
                       {selectedItem.type === "conversation" ? "תמליל השיחה המלאה:" : "טקסט קטע הקריאה:"}
                     </span>
-                    <div
-                      className="p-3.5 rounded-xl border border-border bg-muted/20 text-xs font-sans leading-relaxed text-foreground whitespace-pre-wrap max-h-40 overflow-y-auto"
-                      dir="ltr"
-                    >
-                      {selectedItem.passageText}
-                    </div>
+                    {selectedItem.type === "conversation" ? (
+                      <div
+                        className="p-3 rounded-xl border border-border bg-muted/10 space-y-1.5 max-h-48 overflow-y-auto"
+                        dir="ltr"
+                      >
+                        {selectedItem.passageText.split("\n").map((line, idx) => {
+                          const isSideA = idx % 2 === 0;
+                          return (
+                            <div
+                              key={idx}
+                              className={`p-2 rounded-lg text-xs font-sans leading-relaxed border ${
+                                isSideA
+                                  ? "bg-sky-500/10 border-sky-500/30 text-sky-950 dark:text-sky-100 mr-3"
+                                  : "bg-emerald-500/10 border-emerald-500/30 text-emerald-950 dark:text-emerald-100 ml-3"
+                              }`}
+                            >
+                              <span className="font-bold text-2xs uppercase mr-1.5 opacity-80">
+                                {isSideA ? "🔵 Side A" : "🟢 Side B"}
+                              </span>
+                              <span>{line}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div
+                        className="p-3.5 rounded-xl border border-border bg-muted/20 text-xs font-sans leading-relaxed text-foreground whitespace-pre-wrap max-h-40 overflow-y-auto"
+                        dir="ltr"
+                      >
+                        {selectedItem.passageText}
+                      </div>
+                    )}
                   </div>
                 )}
 
