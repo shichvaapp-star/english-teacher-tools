@@ -35,6 +35,8 @@ interface UnseenAudioDockProps {
 }
 
 const SPEED_OPTIONS = [
+  { label: "0.25x", value: 0.25 },
+  { label: "0.5x", value: 0.5 },
   { label: "0.75x", value: 0.75 },
   { label: "0.9x", value: 0.9 },
   { label: "1.0x", value: 1.0 },
@@ -185,7 +187,7 @@ export function UnseenAudioDock({
           </div>
 
           {/* Right: Speed pills + Voice + Shortcuts Toggle + Close */}
-          <div className="flex items-center gap-1.5 sm:gap-2">
+          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
             {/* Speed Pills */}
             <div
               className="flex items-center border border-border/80 bg-muted/30 rounded-lg p-0.5 text-[11px]"

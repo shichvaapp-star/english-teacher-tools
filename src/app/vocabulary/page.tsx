@@ -17,6 +17,9 @@ import {
   saveWordStatusOverride,
   toggleWordStarred,
   toggleWordMastered,
+  inferVocabSource,
+  formatVocabSourceLabel,
+  VocabSourceType,
   VocabItem,
 } from "@/lib/vocab-storage";
 import { submitTaskToDavid } from "@/lib/tutor-engine";
@@ -36,6 +39,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   BookA,
   ArrowLeft,
+  ArrowRight,
   Volume2,
   CheckCircle2,
   RotateCcw,
@@ -90,6 +94,10 @@ export default function VocabularyPage() {
   >("saved");
   const [isFromDavid, setIsFromDavid] = useState(false);
   const [isTurningInToDavid, setIsTurningInToDavid] = useState(false);
+  const [returnToUnseen, setReturnToUnseen] = useState<{
+    storyTitle?: string;
+    hebrewTitle?: string;
+  } | null>(null);
 
   // Active Teacher Assignment State
   const [activeAssignment, setActiveAssignment] = useState<TeacherAssignment | null>(null);
@@ -110,6 +118,23 @@ export default function VocabularyPage() {
       }
       if (params.get("from") === "david") {
         setIsFromDavid(true);
+      }
+
+      const cameFromUnseen =
+        params.get("from") === "unseen" ||
+        (typeof document !== "undefined" && document.referrer.includes("/unseen"));
+      if (cameFromUnseen) {
+        let storyTitle: string | undefined;
+        let hebrewTitle: string | undefined;
+        try {
+          const rawSnap = sessionStorage.getItem("ett_unseen_return_snapshot");
+          if (rawSnap) {
+            const snap = JSON.parse(rawSnap);
+            storyTitle = snap?.currentStory?.title;
+            hebrewTitle = snap?.currentStory?.hebrewTitle;
+          }
+        } catch {}
+        setReturnToUnseen({ storyTitle, hebrewTitle });
       }
 
       // Check if launched from a Teacher Assignment
@@ -162,6 +187,8 @@ export default function VocabularyPage() {
   // Sorting & Filtering State
   const [sortOption, setSortOption] = useState<
     | "starred_first"
+    | "source_type"
+    | "source_title"
     | "alpha_asc"
     | "alpha_desc"
     | "hebrew_asc"
@@ -170,6 +197,7 @@ export default function VocabularyPage() {
     | "newest"
   >("starred_first");
   const [filterOption, setFilterOption] = useState<"all" | "starred" | "unlearned" | "learned">("all");
+  const [sourceFilter, setSourceFilter] = useState<"all" | VocabSourceType>("all");
   const [statusOverrides, setStatusOverrides] = useState<
     Record<string, { starred?: boolean; mastered?: boolean }>
   >({});
@@ -219,7 +247,7 @@ export default function VocabularyPage() {
   const [lastSavedTimeText, setLastSavedTimeText] = useState<string | null>(null);
   const [activeDraftPrompt, setActiveDraftPrompt] = useState<InProgressWorkItem | null>(null);
 
-  // Check for saved draft for current vocab category or assignment
+  // Check for saved draft for current vocab category or assignment and auto-restore by default
   useEffect(() => {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
@@ -243,6 +271,19 @@ export default function VocabularyPage() {
         masteredIds.size === 0 &&
         quizIndex === 0
       ) {
+        if (payload.category && !params.get("assignmentId")) {
+          setActiveCategory(payload.category);
+        }
+        if (payload.cardIndex !== undefined) setCardIndex(payload.cardIndex);
+        if (payload.masteredIds && Array.isArray(payload.masteredIds)) {
+          setMasteredIds(new Set(payload.masteredIds));
+        }
+        if (payload.quizIndex !== undefined) setQuizIndex(payload.quizIndex);
+        if (payload.quizScore !== undefined) setQuizScore(payload.quizScore);
+        if (payload.studyMode) setStudyMode(payload.studyMode);
+        if (payload.completedModes && Array.isArray(payload.completedModes)) {
+          setCompletedModes(new Set(payload.completedModes));
+        }
         setActiveDraftPrompt(matched);
       }
     }
@@ -266,9 +307,14 @@ export default function VocabularyPage() {
     }
   };
 
-  // Discard draft handler
+  // Discard draft and reset progress to start fresh
   const handleDiscardDraft = (draft: InProgressWorkItem) => {
     deleteDraft(draft.id, user?.id);
+    setCardIndex(0);
+    setMasteredIds(new Set());
+    setQuizIndex(0);
+    setQuizScore(0);
+    setCompletedModes(new Set());
     setActiveDraftPrompt(null);
   };
 
@@ -405,16 +451,33 @@ export default function VocabularyPage() {
       list = list.filter((w) => !w.mastered);
     }
 
-    // Search query filter
+    // Filter by source type when in Personal Word Bank
+    if (activeCategory === "saved" && sourceFilter !== "all") {
+      list = list.filter((w) => inferVocabSource(w).sourceType === sourceFilter);
+    }
+
+    // Search query filter (matches English, Hebrew, example sentence, or source title)
     const q = searchQuery.toLowerCase().trim();
     if (q) {
-      list = list.filter(
-        (w) =>
+      list = list.filter((w) => {
+        const src = inferVocabSource(w);
+        return (
           w.english.toLowerCase().includes(q) ||
           w.hebrew.includes(q) ||
-          (w.example && w.example.toLowerCase().includes(q))
-      );
+          (w.example && w.example.toLowerCase().includes(q)) ||
+          (src.sourceTitle && src.sourceTitle.toLowerCase().includes(q)) ||
+          (src.sourceCategory && src.sourceCategory.toLowerCase().includes(q))
+        );
+      });
     }
+
+    const SOURCE_ORDER: Record<VocabSourceType, number> = {
+      unseen: 1,
+      writing: 2,
+      tutor: 3,
+      manual: 4,
+      curriculum: 5,
+    };
 
     // Sorting
     const sorted = [...list].sort((a, b) => {
@@ -423,6 +486,26 @@ export default function VocabularyPage() {
           if (a.starred && !b.starred) return -1;
           if (!a.starred && b.starred) return 1;
           return a.english.localeCompare(b.english);
+        case "source_type": {
+          const srcA = inferVocabSource(a);
+          const srcB = inferVocabSource(b);
+          const orderDiff = (SOURCE_ORDER[srcA.sourceType] || 99) - (SOURCE_ORDER[srcB.sourceType] || 99);
+          if (orderDiff !== 0) return orderDiff;
+          const catCompare = (srcA.sourceCategory || "").localeCompare(srcB.sourceCategory || "");
+          if (catCompare !== 0) return catCompare;
+          const titleCompare = (srcA.sourceTitle || "").localeCompare(srcB.sourceTitle || "");
+          if (titleCompare !== 0) return titleCompare;
+          return a.english.localeCompare(b.english);
+        }
+        case "source_title": {
+          const srcA = inferVocabSource(a);
+          const srcB = inferVocabSource(b);
+          const titleA = srcA.sourceTitle || formatVocabSourceLabel(a);
+          const titleB = srcB.sourceTitle || formatVocabSourceLabel(b);
+          const titleCompare = titleA.localeCompare(titleB);
+          if (titleCompare !== 0) return titleCompare;
+          return a.english.localeCompare(b.english);
+        }
         case "alpha_asc":
           return a.english.localeCompare(b.english);
         case "alpha_desc":
@@ -447,7 +530,7 @@ export default function VocabularyPage() {
     });
 
     return sorted;
-  }, [enrichedWords, filterOption, searchQuery, sortOption]);
+  }, [enrichedWords, filterOption, activeCategory, sourceFilter, searchQuery, sortOption]);
 
   // Star & Mastered Handlers
   const handleToggleStar = (wordId: string, currentVal?: boolean) => {
@@ -551,6 +634,9 @@ export default function VocabularyPage() {
         example: cleanSent,
         partOfSpeech: newWordPos,
         level: "Personal Word",
+        sourceType: "manual",
+        sourceTitle: "הזנה ידנית",
+        sourceCategory: "Personal Word",
       },
       user?.id
     );
@@ -582,6 +668,8 @@ export default function VocabularyPage() {
   };
 
   // Speech pronunciation
+  const [speakingWord, setSpeakingWord] = useState<string | null>(null);
+
   const handleSpeak = (text: string) => {
     if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
     try {
@@ -600,16 +688,42 @@ export default function VocabularyPage() {
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = "en-US";
       utterance.rate = 0.9;
+
+      const allVoices = window.speechSynthesis.getVoices();
+      const preferred = allVoices.find(
+        (v) =>
+          (v.lang.startsWith("en") || v.lang.startsWith("EN")) &&
+          !v.name.toLowerCase().includes("siri") &&
+          (v.name.toLowerCase().includes("natural") ||
+            v.name.toLowerCase().includes("enhanced") ||
+            v.name.toLowerCase().includes("samantha") ||
+            v.name.toLowerCase().includes("google"))
+      );
+      if (preferred) {
+        utterance.voice = preferred;
+      }
+
       const w = window as any;
       w.__vocabUtterance = utterance;
+      setSpeakingWord(text);
+
       utterance.onend = () => {
         w.__vocabUtterance = null;
+        setSpeakingWord((prev) => (prev === text ? null : prev));
       };
-      utterance.onerror = () => {
+      utterance.onerror = (e) => {
         w.__vocabUtterance = null;
+        setSpeakingWord((prev) => (prev === text ? null : prev));
+        if (e.error !== "canceled" && e.error !== "interrupted" && utterance.voice) {
+          const fallback = new SpeechSynthesisUtterance(text);
+          fallback.lang = "en-US";
+          fallback.rate = 0.9;
+          window.speechSynthesis.speak(fallback);
+        }
       };
       window.speechSynthesis.speak(utterance);
     } catch (err) {
+      setSpeakingWord(null);
       console.warn("[vocabulary] handleSpeak error:", err);
     }
   };
@@ -908,6 +1022,22 @@ export default function VocabularyPage() {
           </div>
 
           <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
+            {returnToUnseen && (
+              <Link
+                href="/unseen?resumeFromVocab=1"
+                className="inline-flex items-center gap-1.5 h-8 sm:h-9 px-2.5 sm:px-3.5 rounded-lg bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold shadow-xs transition cursor-pointer shrink-0 font-hebrew"
+                title={
+                  returnToUnseen.hebrewTitle || returnToUnseen.storyTitle
+                    ? `חזרה לתרגול האנסין: ${returnToUnseen.hebrewTitle || returnToUnseen.storyTitle}`
+                    : "חזרה לתרגול האנסין שהיית בו"
+                }
+                dir="rtl"
+              >
+                <ArrowRight className="h-3.5 w-3.5 shrink-0" />
+                <span>חזרה לאנסין</span>
+              </Link>
+            )}
+
             {draftStatus === "saving" ? (
               <span className="text-[10px] text-muted-foreground flex items-center gap-1 font-hebrew">
                 <Clock className="h-3 w-3 animate-spin text-amber-500" />
@@ -968,33 +1098,65 @@ export default function VocabularyPage() {
         </div>
       </header>
 
+      {/* Return to Unseen Practice Banner */}
+      {returnToUnseen && (
+        <div
+          className="bg-sky-500/10 border-b border-sky-500/25 px-3 sm:px-8 py-2.5 print:hidden animate-in fade-in duration-200"
+          dir="rtl"
+        >
+          <div className="container mx-auto flex flex-wrap items-center justify-between gap-2 text-xs">
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="p-1.5 rounded-lg bg-sky-500/20 text-sky-600 dark:text-sky-400 shrink-0">
+                <BookOpen className="h-3.5 w-3.5" />
+              </div>
+              <span className="font-bold text-foreground truncate">
+                {returnToUnseen.hebrewTitle || returnToUnseen.storyTitle
+                  ? `עברת לכאן מתוך תרגול אנסין: "${returnToUnseen.hebrewTitle || returnToUnseen.storyTitle}"`
+                  : "עברת לכאן מתוך תרגול אנסין"}
+              </span>
+              <span className="text-muted-foreground hidden sm:inline">
+                • ההתקדמות והתשובות שלך שמורות
+              </span>
+            </div>
+            <Link
+              href="/unseen?resumeFromVocab=1"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs shadow-2xs transition cursor-pointer shrink-0"
+            >
+              <ArrowRight className="h-3.5 w-3.5" />
+              <span>חזור לתרגול האנסין שהיית בו</span>
+            </Link>
+          </div>
+        </div>
+      )}
+
       {/* Active In-Progress Draft Banner */}
       {activeDraftPrompt && (
         <div className="bg-primary/10 border-b border-primary/25 px-4 py-3 print:hidden" dir="rtl">
           <div className="container mx-auto max-w-4xl flex flex-wrap items-center justify-between gap-3 text-xs">
             <div className="flex items-center gap-2">
-              <Clock className="h-4 w-4 text-primary shrink-0" />
+              <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
               <span className="font-bold text-foreground">
-                נמצא תרגול אוצר מילים שלא הושלם ({activeDraftPrompt.summaryText}):
+                נטענה אוטומטית הטיוטה השמורה שלך ({activeDraftPrompt.summaryText}):
               </span>
               <span className="text-muted-foreground font-medium">{activeDraftPrompt.hebrewTitle || activeDraftPrompt.title}</span>
             </div>
             <div className="flex items-center gap-2">
               <Button
                 size="sm"
-                onClick={() => handleRestoreDraft(activeDraftPrompt)}
-                className="h-7 text-xs font-bold bg-primary text-primary-foreground hover:bg-primary/90 cursor-pointer gap-1"
+                variant="outline"
+                onClick={() => setActiveDraftPrompt(null)}
+                className="h-7 text-xs cursor-pointer"
               >
-                <RotateCcw className="h-3 w-3" />
-                <span>המשך תרגול</span>
+                <span>הסתר הודעה</span>
               </Button>
               <Button
                 size="sm"
                 variant="ghost"
                 onClick={() => handleDiscardDraft(activeDraftPrompt)}
-                className="h-7 text-xs text-muted-foreground hover:text-destructive cursor-pointer"
+                className="h-7 text-xs text-muted-foreground hover:text-destructive cursor-pointer gap-1"
               >
-                התחל מחדש
+                <RotateCcw className="h-3 w-3" />
+                <span>אפס והתחל מחדש</span>
               </Button>
             </div>
           </div>
@@ -1282,28 +1444,52 @@ export default function VocabularyPage() {
             </button>
           </div>
 
-          {/* Sort Selector */}
-          <div className="flex items-center gap-1.5 text-xs mr-auto">
-            <span className="text-[11px] font-medium text-muted-foreground flex items-center gap-1">
-              <ArrowUpDown className="h-3 w-3" />
-              <span>מיון:</span>
-            </span>
-            <select
-              value={sortOption}
-              onChange={(e) => {
-                setSortOption(e.target.value as any);
-                setCardIndex(0);
-              }}
-              className="h-8 px-2.5 py-1 rounded-lg border border-border bg-background text-xs text-foreground cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary font-medium"
-            >
-              <option value="starred_first">⭐ מועדפים תחילה</option>
-              <option value="alpha_asc">🔤 באנגלית (A-Z)</option>
-              <option value="alpha_desc">🔤 באנגלית (Z-A)</option>
-              <option value="hebrew_asc">🇮🇱 בעברית (א-ת)</option>
-              <option value="unlearned_first">⏳ דורש תרגול תחילה</option>
-              <option value="learned_first">✓ נלמדו תחילה</option>
-              <option value="newest">🕒 נוספו לאחרונה</option>
-            </select>
+          {/* Source Filter & Sort Selector */}
+          <div className="flex flex-wrap items-center gap-2 text-xs mr-auto">
+            {activeCategory === "saved" && (
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] font-medium text-muted-foreground">מקור:</span>
+                <select
+                  value={sourceFilter}
+                  onChange={(e) => {
+                    setSourceFilter(e.target.value as "all" | VocabSourceType);
+                    setCardIndex(0);
+                  }}
+                  className="h-8 px-2.5 py-1 rounded-lg border border-border bg-background text-xs text-foreground cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary font-medium"
+                >
+                  <option value="all">כל המקורות</option>
+                  <option value="unseen">📖 קטעי קריאה (אנסין)</option>
+                  <option value="writing">✍️ סדנת כתיבה</option>
+                  <option value="tutor">🤖 המורה דוד</option>
+                  <option value="manual">✏️ הזנה ידנית</option>
+                </select>
+              </div>
+            )}
+
+            <div className="flex items-center gap-1.5">
+              <span className="text-[11px] font-medium text-muted-foreground flex items-center gap-1">
+                <ArrowUpDown className="h-3 w-3" />
+                <span>מיון:</span>
+              </span>
+              <select
+                value={sortOption}
+                onChange={(e) => {
+                  setSortOption(e.target.value as any);
+                  setCardIndex(0);
+                }}
+                className="h-8 px-2.5 py-1 rounded-lg border border-border bg-background text-xs text-foreground cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary font-medium"
+              >
+                <option value="starred_first">⭐ מועדפים תחילה</option>
+                <option value="source_type">📂 לפי מקור (סוג טקסט / כלי)</option>
+                <option value="source_title">📖 לפי שם הטקסט / משימה</option>
+                <option value="alpha_asc">🔤 באנגלית (A-Z)</option>
+                <option value="alpha_desc">🔤 באנגלית (Z-A)</option>
+                <option value="hebrew_asc">🇮🇱 בעברית (א-ת)</option>
+                <option value="unlearned_first">⏳ דורש תרגול תחילה</option>
+                <option value="learned_first">✓ נלמדו תחילה</option>
+                <option value="newest">🕒 נוספו לאחרונה</option>
+              </select>
+            </div>
           </div>
         </div>
 
@@ -1315,30 +1501,35 @@ export default function VocabularyPage() {
             </div>
             <div className="space-y-1.5">
               <h3 className="text-lg font-bold text-foreground">
-                {filterOption !== "all"
+                {filterOption !== "all" || sourceFilter !== "all"
                   ? filterOption === "starred"
                     ? "אין עדיין מילים שסומנו במועדפים ⭐"
                     : filterOption === "unlearned"
                     ? "כל הכבוד! אין כרגע מילים הדורשות תרגול"
-                    : "עדיין לא סומנו מילים כנלמדו"
+                    : filterOption === "learned"
+                    ? "עדיין לא סומנו מילים כנלמדו"
+                    : "אין מילים מהמקור שנבחר"
                   : activeCategory === "saved"
                   ? "עדיין לא הוספת מילים לאוצר המילים שלך"
                   : "לא נמצאו מילים התואמות לחיפוש"}
               </h3>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                {filterOption !== "all"
-                  ? "תוכל להציג את כל המילים או לסמן מילים בכוכב / לשנות סטטוס שליטה ברשימת המילים."
+                {filterOption !== "all" || sourceFilter !== "all"
+                  ? "תוכל להציג את כל המילים או לשנות את סינון הסטטוס והמקור."
                   : activeCategory === "saved"
-                  ? "תוכל להזין מילים חדשות ידנית בעצמך (עם מילה, תרגום ומשפט לדוגמה) או ללחוץ על מילים בזמן קריאת אנסין כדי לשמור אותן כאן."
+                  ? "תוכל להזין מילים חדשות ידנית בעצמך (עם מילה, תרגום ומשפט לדוגמה) או לשמור מילים מתורגמות מתוך קריאת אנסין וסדנת הכתיבה."
                   : "נסו לחפש מילה אחרת או נקו את שורת החיפוש."}
               </p>
             </div>
 
-            {filterOption !== "all" ? (
+            {filterOption !== "all" || sourceFilter !== "all" ? (
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setFilterOption("all")}
+                onClick={() => {
+                  setFilterOption("all");
+                  setSourceFilter("all");
+                }}
                 className="text-xs cursor-pointer font-medium"
               >
                 הצג את כל המילים ({wordStats.total})
@@ -1365,12 +1556,8 @@ export default function VocabularyPage() {
               <span>
                 כרטיס {(cardIndex % filteredWords.length) + 1} מתוך {filteredWords.length}
               </span>
-              <Badge variant="outline" className="text-[11px]">
-                {currentCard.level === "Personal Word"
-                  ? "מילה אישית שהזנת"
-                  : currentCard.level === "Saved from Unseen"
-                  ? "נשמר מהאנסין"
-                  : currentCard.level || "חטיבת ביניים"}
+              <Badge variant="outline" className="text-[11px] max-w-[240px] truncate" dir="rtl">
+                {formatVocabSourceLabel(currentCard)}
               </Badge>
             </div>
 
@@ -1498,7 +1685,7 @@ export default function VocabularyPage() {
               <div>
                 <h3 className="text-base font-bold">משחק התאמה מהיר (Speed Match)</h3>
                 <p className="text-xs text-muted-foreground">
-                  לחצו על מילה באנגלית, ולאחר מכן לחצו על התרגום התואם שלה בעברית.
+                  לחצו על מילה באנגלית (או על סמל הרמקול להאזנה להגייה), ולאחר מכן לחצו על התרגום התואם שלה בעברית.
                 </p>
               </div>
               <Badge variant="outline">
@@ -1533,9 +1720,10 @@ export default function VocabularyPage() {
                   {matchPool.map((item) => {
                     const isMatched = matchedPairs.has(item.id);
                     const isSelected = selectedEng === item.id;
+                    const isSpeaking = speakingWord === item.english;
 
                     let btnClass = "border-border bg-card hover:border-primary/50 text-foreground";
-                    if (isMatched) btnClass = "border-emerald-500/40 bg-emerald-500/10 text-emerald-600 opacity-50";
+                    if (isMatched) btnClass = "border-emerald-500/40 bg-emerald-500/10 text-emerald-600 opacity-60";
                     else if (isSelected) {
                       btnClass = matchError
                         ? "border-destructive bg-destructive/10 text-destructive"
@@ -1543,16 +1731,48 @@ export default function VocabularyPage() {
                     }
 
                     return (
-                      <button
+                      <div
                         key={item.id}
-                        type="button"
-                        disabled={isMatched}
-                        onClick={() => handleMatchClickEng(item.id)}
-                        className={`w-full p-2.5 sm:p-3 rounded-xl border text-xs sm:text-sm font-semibold transition-all text-left cursor-pointer flex items-center justify-between gap-1 break-words ${btnClass}`}
+                        role="button"
+                        tabIndex={isMatched ? -1 : 0}
+                        aria-disabled={isMatched}
+                        onClick={() => {
+                          if (!isMatched) handleMatchClickEng(item.id);
+                        }}
+                        onKeyDown={(e) => {
+                          if (!isMatched && (e.key === "Enter" || e.key === " ")) {
+                            e.preventDefault();
+                            handleMatchClickEng(item.id);
+                          }
+                        }}
+                        className={`w-full p-2.5 sm:p-3 rounded-xl border text-xs sm:text-sm font-semibold transition-all text-left flex items-center justify-between gap-2 break-words ${
+                          isMatched ? "cursor-default" : "cursor-pointer"
+                        } ${btnClass}`}
                       >
-                        <span className="break-words leading-tight">{item.english}</span>
+                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleSpeak(item.english);
+                            }}
+                            className={cn(
+                              "p-1.5 rounded-lg transition-colors shrink-0 cursor-pointer",
+                              isSpeaking
+                                ? "bg-primary text-primary-foreground shadow-2xs"
+                                : "bg-muted/60 text-muted-foreground hover:text-primary hover:bg-primary/10"
+                            )}
+                            title={`האזן להגייה: ${item.english}`}
+                            aria-label={`האזן להגייה של ${item.english}`}
+                          >
+                            <Volume2 className={cn("h-3.5 w-3.5 sm:h-4 sm:w-4", isSpeaking && "animate-pulse")} />
+                          </button>
+                          <span className="break-words leading-tight notranslate" translate="no" lang="en">
+                            {item.english}
+                          </span>
+                        </div>
                         {isMatched && <CheckCircle2 className="h-4 w-4 shrink-0" />}
-                      </button>
+                      </div>
                     );
                   })}
                 </div>
@@ -1607,9 +1827,25 @@ export default function VocabularyPage() {
             <Card className="border border-border/80">
               <CardHeader className="text-center pb-2">
                 <span className="text-xs text-muted-foreground">מילה באנגלית:</span>
-                <CardTitle className="text-3xl font-extrabold text-foreground pt-1">
-                  {currentQuizWord.english}
-                </CardTitle>
+                <div className="flex items-center justify-center gap-2 pt-1">
+                  <CardTitle className="text-3xl font-extrabold text-foreground notranslate" translate="no" lang="en">
+                    {currentQuizWord.english}
+                  </CardTitle>
+                  <button
+                    type="button"
+                    onClick={() => handleSpeak(currentQuizWord.english)}
+                    className={cn(
+                      "p-1.5 rounded-full transition-colors cursor-pointer",
+                      speakingWord === currentQuizWord.english
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted/60 text-muted-foreground hover:text-primary hover:bg-primary/10"
+                    )}
+                    title={`האזן להגייה: ${currentQuizWord.english}`}
+                    aria-label={`האזן להגייה של ${currentQuizWord.english}`}
+                  >
+                    <Volume2 className="h-4 w-4" />
+                  </button>
+                </div>
                 {currentQuizWord.example && (
                   <CardDescription className="text-xs italic font-sans" dir="ltr">
                     &quot;{currentQuizWord.example}&quot;
@@ -1740,11 +1976,13 @@ export default function VocabularyPage() {
                         <Volume2 className="h-3.5 w-3.5" />
                       </button>
                       <span className="font-bold text-sm text-foreground capitalize">{w.english}</span>
-                      {w.level === "Personal Word" && (
-                        <Badge variant="outline" className="text-[9px] px-1.5 py-0 text-emerald-600 dark:text-emerald-400 border-emerald-500/30">
-                          אישי
-                        </Badge>
-                      )}
+                      <Badge
+                        variant="outline"
+                        className="text-[9px] px-1.5 py-0 text-muted-foreground border-border/70 max-w-[140px] truncate"
+                        dir="rtl"
+                      >
+                        {formatVocabSourceLabel(w)}
+                      </Badge>
                     </div>
 
                     <div className="flex items-center gap-2">
@@ -1833,7 +2071,7 @@ export default function VocabularyPage() {
                           </button>
                         </td>
                         <td className="p-3 font-bold text-foreground">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <span>{w.english}</span>
                             <button
                               type="button"
@@ -1843,11 +2081,14 @@ export default function VocabularyPage() {
                             >
                               <Volume2 className="h-3.5 w-3.5" />
                             </button>
-                            {w.level === "Personal Word" && (
-                              <Badge variant="outline" className="text-[9px] px-1 py-0 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 hidden sm:inline">
-                                הזנה ידנית
-                              </Badge>
-                            )}
+                            <Badge
+                              variant="outline"
+                              className="text-[10px] px-1.5 py-0 text-muted-foreground border-border/70 hidden sm:inline-flex max-w-[180px] truncate font-normal"
+                              dir="rtl"
+                              title={formatVocabSourceLabel(w)}
+                            >
+                              {formatVocabSourceLabel(w)}
+                            </Badge>
                           </div>
                         </td>
                         <td className="p-3 font-bold text-primary text-right" dir="rtl">

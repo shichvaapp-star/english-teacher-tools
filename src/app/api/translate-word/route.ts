@@ -65,13 +65,20 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, reason: "missing_word" }, { status: 400 });
     }
 
-    const cleanWord = word.trim().toLowerCase().replace(/^[^a-zA-Z]+|[^a-zA-Z]+$/g, "");
+    const rawTrimmed = word.trim();
+    const isPhraseOrSentence = /\s/.test(rawTrimmed);
+    const cleanWord = isPhraseOrSentence
+      ? rawTrimmed.replace(/\s+/g, " ")
+      : rawTrimmed.toLowerCase().replace(/^[^a-zA-Z]+|[^a-zA-Z]+$/g, "");
+
     if (!cleanWord) {
       return NextResponse.json({ success: false, reason: "invalid_word" }, { status: 400 });
     }
 
+    const cacheKey = cleanWord.toLowerCase();
+
     // 1. Check built-in offline dictionary (0 latency!)
-    const builtIn = lookupBuiltInTranslation(cleanWord);
+    const builtIn = lookupBuiltInTranslation(cacheKey);
     if (builtIn) {
       const result: TranslationResult = {
         english: cleanWord,
@@ -83,10 +90,10 @@ export async function POST(request: Request) {
     }
 
     // 2. Check in-memory server cache
-    if (serverTranslationCache.has(cleanWord)) {
+    if (serverTranslationCache.has(cacheKey)) {
       return NextResponse.json({
         success: true,
-        data: serverTranslationCache.get(cleanWord),
+        data: serverTranslationCache.get(cacheKey),
         cached: true,
       });
     }
@@ -94,7 +101,17 @@ export async function POST(request: Request) {
     const groqApiKey = request.headers.get("x-groq-api-key") || process.env.GROQ_API_KEY;
     const geminiApiKey = request.headers.get("x-gemini-api-key") || process.env.GEMINI_API_KEY;
 
-    const systemPrompt = `You are an expert English-Hebrew translator and English middle-school teacher. Translate the given English word into natural Hebrew.
+    const systemPrompt = isPhraseOrSentence
+      ? `You are an expert English-Hebrew translator for middle-school English students. Translate the following selected English phrase or sentence into natural, accurate Hebrew.
+Selected text: "${cleanWord}"
+Return ONLY a raw JSON object matching this schema:
+{
+  "english": ${JSON.stringify(cleanWord)},
+  "hebrew": "Accurate and natural Hebrew translation of the entire selected text",
+  "partOfSpeech": "noun",
+  "example": ""
+}`
+      : `You are an expert English-Hebrew translator and English middle-school teacher. Translate the given English word into natural Hebrew.
 Return ONLY a raw JSON object matching this schema:
 {
   "english": "${cleanWord}",
@@ -125,7 +142,7 @@ Return ONLY a raw JSON object matching this schema:
           const content = data.choices?.[0]?.message?.content;
           if (content) {
             const parsed: TranslationResult = JSON.parse(content);
-            serverTranslationCache.set(cleanWord, parsed);
+            serverTranslationCache.set(cacheKey, parsed);
             return NextResponse.json({ success: true, data: parsed, source: "groq" });
           }
         }
@@ -159,7 +176,7 @@ Return ONLY a raw JSON object matching this schema:
             const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
             if (text) {
               const parsed: TranslationResult = JSON.parse(text);
-              serverTranslationCache.set(cleanWord, parsed);
+              serverTranslationCache.set(cacheKey, parsed);
               return NextResponse.json({ success: true, data: parsed, source: "gemini" });
             }
           }
@@ -176,9 +193,9 @@ Return ONLY a raw JSON object matching this schema:
         english: cleanWord,
         hebrew: fallbackHebrew,
         partOfSpeech: "noun",
-        example: `The word "${cleanWord}" appeared in the reading text.`,
+        example: isPhraseOrSentence ? "" : `The word "${cleanWord}" appeared in the reading text.`,
       };
-      serverTranslationCache.set(cleanWord, fallbackResult);
+      serverTranslationCache.set(cacheKey, fallbackResult);
       return NextResponse.json({ success: true, data: fallbackResult, fallback: true });
     }
 

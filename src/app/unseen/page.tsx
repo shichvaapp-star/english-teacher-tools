@@ -14,12 +14,13 @@ import { formatTeacherDisplayName } from "@/types/auth";
 import { UnseenEvaluationResult } from "@/types/unseen";
 import { MIDDLE_SCHOOL_UNSEENS, MSUnseenStory, MSUnseenQuestion, randomizeQuestionsOptions } from "@/data/unseen-middle-school";
 import { lookupBuiltInTranslation } from "@/data/built-in-dictionary";
-import { saveWordToBuilder, VocabItem, loadSavedWords } from "@/lib/vocab-storage";
+import { saveWordToBuilder, VocabItem, loadSavedWords, isWordSaved } from "@/lib/vocab-storage";
 import { recordTaskCompletion, submitTaskToDavid, resolveFocusWordToReviewItem } from "@/lib/tutor-engine";
 import { TutorVocabReviewItem } from "@/types/tutor";
 import { TeacherAssignment } from "@/types/assignment";
 import { useSpeechPlayer } from "@/lib/use-speech-player";
 import { UnseenAudioDock } from "@/components/unseen/unseen-audio-dock";
+import { DraggableTranslationPopup } from "@/components/unseen/draggable-translation-popup";
 import { Confetti } from "@/components/confetti";
 import { saveDraft, deleteDraft, getDraftById, findDraft } from "@/lib/drafts-storage";
 import type { InProgressWorkItem } from "@/types/draft";
@@ -58,6 +59,7 @@ import {
   ChevronDown,
   Save,
   Clock,
+  Languages,
 } from "lucide-react";
 
 const LOCAL_SUBMISSIONS_KEY = "ett_writing_submissions";
@@ -93,6 +95,12 @@ function InteractiveEnglishText({
           <span
             key={idx}
             onClick={(e) => {
+              if (typeof window !== "undefined") {
+                const sel = window.getSelection();
+                if (sel && !sel.isCollapsed && sel.toString().trim().length > 1) {
+                  return;
+                }
+              }
               if (stopEventPropagation) {
                 e.stopPropagation();
               }
@@ -123,10 +131,73 @@ export default function UnseenPracticePage() {
   const [activeAssignment, setActiveAssignment] = useState<TeacherAssignment | null>(null);
   const [isFromDavid, setIsFromDavid] = useState(false);
   const [isTurningInToDavid, setIsTurningInToDavid] = useState(false);
+  const isHydratedSnapshotRef = React.useRef(false);
 
   React.useEffect(() => {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
+
+      // If returning from Vocabulary practice, restore the exact Unseen session snapshot
+      if (params.get("resumeFromVocab") === "1") {
+        try {
+          const rawSnap = sessionStorage.getItem("ett_unseen_return_snapshot");
+          if (rawSnap) {
+            const snap = JSON.parse(rawSnap);
+            if (snap.currentStory) {
+              const restoredStory = snap.currentStory as MSUnseenStory;
+              setStories((prev) => {
+                const randomizedOthers = prev
+                  .filter((s) => s.id !== restoredStory.id)
+                  .map((s) => ({
+                    ...s,
+                    questions: randomizeQuestionsOptions(s.questions),
+                  }));
+                return [restoredStory, ...randomizedOthers];
+              });
+              setSelectedLevel(snap.selectedLevel || restoredStory.level || "Level 2");
+              setSelectedStoryId(restoredStory.id);
+            } else {
+              setStories((prev) =>
+                prev.map((s) => ({
+                  ...s,
+                  questions: randomizeQuestionsOptions(s.questions),
+                }))
+              );
+              if (snap.selectedLevel) setSelectedLevel(snap.selectedLevel);
+              if (snap.selectedStoryId) setSelectedStoryId(snap.selectedStoryId);
+            }
+            setStage(snap.stage || "exercise");
+            if (snap.mode) setMode(snap.mode);
+            if (snap.userAnswers) setUserAnswers(snap.userAnswers);
+            if (snap.checkedQuestions) setCheckedQuestions(snap.checkedQuestions);
+            if (snap.practiceEvaluation) setPracticeEvaluation(snap.practiceEvaluation);
+            if (typeof snap.activeQuestionIndex === "number") {
+              setActiveQuestionIndex(snap.activeQuestionIndex);
+            }
+            if (snap.currentAssignmentId) setCurrentAssignmentId(snap.currentAssignmentId);
+            if (snap.activeAssignment) setActiveAssignment(snap.activeAssignment);
+            if (snap.assignedNotice) setAssignedNotice(snap.assignedNotice);
+            if (snap.isFromDavid) setIsFromDavid(true);
+            if (snap.isSubmitted) setIsSubmitted(true);
+            if (snap.gradedScore !== undefined) setGradedScore(snap.gradedScore);
+            if (snap.submissionRecord) setSubmissionRecord(snap.submissionRecord);
+            if (snap.mobileTab) setMobileTab(snap.mobileTab);
+            if (snap.fontSize) setFontSize(snap.fontSize);
+            setSavedWords(loadSavedWords(user?.id));
+            isHydratedSnapshotRef.current = true;
+            return;
+          }
+        } catch {}
+      }
+
+      // Standard mount: randomize library story MCQ options
+      setStories((prev) =>
+        prev.map((s) => ({
+          ...s,
+          questions: randomizeQuestionsOptions(s.questions),
+        }))
+      );
+
       const fromDavid = params.get("from") === "david";
       if (fromDavid) {
         setIsFromDavid(true);
@@ -172,17 +243,8 @@ export default function UnseenPracticePage() {
           setAssignedNotice(`מבחן אנסין זה${lvlText} הוקצה על ידי המורה שלך. בסיום המענה, הגישו לבדיקה.`);
         }
       }
+      isHydratedSnapshotRef.current = true;
     }
-  }, []);
-
-  // Ensure library stories have their multiple-choice options randomized
-  React.useEffect(() => {
-    setStories((prev) =>
-      prev.map((s) => ({
-        ...s,
-        questions: randomizeQuestionsOptions(s.questions),
-      }))
-    );
   }, []);
 
   // Level Selection (No grade references)
@@ -199,8 +261,8 @@ export default function UnseenPracticePage() {
   const currentStory: MSUnseenStory =
     stories.find((s) => s.id === selectedStoryId) || levelStories[0] || MIDDLE_SCHOOL_UNSEENS[0];
 
-  // Natural Voice Speech Dictation Player
-  const speech = useSpeechPlayer(currentStory.paragraphs);
+  // Natural Voice Speech Dictation Player (includes passage title)
+  const speech = useSpeechPlayer(currentStory.paragraphs, currentStory.title);
 
   // Stop playback on story change
   useEffect(() => {
@@ -264,6 +326,9 @@ export default function UnseenPracticePage() {
   // Print Exam Booklet Options
   const [showPrintModal, setShowPrintModal] = useState(false);
   const [printScope, setPrintScope] = useState<"full" | "text_only" | "questions_only">("full");
+  const [printLineSpacing, setPrintLineSpacing] = useState<
+    "normal" | "comfortable" | "double" | "spacious"
+  >("normal");
   const [printIncludeHeader, setPrintIncludeHeader] = useState(true);
   const [printIncludeVocab, setPrintIncludeVocab] = useState(true);
   const [printIncludeAnswers, setPrintIncludeAnswers] = useState(false);
@@ -459,10 +524,11 @@ export default function UnseenPracticePage() {
   const [lastSavedTimeText, setLastSavedTimeText] = useState<string | null>(null);
   const [activeDraftPrompt, setActiveDraftPrompt] = useState<InProgressWorkItem | null>(null);
 
-  // Check for saved draft for the current story or assignment
+  // Check for saved draft for the current story or assignment and auto-restore by default
   useEffect(() => {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
+    if (params.get("resumeFromVocab") === "1") return;
     const draftIdParam = params.get("draftId");
     let matched: InProgressWorkItem | null = null;
 
@@ -478,9 +544,32 @@ export default function UnseenPracticePage() {
     if (matched && matched.type === "unseen") {
       const payload = matched.payload as any;
       const ans = payload?.userAnswers;
-      if (ans && Object.keys(ans).length > 0 && Object.keys(userAnswers).length === 0 && !isSubmitted) {
+      if (ans && Object.keys(ans).length > 0 && !isSubmitted) {
+        const savedStory: MSUnseenStory | undefined = payload.storyData || payload.aiStoryData;
+        if (savedStory) {
+          setStories((prev) => [savedStory, ...prev.filter((s) => s.id !== savedStory.id)]);
+          setSelectedLevel(savedStory.level || payload.level || "Level 2");
+          setSelectedStoryId(savedStory.id);
+        } else if (payload.storyId && payload.storyId !== currentStory.id) {
+          const found = MIDDLE_SCHOOL_UNSEENS.find((s) => s.id === payload.storyId);
+          if (found) {
+            setSelectedLevel(found.level);
+            setSelectedStoryId(found.id);
+          }
+        }
+        setUserAnswers(ans);
+        if (payload.checkedQuestions) setCheckedQuestions(payload.checkedQuestions);
+        if (payload.activeQuestionIndex !== undefined) setActiveQuestionIndex(payload.activeQuestionIndex);
+        if (payload.mode) setMode(payload.mode);
+        if (draftIdParam || params.get("passageId") || params.get("story") || params.get("assignmentId")) {
+          setStage("exercise");
+        }
         setActiveDraftPrompt(matched);
+      } else {
+        setActiveDraftPrompt(null);
       }
+    } else {
+      setActiveDraftPrompt(null);
     }
   }, [currentStory.id, currentAssignmentId]);
 
@@ -497,9 +586,25 @@ export default function UnseenPracticePage() {
     }
   };
 
-  // Discard draft handler
+  // Discard draft and reset task to start fresh
   const handleDiscardDraft = (draft: InProgressWorkItem) => {
     deleteDraft(draft.id, user?.id);
+    setUserAnswers({});
+    setCheckedQuestions({});
+    setPracticeEvaluation({});
+    setActiveQuestionIndex(0);
+    setIsSubmitted(false);
+    setGradedScore(null);
+    setHasCelebratedPractice(false);
+    setShowPracticeCompleteModal(false);
+    setShowPracticeConfetti(false);
+    setStories((prev) =>
+      prev.map((s) =>
+        s.id === currentStory.id
+          ? { ...s, questions: randomizeQuestionsOptions(s.questions) }
+          : s
+      )
+    );
     setActiveDraftPrompt(null);
   };
 
@@ -539,6 +644,7 @@ export default function UnseenPracticePage() {
           userAnswers,
           checkedQuestions,
           activeQuestionIndex,
+          storyData: currentStory,
           aiStoryData: currentStory.isAiGenerated ? currentStory : undefined,
         },
       });
@@ -547,7 +653,7 @@ export default function UnseenPracticePage() {
     }, 1200);
 
     return () => clearTimeout(timer);
-  }, [userAnswers, checkedQuestions, activeQuestionIndex, stage, currentStory.id, selectedLevel, mode, currentAssignmentId, isSubmitted, user?.id, user?.name]);
+  }, [userAnswers, checkedQuestions, activeQuestionIndex, stage, currentStory, selectedLevel, mode, currentAssignmentId, isSubmitted, user?.id, user?.name]);
 
   // Save and exit back to student portal
   const handleSaveAndExit = async () => {
@@ -581,6 +687,7 @@ export default function UnseenPracticePage() {
           userAnswers,
           checkedQuestions,
           activeQuestionIndex,
+          storyData: currentStory,
           aiStoryData: currentStory.isAiGenerated ? currentStory : undefined,
         },
       });
@@ -596,7 +703,78 @@ export default function UnseenPracticePage() {
     example?: string;
     loading?: boolean;
     saved?: boolean;
+    isSelection?: boolean;
   } | null>(null);
+
+  // Highlighted Sentence / Phrase Selection Toolbar State
+  const [selectedPassageText, setSelectedPassageText] = useState<{
+    text: string;
+    x: number;
+    y: number;
+    below?: boolean;
+  } | null>(null);
+  const passageContainerRef = React.useRef<HTMLDivElement | null>(null);
+  const questionsContainerRef = React.useRef<HTMLDivElement | null>(null);
+
+  // Question Prompt Inline Translation State
+  const [questionTranslations, setQuestionTranslations] = useState<
+    Record<string, { hebrew: string; loading?: boolean; visible?: boolean }>
+  >({});
+
+  // Clear selection toolbar when browser selection is collapsed
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const handleSelectionChange = () => {
+      const sel = window.getSelection();
+      if (!sel || sel.isCollapsed || !sel.toString().trim()) {
+        setSelectedPassageText(null);
+      }
+    };
+    document.addEventListener("selectionchange", handleSelectionChange);
+    return () => document.removeEventListener("selectionchange", handleSelectionChange);
+  }, []);
+
+  const handlePassageSelectionUp = () => {
+    if (typeof window === "undefined") return;
+    setTimeout(() => {
+      const sel = window.getSelection();
+      if (!sel || sel.isCollapsed || sel.rangeCount === 0) {
+        setSelectedPassageText(null);
+        return;
+      }
+
+      const raw = sel.toString().trim().replace(/\s+/g, " ");
+      // Trigger selection toolbar when user highlights a phrase/sentence (or > 2 chars)
+      if (!raw || !/[a-zA-Z]/.test(raw) || raw.length < 3) {
+        setSelectedPassageText(null);
+        return;
+      }
+
+      const range = sel.getRangeAt(0);
+      const passageEl = passageContainerRef.current;
+      const questionsEl = questionsContainerRef.current;
+      const inPassage = passageEl && passageEl.contains(range.commonAncestorContainer);
+      const inQuestions = questionsEl && questionsEl.contains(range.commonAncestorContainer);
+      if (!inPassage && !inQuestions) {
+        return;
+      }
+
+      const rect = range.getBoundingClientRect();
+      if (rect.width === 0 && rect.height === 0) return;
+
+      const viewportW = window.innerWidth;
+      const clampedX = Math.min(Math.max(145, rect.left + rect.width / 2), viewportW - 145);
+      const showBelow = rect.top < 72;
+      const targetY = showBelow ? rect.bottom + 8 : rect.top - 10;
+
+      setSelectedPassageText({
+        text: raw,
+        x: clampedX,
+        y: targetY,
+        below: showBelow,
+      });
+    }, 15);
+  };
 
   // Saved Words in Notebook Drawer
   const [savedWords, setSavedWords] = useState<VocabItem[]>(() => loadSavedWords(user?.id));
@@ -604,6 +782,58 @@ export default function UnseenPracticePage() {
 
   // Font Size
   const [fontSize, setFontSize] = useState<"sm" | "base" | "lg">("base");
+
+  // Save current Unseen session snapshot so the user can return seamlessly from Vocabulary practice
+  const saveUnseenReturnSnapshot = React.useCallback(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const snapshot = {
+        stage,
+        selectedLevel,
+        selectedStoryId: currentStory.id,
+        currentStory,
+        mode,
+        userAnswers,
+        checkedQuestions,
+        practiceEvaluation,
+        activeQuestionIndex,
+        currentAssignmentId,
+        activeAssignment,
+        assignedNotice,
+        isFromDavid,
+        isSubmitted,
+        gradedScore,
+        submissionRecord,
+        mobileTab,
+        fontSize,
+        savedAt: Date.now(),
+      };
+      sessionStorage.setItem("ett_unseen_return_snapshot", JSON.stringify(snapshot));
+    } catch {}
+  }, [
+    stage,
+    selectedLevel,
+    currentStory,
+    mode,
+    userAnswers,
+    checkedQuestions,
+    practiceEvaluation,
+    activeQuestionIndex,
+    currentAssignmentId,
+    activeAssignment,
+    assignedNotice,
+    isFromDavid,
+    isSubmitted,
+    gradedScore,
+    submissionRecord,
+    mobileTab,
+    fontSize,
+  ]);
+
+  useEffect(() => {
+    if (!isHydratedSnapshotRef.current) return;
+    saveUnseenReturnSnapshot();
+  }, [saveUnseenReturnSnapshot]);
 
   // Pre-set suggested AI topics
   const SUGGESTED_TOPICS = [
@@ -655,24 +885,47 @@ export default function UnseenPracticePage() {
     );
   };
 
-  // Start Exercise with freshly randomized options
+  // Start Exercise (continues from saved draft by default if one exists for the current story)
   const handleStartExercise = () => {
-    setUserAnswers({});
-    setCheckedQuestions({});
-    setIsSubmitted(false);
-    setGradedScore(null);
-    setHasCelebratedPractice(false);
-    setShowPracticeCompleteModal(false);
-    setShowPracticeConfetti(false);
-    setActiveQuestionIndex(0);
+    const targetDraftId = currentAssignmentId
+      ? `draft_unseen_assign_${currentAssignmentId}`
+      : `draft_unseen_${currentStory.id}`;
+    const existingDraft = getDraftById(targetDraftId);
+    const hasDraftAnswers =
+      existingDraft &&
+      existingDraft.type === "unseen" &&
+      (existingDraft.payload as any)?.userAnswers &&
+      Object.keys((existingDraft.payload as any).userAnswers).length > 0;
+
+    if (hasDraftAnswers) {
+      const payload = existingDraft.payload as any;
+      setUserAnswers(payload.userAnswers);
+      if (payload.checkedQuestions) setCheckedQuestions(payload.checkedQuestions);
+      if (payload.activeQuestionIndex !== undefined) setActiveQuestionIndex(payload.activeQuestionIndex);
+      if (payload.mode) setMode(payload.mode);
+      const savedStory: MSUnseenStory | undefined = payload.storyData || payload.aiStoryData;
+      if (savedStory) {
+        setStories((prev) => [savedStory, ...prev.filter((s) => s.id !== savedStory.id)]);
+      }
+      setActiveDraftPrompt(existingDraft);
+    } else if (Object.keys(userAnswers).length === 0) {
+      setUserAnswers({});
+      setCheckedQuestions({});
+      setIsSubmitted(false);
+      setGradedScore(null);
+      setHasCelebratedPractice(false);
+      setShowPracticeCompleteModal(false);
+      setShowPracticeConfetti(false);
+      setActiveQuestionIndex(0);
+      setStories((prev) =>
+        prev.map((s) =>
+          s.id === currentStory.id
+            ? { ...s, questions: randomizeQuestionsOptions(s.questions) }
+            : s
+        )
+      );
+    }
     setMobileTab("text");
-    setStories((prev) =>
-      prev.map((s) =>
-        s.id === currentStory.id
-          ? { ...s, questions: randomizeQuestionsOptions(s.questions) }
-          : s
-      )
-    );
     setStage("exercise");
     if (typeof window !== "undefined") {
       window.scrollTo({ top: 0, left: 0, behavior: "instant" });
@@ -750,15 +1003,18 @@ export default function UnseenPracticePage() {
     }
   };
 
-  // Word Click Translation
+  // Word Click Translation (translates without auto-saving; user can save via button)
   const handleWordClick = async (rawWord: string) => {
     const clean = rawWord.trim().toLowerCase().replace(/^[^a-zA-Z]+|[^a-zA-Z]+$/g, "");
     if (!clean || clean.length < 2) return;
+
+    const alreadySaved = isWordSaved(clean, user?.id);
 
     setClickedWord({
       word: clean,
       hebrew: "מתרגם...",
       loading: true,
+      saved: alreadySaved,
     });
 
     // 1. Check current story vocabulary hints
@@ -767,36 +1023,26 @@ export default function UnseenPracticePage() {
     );
 
     if (hint) {
-      saveWordToBuilder(
-        { english: clean, hebrew: hint.translation, example: `From "${currentStory.title}"` },
-        user?.id
-      );
       setClickedWord({
         word: clean,
         hebrew: hint.translation,
         loading: false,
         example: `From "${currentStory.title}"`,
-        saved: true,
+        saved: alreadySaved,
       });
-      setSavedWords(loadSavedWords(user?.id));
       return;
     }
 
     // 2. Check instant offline dictionary (0 ms latency)
     const builtIn = lookupBuiltInTranslation(clean);
     if (builtIn) {
-      saveWordToBuilder(
-        { english: clean, hebrew: builtIn, example: `From "${currentStory.title}"` },
-        user?.id
-      );
       setClickedWord({
         word: clean,
         hebrew: builtIn,
         loading: false,
         example: `From "${currentStory.title}"`,
-        saved: true,
+        saved: alreadySaved,
       });
-      setSavedWords(loadSavedWords(user?.id));
       return;
     }
 
@@ -807,18 +1053,14 @@ export default function UnseenPracticePage() {
       if (cached) {
         const parsed = JSON.parse(cached);
         if (parsed?.hebrew) {
-          saveWordToBuilder(
-            { english: clean, hebrew: parsed.hebrew, example: parsed.example || `From "${currentStory.title}"` },
-            user?.id
-          );
           setClickedWord({
             word: clean,
             hebrew: parsed.hebrew,
+            partOfSpeech: parsed.partOfSpeech,
             loading: false,
             example: parsed.example || `From "${currentStory.title}"`,
-            saved: true,
+            saved: alreadySaved,
           });
-          setSavedWords(loadSavedWords(user?.id));
           return;
         }
       }
@@ -850,24 +1092,14 @@ export default function UnseenPracticePage() {
           } catch {
             // Ignore
           }
-          saveWordToBuilder(
-            {
-              english: clean,
-              hebrew: data.data.hebrew,
-              partOfSpeech: data.data.partOfSpeech,
-              example: data.data.example,
-            },
-            user?.id
-          );
           setClickedWord({
             word: clean,
             hebrew: data.data.hebrew,
             partOfSpeech: data.data.partOfSpeech,
-            example: data.data.example,
+            example: data.data.example || `From "${currentStory.title}"`,
             loading: false,
-            saved: true,
+            saved: alreadySaved,
           });
-          setSavedWords(loadSavedWords(user?.id));
           return;
         }
       }
@@ -884,18 +1116,13 @@ export default function UnseenPracticePage() {
         const tr = fbData?.responseData?.translatedText;
         if (tr && typeof tr === "string" && !tr.includes("MYMEMORY WARNING")) {
           const cleanTr = tr.trim();
-          saveWordToBuilder(
-            { english: clean, hebrew: cleanTr, example: `From "${currentStory.title}"` },
-            user?.id
-          );
           setClickedWord({
             word: clean,
             hebrew: cleanTr,
             loading: false,
             example: `From "${currentStory.title}"`,
-            saved: true,
+            saved: alreadySaved,
           });
-          setSavedWords(loadSavedWords(user?.id));
           return;
         }
       }
@@ -909,6 +1136,234 @@ export default function UnseenPracticePage() {
       loading: false,
       saved: false,
     });
+  };
+
+  // Explicitly save the currently translated word to the Personal Dictionary
+  const handleSaveClickedWord = () => {
+    if (!clickedWord || clickedWord.loading || clickedWord.hebrew === "לא נמצא תרגום") return;
+    saveWordToBuilder(
+      {
+        english: clickedWord.word,
+        hebrew: clickedWord.hebrew,
+        partOfSpeech: clickedWord.partOfSpeech,
+        example: clickedWord.example || `From "${currentStory.title}"`,
+        level: "Saved from Unseen",
+        sourceType: "unseen",
+        sourceTitle: currentStory.title,
+        sourceCategory: currentStory.isAiGenerated
+          ? `Unseen (${currentStory.level} - AI)`
+          : `Unseen (${currentStory.level})`,
+      },
+      user?.id
+    );
+    setClickedWord((prev) => (prev ? { ...prev, saved: true } : null));
+    setSavedWords(loadSavedWords(user?.id));
+  };
+
+  // Dictate (read aloud) only the user-highlighted text selection
+  const handleDictateSelection = (selectedText: string) => {
+    const clean = selectedText.trim().replace(/\s+/g, " ");
+    if (!clean) return;
+    if (speech.isActive && speech.isPlaying) {
+      speech.pause();
+    }
+    handleSpeak(clean);
+  };
+
+  // Translate only the user-highlighted text selection
+  const handleTranslateSelection = async (selectedText: string) => {
+    const clean = selectedText.trim().replace(/\s+/g, " ");
+    if (!clean) return;
+
+    // If selection is a single word, delegate to standard word click handler
+    if (!/\s/.test(clean)) {
+      setSelectedPassageText(null);
+      await handleWordClick(clean);
+      return;
+    }
+
+    const alreadySaved = isWordSaved(clean, user?.id);
+    setSelectedPassageText(null);
+
+    setClickedWord({
+      word: clean,
+      hebrew: "מתרגם קטע נבחר...",
+      loading: true,
+      saved: alreadySaved,
+      isSelection: true,
+    });
+
+    const cacheKey = `trans_sel_cache_${clean.toLowerCase()}`;
+    try {
+      const cached = localStorage.getItem(cacheKey);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (parsed?.hebrew) {
+          setClickedWord({
+            word: clean,
+            hebrew: parsed.hebrew,
+            loading: false,
+            example: `From "${currentStory.title}"`,
+            saved: alreadySaved,
+            isSelection: true,
+          });
+          return;
+        }
+      }
+    } catch {
+      // Ignore
+    }
+
+    try {
+      const transHeaders: Record<string, string> = { "Content-Type": "application/json" };
+      if (typeof window !== "undefined") {
+        const groq = localStorage.getItem("ett_groq_api_key");
+        const gemini = localStorage.getItem("ett_gemini_api_key");
+        if (groq) transHeaders["x-groq-api-key"] = groq;
+        if (gemini) transHeaders["x-gemini-api-key"] = gemini;
+      }
+
+      const res = await fetch("/api/translate-word", {
+        method: "POST",
+        headers: transHeaders,
+        body: JSON.stringify({ word: clean }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && data.data?.hebrew) {
+          try {
+            localStorage.setItem(cacheKey, JSON.stringify(data.data));
+          } catch {}
+          setClickedWord({
+            word: clean,
+            hebrew: data.data.hebrew,
+            loading: false,
+            example: `From "${currentStory.title}"`,
+            saved: alreadySaved,
+            isSelection: true,
+          });
+          return;
+        }
+      }
+    } catch {
+      // Fallback below
+    }
+
+    try {
+      const fbUrl = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(clean)}&langpair=en|he`;
+      const fbRes = await fetch(fbUrl);
+      if (fbRes.ok) {
+        const fbData = await fbRes.json();
+        const tr = fbData?.responseData?.translatedText;
+        if (tr && typeof tr === "string" && !tr.includes("MYMEMORY WARNING")) {
+          const cleanTr = tr.trim();
+          setClickedWord({
+            word: clean,
+            hebrew: cleanTr,
+            loading: false,
+            example: `From "${currentStory.title}"`,
+            saved: alreadySaved,
+            isSelection: true,
+          });
+          return;
+        }
+      }
+    } catch {}
+
+    setClickedWord({
+      word: clean,
+      hebrew: "לא נמצא תרגום",
+      loading: false,
+      saved: false,
+      isSelection: true,
+    });
+  };
+
+  // Toggle and fetch Hebrew translation for a question prompt
+  const handleToggleQuestionTranslation = async (questionId: string, promptText: string) => {
+    const existing = questionTranslations[questionId];
+    if (existing && !existing.loading && existing.hebrew && existing.hebrew !== "לא נמצא תרגום") {
+      setQuestionTranslations((prev) => ({
+        ...prev,
+        [questionId]: { ...existing, visible: !existing.visible },
+      }));
+      return;
+    }
+
+    const clean = promptText.trim().replace(/\s+/g, " ");
+    if (!clean) return;
+
+    setQuestionTranslations((prev) => ({
+      ...prev,
+      [questionId]: { hebrew: "מתרגם את השאלה...", loading: true, visible: true },
+    }));
+
+    const cacheKey = `trans_sel_cache_${clean.toLowerCase()}`;
+    try {
+      const cached = localStorage.getItem(cacheKey);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (parsed?.hebrew) {
+          setQuestionTranslations((prev) => ({
+            ...prev,
+            [questionId]: { hebrew: parsed.hebrew, loading: false, visible: true },
+          }));
+          return;
+        }
+      }
+    } catch {}
+
+    try {
+      const transHeaders: Record<string, string> = { "Content-Type": "application/json" };
+      if (typeof window !== "undefined") {
+        const groq = localStorage.getItem("ett_groq_api_key");
+        const gemini = localStorage.getItem("ett_gemini_api_key");
+        if (groq) transHeaders["x-groq-api-key"] = groq;
+        if (gemini) transHeaders["x-gemini-api-key"] = gemini;
+      }
+
+      const res = await fetch("/api/translate-word", {
+        method: "POST",
+        headers: transHeaders,
+        body: JSON.stringify({ word: clean }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && data.data?.hebrew) {
+          try {
+            localStorage.setItem(cacheKey, JSON.stringify(data.data));
+          } catch {}
+          setQuestionTranslations((prev) => ({
+            ...prev,
+            [questionId]: { hebrew: data.data.hebrew, loading: false, visible: true },
+          }));
+          return;
+        }
+      }
+    } catch {}
+
+    try {
+      const fbUrl = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(clean)}&langpair=en|he`;
+      const fbRes = await fetch(fbUrl);
+      if (fbRes.ok) {
+        const fbData = await fbRes.json();
+        const tr = fbData?.responseData?.translatedText;
+        if (tr && typeof tr === "string" && !tr.includes("MYMEMORY WARNING")) {
+          setQuestionTranslations((prev) => ({
+            ...prev,
+            [questionId]: { hebrew: tr.trim(), loading: false, visible: true },
+          }));
+          return;
+        }
+      }
+    } catch {}
+
+    setQuestionTranslations((prev) => ({
+      ...prev,
+      [questionId]: { hebrew: "לא נמצא תרגום", loading: false, visible: true },
+    }));
   };
 
   // Text-to-Speech (single word / phrase with selected natural voice)
@@ -1563,28 +2018,39 @@ export default function UnseenPracticePage() {
         <div className="bg-primary/10 border-b border-primary/25 px-4 py-3 print:hidden" dir="rtl">
           <div className="container mx-auto max-w-4xl flex flex-wrap items-center justify-between gap-3 text-xs">
             <div className="flex items-center gap-2">
-              <Clock className="h-4 w-4 text-primary shrink-0" />
+              <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
               <span className="font-bold text-foreground">
-                נמצאה טיוטת מענה שנשמרה לאחרונה ({activeDraftPrompt.summaryText}):
+                נטענה אוטומטית הטיוטה השמורה שלך ({activeDraftPrompt.summaryText}):
               </span>
               <span className="text-muted-foreground font-medium">{activeDraftPrompt.hebrewTitle || activeDraftPrompt.title}</span>
             </div>
             <div className="flex items-center gap-2">
-              <Button
-                size="sm"
-                onClick={() => handleRestoreDraft(activeDraftPrompt)}
-                className="h-7 text-xs font-bold bg-primary text-primary-foreground hover:bg-primary/90 cursor-pointer gap-1"
-              >
-                <RotateCcw className="h-3 w-3" />
-                <span>המשך מהטיוטה</span>
-              </Button>
+              {stage === "settings" ? (
+                <Button
+                  size="sm"
+                  onClick={() => handleRestoreDraft(activeDraftPrompt)}
+                  className="h-7 text-xs font-bold bg-primary text-primary-foreground hover:bg-primary/90 cursor-pointer gap-1"
+                >
+                  <span>המשך לתרגול</span>
+                </Button>
+              ) : (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setActiveDraftPrompt(null)}
+                  className="h-7 text-xs cursor-pointer"
+                >
+                  הסתר הודעה
+                </Button>
+              )}
               <Button
                 size="sm"
                 variant="ghost"
                 onClick={() => handleDiscardDraft(activeDraftPrompt)}
-                className="h-7 text-xs text-muted-foreground hover:text-destructive cursor-pointer"
+                className="h-7 text-xs text-muted-foreground hover:text-destructive cursor-pointer gap-1"
               >
-                מחק טיוטה
+                <RotateCcw className="h-3 w-3" />
+                <span>אפס והתחל מחדש</span>
               </Button>
             </div>
           </div>
@@ -2289,20 +2755,60 @@ export default function UnseenPracticePage() {
                   </div>
 
                   <div className="mt-2">
-                    <CardTitle className="text-xl font-bold tracking-tight notranslate" translate="no" lang="en">{currentStory.title}</CardTitle>
+                    {(() => {
+                      const titleSentence = speech.sentences.find((s) => s.paragraphIndex === -1);
+                      const isTitleSpoken =
+                        titleSentence !== undefined &&
+                        speech.isActive &&
+                        speech.currentSentenceIndex === titleSentence.globalIndex;
+                      return (
+                        <CardTitle
+                          id={titleSentence ? `unseen-speech-sentence-${titleSentence.globalIndex}` : undefined}
+                          onClick={() => {
+                            if (speech.isActive && titleSentence) {
+                              speech.seekSentence(titleSentence.globalIndex);
+                            }
+                          }}
+                          className={`text-xl font-bold tracking-tight notranslate inline-block rounded transition-all duration-200 ${
+                            isTitleSpoken
+                              ? "bg-primary/20 text-foreground ring-2 ring-primary/50 px-1.5 py-0.5 shadow-xs"
+                              : speech.isActive && titleSentence
+                              ? "hover:bg-primary/10 px-1 cursor-pointer"
+                              : ""
+                          }`}
+                          title={speech.isActive ? "Click title to play from the beginning" : undefined}
+                          translate="no"
+                          lang="en"
+                        >
+                          <InteractiveEnglishText
+                            text={currentStory.title}
+                            onWordClick={handleWordClick}
+                            stopEventPropagation
+                          />
+                        </CardTitle>
+                      );
+                    })()}
                     <p className="text-sm text-muted-foreground mt-0.5">{currentStory.hebrewTitle}</p>
                   </div>
 
                   <div className="p-2 rounded-lg bg-muted/40 text-[11px] text-muted-foreground flex items-center gap-2 mt-2 print:hidden">
                     <Info className="h-3.5 w-3.5 text-primary shrink-0" />
                     <span>
-                      💡 <strong>טיפ בלשים:</strong> לחצו על <strong>כל מילה</strong> בטקסט או בשאלות ובתשובות כדי לראות תרגום מיידי ולהוסיף לפנקס המילים האישי שלכם!
+                      💡 <strong>טיפ בלשים:</strong> לחצו על <strong>כל מילה</strong> לתרגום מיידי, או <strong>סמנו (הדגישו) משפט או קטע</strong> בטקסט כדי להקריא בקול או לתרגם רק את החלק שבחרתם!
                     </span>
                   </div>
                 </CardHeader>
 
                 {/* Story Paragraphs */}
-                <CardContent className="pt-4 space-y-4 notranslate" translate="no" lang="en">
+                <CardContent
+                  ref={passageContainerRef}
+                  onMouseUp={handlePassageSelectionUp}
+                  onTouchEnd={handlePassageSelectionUp}
+                  onKeyUp={handlePassageSelectionUp}
+                  className="pt-4 space-y-4 notranslate"
+                  translate="no"
+                  lang="en"
+                >
                   {currentStory.paragraphs.map((para, pIdx) => {
                     const isHighlighted =
                       activeQuestion &&
@@ -2345,6 +2851,12 @@ export default function UnseenPracticePage() {
                                   key={sObj.id}
                                   id={`unseen-speech-sentence-${sObj.globalIndex}`}
                                   onClick={() => {
+                                    if (typeof window !== "undefined") {
+                                      const sel = window.getSelection();
+                                      if (sel && !sel.isCollapsed && sel.toString().trim().length > 1) {
+                                        return;
+                                      }
+                                    }
                                     if (speech.isActive) {
                                       speech.seekSentence(sObj.globalIndex);
                                     }
@@ -2417,7 +2929,13 @@ export default function UnseenPracticePage() {
             </div>
 
             {/* 10 Questions Column (5 Cols on desktop, conditioned on mobile) */}
-            <div className={`lg:col-span-5 print:hidden ${mobileTab === "questions" ? "block" : "hidden lg:block"}`}>
+            <div
+              ref={questionsContainerRef}
+              onMouseUp={handlePassageSelectionUp}
+              onTouchEnd={handlePassageSelectionUp}
+              onKeyUp={handlePassageSelectionUp}
+              className={`lg:col-span-5 print:hidden ${mobileTab === "questions" ? "block" : "hidden lg:block"}`}
+            >
               <div className="lg:sticky lg:top-20 space-y-4 lg:max-h-[calc(100vh-5.5rem)] lg:overflow-y-auto lg:pr-1">
               {/* Mobile quick link to return to text */}
               <div className="lg:hidden flex items-center justify-between px-1">
@@ -2553,7 +3071,7 @@ export default function UnseenPracticePage() {
                       </p>
                     )}
 
-                    <div className="flex items-start justify-between gap-3 mt-2">
+                    <div className="flex items-start justify-between gap-2 mt-2">
                       <h3 className="text-sm font-semibold text-foreground leading-relaxed notranslate flex-1" translate="no" lang="en">
                         <InteractiveEnglishText
                           text={activeQuestion.prompt}
@@ -2561,36 +3079,91 @@ export default function UnseenPracticePage() {
                         />
                       </h3>
 
-                      <Button
-                        type="button"
-                        variant={isSpeakingQuestion && speakingQuestionId === activeQuestion.id ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => handleSpeakText(activeQuestion.prompt, activeQuestion.id)}
-                        className={`h-8 px-2.5 text-xs font-bold gap-1.5 cursor-pointer shrink-0 transition-all ${
-                          isSpeakingQuestion && speakingQuestionId === activeQuestion.id
-                            ? "bg-primary text-primary-foreground animate-pulse"
-                            : "border-border/70 text-muted-foreground hover:text-foreground hover:bg-muted/50"
-                        }`}
-                        title={
-                          isSpeakingQuestion && speakingQuestionId === activeQuestion.id
-                            ? "עצור הקראת שאלה"
-                            : "האזנה לשאלה באנגלית"
-                        }
-                        aria-label="האזנה לשאלה"
-                      >
-                        {isSpeakingQuestion && speakingQuestionId === activeQuestion.id ? (
-                          <>
-                            <Pause className="h-3.5 w-3.5" />
-                            <span className="hidden sm:inline">עצור</span>
-                          </>
-                        ) : (
-                          <>
-                            <Volume2 className="h-3.5 w-3.5 text-primary" />
-                            <span className="hidden sm:inline">האזן לשאלה</span>
-                          </>
-                        )}
-                      </Button>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <Button
+                          type="button"
+                          variant={questionTranslations[activeQuestion.id]?.visible ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => handleToggleQuestionTranslation(activeQuestion.id, activeQuestion.prompt)}
+                          className={`h-8 px-2.5 text-xs font-bold gap-1.5 cursor-pointer shrink-0 transition-all ${
+                            questionTranslations[activeQuestion.id]?.visible
+                              ? "bg-primary text-primary-foreground"
+                              : "border-border/70 text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                          }`}
+                          title={
+                            questionTranslations[activeQuestion.id]?.visible
+                              ? "הסתר תרגום שאלה"
+                              : "תרגם את השאלה לעברית"
+                          }
+                          aria-label="תרגום שאלה"
+                        >
+                          <Languages className="h-3.5 w-3.5 text-current" />
+                          <span className="hidden sm:inline">
+                            {questionTranslations[activeQuestion.id]?.visible ? "הסתר תרגום" : "תרגם שאלה"}
+                          </span>
+                        </Button>
+
+                        <Button
+                          type="button"
+                          variant={isSpeakingQuestion && speakingQuestionId === activeQuestion.id ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => handleSpeakText(activeQuestion.prompt, activeQuestion.id)}
+                          className={`h-8 px-2.5 text-xs font-bold gap-1.5 cursor-pointer shrink-0 transition-all ${
+                            isSpeakingQuestion && speakingQuestionId === activeQuestion.id
+                              ? "bg-primary text-primary-foreground animate-pulse"
+                              : "border-border/70 text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                          }`}
+                          title={
+                            isSpeakingQuestion && speakingQuestionId === activeQuestion.id
+                              ? "עצור הקראת שאלה"
+                              : "האזנה לשאלה באנגלית"
+                          }
+                          aria-label="האזנה לשאלה"
+                        >
+                          {isSpeakingQuestion && speakingQuestionId === activeQuestion.id ? (
+                            <>
+                              <Pause className="h-3.5 w-3.5" />
+                              <span className="hidden sm:inline">עצור</span>
+                            </>
+                          ) : (
+                            <>
+                              <Volume2 className="h-3.5 w-3.5 text-primary" />
+                              <span className="hidden sm:inline">האזן לשאלה</span>
+                            </>
+                          )}
+                        </Button>
+                      </div>
                     </div>
+
+                    {questionTranslations[activeQuestion.id]?.visible && (
+                      <div
+                        className="mt-2.5 p-2.5 rounded-lg bg-primary/10 border border-primary/25 text-xs text-foreground flex items-start justify-between gap-2 animate-in fade-in-0 duration-150"
+                        dir="rtl"
+                      >
+                        <div className="flex items-start gap-1.5">
+                          <Languages className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
+                          <div>
+                            <span className="font-bold text-primary ml-1">תרגום השאלה:</span>
+                            <span className="font-semibold text-foreground leading-relaxed">
+                              {questionTranslations[activeQuestion.id]?.hebrew}
+                            </span>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setQuestionTranslations((prev) => ({
+                              ...prev,
+                              [activeQuestion.id]: { ...prev[activeQuestion.id], visible: false },
+                            }))
+                          }
+                          className="text-muted-foreground hover:text-foreground p-0.5 cursor-pointer shrink-0"
+                          title="סגור תרגום"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    )}
                   </CardHeader>
 
                   <CardContent className="pt-4 space-y-3 notranslate" translate="no" lang="en">
@@ -2643,22 +3216,36 @@ export default function UnseenPracticePage() {
                                   stopEventPropagation
                                 />
                               </span>
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleSpeakText(option, `${activeQuestion.id}-opt-${optIdx}`);
-                                }}
-                                className={`p-1 rounded-md transition-colors cursor-pointer shrink-0 mt-0.5 ${
-                                  isSpeakingQuestion && speakingQuestionId === `${activeQuestion.id}-opt-${optIdx}`
-                                    ? "bg-primary text-primary-foreground"
-                                    : "text-muted-foreground/60 hover:text-primary hover:bg-primary/10"
-                                }`}
-                                title="האזנה לאפשרות זו באנגלית"
-                                aria-label="האזנה לאפשרות"
-                              >
-                                <Volume2 className="h-3.5 w-3.5" />
-                              </button>
+                              <div className="flex items-center gap-0.5 shrink-0 mt-0.5">
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleTranslateSelection(option);
+                                  }}
+                                  className="p-1 rounded-md text-muted-foreground/60 hover:text-primary hover:bg-primary/10 transition-colors cursor-pointer"
+                                  title="תרגם אפשרות זו לעברית"
+                                  aria-label="תרגם אפשרות"
+                                >
+                                  <Languages className="h-3.5 w-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleSpeakText(option, `${activeQuestion.id}-opt-${optIdx}`);
+                                  }}
+                                  className={`p-1 rounded-md transition-colors cursor-pointer ${
+                                    isSpeakingQuestion && speakingQuestionId === `${activeQuestion.id}-opt-${optIdx}`
+                                      ? "bg-primary text-primary-foreground"
+                                      : "text-muted-foreground/60 hover:text-primary hover:bg-primary/10"
+                                  }`}
+                                  title="האזנה לאפשרות זו באנגלית"
+                                  aria-label="האזנה לאפשרות"
+                                >
+                                  <Volume2 className="h-3.5 w-3.5" />
+                                </button>
+                              </div>
                               {mode === "practice" && isChecked && isCorrectOption && (
                                 <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
                               )}
@@ -3170,6 +3757,15 @@ export default function UnseenPracticePage() {
                                 >
                                   <Volume2 className="h-3.5 w-3.5" />
                                 </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleTranslateSelection(q.prompt)}
+                                  className="p-1 rounded-md text-muted-foreground hover:text-primary hover:bg-muted transition-colors cursor-pointer shrink-0"
+                                  title="תרגם את השאלה לעברית"
+                                  aria-label="תרגום שאלה"
+                                >
+                                  <Languages className="h-3.5 w-3.5" />
+                                </button>
                                 <span className="font-bold text-foreground truncate">
                                   שאלה {q.number}:{" "}
                                   <InteractiveEnglishText text={q.prompt} onWordClick={handleWordClick} />
@@ -3250,56 +3846,75 @@ export default function UnseenPracticePage() {
         />
       )}
 
-      {/* Instant Translation Toast / Popup */}
-      {clickedWord && (
-        <div className={`fixed ${speech.isActive ? "bottom-24 sm:bottom-28" : "bottom-4"} left-3 right-3 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 z-50 animate-in fade-in-0 slide-in-from-bottom-4 print:hidden`}>
-          <div className="bg-card/95 backdrop-blur border border-border/80 shadow-2xl rounded-2xl p-3.5 pr-4 pl-4 min-w-[280px] max-w-sm mx-auto flex flex-col gap-1.5">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-base text-foreground capitalize">{clickedWord.word}</span>
-                <button
-                  type="button"
-                  onClick={() => handleSpeak(clickedWord.word)}
-                  className="p-1 text-muted-foreground hover:text-primary rounded cursor-pointer"
-                  title="Speak pronunciation"
-                >
-                  <Volume2 className="h-4 w-4" />
-                </button>
-              </div>
+      {/* Floating Toolbar for Highlighted Sentence / Selection in Unseen Text */}
+      {selectedPassageText && (
+        <div
+          style={{
+            left: `${selectedPassageText.x}px`,
+            top: `${selectedPassageText.y}px`,
+          }}
+          onMouseDown={(e) => {
+            // Prevent clearing browser text selection when clicking toolbar buttons
+            e.preventDefault();
+            e.stopPropagation();
+          }}
+          className={`fixed z-50 -translate-x-1/2 ${
+            selectedPassageText.below ? "translate-y-0" : "-translate-y-full"
+          } print:hidden animate-in fade-in-0 zoom-in-95 duration-150`}
+        >
+          <div
+            className="flex items-center gap-1.5 bg-card/95 backdrop-blur-md border border-primary/40 shadow-2xl rounded-xl p-1.5 px-2.5"
+            dir="rtl"
+          >
+            <button
+              type="button"
+              onClick={() => handleDictateSelection(selectedPassageText.text)}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-bold transition-colors cursor-pointer shadow-2xs shrink-0"
+              title="הקרא בקול את הקטע המסומן בלבד"
+            >
+              <Volume2 className="h-3.5 w-3.5 shrink-0" />
+              <span>הקרא קטע נבחר</span>
+            </button>
 
-              <button
-                type="button"
-                onClick={() => setClickedWord(null)}
-                className="text-muted-foreground hover:text-foreground cursor-pointer p-0.5"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => handleTranslateSelection(selectedPassageText.text)}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border bg-secondary text-secondary-foreground hover:bg-primary/10 hover:text-primary hover:border-primary/40 text-xs font-bold transition-colors cursor-pointer shrink-0"
+              title="תרגם לעברית את הקטע המסומן בלבד"
+            >
+              <Sparkles className="h-3.5 w-3.5 text-primary shrink-0" />
+              <span>תרגם קטע נבחר</span>
+            </button>
 
-            <div className="text-right rtl pt-0.5">
-              <span className="text-base font-bold text-primary">
-                {clickedWord.loading ? "מתרגם..." : clickedWord.hebrew}
-              </span>
-            </div>
-
-            <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-1 border-t border-border/40 mt-1">
-              <span className="text-emerald-600 dark:text-emerald-400 flex items-center gap-1 font-medium">
-                <CheckCircle2 className="h-3 w-3" /> נוסף לפנקס המילים שלך!
-              </span>
-              <button
-                type="button"
-                onClick={() => {
-                  setClickedWord(null);
-                  setDrawerOpen(true);
-                }}
-                className="text-primary hover:underline cursor-pointer"
-              >
-                תרגול בפנקס &rarr;
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedPassageText(null);
+                if (typeof window !== "undefined") {
+                  window.getSelection()?.removeAllRanges();
+                }
+              }}
+              className="p-1 text-muted-foreground hover:text-foreground rounded-md cursor-pointer"
+              title="סגור"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
           </div>
         </div>
       )}
+
+      {/* Instant Translation Toast / Popup */}
+      <DraggableTranslationPopup
+        clickedWord={clickedWord}
+        isSpeechActive={speech.isActive}
+        onSpeak={handleSpeak}
+        onSaveWord={handleSaveClickedWord}
+        onClose={() => setClickedWord(null)}
+        onOpenDrawer={() => {
+          setClickedWord(null);
+          setDrawerOpen(true);
+        }}
+      />
 
       {/* Slide-out Vocabulary Drawer */}
       {drawerOpen && (
@@ -3324,7 +3939,7 @@ export default function UnseenPracticePage() {
               </div>
 
               <p className="text-xs text-muted-foreground mt-2">
-                כל מילה שלחצת עליה במהלך קריאת האנסין נשמרה כאן אוטומטית לתרגול!
+                מילים שבחרת לשמור מתוך קטעי הקריאה והתרגולים מופיעות כאן לתרגול!
               </p>
 
               <div className="mt-4 space-y-2 max-h-[calc(100vh-220px)] overflow-y-auto pr-1">
@@ -3357,7 +3972,8 @@ export default function UnseenPracticePage() {
 
             <div className="pt-4 border-t border-border flex items-center justify-between">
               <Link
-                href="/vocabulary"
+                href="/vocabulary?from=unseen"
+                onClick={saveUnseenReturnSnapshot}
                 className="w-full py-2 bg-primary text-primary-foreground text-xs font-bold rounded-lg text-center hover:bg-primary/90 transition"
               >
                 עבור לאימון מלא באוצר מילים (כרטיסיות ומשחקים) &rarr;
@@ -3726,6 +4342,78 @@ export default function UnseenPracticePage() {
               </div>
             </div>
 
+            {/* Line Spacing / Margins Between Lines for Handwritten Notes */}
+            {printScope !== "questions_only" && (
+              <div className="space-y-2 pt-2 border-t border-border/40">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-foreground">
+                    מרווח בין השורות בטקסט (לכתיבת הערות ותרגומים ביד):
+                  </label>
+                  <span className="text-[10px] font-medium text-muted-foreground">
+                    Line Spacing
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {[
+                    {
+                      id: "normal" as const,
+                      label: "רגיל",
+                      badge: "1.0x",
+                      desc: "צפוף וחסכוני בנייר",
+                    },
+                    {
+                      id: "comfortable" as const,
+                      label: "מרווח",
+                      badge: "1.5x",
+                      desc: "מקום לתרגום מילים",
+                    },
+                    {
+                      id: "double" as const,
+                      label: "כפול",
+                      badge: "2.0x",
+                      desc: "נוח להערות בכתב יד",
+                    },
+                    {
+                      id: "spacious" as const,
+                      label: "רחב מאוד",
+                      badge: "2.5x",
+                      desc: "מרווח מקסימלי לניתוח",
+                    },
+                  ].map((option) => {
+                    const isSelected = printLineSpacing === option.id;
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => setPrintLineSpacing(option.id)}
+                        className={`p-2.5 rounded-xl border text-right transition cursor-pointer flex flex-col justify-between ${
+                          isSelected
+                            ? "border-primary bg-primary/10 shadow-xs ring-2 ring-primary/30"
+                            : "border-border/60 hover:bg-muted/40"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between w-full mb-1">
+                          <span className="text-xs font-bold text-foreground">{option.label}</span>
+                          <span
+                            className={`text-[10px] px-1.5 py-0.5 rounded font-mono font-bold ${
+                              isSelected
+                                ? "bg-primary text-primary-foreground"
+                                : "bg-muted text-muted-foreground"
+                            }`}
+                          >
+                            {option.badge}
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-muted-foreground leading-tight">
+                          {option.desc}
+                        </p>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {/* Print Options */}
             <div className="space-y-2 pt-2 border-t border-border/40">
               <label className="text-xs font-bold text-foreground">התאמות דף הבחינה:</label>
@@ -4023,8 +4711,18 @@ export default function UnseenPracticePage() {
                 <span>Answer the questions according to the passage</span>
               </div>
 
-              {/* Paragraphs with friendly circular badges & comfortable line height */}
-              <div className="space-y-4 text-[13.5px] leading-[1.7] text-slate-800 text-justify">
+              {/* Paragraphs with friendly circular badges & configurable line spacing for handwritten notes */}
+              <div
+                className={`text-sm text-slate-800 text-justify ${
+                  printLineSpacing === "spacious"
+                    ? "print-line-spacing-spacious space-y-7"
+                    : printLineSpacing === "double"
+                    ? "print-line-spacing-double space-y-6"
+                    : printLineSpacing === "comfortable"
+                    ? "print-line-spacing-comfortable space-y-5"
+                    : "print-line-spacing-normal space-y-4"
+                }`}
+              >
                 {currentStory.paragraphs.map((para, idx) => (
                   <div key={idx} className="print-avoid-break flex items-start gap-2.5">
                     <span className="w-5 h-5 rounded-full bg-slate-100 border border-slate-300 text-slate-700 font-bold text-[11px] flex items-center justify-center shrink-0 mt-0.5">

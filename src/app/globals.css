@@ -196,6 +196,22 @@
   }
 }
 
+.print-line-spacing-normal {
+  line-height: 1.7 !important;
+}
+
+.print-line-spacing-comfortable {
+  line-height: 2.35 !important;
+}
+
+.print-line-spacing-double {
+  line-height: 3.1 !important;
+}
+
+.print-line-spacing-spacious {
+  line-height: 3.9 !important;
+}
+
 body {
   font-family: var(--font-sans), var(--font-hebrew), 'Alef', 'Clarity City', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }

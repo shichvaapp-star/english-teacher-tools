@@ -1,6 +1,8 @@
 import { db } from "@/lib/firebase";
 import { doc, setDoc, deleteDoc } from "firebase/firestore";
 
+export type VocabSourceType = "unseen" | "writing" | "tutor" | "manual" | "curriculum";
+
 export interface VocabItem {
   id: string;
   english: string;
@@ -8,9 +10,98 @@ export interface VocabItem {
   partOfSpeech: "noun" | "verb" | "adjective" | "adverb" | "phrase";
   example?: string;
   level?: "Easy" | "Medium" | "Hard" | "Saved from Unseen" | "Personal Word";
+  sourceType?: VocabSourceType;
+  sourceTitle?: string;
+  sourceCategory?: string;
   mastered?: boolean;
   starred?: boolean; // Favorite / priority word marked by student
   addedAt: string;
+}
+
+/**
+ * Normalizes an English vocabulary word or phrase for reliable duplicate detection.
+ * Trims, lowercases, strips outer non-alphanumeric punctuation, and collapses inner spaces.
+ */
+export function normalizeVocabWord(word: string): string {
+  if (!word) return "";
+  return word
+    .trim()
+    .toLowerCase()
+    .replace(/^[^a-zA-Z0-9]+|[^a-zA-Z0-9]+$/g, "")
+    .replace(/\s+/g, " ");
+}
+
+/**
+ * Infers structured source metadata for both new and legacy saved vocabulary items.
+ */
+export function inferVocabSource(item: VocabItem): {
+  sourceType: VocabSourceType;
+  sourceTitle?: string;
+  sourceCategory?: string;
+} {
+  if (item.sourceType) {
+    return {
+      sourceType: item.sourceType,
+      sourceTitle: item.sourceTitle,
+      sourceCategory: item.sourceCategory,
+    };
+  }
+
+  const example = item.example || "";
+  const fromMatch = example.match(/^From\s+"([^"]+)"/i);
+  if (item.level === "Saved from Unseen" || fromMatch) {
+    return {
+      sourceType: "unseen",
+      sourceTitle: item.sourceTitle || (fromMatch ? fromMatch[1] : undefined),
+      sourceCategory: item.sourceCategory || "Unseen Passage",
+    };
+  }
+
+  if (example.toLowerCase().includes("lesson with david")) {
+    return {
+      sourceType: "tutor",
+      sourceTitle: item.sourceTitle || "אימון עם המורה דוד",
+      sourceCategory: item.sourceCategory || "AI Tutor",
+    };
+  }
+
+  if (item.level === "Easy" || item.level === "Medium" || item.level === "Hard") {
+    return {
+      sourceType: "curriculum",
+      sourceTitle: item.sourceTitle || `מאגר חטיבת ביניים (${item.level})`,
+      sourceCategory: item.level,
+    };
+  }
+
+  return {
+    sourceType: "manual",
+    sourceTitle: item.sourceTitle || "הזנה ידנית",
+    sourceCategory: item.sourceCategory || "Personal Word",
+  };
+}
+
+/**
+ * Formats a concise Hebrew badge label describing the source of a vocabulary word.
+ */
+export function formatVocabSourceLabel(item: VocabItem): string {
+  const { sourceType, sourceTitle, sourceCategory } = inferVocabSource(item);
+  switch (sourceType) {
+    case "unseen":
+      return sourceTitle ? `📖 אנסין: ${sourceTitle}` : "📖 קטע קריאה (אנסין)";
+    case "writing":
+      return sourceTitle
+        ? `✍️ כתיבה: ${sourceTitle}`
+        : sourceCategory
+        ? `✍️ כתיבה (${sourceCategory})`
+        : "✍️ סדנת כתיבה";
+    case "tutor":
+      return sourceTitle ? `🤖 דוד: ${sourceTitle}` : "🤖 אימון עם דוד";
+    case "curriculum":
+      return sourceCategory ? `📚 מאגר (${sourceCategory})` : "📚 מאגר בית ספרי";
+    case "manual":
+    default:
+      return "✏️ הזנה ידנית";
+  }
 }
 
 export const MIDDLE_SCHOOL_EASY: VocabItem[] = [
@@ -55,10 +146,78 @@ export function loadSavedWords(userId?: string): VocabItem[] {
     const key = userId ? `${STORAGE_KEY}_${userId}` : `${STORAGE_KEY}_guest`;
     const raw = localStorage.getItem(key);
     if (!raw) return [];
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+
+    // Deduplicate by normalized English word and enrich legacy source fields
+    const byWord = new Map<string, VocabItem>();
+    let hadDuplicatesOrChanges = false;
+
+    for (const rawItem of parsed as VocabItem[]) {
+      if (!rawItem || typeof rawItem.english !== "string") {
+        hadDuplicatesOrChanges = true;
+        continue;
+      }
+      const norm = normalizeVocabWord(rawItem.english);
+      if (!norm) {
+        hadDuplicatesOrChanges = true;
+        continue;
+      }
+
+      const inferred = inferVocabSource(rawItem);
+      const enriched: VocabItem = {
+        ...rawItem,
+        english: norm,
+        sourceType: rawItem.sourceType || inferred.sourceType,
+        sourceTitle: rawItem.sourceTitle || inferred.sourceTitle,
+        sourceCategory: rawItem.sourceCategory || inferred.sourceCategory,
+      };
+
+      const existing = byWord.get(norm);
+      if (!existing) {
+        if (
+          rawItem.english !== norm ||
+          rawItem.sourceType !== enriched.sourceType ||
+          rawItem.sourceTitle !== enriched.sourceTitle
+        ) {
+          hadDuplicatesOrChanges = true;
+        }
+        byWord.set(norm, enriched);
+      } else {
+        hadDuplicatesOrChanges = true;
+        // Merge flags & missing fields into the retained item
+        byWord.set(norm, {
+          ...existing,
+          starred: Boolean(existing.starred || enriched.starred),
+          mastered: Boolean(existing.mastered || enriched.mastered),
+          example: existing.example || enriched.example,
+          sourceType: existing.sourceType || enriched.sourceType,
+          sourceTitle: existing.sourceTitle || enriched.sourceTitle,
+          sourceCategory: existing.sourceCategory || enriched.sourceCategory,
+        });
+      }
+    }
+
+    const deduped = Array.from(byWord.values());
+    if (hadDuplicatesOrChanges) {
+      try {
+        localStorage.setItem(key, JSON.stringify(deduped));
+      } catch {
+        // Ignore storage quota errors
+      }
+    }
+
+    return deduped;
   } catch {
     return [];
   }
+}
+
+export function isWordSaved(english: string, userId?: string): boolean {
+  const cleanEng = normalizeVocabWord(english);
+  if (!cleanEng) return false;
+  const current = loadSavedWords(userId);
+  return current.some((w) => normalizeVocabWord(w.english) === cleanEng);
 }
 
 export function saveWordToBuilder(
@@ -68,23 +227,38 @@ export function saveWordToBuilder(
     partOfSpeech?: string;
     example?: string;
     level?: "Easy" | "Medium" | "Hard" | "Saved from Unseen" | "Personal Word";
+    sourceType?: VocabSourceType;
+    sourceTitle?: string;
+    sourceCategory?: string;
   },
   userId?: string
 ): { added: boolean; item: VocabItem } {
   const chosenLevel = word.level || "Saved from Unseen";
+  const cleanEng = normalizeVocabWord(word.english);
+
+  const pos = (
+    word.partOfSpeech === "verb" ||
+    word.partOfSpeech === "adjective" ||
+    word.partOfSpeech === "adverb" ||
+    word.partOfSpeech === "phrase"
+  )
+    ? word.partOfSpeech
+    : "noun";
+
+  const defaultSourceType: VocabSourceType =
+    word.sourceType || (chosenLevel === "Saved from Unseen" ? "unseen" : "manual");
 
   if (typeof window === "undefined") {
-    const pos = (word.partOfSpeech === "verb" || word.partOfSpeech === "adjective" || word.partOfSpeech === "adverb" || word.partOfSpeech === "phrase")
-      ? word.partOfSpeech
-      : "noun";
-
     const item: VocabItem = {
       id: `w-${Date.now()}`,
-      english: word.english.trim().toLowerCase(),
+      english: cleanEng,
       hebrew: word.hebrew.trim(),
       partOfSpeech: pos,
       example: word.example || "",
       level: chosenLevel,
+      sourceType: defaultSourceType,
+      sourceTitle: word.sourceTitle,
+      sourceCategory: word.sourceCategory,
       mastered: false,
       addedAt: new Date().toISOString(),
     };
@@ -94,16 +268,49 @@ export function saveWordToBuilder(
   const key = userId ? `${STORAGE_KEY}_${userId}` : `${STORAGE_KEY}_guest`;
   const current = loadSavedWords(userId);
 
-  const cleanEng = word.english.trim().toLowerCase();
-  const existing = current.find((w) => w.english.toLowerCase() === cleanEng);
+  const existingIndex = current.findIndex(
+    (w) => normalizeVocabWord(w.english) === cleanEng
+  );
 
-  if (existing) {
+  if (existingIndex !== -1) {
+    const existing = current[existingIndex];
+    // Enrich existing item with source metadata or example if missing, without creating a duplicate
+    const needsEnrich =
+      (!existing.sourceTitle && word.sourceTitle) ||
+      (!existing.sourceCategory && word.sourceCategory) ||
+      (!existing.example && word.example);
+
+    if (needsEnrich) {
+      const updatedExisting: VocabItem = {
+        ...existing,
+        example: existing.example || word.example || "",
+        sourceType: existing.sourceType || defaultSourceType,
+        sourceTitle: existing.sourceTitle || word.sourceTitle,
+        sourceCategory: existing.sourceCategory || word.sourceCategory,
+      };
+      const nextList = [...current];
+      nextList[existingIndex] = updatedExisting;
+      try {
+        localStorage.setItem(key, JSON.stringify(nextList));
+      } catch {}
+      return { added: false, item: updatedExisting };
+    }
+
     return { added: false, item: existing };
   }
 
-  const pos = (word.partOfSpeech === "verb" || word.partOfSpeech === "adjective" || word.partOfSpeech === "adverb" || word.partOfSpeech === "phrase")
-    ? word.partOfSpeech
-    : "noun";
+  const inferred = inferVocabSource({
+    id: "",
+    english: cleanEng,
+    hebrew: word.hebrew.trim(),
+    partOfSpeech: pos,
+    example: word.example || "",
+    level: chosenLevel,
+    sourceType: word.sourceType,
+    sourceTitle: word.sourceTitle,
+    sourceCategory: word.sourceCategory,
+    addedAt: "",
+  });
 
   const newItem: VocabItem = {
     id: `w-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
@@ -112,6 +319,9 @@ export function saveWordToBuilder(
     partOfSpeech: pos,
     example: word.example || "",
     level: chosenLevel,
+    sourceType: inferred.sourceType,
+    sourceTitle: inferred.sourceTitle,
+    sourceCategory: inferred.sourceCategory,
     mastered: false,
     addedAt: new Date().toISOString(),
   };

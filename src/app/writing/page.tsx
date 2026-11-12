@@ -22,7 +22,7 @@ import {
   TaskCategory,
 } from "@/data/writing-tasks";
 import { lookupBuiltInTranslation } from "@/data/built-in-dictionary";
-import { loadSavedWords, saveWordToBuilder, VocabItem } from "@/lib/vocab-storage";
+import { loadSavedWords, saveWordToBuilder, VocabItem, normalizeVocabWord } from "@/lib/vocab-storage";
 import { recordTaskCompletion, submitTaskToDavid, resolveFocusWordToReviewItem } from "@/lib/tutor-engine";
 import { TutorVocabReviewItem } from "@/types/tutor";
 import { TeacherAssignment } from "@/types/assignment";
@@ -279,7 +279,7 @@ export default function WritingPracticePage() {
   const [lastSavedTimeText, setLastSavedTimeText] = useState<string | null>(null);
   const [activeDraftPrompt, setActiveDraftPrompt] = useState<InProgressWorkItem | null>(null);
 
-  // Check for saved draft for the current task
+  // Check for saved draft for the current task and auto-restore by default
   useEffect(() => {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
@@ -297,9 +297,32 @@ export default function WritingPracticePage() {
 
     if (matched && matched.type === "writing") {
       const payload = matched.payload as any;
-      if (payload && payload.essayText && (!essayText || essayText.trim() === "")) {
+      if (payload && payload.essayText) {
+        if (payload.taskData) {
+          const savedTask = payload.taskData as WritingTask;
+          setTasks((prev) => [savedTask, ...prev.filter((t) => t.id !== savedTask.id)]);
+          setSelectedLevel(savedTask.level || payload.writingLevel || "Level 2");
+          setSelectedTaskId(savedTask.id);
+        } else if (payload.taskId && payload.taskId !== currentTask.id) {
+          const found = ALL_WRITING_TASKS.find((t) => t.id === payload.taskId);
+          if (found) {
+            setSelectedLevel(found.level);
+            setSelectedTaskId(found.id);
+          }
+        }
+        setEssayText(payload.essayText);
+        if (payload.customTopic?.prompt) {
+          setCustomTopicInput(payload.customTopic.prompt);
+        }
+        if (draftIdParam || params.get("task") || params.get("assignmentId")) {
+          setStage("writing");
+        }
         setActiveDraftPrompt(matched);
+      } else {
+        setActiveDraftPrompt(null);
       }
+    } else {
+      setActiveDraftPrompt(null);
     }
   }, [currentTask.id, currentAssignmentId]);
 
@@ -316,9 +339,12 @@ export default function WritingPracticePage() {
     }
   };
 
-  // Discard draft handler
+  // Discard draft and reset essay to start fresh
   const handleDiscardDraft = (draft: InProgressWorkItem) => {
     deleteDraft(draft.id, user?.id);
+    setEssayText("");
+    setCustomTopicInput("");
+    setFeedback(null);
     setActiveDraftPrompt(null);
   };
 
@@ -353,6 +379,7 @@ export default function WritingPracticePage() {
           taskId: currentTask.id,
           writingLevel: selectedLevel,
           essayText,
+          taskData: currentTask,
           customTopic: customTopicInput ? { prompt: customTopicInput } : undefined,
         },
       });
@@ -361,7 +388,7 @@ export default function WritingPracticePage() {
     }, 1200);
 
     return () => clearTimeout(timer);
-  }, [essayText, stage, currentTask.id, selectedLevel, currentAssignmentId, user?.id, user?.name, customTopicInput]);
+  }, [essayText, stage, currentTask, selectedLevel, currentAssignmentId, user?.id, user?.name, customTopicInput]);
 
   // Save and exit back to student portal
   const handleSaveAndExit = async () => {
@@ -390,6 +417,7 @@ export default function WritingPracticePage() {
           taskId: currentTask.id,
           writingLevel: selectedLevel,
           essayText,
+          taskData: currentTask,
           customTopic: customTopicInput ? { prompt: customTopicInput } : undefined,
         },
       });
@@ -1259,28 +1287,39 @@ export default function WritingPracticePage() {
         <div className="bg-primary/10 border-b border-primary/25 px-4 py-3 print:hidden" dir="rtl">
           <div className="container mx-auto max-w-4xl flex flex-wrap items-center justify-between gap-3 text-xs">
             <div className="flex items-center gap-2">
-              <Clock className="h-4 w-4 text-primary shrink-0" />
+              <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
               <span className="font-bold text-foreground">
-                נמצאה טיוטת כתיבה שנשמרה לאחרונה ({activeDraftPrompt.summaryText}):
+                נטענה אוטומטית טיוטת הכתיבה השמורה שלך ({activeDraftPrompt.summaryText}):
               </span>
               <span className="text-muted-foreground font-medium">{activeDraftPrompt.hebrewTitle || activeDraftPrompt.title}</span>
             </div>
             <div className="flex items-center gap-2">
-              <Button
-                size="sm"
-                onClick={() => handleRestoreDraft(activeDraftPrompt)}
-                className="h-7 text-xs font-bold bg-primary text-primary-foreground hover:bg-primary/90 cursor-pointer gap-1"
-              >
-                <RotateCcw className="h-3 w-3" />
-                <span>המשך מהטיוטה</span>
-              </Button>
+              {stage === "settings" ? (
+                <Button
+                  size="sm"
+                  onClick={() => handleRestoreDraft(activeDraftPrompt)}
+                  className="h-7 text-xs font-bold bg-primary text-primary-foreground hover:bg-primary/90 cursor-pointer gap-1"
+                >
+                  <span>המשך לכתיבה</span>
+                </Button>
+              ) : (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setActiveDraftPrompt(null)}
+                  className="h-7 text-xs cursor-pointer"
+                >
+                  הסתר הודעה
+                </Button>
+              )}
               <Button
                 size="sm"
                 variant="ghost"
                 onClick={() => handleDiscardDraft(activeDraftPrompt)}
-                className="h-7 text-xs text-muted-foreground hover:text-destructive cursor-pointer"
+                className="h-7 text-xs text-muted-foreground hover:text-destructive cursor-pointer gap-1"
               >
-                מחק טיוטה
+                <RotateCcw className="h-3 w-3" />
+                <span>אפס והתחל מחדש</span>
               </Button>
             </div>
           </div>
@@ -1881,39 +1920,53 @@ export default function WritingPracticePage() {
                         <span className="font-bold text-foreground ltr">{dictResult.english}</span>
                         <span className="text-muted-foreground mr-1">({dictResult.hebrew})</span>
                       </div>
-                      <div className="flex items-center gap-1.5">
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => {
-                            saveWordToBuilder(
-                              {
-                                english: dictResult.english,
-                                hebrew: dictResult.hebrew,
-                                level: "Personal Word",
-                              },
-                              user?.id
-                            );
-                            setSavedWords(loadSavedWords(user?.id));
-                          }}
-                          className="h-6 text-[11px] gap-1 cursor-pointer text-muted-foreground hover:text-foreground"
-                          title="שמור לפנקס המילים"
-                        >
-                          <BookMarked className="h-3 w-3 text-primary" />
-                          <span>שמור לפנקס</span>
-                        </Button>
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => handleInsertText(dictResult.english)}
-                          className="h-6 text-[11px] gap-1 cursor-pointer text-primary"
-                        >
-                          <Plus className="h-3 w-3" />
-                          <span>הוסף לחיבור</span>
-                        </Button>
-                      </div>
+                      {dictResult.hebrew !== "לא נמצא תרגום" && dictResult.hebrew !== "שגיאה בחיפוש" && (
+                        <div className="flex items-center gap-1.5">
+                          {savedWords.some(
+                            (w) => normalizeVocabWord(w.english) === normalizeVocabWord(dictResult.english)
+                          ) ? (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 px-1.5">
+                              <Check className="h-3 w-3" />
+                              <span>נשמר בפנקס</span>
+                            </span>
+                          ) : (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => {
+                                saveWordToBuilder(
+                                  {
+                                    english: dictResult.english,
+                                    hebrew: dictResult.hebrew,
+                                    level: "Personal Word",
+                                    sourceType: "writing",
+                                    sourceTitle: currentTask.title,
+                                    sourceCategory: currentTask.category,
+                                  },
+                                  user?.id
+                                );
+                                setSavedWords(loadSavedWords(user?.id));
+                              }}
+                              className="h-6 text-[11px] gap-1 cursor-pointer text-muted-foreground hover:text-foreground"
+                              title="שמור לפנקס המילים"
+                            >
+                              <BookMarked className="h-3 w-3 text-primary" />
+                              <span>שמור לפנקס</span>
+                            </Button>
+                          )}
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleInsertText(dictResult.english)}
+                            className="h-6 text-[11px] gap-1 cursor-pointer text-primary"
+                          >
+                            <Plus className="h-3 w-3" />
+                            <span>הוסף לחיבור</span>
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -2294,38 +2347,52 @@ export default function WritingPracticePage() {
                             <span className="font-bold text-foreground ltr">{dictResult.english}</span>
                             <span className="text-muted-foreground mr-1">({dictResult.hebrew})</span>
                           </div>
-                          <div className="flex items-center gap-1.5">
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => {
-                                saveWordToBuilder(
-                                  {
-                                    english: dictResult.english,
-                                    hebrew: dictResult.hebrew,
-                                    level: "Personal Word",
-                                  },
-                                  user?.id
-                                );
-                                setSavedWords(loadSavedWords(user?.id));
-                              }}
-                              className="h-6 text-[11px] gap-1 cursor-pointer text-muted-foreground hover:text-foreground"
-                            >
-                              <BookMarked className="h-3 w-3 text-primary" />
-                              <span>שמור לפנקס</span>
-                            </Button>
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => handleInsertText(dictResult.english)}
-                              className="h-6 text-[11px] gap-1 cursor-pointer text-primary"
-                            >
-                              <Plus className="h-3 w-3" />
-                              <span>הוסף לחיבור</span>
-                            </Button>
-                          </div>
+                          {dictResult.hebrew !== "לא נמצא תרגום" && dictResult.hebrew !== "שגיאה בחיפוש" && (
+                            <div className="flex items-center gap-1.5">
+                              {savedWords.some(
+                                (w) => normalizeVocabWord(w.english) === normalizeVocabWord(dictResult.english)
+                              ) ? (
+                                <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 px-1.5">
+                                  <Check className="h-3 w-3" />
+                                  <span>נשמר בפנקס</span>
+                                </span>
+                              ) : (
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => {
+                                    saveWordToBuilder(
+                                      {
+                                        english: dictResult.english,
+                                        hebrew: dictResult.hebrew,
+                                        level: "Personal Word",
+                                        sourceType: "writing",
+                                        sourceTitle: currentTask.title,
+                                        sourceCategory: currentTask.category,
+                                      },
+                                      user?.id
+                                    );
+                                    setSavedWords(loadSavedWords(user?.id));
+                                  }}
+                                  className="h-6 text-[11px] gap-1 cursor-pointer text-muted-foreground hover:text-foreground"
+                                >
+                                  <BookMarked className="h-3 w-3 text-primary" />
+                                  <span>שמור לפנקס</span>
+                                </Button>
+                              )}
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleInsertText(dictResult.english)}
+                                className="h-6 text-[11px] gap-1 cursor-pointer text-primary"
+                              >
+                                <Plus className="h-3 w-3" />
+                                <span>הוסף לחיבור</span>
+                              </Button>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>

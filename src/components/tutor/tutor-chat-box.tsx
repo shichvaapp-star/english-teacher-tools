@@ -30,6 +30,7 @@ import { TutorChatMessageContent } from "./tutor-chat-message-content";
 import { useAuth } from "@/lib/auth-context";
 import {
   saveWordToBuilder,
+  isWordSaved,
   MIDDLE_SCHOOL_EASY,
   MIDDLE_SCHOOL_MEDIUM,
   MIDDLE_SCHOOL_HARD,
@@ -153,6 +154,9 @@ function TurnInLessonFlowCard({
           wordObj.exampleSentence ||
           `We practiced the word "${wordObj.word}" in our lesson with David.`,
         level: "Personal Word",
+        sourceType: "tutor",
+        sourceTitle: turnIn.taskTitle || "אימון עם המורה דוד",
+        sourceCategory: turnIn.type || "Tutor",
       },
       studentId && studentId !== "guest" ? studentId : undefined
     );
@@ -167,8 +171,6 @@ function TurnInLessonFlowCard({
       setKnownCount((c) => c + 1);
       onSpeak(`Correct! ${currentWord.word}`);
     } else {
-      // Automatically add missed word to Personal Dictionary!
-      handleSaveCurrentWord(currentWord);
       onSpeak(currentWord.word);
     }
   };
@@ -176,8 +178,6 @@ function TurnInLessonFlowCard({
   const handleDontKnow = () => {
     if (!currentWord || selectedChoice !== null || didNotKnow) return;
     setDidNotKnow(true);
-    // Automatically add unknown word to Personal Dictionary!
-    handleSaveCurrentWord(currentWord);
     onSpeak(currentWord.word);
   };
 
@@ -333,7 +333,7 @@ function TurnInLessonFlowCard({
           </div>
         )}
 
-        {/* STEP 2: 5-8 WORD VOCABULARY QUIZ + AUTO PERSONAL DICTIONARY */}
+        {/* STEP 2: 5-8 WORD VOCABULARY QUIZ + OPTIONAL PERSONAL DICTIONARY SAVE */}
         {step === "vocab" && currentWord && (
           <div className="space-y-4 animate-in fade-in duration-200">
             <div className="flex items-center justify-between text-xs text-muted-foreground">
@@ -342,7 +342,7 @@ function TurnInLessonFlowCard({
                 <strong className="text-foreground">{words.length}</strong>
               </span>
               <span className="text-[11px] text-indigo-600 dark:text-indigo-400 font-semibold">
-                📌 מילה שלא תדע/י תישמר אוטומטית במילון האישי שלך!
+                📌 ניתן לשמור מילים שתרצה/י לתרגל במילון האישי שלך!
               </span>
             </div>
 
@@ -410,7 +410,7 @@ function TurnInLessonFlowCard({
                 })}
               </div>
 
-              {/* Explicit "I don't know - save to Personal Dictionary" button */}
+              {/* Explicit "I don't know - show translation" button */}
               {selectedChoice === null && !didNotKnow && (
                 <button
                   type="button"
@@ -418,7 +418,7 @@ function TurnInLessonFlowCard({
                   className="w-full mt-1 py-2 px-3 rounded-xl border border-dashed border-indigo-500/50 bg-indigo-500/5 hover:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
                 >
                   <HelpCircle className="h-3.5 w-3.5" />
-                  <span>לא יודע/ת עדיין – הצג פירוש ושמור במילון האישי שלי 📌</span>
+                  <span>לא יודע/ת עדיין – הצג פירוש 💡</span>
                 </button>
               )}
             </div>
@@ -438,10 +438,14 @@ function TurnInLessonFlowCard({
                     </span>
                   )}
 
-                  {savedWordsMap[currentWord.word.toLowerCase()] ? (
+                  {savedWordsMap[currentWord.word.toLowerCase()] ||
+                  isWordSaved(
+                    currentWord.word,
+                    studentId && studentId !== "guest" ? studentId : undefined
+                  ) ? (
                     <Badge className="bg-emerald-600 text-white text-[11px] font-bold gap-1">
                       <BookMarked className="h-3 w-3" />
-                      <span>נשמר אוטומטית במילון האישי שלך! 📌</span>
+                      <span>נשמר במילון האישי שלך! 📌</span>
                     </Badge>
                   ) : (
                     <Button
@@ -499,7 +503,7 @@ function TurnInLessonFlowCard({
                   <p className="text-xs font-bold text-foreground flex items-center gap-1.5">
                     <BookMarked className="h-3.5 w-3.5 text-indigo-600" />
                     <span>
-                      {savedWordsList.length} מילים חדשות נשמרו אוטומטית במילון האישי שלך לתרגול חוזר:
+                      {savedWordsList.length} מילים נשמרו במילון האישי שלך לתרגול חוזר:
                     </span>
                   </p>
                   <div className="flex flex-wrap gap-1.5 pt-0.5">

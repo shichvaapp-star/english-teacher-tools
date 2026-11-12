@@ -82,7 +82,7 @@ function getVoiceAccent(v: SpeechSynthesisVoice): "US" | "UK" | "AU" | "Other" {
   return "Other";
 }
 
-export function useSpeechPlayer(paragraphs: string[]) {
+export function useSpeechPlayer(paragraphs: string[], title?: string) {
   const [isActive, setIsActive] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
@@ -109,10 +109,24 @@ export function useSpeechPlayer(paragraphs: string[]) {
   currentSentenceRef.current = currentSentenceIndex;
   rateRef.current = rate;
 
-  // 1. Break paragraphs into structured sentences
+  // 1. Break title and paragraphs into structured sentences
   const sentences: SpeechSentence[] = useMemo(() => {
     const list: SpeechSentence[] = [];
     let globalIdx = 0;
+
+    if (title && title.trim()) {
+      const cleanTitle = title.trim();
+      if (/[a-zA-Z0-9]/.test(cleanTitle)) {
+        list.push({
+          id: `title-${globalIdx}`,
+          paragraphIndex: -1,
+          sentenceIndexInParagraph: 0,
+          globalIndex: globalIdx,
+          text: cleanTitle,
+        });
+        globalIdx++;
+      }
+    }
 
     paragraphs.forEach((para, pIdx) => {
       if (!para || !para.trim()) return;
@@ -142,7 +156,7 @@ export function useSpeechPlayer(paragraphs: string[]) {
     });
 
     return list;
-  }, [paragraphs]);
+  }, [paragraphs, title]);
 
   // 2. Discover and curate English natural voices
   useEffect(() => {
@@ -267,7 +281,7 @@ export function useSpeechPlayer(paragraphs: string[]) {
         keepAliveIntervalRef.current = null;
       }
     };
-  }, [paragraphs]);
+  }, [paragraphs, title]);
 
   // 3. Play a specific sentence by index (with automatic fallback to default voice if custom voice fails)
   const playSentence = useCallback(
@@ -333,10 +347,11 @@ export function useSpeechPlayer(paragraphs: string[]) {
 
           const nextIndex = currentSentenceRef.current + 1;
           if (nextIndex < sentences.length) {
-            // Add a natural 180ms breath pause between sentences for realistic human cadence
+            // Add a natural breath pause between sentences (slightly longer after the title)
+            const pauseMs = sentenceObj.paragraphIndex === -1 ? 350 : 180;
             interSentenceTimeoutRef.current = setTimeout(() => {
               playSentence(nextIndex);
-            }, 180);
+            }, pauseMs);
           } else {
             // Finished entire passage
             setIsPlaying(false);
