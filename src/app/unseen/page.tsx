@@ -32,7 +32,7 @@ import { UnseenAudioDock } from "@/components/unseen/unseen-audio-dock";
 import { DraggableTranslationPopup } from "@/components/unseen/draggable-translation-popup";
 import { Confetti } from "@/components/confetti";
 import { saveDraft, deleteDraft, getDraftById } from "@/lib/drafts-storage";
-import type { InProgressWorkItem } from "@/types/draft";
+import type { InProgressWorkItem, UnseenDraftPayload } from "@/types/draft";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -707,7 +707,7 @@ export default function UnseenPracticePage() {
         utterance.voice = preferred;
       }
 
-      const w = window as any;
+      const w = window;
       w.__questionUtterance = utterance;
       setIsSpeakingQuestion(true);
       setSpeakingQuestionId(id || text);
@@ -829,7 +829,7 @@ export default function UnseenPracticePage() {
     }
 
     if (matched && matched.type === "unseen") {
-      const payload = matched.payload as any;
+      const payload = matched.payload as UnseenDraftPayload;
       const ans = payload?.userAnswers;
       if (ans && Object.keys(ans).length > 0 && !isSubmitted) {
         const savedStory: MSUnseenStory | undefined = payload.storyData || payload.aiStoryData;
@@ -862,7 +862,7 @@ export default function UnseenPracticePage() {
 
   // Restore draft handler
   const handleRestoreDraft = (draft: InProgressWorkItem) => {
-    const payload = draft.payload as any;
+    const payload = draft.payload as UnseenDraftPayload;
     if (payload?.userAnswers) {
       setUserAnswers(payload.userAnswers);
       if (payload.checkedQuestions) setCheckedQuestions(payload.checkedQuestions);
@@ -1221,11 +1221,11 @@ export default function UnseenPracticePage() {
     const hasDraftAnswers =
       existingDraft &&
       existingDraft.type === "unseen" &&
-      (existingDraft.payload as any)?.userAnswers &&
-      Object.keys((existingDraft.payload as any).userAnswers).length > 0;
+      (existingDraft.payload as UnseenDraftPayload).userAnswers &&
+      Object.keys((existingDraft.payload as UnseenDraftPayload).userAnswers).length > 0;
 
     if (hasDraftAnswers) {
-      const payload = existingDraft.payload as any;
+      const payload = existingDraft.payload as UnseenDraftPayload;
       setUserAnswers(payload.userAnswers);
       if (payload.checkedQuestions) setCheckedQuestions(payload.checkedQuestions);
       if (payload.activeQuestionIndex !== undefined) setActiveQuestionIndex(payload.activeQuestionIndex);
@@ -1749,7 +1749,7 @@ export default function UnseenPracticePage() {
       }
 
       // Prevent GC in Chrome/Safari
-      const w = window as any;
+      const w = window;
       w.__unseenWordUtterance = utterance;
 
       utterance.onend = () => {

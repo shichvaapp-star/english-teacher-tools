@@ -20,7 +20,7 @@ export interface CuratedVoice {
 // Prevent garbage collection in Chrome / Safari V8 engines
 function retainUtterance(u: SpeechSynthesisUtterance) {
   if (typeof window === "undefined") return;
-  const w = window as any;
+  const w = window;
   if (!w.__speechUtteranceSet) {
     w.__speechUtteranceSet = new Set<SpeechSynthesisUtterance>();
   }
@@ -29,7 +29,7 @@ function retainUtterance(u: SpeechSynthesisUtterance) {
 
 function releaseUtterance(u: SpeechSynthesisUtterance) {
   if (typeof window === "undefined") return;
-  const w = window as any;
+  const w = window;
   if (w.__speechUtteranceSet) {
     w.__speechUtteranceSet.delete(u);
   }
@@ -196,7 +196,7 @@ export function useSpeechPlayer(paragraphs: string[], title?: string) {
             _score: score,
           };
         })
-        .sort((a, b) => (b as any)._score - (a as any)._score);
+        .sort((a, b) => b._score - a._score);
 
       setVoices(curated);
 

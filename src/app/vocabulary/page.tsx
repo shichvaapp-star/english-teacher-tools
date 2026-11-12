@@ -32,7 +32,7 @@ import { cleanForFirestore, cn } from "@/lib/utils";
 import { TeacherAssignment } from "@/types/assignment";
 import { SubmissionItem } from "@/types/submission";
 import { saveDraft, deleteDraft, getDraftById } from "@/lib/drafts-storage";
-import type { InProgressWorkItem } from "@/types/draft";
+import type { InProgressWorkItem, VocabDraftPayload } from "@/types/draft";
 import { Confetti } from "@/components/confetti";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -164,7 +164,8 @@ export default function VocabularyPage() {
               id: w.id || `assign-word-${idx}`,
               english: w.english,
               hebrew: w.hebrew,
-              partOfSpeech: (w.partOfSpeech as any) || "noun",
+              // The practice deck has no "preposition" category; show those as phrases.
+              partOfSpeech: w.partOfSpeech === "preposition" ? "phrase" : w.partOfSpeech || "noun",
               example: w.example || "",
               level: "Personal Word",
               mastered: false,
@@ -273,9 +274,9 @@ export default function VocabularyPage() {
     }
 
     if (matched && matched.type === "vocab") {
-      const payload = matched.payload as any;
+      const payload = matched.payload as VocabDraftPayload;
       if (
-        (payload?.cardIndex > 0 || (payload?.masteredIds && payload.masteredIds.length > 0) || payload?.quizIndex > 0) &&
+        ((payload.cardIndex ?? 0) > 0 || (payload.masteredIds && payload.masteredIds.length > 0) || (payload.quizIndex ?? 0) > 0) &&
         cardIndex === 0 &&
         masteredIds.size === 0 &&
         quizIndex === 0
@@ -770,7 +771,7 @@ export default function VocabularyPage() {
         utterance.voice = preferred;
       }
 
-      const w = window as any;
+      const w = window;
       w.__vocabUtterance = utterance;
       setSpeakingWord(text);
 
@@ -1544,7 +1545,7 @@ export default function VocabularyPage() {
               <select
                 value={sortOption}
                 onChange={(e) => {
-                  setSortOption(e.target.value as any);
+                  setSortOption(e.target.value as typeof sortOption);
                   setCardIndex(0);
                 }}
                 className="h-8 px-2.5 py-1 rounded-lg border border-border bg-background text-xs text-foreground cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary font-medium"

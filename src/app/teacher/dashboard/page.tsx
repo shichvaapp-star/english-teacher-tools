@@ -81,6 +81,8 @@ const LOCAL_SUBMISSIONS_KEY = "ett_writing_submissions";
 const LOCAL_ASSIGNMENTS_KEY = "ett_teacher_assignments";
 const LOCAL_SUGGESTIONS_KEY = "ett_site_suggestions";
 
+const WRITING_LEVELS = ["Level 1", "Level 2", "Level 3"] as const;
+
 export default function TeacherDashboardPage() {
   const {
     user,
@@ -745,7 +747,7 @@ export default function TeacherDashboardPage() {
             taskTitle: matchedTask?.title || sub.taskTitle || sub.hebrewTitle,
             prompt: matchedTask?.prompt || sub.hebrewTitle || sub.taskTitle,
             category: matchedTask?.category || sub.category || "opinion",
-            level: matchedTask?.level || (sub.storyLevel as any) || "Level 2",
+            level: matchedTask?.level || WRITING_LEVELS.find((l) => l === sub.storyLevel) || "Level 2",
             minWords: matchedTask?.minWords || 15,
             maxWords: matchedTask?.maxWords || 120,
           }),

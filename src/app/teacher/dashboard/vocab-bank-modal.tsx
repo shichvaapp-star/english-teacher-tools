@@ -422,7 +422,7 @@ export function VocabBankModal({
               )}
             </div>
 
-            <Tabs value={sourceTab} onValueChange={(v) => setSourceTab(v as any)}>
+            <Tabs value={sourceTab} onValueChange={(v) => setSourceTab(v as typeof sourceTab)}>
               <TabsList className="grid grid-cols-3 h-8.5 p-1 w-full max-w-md">
                 <TabsTrigger value="upload" className="text-xs gap-1.5">
                   <Upload className="h-3 w-3" />
@@ -505,7 +505,7 @@ book: ספר`}
                     />
                     <select
                       value={newPos}
-                      onChange={(e) => setNewPos(e.target.value as any)}
+                      onChange={(e) => setNewPos(e.target.value as typeof newPos)}
                       className="h-8 px-2 rounded-lg border border-border bg-background text-xs cursor-pointer"
                     >
                       <option value="noun">שם עצם (noun)</option>

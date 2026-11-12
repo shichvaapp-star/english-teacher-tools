@@ -576,7 +576,7 @@ export function TutorChatBox({
   const [diagnosticAnswers, setDiagnosticAnswers] = useState<DiagnosticAnswer[]>([]);
 
   const chatEndRef = useRef<HTMLDivElement>(null);
-  const recognitionRef = useRef<any>(null);
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const selectedVoiceRef = useRef<SpeechSynthesisVoice | null>(null);
   const [showMenu, setShowMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -909,7 +909,7 @@ export function TutorChatBox({
     if (typeof window === "undefined") return;
 
     const SpeechRecognition =
-      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      window.SpeechRecognition || window.webkitSpeechRecognition;
 
     if (!SpeechRecognition) {
       alert("Voice input is not supported in this browser. Please type your message.");
@@ -932,7 +932,7 @@ export function TutorChatBox({
       recognition.onend = () => setIsListening(false);
       recognition.onerror = () => setIsListening(false);
 
-      recognition.onresult = (event: any) => {
+      recognition.onresult = (event) => {
         const transcript = event.results[0][0].transcript;
         if (transcript) {
           setInputText((prev) => (prev ? `${prev} ${transcript}` : transcript));

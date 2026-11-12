@@ -29,7 +29,7 @@ import { TeacherAssignment } from "@/types/assignment";
 import type { WritingEvaluationResult } from "@/app/api/evaluate-writing/route";
 import type { ScaffoldingResult } from "@/app/api/scaffold-writing/route";
 import { saveDraft, deleteDraft, getDraftById } from "@/lib/drafts-storage";
-import type { InProgressWorkItem } from "@/types/draft";
+import type { InProgressWorkItem, WritingDraftPayload } from "@/types/draft";
 import {
   PenTool,
   ArrowLeft,
@@ -90,7 +90,7 @@ interface SubmissionRecord {
   receiptCode: string;
   status: "submitted" | "reviewed" | "completed";
   mode?: "practice" | "graded";
-  writingRubric?: any;
+  writingRubric?: WritingEvaluationResult["rubric"];
 }
 
 const LOCAL_SUBMISSIONS_KEY = "ett_writing_submissions";
@@ -298,7 +298,7 @@ export default function WritingPracticePage() {
     }
 
     if (matched && matched.type === "writing") {
-      const payload = matched.payload as any;
+      const payload = matched.payload as WritingDraftPayload;
       if (payload && payload.essayText) {
         if (payload.taskData) {
           const savedTask = payload.taskData as WritingTask;
@@ -330,7 +330,7 @@ export default function WritingPracticePage() {
 
   // Restore draft handler
   const handleRestoreDraft = (draft: InProgressWorkItem) => {
-    const payload = draft.payload as any;
+    const payload = draft.payload as WritingDraftPayload;
     if (payload?.essayText) {
       setEssayText(payload.essayText);
       if (payload.customTopic?.prompt) {
@@ -570,7 +570,7 @@ export default function WritingPracticePage() {
         utterance.lang = "en-US";
         utterance.rate = selectedLevel === "Level 1" ? 0.85 : 0.95;
 
-        const w = window as any;
+        const w = window;
         w.__writingUtterance = utterance;
 
         utterance.onend = () => {
@@ -775,7 +775,7 @@ export default function WritingPracticePage() {
             receiptCode: `PRACTICE-WR-${Math.floor(100000 + Math.random() * 900000)}`,
             status: "completed",
             mode: "practice",
-            writingRubric: data.evaluation,
+            writingRubric: data.evaluation.rubric,
           };
           const existingJson = localStorage.getItem(LOCAL_SUBMISSIONS_KEY);
           const list: SubmissionRecord[] = existingJson ? JSON.parse(existingJson) : [];

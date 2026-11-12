@@ -3,6 +3,8 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { toPartOfSpeech } from "@/types/vocabulary";
+import type { ConversationDraftPayload } from "@/types/draft";
 import { useAuth } from "@/lib/auth-context";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { UserNav } from "@/components/auth/user-nav";
@@ -340,7 +342,7 @@ export default function ConversationPracticePage() {
 
     const matched = getDraftById(targetDraftId);
     if (matched && matched.type === "conversation") {
-      const payload = matched.payload as any;
+      const payload = matched.payload as ConversationDraftPayload;
       if (payload?.userAnswers && Object.keys(payload.userAnswers).length > 0 && !isSubmitted) {
         if (payload.scenarioData) {
           const restored = payload.scenarioData as ConversationScenario;
@@ -618,7 +620,7 @@ export default function ConversationPracticePage() {
       {
         english: clickedWord.word,
         hebrew: clickedWord.hebrew,
-        partOfSpeech: (clickedWord.partOfSpeech as any) || "phrase",
+        partOfSpeech: toPartOfSpeech(clickedWord.partOfSpeech) || "phrase",
         example: clickedWord.example || `From "${currentScenario.title}"`,
         level: "Personal Word",
         sourceType: "conversation",
