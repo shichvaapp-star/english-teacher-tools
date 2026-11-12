@@ -418,6 +418,32 @@ export default function UnseenPracticePage() {
   const [isFromDavid, setIsFromDavid] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars -- parked until the David tutor is re-enabled
   const [isTurningInToDavid, setIsTurningInToDavid] = useState(false);
+  // Core exercise state. Declared before the snapshot-restore effect below, which sets it.
+  // Level Selection (No grade references)
+  const [selectedLevel, setSelectedLevel] = useState<"Level 1" | "Level 2" | "Level 3">("Level 2");
+  // Mode Selection: Practice (immediate feedback) vs. Graded (submit for score)
+  const [mode, setMode] = useState<"practice" | "graded">("practice");
+  // Active Story (starts on the first story of the default level)
+  const [selectedStoryId, setSelectedStoryId] = useState<string>(
+    () => MIDDLE_SCHOOL_UNSEENS.find((s) => s.level === "Level 2")?.id || MIDDLE_SCHOOL_UNSEENS[0].id
+  );
+  // Active Question in 10-Question navigation
+  const [activeQuestionIndex, setActiveQuestionIndex] = useState(0);
+  // Answers & Checking
+  const [userAnswers, setUserAnswers] = useState<Record<string, string | number>>({});
+  const [checkedQuestions, setCheckedQuestions] = useState<Record<string, boolean>>({});
+  const [practiceEvaluation, setPracticeEvaluation] = useState<
+    Record<string, { points: number; feedback: string }>
+  >({});
+  // Graded Mode Submission State
+  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [gradedScore, setGradedScore] = useState<number | null>(null);
+  const [submissionRecord, setSubmissionRecord] = useState<SubmissionItem | null>(null);
+  // Saved Words in Notebook Drawer
+  const [savedWords, setSavedWords] = useState<VocabItem[]>(() => loadSavedWords(user?.id));
+  // Font Size
+  const [fontSize, setFontSize] = useState<"sm" | "base" | "lg">("base");
+
   const isHydratedSnapshotRef = React.useRef(false);
 
   React.useEffect(() => {
@@ -534,17 +560,10 @@ export default function UnseenPracticePage() {
     }
   }, []);
 
-  // Level Selection (No grade references)
-  const [selectedLevel, setSelectedLevel] = useState<"Level 1" | "Level 2" | "Level 3">("Level 2");
-
-  // Mode Selection: Practice (immediate feedback) vs. Graded (submit for score)
-  const [mode, setMode] = useState<"practice" | "graded">("practice");
-
   // Filtered stories for selected level
   const levelStories = stories.filter((s) => s.level === selectedLevel);
 
   // Active Story
-  const [selectedStoryId, setSelectedStoryId] = useState<string>(levelStories[0]?.id || MIDDLE_SCHOOL_UNSEENS[0].id);
   const currentStory: MSUnseenStory =
     stories.find((s) => s.id === selectedStoryId) || levelStories[0] || MIDDLE_SCHOOL_UNSEENS[0];
 
@@ -587,6 +606,7 @@ export default function UnseenPracticePage() {
   const handleRandomStorySelect = () => {
     if (levelStories.length === 0) return;
     const pool = filteredLibraryStories.length > 0 ? filteredLibraryStories : levelStories;
+    // eslint-disable-next-line react-hooks/purity -- runs only in the click handler, not during render
     const randomIndex = Math.floor(Math.random() * pool.length);
     const chosen = pool[randomIndex];
     if (chosen) {
@@ -629,25 +649,14 @@ export default function UnseenPracticePage() {
   };
 
   // Active Question in 10-Question navigation
-  const [activeQuestionIndex, setActiveQuestionIndex] = useState(0);
   const activeQuestion: MSUnseenQuestion = currentStory.questions[activeQuestionIndex] || currentStory.questions[0];
 
-  // Answers & Checking
-  const [userAnswers, setUserAnswers] = useState<Record<string, string | number>>({});
-  const [checkedQuestions, setCheckedQuestions] = useState<Record<string, boolean>>({});
-  const [practiceEvaluation, setPracticeEvaluation] = useState<
-    Record<string, { points: number; feedback: string }>
-  >({});
-
   // Graded Mode Submission State
-  const [isSubmitted, setIsSubmitted] = useState(false);
-  const [gradedScore, setGradedScore] = useState<number | null>(null);
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [studentNameInput, setStudentNameInput] = useState("");
   const [studentClassInput, setStudentClassInput] = useState("ז׳1");
   const [selectedTeacherId, setSelectedTeacherId] = useState("");
   const [studentNoteInput, setStudentNoteInput] = useState("");
-  const [submissionRecord, setSubmissionRecord] = useState<SubmissionItem | null>(null);
   const [copiedReceipt, setCopiedReceipt] = useState(false);
   const [showReviewAnswers, setShowReviewAnswers] = useState(false);
   const [showDetailedUnseenRubric, setShowDetailedUnseenRubric] = useState(false);
@@ -1063,8 +1072,7 @@ export default function UnseenPracticePage() {
     }, 15);
   };
 
-  // Saved Words in Notebook Drawer
-  const [savedWords, setSavedWords] = useState<VocabItem[]>(() => loadSavedWords(user?.id));
+  // Notebook drawer
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   // Sync saved words whenever active user changes or hydrates, and merge from Firestore
@@ -1106,9 +1114,6 @@ export default function UnseenPracticePage() {
     }
     return result;
   }, [currentStory.title, currentStory.paragraphs, savedVocabMap]);
-
-  // Font Size
-  const [fontSize, setFontSize] = useState<"sm" | "base" | "lg">("base");
 
   // Save current Unseen session snapshot so the user can return seamlessly from Vocabulary practice
   const saveUnseenReturnSnapshot = React.useCallback(() => {

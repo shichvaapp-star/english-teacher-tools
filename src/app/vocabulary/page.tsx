@@ -212,6 +212,9 @@ export default function VocabularyPage() {
     Record<string, { starred?: boolean; mastered?: boolean }>
   >({});
 
+  // Flashcard "mastered" set (declared here because the effect below seeds it)
+  const [masteredIds, setMasteredIds] = useState<Set<string>>(new Set());
+
   // Sync status overrides when user changes
   useEffect(() => {
     const overrides = loadWordStatusOverrides(user?.id);
@@ -238,7 +241,6 @@ export default function VocabularyPage() {
   // Flashcards state
   const [cardIndex, setCardIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
-  const [masteredIds, setMasteredIds] = useState<Set<string>>(new Set());
 
   // Speed Match state
   const [selectedEng, setSelectedEng] = useState<string | null>(null);

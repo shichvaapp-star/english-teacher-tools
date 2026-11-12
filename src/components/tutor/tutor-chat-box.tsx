@@ -550,6 +550,13 @@ function TurnInLessonFlowCard({
   );
 }
 
+let messageCounter = 0;
+/** Unique chat message id: timestamp plus a counter, so ids created in the same millisecond still differ. */
+function newMessageId(prefix: string): string {
+  messageCounter += 1;
+  return `${prefix}-${Date.now()}-${messageCounter}`;
+}
+
 export function TutorChatBox({
   profile,
   onProfileUpdate,
@@ -646,6 +653,28 @@ export function TutorChatBox({
     }
   }, [messages, isSending]);
 
+  // Text to Speech
+  const speakText = (text: string) => {
+    if (!speechEnabled || typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    try {
+      window.speechSynthesis.cancel();
+      const cleanEnglish = text
+        .replace(/\([^)]*[\u0590-\u05FF][^)]*\)/g, "")
+        .replace(/\*+/g, "")
+        .trim();
+
+      if (!cleanEnglish) return;
+
+      const utterance = new SpeechSynthesisUtterance(cleanEnglish);
+      if (selectedVoiceRef.current) {
+        utterance.voice = selectedVoiceRef.current;
+      }
+      utterance.rate = 0.95;
+      utterance.pitch = 1.05;
+      window.speechSynthesis.speak(utterance);
+    } catch {}
+  };
+
   // Load chat history or create clean initial greeting, and consume any pending turn-in from an assignment
   useEffect(() => {
     const saved = loadTutorChat(profile.studentId);
@@ -664,7 +693,7 @@ export function TutorChatBox({
       setDiagnosticIndex(null);
     } else if (profile.diagnosticCompleted) {
       const initialGreeting: TutorMessage = {
-        id: `msg-${Date.now()}`,
+        id: newMessageId("msg"),
         sender: "tutor",
         text: `Hello ${studentName}! 👋 איזה כיף לראות אותך!\nאנחנו מתרגלים יחד ברמת **${profile.level} (${profile.vocabBand})**.\n\nבמה תרצה/י שנתמקד היום – קריאת סיפור קצר, אוצר מילים, או כתיבה?`,
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
@@ -680,7 +709,7 @@ export function TutorChatBox({
     } else {
       const onboarding = getInitialOnboardingGreeting(studentName);
       const initialGreeting: TutorMessage = {
-        id: `msg-${Date.now()}`,
+        id: newMessageId("msg"),
         sender: "tutor",
         text: onboarding.text,
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
@@ -711,7 +740,7 @@ export function TutorChatBox({
           ? ` (משימה מהמורה ${pendingTurnIn.teacherName})`
           : "";
         const turnInMsg: TutorMessage = {
-          id: `msg-turnin-${Date.now()}`,
+          id: newMessageId("msg-turnin"),
           sender: "tutor",
           text: `Well done ${studentName}! 🎉\nכל הכבוד! קיבלת **${pendingTurnIn.score}/100** במשימה "${pendingTurnIn.taskTitleHebrew || pendingTurnIn.taskTitle}"${teacherAck}.\n\nבוא/י נעבור יחד על המשוב שלך, נבדוק **${pendingTurnIn.vocabToReview.length} מילים חשובות** מהמשימה (כל מילה שלא תכיר/י תישמר אוטומטית במילון האישי שלך! 📌), ואז נמשיך לתרגול הבא:`,
           timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
@@ -784,7 +813,7 @@ export function TutorChatBox({
   // Pre-teach vocabulary and strategy tips for a teacher assignment
   const handlePrepTeacherAssignment = (mission: TutorTaskRecommendation) => {
     const studentReqMsg: TutorMessage = {
-      id: `msg-prep-req-${Date.now()}`,
+      id: newMessageId("msg-prep-req"),
       sender: "student",
       text: "💡 דוד, אשמח להכנה מהירה לפני שאני מתחיל את משימת המורה!",
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
@@ -792,7 +821,7 @@ export function TutorChatBox({
 
     const prepText = generateTeacherAssignmentPrepMessage(mission, studentName);
     const tutorPrepMsg: TutorMessage = {
-      id: `msg-prep-res-${Date.now() + 1}`,
+      id: newMessageId("msg-prep-res"),
       sender: "tutor",
       text: prepText,
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
@@ -825,7 +854,7 @@ export function TutorChatBox({
 
     const missionTypeHebrew = nextMission.type === "unseen" ? "קריאה (Unseen)" : "כתיבה (Writing)";
     const nextMsg: TutorMessage = {
-      id: `msg-next-${Date.now()}`,
+      id: newMessageId("msg-next"),
       sender: "tutor",
       text: `Awesome work on your vocabulary check! 🎉\n(כל הכבוד על סיום מבדק המילים!)\n\nNow let's move to your next practice: a **${missionTypeHebrew}** task.\nPick a topic below that interests you, or click 'דוד, בחר עבורי':`,
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
@@ -882,28 +911,6 @@ export function TutorChatBox({
     }
   };
 
-  // Text to Speech
-  const speakText = (text: string) => {
-    if (!speechEnabled || typeof window === "undefined" || !("speechSynthesis" in window)) return;
-    try {
-      window.speechSynthesis.cancel();
-      const cleanEnglish = text
-        .replace(/\([^)]*[\u0590-\u05FF][^)]*\)/g, "")
-        .replace(/\*+/g, "")
-        .trim();
-
-      if (!cleanEnglish) return;
-
-      const utterance = new SpeechSynthesisUtterance(cleanEnglish);
-      if (selectedVoiceRef.current) {
-        utterance.voice = selectedVoiceRef.current;
-      }
-      utterance.rate = 0.95;
-      utterance.pitch = 1.05;
-      window.speechSynthesis.speak(utterance);
-    } catch {}
-  };
-
   // Speech to Text (Web Speech API)
   const toggleListening = () => {
     if (typeof window === "undefined") return;
@@ -952,19 +959,22 @@ export function TutorChatBox({
     if (msgIdx === -1 || !messages[msgIdx].taskRecommendation) return;
 
     const currentRec = messages[msgIdx].taskRecommendation!;
-    let updatedRec = currentRec;
+    // Build a new object: updateMissionTopic can return currentRec itself, which is React state.
+    let updatedRec: TutorTaskRecommendation = currentRec;
 
     if (topicId === "default") {
       const firstTopic = currentRec.availableTopics?.[0];
       if (firstTopic) {
-        updatedRec = updateMissionTopic(currentRec, firstTopic.id);
-        updatedRec.selectedTopicId = "default";
-        updatedRec.selectedTopicNameHebrew = "בחירת דוד";
+        updatedRec = {
+          ...updateMissionTopic(currentRec, firstTopic.id),
+          selectedTopicId: "default",
+          selectedTopicNameHebrew: "בחירת דוד",
+        };
       }
     } else {
       updatedRec = updateMissionTopic(currentRec, topicId);
     }
-    updatedRec.needsTopicSelection = false;
+    updatedRec = { ...updatedRec, needsTopicSelection: false };
 
     const topicLabel =
       topicId === "default"
@@ -977,7 +987,7 @@ export function TutorChatBox({
         : `Awesome choice! We'll practice ${updatedRec.selectedTopicNameHebrew || ""}. You are all set!`;
 
     const confirmationMsg: TutorMessage = {
-      id: `msg-${Date.now()}`,
+      id: newMessageId("msg"),
       sender: "tutor",
       text: `מעולה! בחרנו בנושא: **${topicLabel}**. המשימה מוכנה עבורך למטה – אפשר להתחיל!`,
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
@@ -1042,7 +1052,7 @@ export function TutorChatBox({
     }
 
     const userMsg: TutorMessage = {
-      id: `msg-${Date.now()}`,
+      id: newMessageId("msg"),
       sender: "student",
       text,
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
@@ -1063,7 +1073,7 @@ export function TutorChatBox({
         setDiagnosticAnswers(nextAnswers);
 
         const tutorHelpMsg: TutorMessage = {
-          id: `msg-${Date.now() + 1}`,
+          id: newMessageId("msg"),
           sender: "tutor",
           text: nextTurnData.text,
           timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
@@ -1084,7 +1094,7 @@ export function TutorChatBox({
         setDiagnosticAnswers(nextAnswers);
 
         const tutorFollowUp: TutorMessage = {
-          id: `msg-${Date.now() + 1}`,
+          id: newMessageId("msg"),
           sender: "tutor",
           text: nextTurnData.text,
           timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
@@ -1176,7 +1186,7 @@ export function TutorChatBox({
         mission && (mission.type === "unseen" || mission.type === "writing");
 
       const completionMessage: TutorMessage = {
-        id: `msg-${Date.now() + 2}`,
+        id: newMessageId("msg"),
         sender: "tutor",
         text: `Thank you for chatting with me, ${studentName}! 🎉\n(תודה על השיחה הנעימה שלנו! כל הכבוד על ההשתתפות! 👏)\n\nבניתי עבורך תוכנית תרגול אישית ומותאמת בדיוק לקצב שלך ברמת **${updatedProfile.level} (${updatedProfile.vocabBand})**.\n\n${
           isUnseenOrWriting
@@ -1339,7 +1349,7 @@ export function TutorChatBox({
       }
 
       const tutorMsg: TutorMessage = {
-        id: `msg-${Date.now() + 1}`,
+        id: newMessageId("msg"),
         sender: "tutor",
         text: finalTutorText,
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
@@ -1353,7 +1363,7 @@ export function TutorChatBox({
       speakText(finalTutorText);
     } catch {
       const errorMsg: TutorMessage = {
-        id: `msg-${Date.now() + 1}`,
+        id: newMessageId("msg"),
         sender: "tutor",
         text: "I'm with you! Keep practicing on the site tools, and let me know whenever you need guidance.\n(אני כאן איתך! בחר באחד הכלים באתר כדי להמשיך לתרגל)",
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
@@ -1371,7 +1381,7 @@ export function TutorChatBox({
     setDiagnosticIndex(0);
     setDiagnosticAnswers([]);
     const resetGreeting: TutorMessage = {
-      id: `msg-${Date.now()}`,
+      id: newMessageId("msg"),
       sender: "tutor",
       text: onboarding.text,
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
