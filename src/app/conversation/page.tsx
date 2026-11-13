@@ -12,6 +12,8 @@ import { ConversationHeader } from "@/components/conversation/conversation-heade
 import { ConversationPlayerDock } from "@/components/conversation/conversation-player-dock";
 import { ConversationSettingsStage } from "@/components/conversation/conversation-settings-stage";
 import { ConversationExerciseStage } from "@/components/conversation/conversation-exercise-stage";
+import { ConversationPrintModal } from "@/components/conversation/conversation-print-modal";
+import { ConversationPrintSheets } from "@/components/conversation/conversation-print-sheets";
 
 export default function ConversationPracticePage() {
   const c = useConversationPractice();
@@ -31,12 +33,14 @@ export default function ConversationPracticePage() {
 
       <ConversationHeader c={c} />
 
-      <ConversationAssignedNotice c={c} />
+      <div className="print:hidden">
+        <ConversationAssignedNotice c={c} />
+      </div>
 
       <ConversationSelectionBar c={c} />
 
       {/* Main Content */}
-      <main className="flex-1 container mx-auto px-3 sm:px-8 py-6 pb-28">
+      <main className="flex-1 container mx-auto px-3 sm:px-8 py-6 pb-28 print:hidden">
         {stage === "settings" ? (
           <ConversationSettingsStage c={c} />
         ) : (
@@ -62,6 +66,10 @@ export default function ConversationPracticePage() {
       <ConversationWordBankDrawer c={c} />
 
       <ConversationSubmitModal c={c} />
+
+      <ConversationPrintModal c={c} />
+
+      <ConversationPrintSheets c={c} />
     </div>
   );
 }

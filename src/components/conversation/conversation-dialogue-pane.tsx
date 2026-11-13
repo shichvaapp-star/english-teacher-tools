@@ -28,6 +28,7 @@ export function ConversationDialoguePane({ c }: { c: ConversationPracticeControl
     handleTranslateSelection,
     handleWordClick,
     mobileTab,
+    printOptions,
     setFontSize,
     setMobileTab,
   } = c;
@@ -51,7 +52,7 @@ export function ConversationDialoguePane({ c }: { c: ConversationPracticeControl
                 </Badge>
               </div>
 
-              <div className="flex items-center gap-1.5 print:hidden">
+              <div className="flex flex-wrap items-center gap-1.5 print:hidden">
                 {/* Font size controls */}
                 <div className="flex items-center rounded-lg border border-border/60 p-0.5 bg-muted/30">
                   {(["sm", "base", "lg"] as const).map((sz) => (
@@ -100,8 +101,10 @@ export function ConversationDialoguePane({ c }: { c: ConversationPracticeControl
                   type="button"
                   size="sm"
                   variant="outline"
-                  onClick={() => window.print()}
+                  onClick={() => printOptions.setShowPrintModal(true)}
                   className="h-8 text-xs gap-1 cursor-pointer"
+                  title="Print worksheet"
+                  aria-label="Print"
                 >
                   <Printer className="h-3.5 w-3.5 text-primary" />
                   <span className="hidden sm:inline">Print</span>
