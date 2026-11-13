@@ -240,10 +240,12 @@ export function UnseenSettingsStage({ c }: { c: UnseenPracticeController }) {
                 variant="outline"
                 size="default"
                 onClick={() => setShowPrintModal(true)}
-                className="hidden sm:inline-flex cursor-pointer gap-2 text-xs font-normal px-4 border-border/80 font-hebrew"
+                className="inline-flex shrink-0 cursor-pointer gap-2 text-xs font-normal px-3 sm:px-4 border-border/80 font-hebrew"
+                aria-label="הדפסת דף עבודה"
+                title="הדפסת דף עבודה"
               >
                 <Printer className="h-4 w-4 text-primary" />
-                <span>הדפסת דף עבודה</span>
+                <span className="hidden sm:inline">הדפסת דף עבודה</span>
               </Button>
               <Button
                 size="default"

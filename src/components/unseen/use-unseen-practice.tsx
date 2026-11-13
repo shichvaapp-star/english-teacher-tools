@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import { usePrintOptions } from "@/components/print/use-print-options";
 import { useAuth } from "@/lib/auth-context";
 import { db } from "@/lib/firebase";
 import { doc, setDoc } from "firebase/firestore";
@@ -253,23 +254,9 @@ export function useUnseenPractice() {
     }
   }, []);
 
-  // Print Exam Booklet Options
-  const [showPrintModal, setShowPrintModal] = useState(false);
-  const [printScope, setPrintScope] = useState<"full" | "text_only" | "questions_only">("full");
-  const [printLineSpacing, setPrintLineSpacing] = useState<
-    "normal" | "comfortable" | "double" | "spacious"
-  >("normal");
-  const [printIncludeHeader, setPrintIncludeHeader] = useState(true);
-  const [printIncludeVocab, setPrintIncludeVocab] = useState(true);
-  const [printIncludeAnswers, setPrintIncludeAnswers] = useState(false);
-  const [printSeparatePages, setPrintSeparatePages] = useState(true);
-
-  const handlePrintNow = () => {
-    setShowPrintModal(false);
-    setTimeout(() => {
-      window.print();
-    }, 180);
-  };
+  // Print Exam Booklet Options (shared with Conversation practice)
+  const printOptions = usePrintOptions();
+  const { setShowPrintModal } = printOptions;
 
   // Active Question in 10-Question navigation
   const activeQuestion: MSUnseenQuestion = currentStory.questions[activeQuestionIndex] || currentStory.questions[0];
@@ -1950,21 +1937,8 @@ export function useUnseenPractice() {
     setCustomGroqKey,
     customGeminiKey,
     setCustomGeminiKey,
-    showPrintModal,
+    printOptions,
     setShowPrintModal,
-    printScope,
-    setPrintScope,
-    printLineSpacing,
-    setPrintLineSpacing,
-    printIncludeHeader,
-    setPrintIncludeHeader,
-    printIncludeVocab,
-    setPrintIncludeVocab,
-    printIncludeAnswers,
-    setPrintIncludeAnswers,
-    printSeparatePages,
-    setPrintSeparatePages,
-    handlePrintNow,
     activeQuestion,
     showSubmitModal,
     setShowSubmitModal,

@@ -26,6 +26,8 @@ import { useDialoguePlayer } from "@/lib/use-dialogue-player";
 import { ClickedWordData } from "@/components/unseen/draggable-translation-popup";
 import { saveDraft, deleteDraft, getDraftById } from "@/lib/drafts-storage";
 import { LOCAL_SUBMISSIONS_KEY } from "@/components/conversation/conversation-helpers";
+import { usePrintOptions } from "@/components/print/use-print-options";
+import { segmentTextWithSavedVocab } from "@/components/unseen/unseen-helpers";
 
 export function useConversationPractice() {
   const router = useRouter();
@@ -123,6 +125,26 @@ export function useConversationPractice() {
     }
     return map;
   }, [savedWords]);
+
+  // Unique saved vocabulary words that appear in the dialogue (title or turns) — used for printing
+  const dialogueSavedVocabWords = useMemo(() => {
+    if (savedVocabMap.size === 0) return [];
+    const seenIds = new Set<string>();
+    const result: VocabItem[] = [];
+    const allTexts = [currentScenario.title, ...currentScenario.turns.map((t) => t.text)];
+    for (const txt of allTexts) {
+      for (const seg of segmentTextWithSavedVocab(txt, savedVocabMap)) {
+        if (seg.savedItem && !seenIds.has(seg.savedItem.id)) {
+          seenIds.add(seg.savedItem.id);
+          result.push(seg.savedItem);
+        }
+      }
+    }
+    return result;
+  }, [currentScenario.title, currentScenario.turns, savedVocabMap]);
+
+  // Print worksheet / exam options (shared with Unseen)
+  const printOptions = usePrintOptions();
 
   // Initial mount & URL query params restoration
   useEffect(() => {
@@ -1308,6 +1330,8 @@ export function useConversationPractice() {
     activeQuestion,
     dialoguePlayer,
     savedVocabMap,
+    dialogueSavedVocabWords,
+    printOptions,
     filteredScenarios,
     handleSaveAndExit,
     handleSpeak,

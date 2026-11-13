@@ -39,7 +39,7 @@ export function UnseenPassageColumn({ c }: { c: UnseenPracticeController }) {
       <div className={`lg:col-span-7 space-y-4 ${mobileTab === "text" ? "block" : "hidden lg:block"}`}>
         <Card className="border-border/60 shadow-xs">
           <CardHeader className="border-b border-border/50 pb-3">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <Badge variant="outline" className="text-xs">
                   {currentStory.level}
@@ -54,7 +54,7 @@ export function UnseenPassageColumn({ c }: { c: UnseenPracticeController }) {
                 )}
               </div>
 
-              <div className="flex items-center gap-1.5 print:hidden">
+              <div className="flex flex-wrap items-center gap-1.5 print:hidden">
                 {/* Font Scaling */}
                 <div className="flex items-center border border-border rounded-md text-xs overflow-hidden">
                   <button
