@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
+import { toast } from "sonner";
 import { useAuth } from "@/lib/auth-context";
 import { db } from "@/lib/firebase";
 import {
@@ -30,7 +31,13 @@ import {
   toggleShareVocabBank,
 } from "@/lib/vocab-bank-storage";
 
-import { parseSubmissionTimestamp } from "@/app/teacher/dashboard/turn-ins-table";
+import { parseSubmissionTimestamp } from "@/lib/submission-time";
+import { useConfirm } from "@/components/teacher-dashboard/shared-ui/confirm-dialog";
+import {
+  getAssignmentProgress,
+  getStudentStats as computeStudentStats,
+  type AssignmentProgress,
+} from "@/components/teacher-dashboard/dashboard-selectors";
 import { LOCAL_SUBMISSIONS_KEY, LOCAL_ASSIGNMENTS_KEY, LOCAL_SUGGESTIONS_KEY, WRITING_LEVELS } from "@/components/teacher-dashboard/teacher-dashboard-helpers";
 
 export function useTeacherDashboard() {
@@ -43,8 +50,14 @@ export function useTeacherDashboard() {
     deleteStudent,
   } = useAuth();
 
-  // Active navigation view tab
-  const [activeTab, setActiveTab] = useState<"submissions" | "assignments" | "students" | "banks" | "shared" | "adminTeachers" | "suggestions">("submissions");
+  const confirmAction = useConfirm();
+
+  // "Now" for relative times and due dates; refreshed every minute
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(Date.now()), 60_000);
+    return () => window.clearInterval(id);
+  }, []);
 
   // Custom Vocabulary Banks State
   const [vocabBanks, setVocabBanks] = useState<TeacherVocabBank[]>([]);
@@ -60,11 +73,6 @@ export function useTeacherDashboard() {
   // Submissions State
   const [submissions, setSubmissions] = useState<SubmissionItem[]>([]);
   const [isLoadingSubmissions, setIsLoadingSubmissions] = useState(true);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"all" | "submitted" | "reviewed">("all");
-  const [typeFilter, setTypeFilter] = useState<"all" | "writing" | "unseen" | "vocab">("all");
-  const [classFilter, setClassFilter] = useState<string>("all");
-  const [groupFilter, setGroupFilter] = useState<string>("all");
 
   // Assignments State
   const [assignments, setAssignments] = useState<TeacherAssignment[]>([]);
@@ -91,14 +99,12 @@ export function useTeacherDashboard() {
   const [studentFormError, setStudentFormError] = useState<string | null>(null);
   const [isSavingStudent, setIsSavingStudent] = useState(false);
 
-  // Student Submissions History Modal
-  const [historyStudent, setHistoryStudent] = useState<StudentProfile | null>(null);
-
-  // Selected submission for full modal review
-  const [reviewItem, setReviewItem] = useState<SubmissionItem | null>(null);
+  // AI evaluation state for the submission open in the inbox
   const [loadingAiSubId, setLoadingAiSubId] = useState<string | null>(null);
   const [isEvaluatingAi, setIsEvaluatingAi] = useState(false);
   const [writingAiResult, setWritingAiResult] = useState<WritingEvaluationResult | null>(null);
+  // Which submission `writingAiResult` belongs to (the inbox and the review dialog share it)
+  const [aiResultSubId, setAiResultSubId] = useState<string | null>(null);
 
   // Auth modal for unauthorized users
   const [authModalOpen, setAuthModalOpen] = useState(false);
@@ -347,38 +353,23 @@ export function useTeacherDashboard() {
     setVocabBanks((prev) => prev.map((b) => (b.id === updated.id ? updated : b)));
   };
 
-  const handleUseSharedAssignment = (sharedAssignment: TeacherAssignment) => {
-    setSharedTemplateForAssign(sharedAssignment);
-    setAssignModalOpen(true);
-  };
-
   const handleDeleteVocabBank = async (bankId: string, bankName: string) => {
     if (!user) return;
-    if (confirm(`האם למחוק את מאגר המילים "${bankName}"?`)) {
+    const ok = await confirmAction({
+      title: `למחוק את מאגר המילים "${bankName}"?`,
+      description: "המאגר יימחק לצמיתות.",
+      confirmLabel: "מחק",
+      destructive: true,
+    });
+    if (ok) {
       await deleteTeacherVocabBank(bankId, user.id);
       setVocabBanks((prev) => prev.filter((b) => b.id !== bankId));
+      toast.success("המאגר נמחק");
     }
-  };
-
-  const handleAssignFromBank = (bank: TeacherVocabBank) => {
-    setPreselectedBankForAssign(bank);
-    setAssignModalOpen(true);
   };
 
   // Initial load
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const params = new URLSearchParams(window.location.search);
-      const tabParam = params.get("tab");
-      if (tabParam === "suggestions") {
-        setActiveTab("suggestions");
-      } else if (tabParam === "adminTeachers") {
-        setActiveTab("adminTeachers");
-      } else if (tabParam === "shared") {
-        setActiveTab("shared");
-      }
-    }
-
     if (user && user.role === "teacher") {
       fetchSubmissions();
       fetchStudents();
@@ -510,8 +501,14 @@ export function useTeacherDashboard() {
     setSharedTemplateForAssign(null);
   };
 
-  const handleArchiveAssignment = async (id: string) => {
-    if (!confirm("האם לארכב / למחוק משימה זו?")) return;
+  const handleArchiveAssignment = async (id: string): Promise<boolean> => {
+    const ok = await confirmAction({
+      title: "למחוק משימה זו?",
+      description: "המשימה תוסר מהתלמידים. הגשות שכבר התקבלו יישארו בתיבת ההגשות.",
+      confirmLabel: "מחק משימה",
+      destructive: true,
+    });
+    if (!ok) return false;
 
     const filtered = assignments.filter((a) => a.id !== id);
     setAssignments(filtered);
@@ -528,6 +525,8 @@ export function useTeacherDashboard() {
         console.warn("Firestore delete assignment error:", err);
       }
     }
+    toast.success("המשימה נמחקה");
+    return true;
   };
 
   const handleToggleAssignmentDavid = async (id: string, enabled: boolean) => {
@@ -563,8 +562,9 @@ export function useTeacherDashboard() {
   // ---------------------------------------------------------------------------
   // REVIEW & GRADING ACTIONS
   // ---------------------------------------------------------------------------
-  const handleOpenReview = (item: SubmissionItem) => {
-    setReviewItem(item);
+  // Load a submission's saved AI evaluation (if any) into `writingAiResult`
+  const loadSavedAiResult = (item: SubmissionItem) => {
+    setAiResultSubId(item.id);
     if (item.writingRubric) {
       setWritingAiResult({
         score: item.grade ?? item.score ?? 0,
@@ -582,51 +582,22 @@ export function useTeacherDashboard() {
     }
   };
 
-  // Quick Inline Save Grade
-  const handleQuickSaveGrade = async (sub: SubmissionItem, grade?: number, feedback?: string) => {
-    const reviewedItem: SubmissionItem = {
-      ...sub,
-      grade,
-      teacherFeedback: feedback,
-      status: "reviewed",
-      reviewedAt: new Date().toLocaleString("he-IL"),
-    };
-
-    // 1. Update Firestore
-    if (db) {
-      try {
-        await updateDoc(doc(db, "submissions", sub.id), cleanForFirestore({
-          grade,
-          teacherFeedback: feedback,
-          status: "reviewed",
-          reviewedAt: new Date().toISOString(),
-        }));
-      } catch (err) {
-        console.warn("Firestore quick grade update notice:", err);
-      }
-    }
-
-    // 2. Update localStorage
-    try {
-      const existingRaw = localStorage.getItem(LOCAL_SUBMISSIONS_KEY);
-      if (existingRaw) {
-        const list: SubmissionItem[] = JSON.parse(existingRaw);
-        const updatedList = list.map((it) => (it.id === sub.id ? reviewedItem : it));
-        localStorage.setItem(LOCAL_SUBMISSIONS_KEY, JSON.stringify(updatedList));
-      }
-    } catch {
-      // Ignore
-    }
-
-    // 3. Update local state
-    setSubmissions((prev) => prev.map((it) => (it.id === sub.id ? reviewedItem : it)));
-    if (reviewItem?.id === sub.id) {
-      setReviewItem(reviewedItem);
-    }
-  };
-
-  // Full Modal Save Grade
-  const handleSaveGradeModal = async (updatedItem: SubmissionItem) => {
+  // Save a grade together with the current AI evaluation (when it belongs to this submission)
+  const persistGradeWithAi = async (updatedItem: SubmissionItem) => {
+    const ai = aiResultSubId === updatedItem.id ? writingAiResult : null;
+    const itemToStore: SubmissionItem = ai
+      ? {
+          ...updatedItem,
+          score: ai.score,
+          encouragement: ai.encouragement,
+          teacherNote: ai.teacherNote,
+          strengths: ai.strengths,
+          tips: ai.tips,
+          writingRubric: ai.rubric,
+          corrections: ai.corrections,
+          vocabularyUpgrades: ai.vocabularyUpgrades,
+        }
+      : updatedItem;
     if (db) {
       try {
         await updateDoc(doc(db, "submissions", updatedItem.id), cleanForFirestore({
@@ -634,15 +605,15 @@ export function useTeacherDashboard() {
           teacherFeedback: updatedItem.teacherFeedback,
           status: "reviewed",
           reviewedAt: new Date().toISOString(),
-          ...(writingAiResult ? {
-            score: writingAiResult.score,
-            encouragement: writingAiResult.encouragement,
-            teacherNote: writingAiResult.teacherNote,
-            strengths: writingAiResult.strengths,
-            tips: writingAiResult.tips,
-            writingRubric: writingAiResult.rubric,
-            corrections: writingAiResult.corrections,
-            vocabularyUpgrades: writingAiResult.vocabularyUpgrades,
+          ...(ai ? {
+            score: ai.score,
+            encouragement: ai.encouragement,
+            teacherNote: ai.teacherNote,
+            strengths: ai.strengths,
+            tips: ai.tips,
+            writingRubric: ai.rubric,
+            corrections: ai.corrections,
+            vocabularyUpgrades: ai.vocabularyUpgrades,
           } : {}),
         }));
       } catch (err) {
@@ -654,21 +625,36 @@ export function useTeacherDashboard() {
       const existingRaw = localStorage.getItem(LOCAL_SUBMISSIONS_KEY);
       if (existingRaw) {
         const list: SubmissionItem[] = JSON.parse(existingRaw);
-        const updatedList = list.map((it) => (it.id === updatedItem.id ? updatedItem : it));
+        const updatedList = list.map((it) => (it.id === updatedItem.id ? itemToStore : it));
         localStorage.setItem(LOCAL_SUBMISSIONS_KEY, JSON.stringify(updatedList));
       }
     } catch {
       // Ignore
     }
 
-    setSubmissions((prev) => prev.map((it) => (it.id === updatedItem.id ? updatedItem : it)));
-    setReviewItem(updatedItem);
+    setSubmissions((prev) => prev.map((it) => (it.id === updatedItem.id ? itemToStore : it)));
+    return itemToStore;
+  };
+
+  // Inbox save: grade + feedback, plus the AI evaluation if one was run for this submission
+  const handleSaveGrade = async (sub: SubmissionItem, grade?: number, feedback?: string) => {
+    const updatedItem: SubmissionItem = {
+      ...sub,
+      grade,
+      teacherFeedback: feedback,
+      status: "reviewed",
+      reviewedAt: new Date().toLocaleString("he-IL"),
+    };
+    const stored = await persistGradeWithAi(updatedItem);
+    toast.success(`הציון של ${sub.studentName} נשמר`);
+    return stored;
   };
 
   // AI Review Action
-  const handleAiReview = async (sub: SubmissionItem) => {
+  // Run the AI evaluation without opening the review dialog (used by the inbox)
+  const runAiReview = async (sub: SubmissionItem) => {
     setLoadingAiSubId(sub.id);
-    handleOpenReview(sub);
+    setAiResultSubId(sub.id);
 
     if (sub.type === "writing") {
       setIsEvaluatingAi(true);
@@ -708,11 +694,11 @@ export function useTeacherDashboard() {
           const evalRes: WritingEvaluationResult = data.evaluation;
           setWritingAiResult(evalRes);
         } else {
-          alert(data.error || "אירעה שגיאה בבדיקת ה-AI. אנא נסו שוב.");
+          toast.error(data.error || "אירעה שגיאה בבדיקת ה-AI. אנא נסו שוב.");
         }
       } catch (err) {
         console.error("AI Review error:", err);
-        alert("לא ניתן היה להתחבר לשירות בדיקת ה-AI.");
+        toast.error("לא ניתן היה להתחבר לשירות בדיקת ה-AI.");
       } finally {
         setIsEvaluatingAi(false);
         setLoadingAiSubId(null);
@@ -723,8 +709,14 @@ export function useTeacherDashboard() {
   };
 
   // Delete submission
-  const handleDeleteSubmission = async (id: string, studentName: string) => {
-    if (!confirm(`האם למחוק את ההגשה של התלמיד/ה "${studentName}"?`)) return;
+  const handleDeleteSubmission = async (id: string, studentName: string): Promise<boolean> => {
+    const ok = await confirmAction({
+      title: `למחוק את ההגשה של ${studentName}?`,
+      description: "לא ניתן לשחזר הגשה שנמחקה.",
+      confirmLabel: "מחק הגשה",
+      destructive: true,
+    });
+    if (!ok) return false;
 
     if (db) {
       try {
@@ -745,7 +737,8 @@ export function useTeacherDashboard() {
     }
 
     setSubmissions((prev) => prev.filter((it) => it.id !== id));
-    if (reviewItem?.id === id) setReviewItem(null);
+    toast.success("ההגשה נמחקה");
+    return true;
   };
 
   // ---------------------------------------------------------------------------
@@ -854,14 +847,19 @@ export function useTeacherDashboard() {
   };
 
   const handleDeleteStudent = async (student: StudentProfile) => {
-    if (!confirm(`האם להסיר את התלמיד/ה "${student.name}" (${student.fullClass || "כיתה"})?`)) return;
+    const ok = await confirmAction({
+      title: `להסיר את ${student.name}?`,
+      description: `התלמיד/ה יוסר/תוסר מכיתה ${student.fullClass || ""} ולא יוכל/תוכל להתחבר עם קוד ה-PIN.`,
+      confirmLabel: "הסר",
+      destructive: true,
+    });
+    if (!ok) return;
 
     const res = await deleteStudent(student.id);
     if (res.success) {
       setStudents((prev) => prev.filter((s) => s.id !== student.id));
-      if (historyStudent?.id === student.id) setHistoryStudent(null);
     } else {
-      alert(res.error || "שגיאה בהסרת התלמיד/ה.");
+      toast.error(res.error || "שגיאה בהסרת התלמיד/ה.");
     }
   };
 
@@ -879,24 +877,6 @@ export function useTeacherDashboard() {
     });
     return Array.from(classSet).sort();
   }, [students, submissions]);
-
-  // Filtered submissions
-  const filteredSubmissions = useMemo(() => {
-    return submissions.filter((item) => {
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase().trim();
-        const matchesStudent = item.studentName.toLowerCase().includes(q);
-        const matchesTitle = item.hebrewTitle.toLowerCase().includes(q) || item.taskTitle.toLowerCase().includes(q);
-        const matchesCode = item.receiptCode?.toLowerCase().includes(q);
-        if (!matchesStudent && !matchesTitle && !matchesCode) return false;
-      }
-      if (statusFilter !== "all" && item.status !== statusFilter) return false;
-      if (typeFilter !== "all" && item.type !== typeFilter) return false;
-      if (classFilter !== "all" && item.studentClass !== classFilter) return false;
-      if (groupFilter !== "all" && item.studentGroup !== groupFilter) return false;
-      return true;
-    });
-  }, [submissions, searchQuery, statusFilter, typeFilter, classFilter, groupFilter]);
 
   // Filtered students
   const filteredStudents = useMemo(() => {
@@ -924,26 +904,26 @@ export function useTeacherDashboard() {
   const activeAssignmentsCount = assignments.filter((a) => a.status === "active").length;
 
   // Student stats helper
-  const getStudentStats = (student: StudentProfile) => {
-    const studentSubs = submissions.filter(
-      (sub) =>
-        sub.studentId === student.id ||
-        sub.studentName.toLowerCase().trim() === student.name.toLowerCase().trim()
-    );
-    const gradedSubs = studentSubs.filter((sub) => sub.grade !== undefined || sub.score !== undefined);
-    const avgScore =
-      gradedSubs.length > 0
-        ? Math.round(
-            gradedSubs.reduce((acc, curr) => acc + (curr.grade ?? curr.score ?? 0), 0) /
-              gradedSubs.length
-          )
-        : null;
+  const getStudentStats = (student: StudentProfile) => computeStudentStats(student, submissions);
 
-    return {
-      total: studentSubs.length,
-      average: avgScore,
-      submissions: studentSubs,
-    };
+  // Assignment progress (eligible students, turn-ins, missing) keyed by assignment id
+  const assignmentProgress = useMemo(() => {
+    const map = new Map<string, AssignmentProgress>();
+    assignments.forEach((a) => map.set(a.id, getAssignmentProgress(a, students, submissions, now)));
+    return map;
+  }, [assignments, students, submissions, now]);
+
+  // Modal openers usable from any route
+  const openAssignModal = (opts: { studentId?: string; bank?: TeacherVocabBank; template?: TeacherAssignment } = {}) => {
+    setAssignPreselectedStudentId(opts.studentId ?? null);
+    setPreselectedBankForAssign(opts.bank ?? null);
+    setSharedTemplateForAssign(opts.template ?? null);
+    setAssignModalOpen(true);
+  };
+
+  const openBankModal = (bank?: TeacherVocabBank) => {
+    setEditingBank(bank ?? null);
+    setVocabBankModalOpen(true);
   };
 
   // ---------------------------------------------------------------------------
@@ -957,8 +937,10 @@ export function useTeacherDashboard() {
     addStudentByTeacher,
     updateStudent,
     deleteStudent,
-    activeTab,
-    setActiveTab,
+    now,
+    assignmentProgress,
+    openAssignModal,
+    openBankModal,
     vocabBanks,
     setVocabBanks,
     vocabBankModalOpen,
@@ -977,16 +959,6 @@ export function useTeacherDashboard() {
     setSubmissions,
     isLoadingSubmissions,
     setIsLoadingSubmissions,
-    searchQuery,
-    setSearchQuery,
-    statusFilter,
-    setStatusFilter,
-    typeFilter,
-    setTypeFilter,
-    classFilter,
-    setClassFilter,
-    groupFilter,
-    setGroupFilter,
     assignments,
     setAssignments,
     assignModalOpen,
@@ -1025,16 +997,16 @@ export function useTeacherDashboard() {
     setStudentFormError,
     isSavingStudent,
     setIsSavingStudent,
-    historyStudent,
-    setHistoryStudent,
-    reviewItem,
-    setReviewItem,
     loadingAiSubId,
     setLoadingAiSubId,
     isEvaluatingAi,
     setIsEvaluatingAi,
     writingAiResult,
     setWritingAiResult,
+    aiResultSubId,
+    loadSavedAiResult,
+    runAiReview,
+    handleSaveGrade,
     authModalOpen,
     setAuthModalOpen,
     fetchSubmissions,
@@ -1046,18 +1018,12 @@ export function useTeacherDashboard() {
     fetchVocabBanks,
     handleSaveVocabBank,
     handleToggleShareBank,
-    handleUseSharedAssignment,
     handleDeleteVocabBank,
-    handleAssignFromBank,
     handleRefreshAll,
     handleCopyPin,
     handleTaskAssigned,
     handleArchiveAssignment,
     handleToggleAssignmentDavid,
-    handleOpenReview,
-    handleQuickSaveGrade,
-    handleSaveGradeModal,
-    handleAiReview,
     handleDeleteSubmission,
     handleOpenAddStudent,
     handleOpenEditStudent,
@@ -1065,7 +1031,6 @@ export function useTeacherDashboard() {
     handleSaveStudent,
     handleDeleteStudent,
     availableClasses,
-    filteredSubmissions,
     filteredStudents,
     totalSubmissionsCount,
     pendingSubmissionsCount,

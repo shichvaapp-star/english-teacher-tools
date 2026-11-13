@@ -1,20 +1,30 @@
 "use client";
 
 import React from "react";
+import { AlertCircle, Loader2, Shuffle } from "lucide-react";
+import { cn } from "cn";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  UserPlus,
-  Edit2,
-  Check,
-  X,
-  AlertCircle,
-  Shuffle,
-} from "lucide-react";
-
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { StudentGroup } from "@/types/auth";
+import { FilterSelect } from "./shared-ui/filter-select";
+import { type TeacherDashboardController } from "./use-teacher-dashboard";
 
-import { type TeacherDashboardController } from "@/components/teacher-dashboard/use-teacher-dashboard";
+const GRADE_OPTIONS = [
+  { value: "ז", label: "ז׳" },
+  { value: "ח", label: "ח׳" },
+  { value: "ט", label: "ט׳" },
+  { value: "י", label: "י׳" },
+  { value: "יא", label: "י״א" },
+  { value: "יב", label: "י״ב" },
+];
+const NUMBER_OPTIONS = [1, 2, 3, 4, 5, 6].map((n) => ({ value: String(n), label: String(n) }));
+const GROUPS: { value: StudentGroup | "none"; label: string }[] = [
+  { value: "א1", label: "א1" },
+  { value: "א2", label: "א2" },
+  { value: "ב", label: "ב" },
+  { value: "none", label: "ללא" },
+];
 
 export function TeacherDashboardStudentModal({ c }: { c: TeacherDashboardController }) {
   const {
@@ -36,180 +46,131 @@ export function TeacherDashboardStudentModal({ c }: { c: TeacherDashboardControl
     studentNumberInput,
     studentPinInput,
   } = c;
+
   return (
-    <>
-      {/* -------------------------------------------------------------------
-          MODAL: ADD / EDIT STUDENT (With Grouping Input)
-          ------------------------------------------------------------------- */}
-      {studentModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in">
-          <div className="w-full max-w-md bg-card border border-border rounded-2xl p-6 shadow-2xl space-y-4" dir="rtl">
-            <div className="flex items-center justify-between border-b border-border pb-3">
-              <div className="flex items-center gap-2">
-                <div className="p-2 rounded-xl bg-purple-500/15 text-purple-600 dark:text-purple-400">
-                  {editingStudent ? <Edit2 className="h-5 w-5" /> : <UserPlus className="h-5 w-5" />}
-                </div>
-                <div>
-                  <h3 className="font-black text-base text-foreground">
-                    {editingStudent ? `עריכת פרטי תלמיד/ה: ${editingStudent.name}` : "הוספת תלמיד/ה חדש/ה"}
-                  </h3>
-                  <p className="text-xs text-muted-foreground">
-                    הגדירו שם, כיתה, הקבצה באנגלית וקוד PIN לכניסה.
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => setStudentModalOpen(false)}
-                className="p-1 rounded-md text-muted-foreground hover:text-foreground cursor-pointer"
-              >
-                <X className="h-5 w-5" />
-              </button>
+    <Dialog open={studentModalOpen} onOpenChange={setStudentModalOpen}>
+      <DialogContent className="sm:max-w-md [&>[data-slot=dialog-close]]:right-auto [&>[data-slot=dialog-close]]:left-2" dir="rtl">
+        <DialogHeader className="text-right">
+          <DialogTitle>{editingStudent ? `עריכת ${editingStudent.name}` : "תלמיד/ה חדש/ה"}</DialogTitle>
+          <DialogDescription>שם באנגלית, כיתה, הקבצה וקוד PIN בן 4 ספרות לכניסה.</DialogDescription>
+        </DialogHeader>
+
+        <form id="student-form" onSubmit={handleSaveStudent} className="space-y-4">
+          {studentFormError && (
+            <div className="flex items-center gap-2 rounded-lg bg-destructive/10 p-2.5 text-xs text-destructive">
+              <AlertCircle className="size-4 shrink-0" />
+              {studentFormError}
             </div>
+          )}
 
-            <form onSubmit={handleSaveStudent} className="space-y-3.5 text-xs">
-              {studentFormError && (
-                <div className="p-2.5 rounded-lg bg-destructive/10 border border-destructive/30 text-destructive flex items-center gap-2 font-medium">
-                  <AlertCircle className="h-4 w-4 shrink-0" />
-                  <span>{studentFormError}</span>
-                </div>
-              )}
+          <Field label="שם מלא באנגלית" htmlFor="student-name">
+            <Input
+              id="student-name"
+              placeholder="e.g. Maya Cohen"
+              value={studentNameInput}
+              onChange={(e) => setStudentNameInput(e.target.value)}
+              dir="ltr"
+              required
+              autoFocus
+            />
+          </Field>
 
-              {/* English Name */}
-              <div className="space-y-1">
-                <label className="font-bold text-foreground block">
-                  שם מלא באנגלית (English Name) <span className="text-destructive">*</span>
-                </label>
-                <Input
-                  type="text"
-                  placeholder="e.g. Maya Cohen"
-                  value={studentNameInput}
-                  onChange={(e) => setStudentNameInput(e.target.value)}
-                  className="h-9 text-xs"
-                  dir="ltr"
-                  required
-                />
-              </div>
-
-              {/* Class Grade & Number */}
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="font-bold text-foreground block">שכבה:</label>
-                  <select
-                    value={studentGradeInput}
-                    onChange={(e) => setStudentGradeInput(e.target.value)}
-                    className="w-full h-9 rounded-lg border border-input bg-background px-3 text-xs cursor-pointer"
-                  >
-                    <option value="ז">שכבה ז׳</option>
-                    <option value="ח">שכבה ח׳</option>
-                    <option value="ט">שכבה ט׳</option>
-                    <option value="י">שכבה י׳</option>
-                    <option value="יא">שכבה י״א</option>
-                    <option value="יב">שכבה י״ב</option>
-                  </select>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="font-bold text-foreground block">מספר כיתה:</label>
-                  <select
-                    value={studentNumberInput}
-                    onChange={(e) => setStudentNumberInput(Number(e.target.value))}
-                    className="w-full h-9 rounded-lg border border-input bg-background px-3 text-xs cursor-pointer"
-                  >
-                    <option value={1}>כיתה 1</option>
-                    <option value={2}>כיתה 2</option>
-                    <option value={3}>כיתה 3</option>
-                    <option value={4}>כיתה 4</option>
-                    <option value={5}>כיתה 5</option>
-                    <option value={6}>כיתה 6</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* English Grouping (הקבצה) */}
-              <div className="space-y-1">
-                <label className="font-bold text-foreground block">
-                  הקבצה באנגלית (English Grouping):
-                </label>
-                <div className="grid grid-cols-4 gap-2">
-                  {(["א1", "א2", "ב"] as StudentGroup[]).map((grp) => (
-                    <button
-                      key={grp}
-                      type="button"
-                      onClick={() => setStudentGroupInput(grp)}
-                      className={`p-2 rounded-lg border text-center font-bold text-xs cursor-pointer transition-all ${
-                        studentGroupInput === grp
-                          ? "border-purple-500 bg-purple-500/15 text-purple-700 dark:text-purple-300"
-                          : "border-border hover:bg-muted/40 text-muted-foreground"
-                      }`}
-                    >
-                      הקבצה {grp}
-                    </button>
-                  ))}
-                  <button
-                    type="button"
-                    onClick={() => setStudentGroupInput("none")}
-                    className={`p-2 rounded-lg border text-center text-xs cursor-pointer transition-all ${
-                      studentGroupInput === "none"
-                        ? "border-primary bg-primary/10 text-primary font-bold"
-                        : "border-border hover:bg-muted/40 text-muted-foreground"
-                    }`}
-                  >
-                    ללא
-                  </button>
-                </div>
-              </div>
-
-              {/* PIN Code */}
-              <div className="space-y-1">
-                <div className="flex items-center justify-between">
-                  <label className="font-bold text-foreground">
-                    קוד PIN אישי (4 ספרות) <span className="text-destructive">*</span>
-                  </label>
-                  <button
-                    type="button"
-                    onClick={handleGenerateRandomPin}
-                    className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline cursor-pointer"
-                  >
-                    <Shuffle className="h-3 w-3" />
-                    <span>הגרל קוד</span>
-                  </button>
-                </div>
-                <Input
-                  type="text"
-                  maxLength={4}
-                  placeholder="1234"
-                  value={studentPinInput}
-                  onChange={(e) => setStudentPinInput(e.target.value.replace(/\D/g, ""))}
-                  className="h-9 text-xs font-mono tracking-widest text-center"
-                  dir="ltr"
-                  required
-                />
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setStudentModalOpen(false)}
-                  className="text-xs cursor-pointer"
-                >
-                  ביטול
-                </Button>
-                <Button
-                  type="submit"
-                  size="sm"
-                  disabled={isSavingStudent}
-                  className="text-xs font-bold gap-1.5 cursor-pointer bg-primary hover:bg-primary/90 text-primary-foreground"
-                >
-                  <Check className="h-3.5 w-3.5" />
-                  <span>{isSavingStudent ? "שומר..." : editingStudent ? "שמור שינויים" : "הוסף תלמיד/ה"}</span>
-                </Button>
-              </div>
-            </form>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="שכבה">
+              <FilterSelect aria-label="שכבה" value={studentGradeInput} onChange={setStudentGradeInput} options={GRADE_OPTIONS} className="h-8 w-full" />
+            </Field>
+            <Field label="מספר כיתה">
+              <FilterSelect
+                aria-label="מספר כיתה"
+                value={String(studentNumberInput)}
+                onChange={(v) => setStudentNumberInput(Number(v))}
+                options={NUMBER_OPTIONS}
+                className="h-8 w-full"
+              />
+            </Field>
           </div>
-        </div>
-      )}
-    </>
+
+          <Field label="הקבצה באנגלית">
+            <div className="grid grid-cols-4 gap-1 rounded-lg bg-muted p-1">
+              {GROUPS.map((g) => (
+                <button
+                  key={g.value}
+                  type="button"
+                  onClick={() => setStudentGroupInput(g.value)}
+                  aria-pressed={studentGroupInput === g.value}
+                  className={cn(
+                    "h-7 cursor-pointer rounded-md text-xs font-medium transition-colors",
+                    studentGroupInput === g.value ? "bg-background text-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {g.label}
+                </button>
+              ))}
+            </div>
+          </Field>
+
+          <Field
+            label="קוד PIN"
+            htmlFor="student-pin"
+            aside={
+              <button
+                type="button"
+                onClick={handleGenerateRandomPin}
+                className="inline-flex cursor-pointer items-center gap-1 text-2xs text-muted-foreground hover:text-foreground"
+              >
+                <Shuffle className="size-3" />
+                הגרל
+              </button>
+            }
+          >
+            <Input
+              id="student-pin"
+              inputMode="numeric"
+              maxLength={4}
+              placeholder="1234"
+              value={studentPinInput}
+              onChange={(e) => setStudentPinInput(e.target.value.replace(/\D/g, ""))}
+              className="text-center font-mono tracking-[0.5em]"
+              dir="ltr"
+              required
+            />
+          </Field>
+        </form>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setStudentModalOpen(false)}>
+            ביטול
+          </Button>
+          <Button type="submit" form="student-form" disabled={isSavingStudent}>
+            {isSavingStudent && <Loader2 className="animate-spin" />}
+            {editingStudent ? "שמור שינויים" : "הוסף תלמיד/ה"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function Field({
+  label,
+  htmlFor,
+  aside,
+  children,
+}: {
+  label: string;
+  htmlFor?: string;
+  aside?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-center justify-between">
+        <label htmlFor={htmlFor} className="text-xs font-medium text-foreground">
+          {label}
+        </label>
+        {aside}
+      </div>
+      {children}
+    </div>
   );
 }

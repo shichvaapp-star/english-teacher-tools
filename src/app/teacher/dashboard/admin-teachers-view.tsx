@@ -203,7 +203,7 @@ export function AdminTeachersView({ teachers }: AdminTeachersViewProps) {
     <div className="space-y-6" dir="rtl">
       {/* Success Notification */}
       {successToast && (
-        <div className="flex items-center gap-2 p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 text-sm font-semibold animate-in fade-in">
+        <div className="flex items-center gap-2 p-3.5 rounded-xl bg-success/10 border border-success/30 text-success text-sm font-semibold animate-in fade-in">
           <CheckCircle2 className="h-5 w-5 shrink-0" />
           <span>{successToast}</span>
         </div>
@@ -224,9 +224,9 @@ export function AdminTeachersView({ teachers }: AdminTeachersViewProps) {
         <Card className="border border-border/80 bg-card p-4 flex items-center justify-between">
           <div>
             <p className="text-xs text-muted-foreground font-medium">מנהלי מערכת (Admins)</p>
-            <p className="text-2xl font-black text-purple-600 dark:text-purple-400">{totalAdmins}</p>
+            <p className="text-2xl font-black text-admin">{totalAdmins}</p>
           </div>
-          <div className="p-2.5 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400">
+          <div className="p-2.5 rounded-xl bg-admin/10 text-admin">
             <ShieldCheck className="h-5 w-5" />
           </div>
         </Card>
@@ -234,11 +234,11 @@ export function AdminTeachersView({ teachers }: AdminTeachersViewProps) {
         <Card className="border border-border/80 bg-card p-4 flex items-center justify-between">
           <div>
             <p className="text-xs text-muted-foreground font-medium">תלמידים משויכים</p>
-            <p className="text-2xl font-black text-emerald-600 dark:text-emerald-400">
+            <p className="text-2xl font-black text-success">
               {isLoadingCounts ? "..." : totalStudents}
             </p>
           </div>
-          <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+          <div className="p-2.5 rounded-xl bg-success/10 text-success">
             <Users className="h-5 w-5" />
           </div>
         </Card>
@@ -281,17 +281,17 @@ export function AdminTeachersView({ teachers }: AdminTeachersViewProps) {
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="font-bold text-sm text-foreground">{t.name}</span>
                     {isMe && (
-                      <Badge variant="outline" className="text-[10px] bg-primary/10 text-primary border-primary/30">
+                      <Badge variant="outline" className="text-3xs bg-primary/10 text-primary border-primary/30">
                         אתה (מחובר כעת)
                       </Badge>
                     )}
                     {t.isAdmin && (
-                      <Badge className="text-[10px] bg-purple-600 text-white font-bold flex items-center gap-1">
+                      <Badge className="text-3xs bg-admin text-white font-bold flex items-center gap-1">
                         <ShieldCheck className="h-3 w-3" />
                         Admin
                       </Badge>
                     )}
-                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-muted text-muted-foreground">
+                    <span className="text-3xs font-mono px-2 py-0.5 rounded-md bg-muted text-muted-foreground">
                       קוד מורה: {t.teacherCode || "ללא"}
                     </span>
                   </div>
@@ -310,7 +310,7 @@ export function AdminTeachersView({ teachers }: AdminTeachersViewProps) {
                       <span className="font-semibold text-foreground">{count} תלמידים רשומים</span>
                     </span>
                     {t.createdAt && (
-                      <span className="flex items-center gap-1 text-[11px] text-muted-foreground/80">
+                      <span className="flex items-center gap-1 text-2xs text-muted-foreground/80">
                         <Calendar className="h-3 w-3" />
                         <span>נרשם: {new Date(t.createdAt).toLocaleDateString("he-IL")}</span>
                       </span>
@@ -329,7 +329,7 @@ export function AdminTeachersView({ teachers }: AdminTeachersViewProps) {
                     title={t.isAdmin ? "בטל הרשאות מנהל" : "הפוך למנהל מערכת"}
                     className={`h-8 text-xs font-semibold cursor-pointer ${
                       t.isAdmin
-                        ? "border-purple-500/40 text-purple-700 dark:text-purple-300 hover:bg-purple-500/10"
+                        ? "border-admin/40 text-admin hover:bg-admin/10"
                         : "text-muted-foreground hover:text-foreground"
                     }`}
                   >
@@ -512,13 +512,13 @@ export function AdminTeachersView({ teachers }: AdminTeachersViewProps) {
                     <ArrowRightLeft className="h-3.5 w-3.5 text-primary" />
                     <span>מזג והעבר את התלמידים והמשימות למורה אחר (מומלץ לחשבון כפול)</span>
                   </span>
-                  <p className="text-muted-foreground text-[11px]">
+                  <p className="text-muted-foreground text-2xs">
                     התלמידים והמשימות ישויכו אוטומטית לחשבון הנבחר ולא יימחקו.
                   </p>
 
                   {shouldMerge && (
                     <div className="pt-2">
-                      <label className="text-[11px] font-bold text-foreground block mb-1">
+                      <label className="text-2xs font-bold text-foreground block mb-1">
                         בחר את חשבון המורה היעד:
                       </label>
                       <select
@@ -551,7 +551,7 @@ export function AdminTeachersView({ teachers }: AdminTeachersViewProps) {
                   <span className="font-bold text-foreground">
                     מחק את חשבון המורה בלבד (ללא העברת תלמידים)
                   </span>
-                  <p className="text-muted-foreground text-[11px]">
+                  <p className="text-muted-foreground text-2xs">
                     חשבון המורה יוסר לחלוטין ממאגר המורים.
                   </p>
                 </div>

@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { FilterSelect } from "@/components/teacher-dashboard/shared-ui/filter-select";
 import {
   Search,
   Check,
@@ -101,28 +102,28 @@ Please figure out a plan to implement this suggestion.`;
     switch (type) {
       case "bug":
         return (
-          <Badge variant="outline" className="gap-1 border-red-500/30 bg-red-500/10 text-red-600 dark:text-red-400">
+          <Badge variant="outline" className="gap-1 border-destructive/30 bg-destructive/10 text-destructive">
             <Bug className="h-3 w-3" />
             <span>Bug</span>
           </Badge>
         );
       case "edit":
         return (
-          <Badge variant="outline" className="gap-1 border-blue-500/30 bg-blue-500/10 text-blue-600 dark:text-blue-400">
+          <Badge variant="outline" className="gap-1 border-info/30 bg-info/10 text-info">
             <Edit3 className="h-3 w-3" />
             <span>Edit</span>
           </Badge>
         );
       case "content":
         return (
-          <Badge variant="outline" className="gap-1 border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400">
+          <Badge variant="outline" className="gap-1 border-warning/30 bg-warning/10 text-warning-foreground dark:text-warning">
             <BookOpen className="h-3 w-3" />
             <span>Content</span>
           </Badge>
         );
       case "feature":
         return (
-          <Badge variant="outline" className="gap-1 border-purple-500/30 bg-purple-500/10 text-purple-600 dark:text-purple-400">
+          <Badge variant="outline" className="gap-1 border-admin/30 bg-admin/10 text-admin">
             <Lightbulb className="h-3 w-3" />
             <span>Feature</span>
           </Badge>
@@ -140,27 +141,27 @@ Please figure out a plan to implement this suggestion.`;
     switch (status) {
       case "new":
         return (
-          <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">
-            <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
+          <span className="inline-flex items-center gap-1 text-2xs font-semibold px-2 py-0.5 rounded-full bg-warning/15 text-warning-foreground dark:text-warning border border-warning/30">
+            <span className="h-1.5 w-1.5 rounded-full bg-warning animate-pulse" />
             New
           </span>
         );
       case "planned":
         return (
-          <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-sky-500/15 text-sky-600 dark:text-sky-400 border border-sky-500/30">
+          <span className="inline-flex items-center gap-1 text-2xs font-semibold px-2 py-0.5 rounded-full bg-info/15 text-info border border-info/30">
             Planned
           </span>
         );
       case "implemented":
         return (
-          <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
+          <span className="inline-flex items-center gap-1 text-2xs font-semibold px-2 py-0.5 rounded-full bg-success/15 text-success border border-success/30">
             <CheckCircle2 className="h-3 w-3" />
             Done
           </span>
         );
       case "dismissed":
         return (
-          <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-muted text-muted-foreground border border-border">
+          <span className="inline-flex items-center gap-1 text-2xs font-semibold px-2 py-0.5 rounded-full bg-muted text-muted-foreground border border-border">
             Dismissed
           </span>
         );
@@ -177,7 +178,7 @@ Please figure out a plan to implement this suggestion.`;
               Site Suggestions & Edits
             </h2>
             {newCount > 0 && (
-              <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 font-semibold border border-amber-500/30">
+              <span className="text-xs px-2 py-0.5 rounded-full bg-warning/15 text-warning-foreground dark:text-warning font-semibold border border-warning/30">
                 {newCount} New
               </span>
             )}
@@ -236,30 +237,30 @@ Please figure out a plan to implement this suggestion.`;
 
         <div className="flex items-center gap-2">
           {/* Status filter */}
-          <select
+          <FilterSelect
+            aria-label="Status"
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="h-9 px-2.5 rounded-lg border border-border bg-background text-xs text-foreground cursor-pointer"
-          >
-            <option value="all">All Statuses ({suggestions.length})</option>
-            <option value="new">New ({newCount})</option>
-            <option value="planned">Planned</option>
-            <option value="implemented">Implemented</option>
-            <option value="dismissed">Dismissed</option>
-          </select>
-
-          {/* Type filter */}
-          <select
+            onChange={setStatusFilter}
+            options={[
+              { value: "all", label: `All Statuses (${suggestions.length})` },
+              { value: "new", label: `New (${newCount})` },
+              { value: "planned", label: "Planned" },
+              { value: "implemented", label: "Implemented" },
+              { value: "dismissed", label: "Dismissed" },
+            ]}
+          />
+          <FilterSelect
+            aria-label="Type"
             value={typeFilter}
-            onChange={(e) => setTypeFilter(e.target.value)}
-            className="h-9 px-2.5 rounded-lg border border-border bg-background text-xs text-foreground cursor-pointer"
-          >
-            <option value="all">All Types</option>
-            <option value="edit">Edits</option>
-            <option value="bug">Bugs</option>
-            <option value="content">Content</option>
-            <option value="feature">Features</option>
-          </select>
+            onChange={setTypeFilter}
+            options={[
+              { value: "all", label: "All Types" },
+              { value: "edit", label: "Edits" },
+              { value: "bug", label: "Bugs" },
+              { value: "content", label: "Content" },
+              { value: "feature", label: "Features" },
+            ]}
+          />
         </div>
       </div>
 
@@ -295,7 +296,7 @@ Please figure out a plan to implement this suggestion.`;
                 key={item.id}
                 className={`transition-all border rounded-xl overflow-hidden ${
                   item.status === "new"
-                    ? "border-amber-500/40 bg-card shadow-xs"
+                    ? "border-warning/40 bg-card shadow-xs"
                     : "border-border/70 bg-card/70"
                 }`}
               >
@@ -320,7 +321,7 @@ Please figure out a plan to implement this suggestion.`;
                         onClick={() => handleCopySingle(item)}
                         className={`h-7 px-2.5 text-xs gap-1 cursor-pointer transition ${
                           isCopied
-                            ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400"
+                            ? "bg-success/10 border-success/30 text-success"
                             : "hover:bg-primary/10 hover:text-primary hover:border-primary/30"
                         }`}
                         title="Copy unedited prompt for Antigravity AI"
@@ -346,7 +347,7 @@ Please figure out a plan to implement this suggestion.`;
                             status: e.target.value as SuggestionStatus,
                           })
                         }
-                        className="h-7 px-2 text-[11px] rounded-md border border-border bg-background text-foreground cursor-pointer"
+                        className="h-7 px-2 text-2xs rounded-md border border-border bg-background text-foreground cursor-pointer"
                       >
                         <option value="new">Status: New</option>
                         <option value="planned">Status: Planned</option>
@@ -384,7 +385,7 @@ Please figure out a plan to implement this suggestion.`;
                       </span>
                     )}
 
-                    <span className="flex items-center gap-1 font-mono text-[11px]">
+                    <span className="flex items-center gap-1 font-mono text-2xs">
                       <ExternalLink className="h-3 w-3" />
                       Page: <Link href={item.pageUrl} className="text-primary hover:underline">{item.pageUrl}</Link>
                     </span>
