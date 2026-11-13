@@ -10,6 +10,7 @@ import { exportBankToCSV } from "@/lib/vocab-bank-storage";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { FilterSelect } from "@/components/teacher-dashboard/shared-ui/filter-select";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import {
@@ -63,11 +64,6 @@ export function CustomVocabBanksView({
     return Array.from(set);
   }, [banks]);
 
-  // Total words across all banks
-  const totalWordsCount = useMemo(() => {
-    return banks.reduce((acc, b) => acc + (b.words?.length || 0), 0);
-  }, [banks]);
-
   // Filtered banks
   const filteredBanks = useMemo(() => {
     return banks.filter((b) => {
@@ -105,83 +101,43 @@ export function CustomVocabBanksView({
 
   return (
     <div className="space-y-4" dir="rtl">
-      {/* Top Header & Actions */}
-      <div className="flex flex-wrap items-center justify-between gap-3 p-4 rounded-2xl bg-card border border-border shadow-2xs">
-        <div>
-          <div className="flex items-center gap-2">
-            <h3 className="text-base font-bold text-foreground">מאגרי מילים מותאמים אישית</h3>
-            <Badge variant="secondary" className="text-xs">
-              {banks.length} מאגרים ({totalWordsCount} מילים סה״כ)
-            </Badge>
-          </div>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            העלו רשימות מ-Word, Excel או CSV, מיינו לפי שכבה והקבצה/רמה מותאמת, והקצו משימות תרגול בלחיצת כפתור.
-          </p>
-        </div>
-
-        <Button
-          onClick={onOpenCreateModal}
-          size="sm"
-          className="text-xs font-bold gap-1.5 cursor-pointer bg-primary text-primary-foreground shadow-xs hover:bg-primary/90"
-        >
-          <Plus className="h-4 w-4" />
-          <span>+ ייבוא מאגר מקובץ / יצירה חדשה</span>
-        </Button>
-      </div>
-
       {/* Filter and Search Bar */}
-      <div className="flex flex-wrap items-center gap-2.5 bg-muted/30 p-2.5 rounded-xl border border-border/70 text-xs">
+      <div className="flex flex-wrap items-center gap-2 text-xs">
         {/* Search */}
-        <div className="relative flex-1 min-w-[200px]">
+        <div className="relative w-full sm:w-72">
           <Search className="h-3.5 w-3.5 absolute right-2.5 top-2.5 text-muted-foreground" />
           <Input
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="חיפוש לפי שם מאגר או מילה..."
-            className="h-8 pr-8 text-xs bg-background"
+            className="h-8 pr-8 text-xs"
           />
         </div>
 
-        {/* Grade Filter */}
-        <div className="flex items-center gap-1.5 shrink-0">
-          <span className="text-[11px] font-medium text-muted-foreground flex items-center gap-1">
-            <GraduationCap className="h-3 w-3" />
-            <span>שכבה:</span>
-          </span>
-          <select
-            value={gradeFilter}
-            onChange={(e) => setGradeFilter(e.target.value)}
-            className="h-8 px-2.5 rounded-lg border border-border bg-background text-xs font-medium cursor-pointer"
-          >
-            <option value="all">כל השכבות</option>
-            <option value="ז">כיתה ז׳</option>
-            <option value="ח">כיתה ח׳</option>
-            <option value="ט">כיתה ט׳</option>
-            <option value="י">כיתה י׳</option>
-            <option value="יא">כיתה י״א</option>
-            <option value="יב">כיתה י״ב</option>
-          </select>
-        </div>
-
-        {/* Level / Custom Stream Filter */}
-        <div className="flex items-center gap-1.5 shrink-0">
-          <span className="text-[11px] font-medium text-muted-foreground flex items-center gap-1">
-            <Layers className="h-3 w-3" />
-            <span>רמה / הקבצה:</span>
-          </span>
-          <select
-            value={levelFilter}
-            onChange={(e) => setLevelFilter(e.target.value)}
-            className="h-8 px-2.5 rounded-lg border border-border bg-background text-xs font-medium cursor-pointer max-w-[180px]"
-          >
-            <option value="all">כל הרמות וההקבצות</option>
-            {uniqueLevels.map((lvl) => (
-              <option key={lvl} value={lvl}>
-                {STANDARD_LEVEL_LABELS[lvl] || lvl}
-              </option>
-            ))}
-          </select>
-        </div>
+        <FilterSelect
+          aria-label="שכבה"
+          value={gradeFilter}
+          onChange={setGradeFilter}
+          options={[
+            { value: "all", label: "כל השכבות" },
+            { value: "ז", label: "כיתה ז׳" },
+            { value: "ח", label: "כיתה ח׳" },
+            { value: "ט", label: "כיתה ט׳" },
+            { value: "י", label: "כיתה י׳" },
+            { value: "יא", label: "כיתה י״א" },
+            { value: "יב", label: "כיתה י״ב" },
+          ]}
+        />
+        <FilterSelect
+          aria-label="רמה / הקבצה"
+          value={levelFilter}
+          onChange={setLevelFilter}
+          options={[
+            { value: "all", label: "כל הרמות וההקבצות" },
+            ...uniqueLevels.map((lvl) => ({ value: lvl, label: STANDARD_LEVEL_LABELS[lvl] || lvl })),
+          ]}
+          className="max-w-48"
+        />
       </div>
 
       {/* Empty State */}
@@ -236,34 +192,34 @@ export function CustomVocabBanksView({
                       {bank.name}
                     </CardTitle>
                     {bank.description && (
-                      <CardDescription className="text-[11px] line-clamp-1">
+                      <CardDescription className="text-2xs line-clamp-1">
                         {bank.description}
                       </CardDescription>
                     )}
                   </div>
-                  <Badge variant="outline" className="text-[10px] shrink-0 font-bold">
+                  <Badge variant="outline" className="text-3xs shrink-0 font-bold">
                     {bank.words?.length || 0} מילים
                   </Badge>
                 </div>
 
                 {/* Grade & Level Badges */}
                 <div className="flex flex-wrap items-center gap-1.5 pt-2">
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-primary/10 text-primary border border-primary/20">
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-3xs font-semibold bg-primary/10 text-primary border border-primary/20">
                     <GraduationCap className="h-3 w-3" />
                     <span>{gradeLabel}</span>
                   </span>
 
-                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold border ${
+                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-3xs font-semibold border ${
                     bank.levelType === "custom"
-                      ? "bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/25"
-                      : "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/25"
+                      ? "bg-admin/10 text-admin border-admin/25"
+                      : "bg-success/10 text-success border-success/25"
                   }`}>
                     <Layers className="h-3 w-3" />
                     <span>{levelLabel}</span>
                   </span>
 
                   {bank.isShared && (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-500/10 text-blue-700 dark:text-blue-300 border border-blue-500/25">
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-3xs font-bold bg-info/10 text-info border border-info/25">
                       <Share2 className="h-3 w-3" />
                       <span>משותף למורים</span>
                     </span>
@@ -277,17 +233,17 @@ export function CustomVocabBanksView({
                   {bank.words.slice(0, 5).map((w) => (
                     <span
                       key={w.id}
-                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-muted/60 text-[11px] text-foreground font-medium"
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-muted/60 text-2xs text-foreground font-medium"
                     >
                       <span className="font-bold">{w.english}</span>
-                      <span className="text-muted-foreground text-[10px]">({w.hebrew})</span>
+                      <span className="text-muted-foreground text-3xs">({w.hebrew})</span>
                     </span>
                   ))}
                   {bank.words.length > 5 && (
                     <button
                       type="button"
                       onClick={() => setViewingBank(bank)}
-                      className="text-[10px] text-primary hover:underline font-bold px-1 py-0.5 cursor-pointer self-center"
+                      className="text-3xs text-primary hover:underline font-bold px-1 py-0.5 cursor-pointer self-center"
                     >
                       +{bank.words.length - 5} נוספות...
                     </button>
@@ -301,7 +257,7 @@ export function CustomVocabBanksView({
                     type="button"
                     size="sm"
                     onClick={() => onAssignFromBank(bank)}
-                    className="text-xs h-7.5 font-bold gap-1 cursor-pointer bg-emerald-600 hover:bg-emerald-700 text-white shadow-2xs flex-1"
+                    className="text-xs h-7.5 font-bold gap-1 cursor-pointer bg-success hover:bg-success text-white shadow-2xs flex-1"
                   >
                     <Send className="h-3 w-3" />
                     <span>הקצה משימה</span>
@@ -345,7 +301,7 @@ export function CustomVocabBanksView({
                         onClick={() => onToggleShare(bank)}
                         className={`p-1.5 rounded-md cursor-pointer transition-colors ${
                           bank.isShared
-                            ? "text-blue-600 dark:text-blue-400 bg-blue-500/10 hover:bg-blue-500/20"
+                            ? "text-info bg-info/10 hover:bg-info/20"
                             : "text-muted-foreground hover:text-foreground hover:bg-muted"
                         }`}
                         title={bank.isShared ? "בטל שיתוף במאגר המורים" : "שתף במאגר המורים המשותף"}
@@ -396,7 +352,7 @@ export function CustomVocabBanksView({
                     setViewingBank(null);
                     onAssignFromBank(b);
                   }}
-                  className="text-xs font-bold gap-1 cursor-pointer bg-emerald-600 hover:bg-emerald-700 text-white"
+                  className="text-xs font-bold gap-1 cursor-pointer bg-success hover:bg-success text-white"
                 >
                   <Send className="h-3 w-3" />
                   <span>הקצה משימה ממאגר זה</span>
@@ -419,8 +375,8 @@ export function CustomVocabBanksView({
                     <tr key={w.id} className="hover:bg-muted/20">
                       <td className="p-2.5 font-bold text-foreground capitalize">{w.english}</td>
                       <td className="p-2.5 font-bold text-primary">{w.hebrew}</td>
-                      <td className="p-2.5 text-muted-foreground text-[11px]">{w.partOfSpeech || "noun"}</td>
-                      <td className="p-2.5 text-muted-foreground italic text-[11px] font-sans" dir="ltr">
+                      <td className="p-2.5 text-muted-foreground text-2xs">{w.partOfSpeech || "noun"}</td>
+                      <td className="p-2.5 text-muted-foreground italic text-2xs font-sans" dir="ltr">
                         {w.example ? `"${w.example}"` : "—"}
                       </td>
                     </tr>

@@ -141,7 +141,7 @@ export function UserNav() {
                 </Link>
 
                 <Link
-                  href="/teacher/dashboard?tab=shared"
+                  href="/teacher/dashboard/shared"
                   onClick={() => setDropdownOpen(false)}
                   className="w-full flex items-center gap-2 px-3 py-2 text-xs text-foreground hover:bg-accent rounded-lg transition text-left cursor-pointer mb-1"
                 >
@@ -151,7 +151,7 @@ export function UserNav() {
 
                 {user.isAdmin && (
                   <Link
-                    href="/teacher/dashboard?tab=adminTeachers"
+                    href="/teacher/dashboard/admin/teachers"
                     onClick={() => setDropdownOpen(false)}
                     className="w-full flex items-center gap-2 px-3 py-2 text-xs text-purple-700 dark:text-purple-300 hover:bg-purple-500/10 rounded-lg transition text-left cursor-pointer font-bold mb-1 border border-purple-500/20 bg-purple-500/5"
                   >

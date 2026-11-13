@@ -144,14 +144,14 @@ export function SharedResourcesView({
     <div className="space-y-6" dir="rtl">
       {/* Toast Notification */}
       {successToast && (
-        <div className="flex items-center gap-2 p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 text-sm font-semibold animate-in fade-in">
+        <div className="flex items-center gap-2 p-3.5 rounded-xl bg-success/10 border border-success/30 text-success text-sm font-semibold animate-in fade-in">
           <CheckCircle2 className="h-5 w-5 shrink-0" />
           <span>{successToast}</span>
         </div>
       )}
 
       {/* Hero Banner */}
-      <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-primary/10 via-card to-purple-500/10 border border-primary/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-primary/10 via-card to-admin/10 border border-primary/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <span className="p-2 rounded-xl bg-primary text-primary-foreground">
@@ -190,7 +190,7 @@ export function SharedResourcesView({
           >
             <BookA className="h-4 w-4" />
             <span>מאגרי מילים משותפים</span>
-            <span className="px-2 py-0.2 rounded-full text-[11px] font-bold bg-primary-foreground/20 text-primary-foreground">
+            <span className="px-2 py-0.2 rounded-full text-2xs font-bold bg-primary-foreground/20 text-primary-foreground">
               {sharedBanks.length}
             </span>
           </button>
@@ -206,7 +206,7 @@ export function SharedResourcesView({
           >
             <Send className="h-3.5 w-3.5" />
             <span>משימות משותפות</span>
-            <span className="px-2 py-0.2 rounded-full text-[11px] font-bold bg-primary-foreground/20 text-primary-foreground">
+            <span className="px-2 py-0.2 rounded-full text-2xs font-bold bg-primary-foreground/20 text-primary-foreground">
               {sharedAssignments.length}
             </span>
           </button>
@@ -270,25 +270,25 @@ export function SharedResourcesView({
                             {bank.name}
                           </CardTitle>
                           {bank.description && (
-                            <CardDescription className="text-[11px] line-clamp-1">
+                            <CardDescription className="text-2xs line-clamp-1">
                               {bank.description}
                             </CardDescription>
                           )}
                         </div>
-                        <Badge variant="outline" className="text-[10px] shrink-0 font-bold">
+                        <Badge variant="outline" className="text-3xs shrink-0 font-bold">
                           {bank.words?.length || 0} מילים
                         </Badge>
                       </div>
 
                       {/* Author badge */}
-                      <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground pt-1">
+                      <div className="flex items-center gap-1.5 text-2xs text-muted-foreground pt-1">
                         <User className="h-3 w-3 text-primary" />
                         <span className="font-semibold text-foreground">
                           {bank.teacherName || "מורה"}
                         </span>
                         {bank.schoolName && <span>• {bank.schoolName}</span>}
                         {isMyBank && (
-                          <span className="px-1.5 py-0.2 rounded-full text-[9px] bg-primary/10 text-primary font-bold">
+                          <span className="px-1.5 py-0.2 rounded-full text-3xs bg-primary/10 text-primary font-bold">
                             שלך
                           </span>
                         )}
@@ -296,12 +296,12 @@ export function SharedResourcesView({
 
                       {/* Grade & Level Badges */}
                       <div className="flex flex-wrap items-center gap-1.5 pt-2">
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-primary/10 text-primary border border-primary/20">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-3xs font-semibold bg-primary/10 text-primary border border-primary/20">
                           <GraduationCap className="h-3 w-3" />
                           <span>{gradeLabel}</span>
                         </span>
 
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-purple-500/10 text-purple-700 dark:text-purple-300 border border-purple-500/25">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-3xs font-semibold bg-admin/10 text-admin border border-admin/25">
                           <Layers className="h-3 w-3" />
                           <span>{levelLabel}</span>
                         </span>
@@ -314,17 +314,17 @@ export function SharedResourcesView({
                         {bank.words.slice(0, 4).map((w) => (
                           <span
                             key={w.id}
-                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-muted/60 text-[11px] text-foreground font-medium"
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-muted/60 text-2xs text-foreground font-medium"
                           >
                             <span className="font-bold">{w.english}</span>
-                            <span className="text-muted-foreground text-[10px]">({w.hebrew})</span>
+                            <span className="text-muted-foreground text-3xs">({w.hebrew})</span>
                           </span>
                         ))}
                         {bank.words.length > 4 && (
                           <button
                             type="button"
                             onClick={() => setViewingBank(bank)}
-                            className="text-[10px] text-primary hover:underline px-1 self-center cursor-pointer font-semibold"
+                            className="text-3xs text-primary hover:underline px-1 self-center cursor-pointer font-semibold"
                           >
                             +{bank.words.length - 4} נוספות...
                           </button>
@@ -405,18 +405,18 @@ export function SharedResourcesView({
                           {a.title}
                         </CardTitle>
                         {a.hebrewTitle && (
-                          <CardDescription className="text-[11px] line-clamp-1">
+                          <CardDescription className="text-2xs line-clamp-1">
                             {a.hebrewTitle}
                           </CardDescription>
                         )}
                       </div>
-                      <Badge variant="outline" className="text-[10px] shrink-0 font-bold uppercase">
+                      <Badge variant="outline" className="text-3xs shrink-0 font-bold uppercase">
                         {a.type}
                       </Badge>
                     </div>
 
                     {/* Author & School */}
-                    <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground pt-1">
+                    <div className="flex items-center gap-1.5 text-2xs text-muted-foreground pt-1">
                       <User className="h-3 w-3 text-primary" />
                       <span className="font-semibold text-foreground">{a.teacherName}</span>
                       {a.authorSchoolName && <span>• {a.authorSchoolName}</span>}
@@ -425,12 +425,12 @@ export function SharedResourcesView({
                     {/* Badges: Level & Coach */}
                     <div className="flex flex-wrap items-center gap-1.5 pt-2">
                       {a.level && (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-primary/10 text-primary border border-primary/20">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-3xs font-semibold bg-primary/10 text-primary border border-primary/20">
                           {a.level}
                         </span>
                       )}
                       {a.coachWithDavid && (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/25">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-3xs font-semibold bg-success/10 text-success border border-success/25">
                           <Sparkles className="h-3 w-3" />
                           <span>David AI Coach</span>
                         </span>
@@ -452,7 +452,7 @@ export function SharedResourcesView({
                         {a.focusWords.slice(0, 5).map((w, idx) => (
                           <span
                             key={idx}
-                            className="px-1.5 py-0.5 rounded text-[10px] bg-muted text-muted-foreground font-mono"
+                            className="px-1.5 py-0.5 rounded text-3xs bg-muted text-muted-foreground font-mono"
                           >
                             {w}
                           </span>
@@ -507,7 +507,7 @@ export function SharedResourcesView({
                     <span className="font-semibold text-primary">{w.hebrew}</span>
                   </div>
                   {w.example && (
-                    <p className="text-[11px] text-muted-foreground italic">&quot;{w.example}&quot;</p>
+                    <p className="text-2xs text-muted-foreground italic">&quot;{w.example}&quot;</p>
                   )}
                 </div>
               ))}

@@ -262,7 +262,7 @@ export function VocabBankModal({
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
-                <label className="text-[11px] font-semibold text-muted-foreground block">
+                <label className="text-2xs font-semibold text-muted-foreground block">
                   שם המאגר <span className="text-destructive">*</span>
                 </label>
                 <Input
@@ -274,7 +274,7 @@ export function VocabBankModal({
               </div>
 
               <div className="space-y-1">
-                <label className="text-[11px] font-semibold text-muted-foreground block">
+                <label className="text-2xs font-semibold text-muted-foreground block">
                   תיאור קצר (אופציונלי)
                 </label>
                 <Input
@@ -290,7 +290,7 @@ export function VocabBankModal({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 border-t border-border/50">
               {/* Grade Selector */}
               <div className="space-y-1.5">
-                <label className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1">
+                <label className="text-2xs font-semibold text-muted-foreground flex items-center gap-1">
                   <GraduationCap className="h-3.5 w-3.5" />
                   <span>שכבת גיל (כיתה)</span>
                 </label>
@@ -310,10 +310,10 @@ export function VocabBankModal({
               {/* Stream / Custom Level Toggle */}
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <label className="text-[11px] font-semibold text-muted-foreground">
+                  <label className="text-2xs font-semibold text-muted-foreground">
                     הקבצה / רמת לימוד
                   </label>
-                  <div className="flex items-center gap-1 text-[10px]">
+                  <div className="flex items-center gap-1 text-3xs">
                     <button
                       type="button"
                       onClick={() => setLevelType("standard")}
@@ -366,7 +366,7 @@ export function VocabBankModal({
                           key={preset}
                           type="button"
                           onClick={() => setCustomLevelName(preset)}
-                          className="text-[10px] px-2 py-0.5 rounded-full bg-muted/80 hover:bg-muted text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
+                          className="text-3xs px-2 py-0.5 rounded-full bg-muted/80 hover:bg-muted text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
                         >
                           + {preset}
                         </button>
@@ -385,7 +385,7 @@ export function VocabBankModal({
                     <Share2 className="h-3.5 w-3.5 text-primary" />
                     <span>שתף במאגר המורים המשותף (Community Library)</span>
                   </span>
-                  <p className="text-[11px] text-muted-foreground">
+                  <p className="text-2xs text-muted-foreground">
                     מורים נוספים במערכת יוכלו לצפות במאגר זה, להעתיק אותו למאגרים שלהם ולהקצותו לתלמידיהם.
                   </p>
                 </div>
@@ -413,7 +413,7 @@ export function VocabBankModal({
                   variant="outline"
                   size="sm"
                   onClick={handleSwapColumns}
-                  className="h-7 text-[11px] gap-1 cursor-pointer hover:bg-primary/10 hover:text-primary border-primary/30"
+                  className="h-7 text-2xs gap-1 cursor-pointer hover:bg-primary/10 hover:text-primary border-primary/30"
                   title="החלף בין עמודת עברית לאנגלית אם הקובץ יובא הפוך"
                 >
                   <ArrowLeftRight className="h-3 w-3" />
@@ -449,13 +449,13 @@ export function VocabBankModal({
                     disabled={isProcessingFile}
                   />
                   <div className="flex items-center gap-2 text-primary">
-                    <FileSpreadsheet className="h-6 w-6 text-emerald-600" />
-                    <FileText className="h-6 w-6 text-blue-600" />
+                    <FileSpreadsheet className="h-6 w-6 text-success" />
+                    <FileText className="h-6 w-6 text-info" />
                   </div>
                   <span className="text-xs font-bold text-foreground">
                     {isProcessingFile ? "מפענח את הקובץ..." : "לחצו כאן להעלאת קובץ Word, Excel או CSV"}
                   </span>
-                  <span className="text-[11px] text-muted-foreground max-w-sm">
+                  <span className="text-2xs text-muted-foreground max-w-sm">
                     תמיכה מלאה בקבצי .xlsx, .docx, .csv. המערכת תזהה אוטומטית את עמודת האנגלית והתרגום לעברית!
                   </span>
                 </label>
@@ -536,7 +536,7 @@ book: ספר`}
             </Tabs>
 
             {importWarnings.length > 0 && (
-              <div className="p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-800 dark:text-amber-300 text-[11px] space-y-0.5">
+              <div className="p-2.5 rounded-lg bg-warning/10 border border-warning/20 text-warning-foreground dark:text-warning text-2xs space-y-0.5">
                 <span className="font-bold block">הערות יבוא:</span>
                 {importWarnings.slice(0, 3).map((w, idx) => (
                   <p key={idx}>{w}</p>
@@ -550,7 +550,7 @@ book: ספר`}
             <div className="space-y-2">
               <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground">
                 <span>טבלת מילים במאגר ({words.length} מילים)</span>
-                <span className="text-[11px]">ניתן לערוך ישירות בכל תא או למחוק שורה</span>
+                <span className="text-2xs">ניתן לערוך ישירות בכל תא או למחוק שורה</span>
               </div>
 
               <div className="max-h-60 overflow-y-auto rounded-xl border border-border bg-card">
@@ -589,7 +589,7 @@ book: ספר`}
                           <select
                             value={w.partOfSpeech || "noun"}
                             onChange={(e) => handleUpdateWord(w.id, "partOfSpeech", e.target.value)}
-                            className="w-full px-1 py-1 rounded bg-transparent text-[11px] text-muted-foreground focus:bg-background"
+                            className="w-full px-1 py-1 rounded bg-transparent text-2xs text-muted-foreground focus:bg-background"
                           >
                             <option value="noun">noun</option>
                             <option value="verb">verb</option>
@@ -604,7 +604,7 @@ book: ספר`}
                             value={w.example || ""}
                             onChange={(e) => handleUpdateWord(w.id, "example", e.target.value)}
                             placeholder="משפט לדוגמה..."
-                            className="w-full px-2 py-1 rounded bg-transparent border-none text-[11px] italic text-muted-foreground focus:ring-1 focus:ring-primary focus:bg-background"
+                            className="w-full px-2 py-1 rounded bg-transparent border-none text-2xs italic text-muted-foreground focus:ring-1 focus:ring-primary focus:bg-background"
                             dir="ltr"
                           />
                         </td>

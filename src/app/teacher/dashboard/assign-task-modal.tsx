@@ -681,7 +681,7 @@ export function AssignTaskModal({
       <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto" dir="rtl">
         <DialogHeader className="text-right">
           <div className="flex items-center gap-2">
-            <div className="p-2 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400">
+            <div className="p-2 rounded-xl bg-admin/10 text-admin">
               <Send className="h-5 w-5" />
             </div>
             <div>
@@ -716,7 +716,7 @@ export function AssignTaskModal({
                     : "border-border hover:bg-muted/40 text-muted-foreground"
                 }`}
               >
-                <PenTool className="h-4 w-4 text-purple-500 shrink-0" />
+                <PenTool className="h-4 w-4 text-admin shrink-0" />
                 <span>✍️ כתיבה</span>
               </button>
 
@@ -729,7 +729,7 @@ export function AssignTaskModal({
                     : "border-border hover:bg-muted/40 text-muted-foreground"
                 }`}
               >
-                <BookOpen className="h-4 w-4 text-sky-500 shrink-0" />
+                <BookOpen className="h-4 w-4 text-info shrink-0" />
                 <span>📖 אנסין</span>
               </button>
 
@@ -738,11 +738,11 @@ export function AssignTaskModal({
                 onClick={() => handleTypeChange("conversation")}
                 className={`flex flex-col sm:flex-row items-center justify-center gap-1.5 p-2.5 rounded-xl border text-xs font-bold transition-all cursor-pointer text-center ${
                   taskType === "conversation"
-                    ? "border-amber-500 bg-amber-500/15 text-amber-700 dark:text-amber-300 font-bold shadow-2xs ring-1 ring-amber-500/40"
+                    ? "border-warning bg-warning/15 text-warning-foreground dark:text-warning font-bold shadow-2xs ring-1 ring-warning/40"
                     : "border-border hover:bg-muted/40 text-muted-foreground"
                 }`}
               >
-                <MessageSquare className="h-4 w-4 text-amber-500 shrink-0" />
+                <MessageSquare className="h-4 w-4 text-warning-foreground shrink-0" />
                 <span>💬 שיחות</span>
               </button>
 
@@ -751,11 +751,11 @@ export function AssignTaskModal({
                 onClick={() => handleTypeChange("vocab")}
                 className={`flex flex-col sm:flex-row items-center justify-center gap-1.5 p-2.5 rounded-xl border text-xs font-bold transition-all cursor-pointer text-center ${
                   taskType === "vocab"
-                    ? "border-emerald-600 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-black shadow-2xs ring-1 ring-emerald-500/40"
+                    ? "border-success bg-success/15 text-success font-black shadow-2xs ring-1 ring-success/40"
                     : "border-border hover:bg-muted/40 text-muted-foreground"
                 }`}
               >
-                <BookA className="h-4 w-4 text-emerald-500 shrink-0" />
+                <BookA className="h-4 w-4 text-success shrink-0" />
                 <span>🔤 מילים</span>
               </button>
             </div>
@@ -763,16 +763,16 @@ export function AssignTaskModal({
 
           {taskType === "vocab" ? (
             /* Vocabulary Word Builder Section */
-            <div className="space-y-3 p-3.5 rounded-xl border border-emerald-500/30 bg-emerald-500/5">
+            <div className="space-y-3 p-3.5 rounded-xl border border-success/30 bg-success/5">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5 font-bold text-foreground">
-                  <BookA className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                  <BookA className="h-4 w-4 text-success" />
                   <span>אוצר מילים מוקצה למשימה:</span>
                 </div>
                 <Badge
                   variant="outline"
-                  className={`text-2xs font-bold border-emerald-500/40 text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 ${
-                    selectedVocabWords.length >= 4 ? "ring-1 ring-emerald-500/30" : ""
+                  className={`text-2xs font-bold border-success/40 text-success bg-success/10 ${
+                    selectedVocabWords.length >= 4 ? "ring-1 ring-success/30" : ""
                   }`}
                 >
                   {selectedVocabWords.length} מילים נבחרו
@@ -1018,7 +1018,7 @@ export function AssignTaskModal({
                               className={`h-6 px-2 text-3xs gap-1 cursor-pointer ${
                                 isSelected
                                   ? "border-destructive/50 text-destructive hover:bg-destructive/10"
-                                  : "bg-emerald-600 hover:bg-emerald-700 text-white"
+                                  : "bg-success hover:bg-success text-white"
                               }`}
                             >
                               {isSelected ? (
@@ -1047,7 +1047,7 @@ export function AssignTaskModal({
                   <button
                     type="button"
                     onClick={() => setShowAddCustomWord(true)}
-                    className="flex items-center gap-1.5 text-2xs text-emerald-600 dark:text-emerald-400 font-bold hover:underline cursor-pointer"
+                    className="flex items-center gap-1.5 text-2xs text-success font-bold hover:underline cursor-pointer"
                   >
                     <Plus className="h-3 w-3" />
                     <span>הוסף מילה מותאמת אישית לרשימה</span>
@@ -1102,7 +1102,7 @@ export function AssignTaskModal({
                         size="sm"
                         onClick={handleAddCustomWord}
                         disabled={!customVocabEng.trim() || !customVocabHeb.trim()}
-                        className="h-6 text-2xs bg-emerald-600 hover:bg-emerald-700 text-white"
+                        className="h-6 text-2xs bg-success hover:bg-success text-white"
                       >
                         הוסף לרשימה
                       </Button>
@@ -1142,7 +1142,7 @@ export function AssignTaskModal({
                 <div className="flex items-center justify-between">
                   <label className="font-bold text-foreground block">רמת התרגיל (Level):</label>
                   {selectedLevel !== "all" && (
-                    <Badge variant="secondary" className="text-[10px] font-bold">
+                    <Badge variant="secondary" className="text-3xs font-bold">
                       {selectedLevel === "Level 1"
                         ? "רמה 1 • מתחילים"
                         : selectedLevel === "Level 2"
@@ -1170,7 +1170,7 @@ export function AssignTaskModal({
                       }`}
                     >
                       <span className="text-xs font-bold">{lvl.icon} {lvl.label}</span>
-                      <span className="text-[9px] text-muted-foreground">{lvl.sub}</span>
+                      <span className="text-3xs text-muted-foreground">{lvl.sub}</span>
                     </button>
                   ))}
                 </div>
@@ -1194,7 +1194,7 @@ export function AssignTaskModal({
                       <Layers className="h-3.5 w-3.5 shrink-0" />
                       <span>משימה ספציפית מהמאגר</span>
                     </div>
-                    <p className="text-[10px] text-muted-foreground mt-1">
+                    <p className="text-3xs text-muted-foreground mt-1">
                       {taskType === "writing"
                         ? "בחירת נושא קבוע מהמאגר"
                         : taskType === "conversation"
@@ -1208,15 +1208,15 @@ export function AssignTaskModal({
                     onClick={() => setSelectionMode("free_choice")}
                     className={`p-2.5 rounded-xl border text-right transition-all cursor-pointer flex flex-col justify-between ${
                       selectionMode === "free_choice"
-                        ? "border-purple-500 bg-purple-500/10 text-purple-700 dark:text-purple-300 font-bold shadow-2xs"
+                        ? "border-admin bg-admin/10 text-admin font-bold shadow-2xs"
                         : "border-border text-muted-foreground hover:bg-muted/40"
                     }`}
                   >
                     <div className="flex items-center gap-1.5 font-bold text-xs">
-                      <Sparkles className="h-3.5 w-3.5 text-purple-500 shrink-0" />
+                      <Sparkles className="h-3.5 w-3.5 text-admin shrink-0" />
                       <span>בחירה חופשית של התלמיד</span>
                     </div>
-                    <p className="text-[10px] text-muted-foreground mt-1">
+                    <p className="text-3xs text-muted-foreground mt-1">
                       {selectedLevel !== "all"
                         ? `התלמיד בוחר נושא ברמה ${selectedLevel}`
                         : "התלמיד בוחר נושא בעצמו או יוצר ב-AI"}
@@ -1227,7 +1227,7 @@ export function AssignTaskModal({
                 {/* Dropdown if specific topic, or info callout if adaptive / free choice */}
                 {selectionMode === "specific" ? (
                   <div className="space-y-1 pt-1">
-                    <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                    <div className="flex items-center justify-between text-2xs text-muted-foreground">
                       <label className="block">
                         {taskType === "writing"
                           ? "בחירת נושא החיבור מתוך המאגר:"
@@ -1308,8 +1308,8 @@ export function AssignTaskModal({
                     )}
                   </div>
                 ) : (
-                  <div className="p-3 rounded-xl bg-purple-500/10 border border-purple-500/30 flex items-start gap-2.5 text-xs text-purple-900 dark:text-purple-200">
-                    <Sparkles className="h-4 w-4 text-purple-600 dark:text-purple-400 shrink-0 mt-0.5" />
+                  <div className="p-3 rounded-xl bg-admin/10 border border-admin/30 flex items-start gap-2.5 text-xs text-admin">
+                    <Sparkles className="h-4 w-4 text-admin shrink-0 mt-0.5" />
                     <div className="space-y-1">
                       <span className="font-bold block">
                         {taskType === "writing"
@@ -1318,7 +1318,7 @@ export function AssignTaskModal({
                           ? `התלמידים יבחרו בעצמם איזה תרחיש שיחה לתרגל${selectedLevel !== "all" ? ` (רמה ${selectedLevel})` : ""}`
                           : `התלמידים יבחרו בעצמם איזה קטע אנסין לקרוא${selectedLevel !== "all" ? ` (רמה ${selectedLevel})` : ""}`}
                       </span>
-                      <p className="text-[11px] text-muted-foreground leading-relaxed">
+                      <p className="text-2xs text-muted-foreground leading-relaxed">
                         {taskType === "writing"
                           ? `התלמידים יוכלו לבחור כל נושא מתוך המאגר${selectedLevel !== "all" ? ` ברמה ${selectedLevel}` : ""}, לכתוב נושא חופשי או להיעזר ב-AI. המערכת תשייך את ההגשה למשימה זו.`
                           : taskType === "conversation"
@@ -1337,7 +1337,7 @@ export function AssignTaskModal({
             <div className="flex items-center justify-between">
               <label className="font-bold text-foreground block">קהל יעד להקצאת המשימה:</label>
               {matchingStudentsCount > 0 && (
-                <span className="text-[11px] text-muted-foreground font-medium">
+                <span className="text-2xs text-muted-foreground font-medium">
                   {matchingStudentsCount} תלמידים יקבלו את המשימה
                 </span>
               )}
@@ -1389,7 +1389,7 @@ export function AssignTaskModal({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   {/* 1. Select Class */}
                   <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-foreground block">
+                    <label className="text-2xs font-bold text-foreground block">
                       1. בחירת כיתה:
                     </label>
                     <select
@@ -1410,7 +1410,7 @@ export function AssignTaskModal({
 
                   {/* 2. Select Grouping */}
                   <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-foreground block">
+                    <label className="text-2xs font-bold text-foreground block">
                       2. בחירת הקבצה באנגלית:
                     </label>
                     <div className="grid grid-cols-4 gap-1">
@@ -1421,7 +1421,7 @@ export function AssignTaskModal({
                           onClick={() => setSelectedGroup(grp)}
                           className={`h-8 rounded-lg border text-center font-black text-xs cursor-pointer transition-all ${
                             selectedGroup === grp
-                              ? "border-purple-500 bg-purple-500/15 text-purple-700 dark:text-purple-300 shadow-2xs ring-1 ring-purple-500"
+                              ? "border-admin bg-admin/15 text-admin shadow-2xs ring-1 ring-admin"
                               : "border-border hover:bg-muted/40 text-muted-foreground"
                           }`}
                         >
@@ -1431,7 +1431,7 @@ export function AssignTaskModal({
                       <button
                         type="button"
                         onClick={() => setSelectedGroup("all")}
-                        className={`h-8 rounded-lg border text-center font-bold text-[10px] cursor-pointer transition-all ${
+                        className={`h-8 rounded-lg border text-center font-bold text-3xs cursor-pointer transition-all ${
                           selectedGroup === "all"
                             ? "border-primary bg-primary/10 text-primary shadow-2xs ring-1 ring-primary"
                             : "border-border hover:bg-muted/40 text-muted-foreground"
@@ -1448,7 +1448,7 @@ export function AssignTaskModal({
                 {selectedClass && selectedGroup && (
                   <div className="pt-1 border-t border-border/60 space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-bold text-foreground">היקף ההקצאה בכיתה:</span>
+                      <span className="text-2xs font-bold text-foreground">היקף ההקצאה בכיתה:</span>
                       <div className="flex items-center gap-1 bg-background p-0.5 rounded-lg border border-border/80">
                         <button
                           type="button"
@@ -1456,7 +1456,7 @@ export function AssignTaskModal({
                             setClassTargetScope("all");
                             setSelectedStudentIds([]);
                           }}
-                          className={`px-2 py-0.5 rounded text-[11px] font-bold cursor-pointer transition-all ${
+                          className={`px-2 py-0.5 rounded text-2xs font-bold cursor-pointer transition-all ${
                             classTargetScope === "all"
                               ? "bg-primary text-primary-foreground shadow-2xs"
                               : "text-muted-foreground hover:text-foreground"
@@ -1467,7 +1467,7 @@ export function AssignTaskModal({
                         <button
                           type="button"
                           onClick={() => setClassTargetScope("custom")}
-                          className={`px-2 py-0.5 rounded text-[11px] font-bold cursor-pointer transition-all ${
+                          className={`px-2 py-0.5 rounded text-2xs font-bold cursor-pointer transition-all ${
                             classTargetScope === "custom"
                               ? "bg-primary text-primary-foreground shadow-2xs"
                               : "text-muted-foreground hover:text-foreground"
@@ -1480,7 +1480,7 @@ export function AssignTaskModal({
 
                     {classTargetScope === "custom" && (
                       <div className="space-y-1.5 p-2 rounded-xl bg-background border border-border/70">
-                        <div className="flex items-center justify-between text-[11px]">
+                        <div className="flex items-center justify-between text-2xs">
                           <span className="text-muted-foreground">
                             סמנו את התלמידים מתוך כיתה {selectedClass}:
                           </span>
@@ -1488,7 +1488,7 @@ export function AssignTaskModal({
                             <button
                               type="button"
                               onClick={() => handleSelectAllFilteredStudents(classStudentsList)}
-                              className="text-[10px] text-primary hover:underline font-bold"
+                              className="text-3xs text-primary hover:underline font-bold"
                             >
                               בחר הכל ({classStudentsList.length})
                             </button>
@@ -1496,7 +1496,7 @@ export function AssignTaskModal({
                             <button
                               type="button"
                               onClick={() => handleDeselectAllFilteredStudents(classStudentsList)}
-                              className="text-[10px] text-muted-foreground hover:underline"
+                              className="text-3xs text-muted-foreground hover:underline"
                             >
                               נקה
                             </button>
@@ -1505,7 +1505,7 @@ export function AssignTaskModal({
 
                         <div className="max-h-36 overflow-y-auto space-y-1">
                           {classStudentsList.length === 0 ? (
-                            <p className="text-[11px] text-muted-foreground py-2 text-center">
+                            <p className="text-2xs text-muted-foreground py-2 text-center">
                               לא נמצאו תלמידים רשומים בכיתה זו.
                             </p>
                           ) : (
@@ -1530,7 +1530,7 @@ export function AssignTaskModal({
                                     <span dir="ltr">{st.name}</span>
                                   </div>
                                   {st.group && (
-                                    <Badge variant="outline" className="text-[9px] py-0 px-1">
+                                    <Badge variant="outline" className="text-3xs py-0 px-1">
                                       {st.group}
                                     </Badge>
                                   )}
@@ -1549,24 +1549,24 @@ export function AssignTaskModal({
                   {selectedClass && selectedGroup ? (
                     <>
                       <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                        <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
                         <span className="text-foreground font-semibold">
                           יוקצה ל: <strong className="text-primary font-black">כיתה {selectedClass}</strong>
                           {selectedGroup !== "all" ? (
-                            <> • <strong className="text-purple-600 dark:text-purple-400 font-black">הקבצה {selectedGroup}</strong></>
+                            <> • <strong className="text-admin font-black">הקבצה {selectedGroup}</strong></>
                           ) : (
                             " • כל ההקבצות"
                           )}
                           {classTargetScope === "custom" && ` (${selectedStudentIds.length} תלמידים ספציפיים)`}
                         </span>
                       </div>
-                      <Badge variant="secondary" className="text-[10px] font-bold">
+                      <Badge variant="secondary" className="text-3xs font-bold">
                         {matchingStudentsCount} תלמידים
                       </Badge>
                     </>
                   ) : (
-                    <div className="flex items-center gap-2 text-muted-foreground text-[11px]">
-                      <AlertCircle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                    <div className="flex items-center gap-2 text-muted-foreground text-2xs">
+                      <AlertCircle className="h-3.5 w-3.5 text-warning-foreground shrink-0" />
                       <span>נא לבחור כיתה והקבצה</span>
                     </div>
                   )}
@@ -1609,7 +1609,7 @@ export function AssignTaskModal({
                 {/* Selected Students Chips */}
                 {selectedStudentIds.length > 0 && (
                   <div className="space-y-1 p-2 rounded-lg bg-background border border-border/60">
-                    <div className="flex items-center justify-between text-[10px]">
+                    <div className="flex items-center justify-between text-3xs">
                       <span className="font-bold text-foreground">
                         תלמידים שנבחרו ({selectedStudentIds.length}):
                       </span>
@@ -1628,10 +1628,10 @@ export function AssignTaskModal({
                           <Badge
                             key={id}
                             variant="secondary"
-                            className="text-[10px] pl-1 pr-1.5 py-0.5 gap-1 bg-primary/10 text-primary border border-primary/20"
+                            className="text-3xs pl-1 pr-1.5 py-0.5 gap-1 bg-primary/10 text-primary border border-primary/20"
                           >
                             <span dir="ltr">{st?.name || id}</span>
-                            {st?.fullClass && <span className="opacity-70 text-[9px]">({st.fullClass})</span>}
+                            {st?.fullClass && <span className="opacity-70 text-3xs">({st.fullClass})</span>}
                             <button
                               type="button"
                               onClick={() => handleStudentToggle(id)}
@@ -1647,7 +1647,7 @@ export function AssignTaskModal({
                 )}
 
                 {/* Selection list actions */}
-                <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-0.5">
+                <div className="flex items-center justify-between text-2xs text-muted-foreground pt-0.5">
                   <span>
                     מוצגים {filteredIndividualStudents.length} תלמידים:
                   </span>
@@ -1655,7 +1655,7 @@ export function AssignTaskModal({
                     <button
                       type="button"
                       onClick={() => handleSelectAllFilteredStudents(filteredIndividualStudents)}
-                      className="text-[10px] text-primary hover:underline font-bold cursor-pointer"
+                      className="text-3xs text-primary hover:underline font-bold cursor-pointer"
                     >
                       בחר את כל המוצגים
                     </button>
@@ -1663,7 +1663,7 @@ export function AssignTaskModal({
                     <button
                       type="button"
                       onClick={() => handleDeselectAllFilteredStudents(filteredIndividualStudents)}
-                      className="text-[10px] text-muted-foreground hover:underline cursor-pointer"
+                      className="text-3xs text-muted-foreground hover:underline cursor-pointer"
                     >
                       בטל בחירה
                     </button>
@@ -1700,9 +1700,9 @@ export function AssignTaskModal({
                             </span>
                           </div>
                           <div className="flex items-center gap-1 shrink-0">
-                            <span className="text-[10px] text-muted-foreground">{st.fullClass}</span>
+                            <span className="text-3xs text-muted-foreground">{st.fullClass}</span>
                             {st.group && (
-                              <Badge variant="outline" className="text-[9px] py-0 px-1">
+                              <Badge variant="outline" className="text-3xs py-0 px-1">
                                 {st.group}
                               </Badge>
                             )}
@@ -1749,7 +1749,7 @@ export function AssignTaskModal({
                   <Share2 className="h-3.5 w-3.5 text-primary" />
                   <span>שתף משימה זו במאגר המורים המשותף</span>
                 </span>
-                <p className="text-[11px] text-muted-foreground">
+                <p className="text-2xs text-muted-foreground">
                   מורים עמיתים יוכלו לראות את המשימה הזו במאגר המשותף ולהקצות אותה לכיתות שלהם.
                 </p>
               </div>
