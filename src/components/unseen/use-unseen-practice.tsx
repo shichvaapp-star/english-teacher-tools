@@ -24,6 +24,7 @@ import { TutorVocabReviewItem } from "@/types/tutor";
 import { TeacherAssignment } from "@/types/assignment";
 import { useSpeechPlayer } from "@/lib/use-speech-player";
 import { saveDraft, deleteDraft, getDraftById } from "@/lib/drafts-storage";
+import { gradeCopyAnswer } from "@/lib/copy-grading";
 import type { InProgressWorkItem, UnseenDraftPayload } from "@/types/draft";
 import { LOCAL_SUBMISSIONS_KEY, lookupSavedVocabForWord, segmentTextWithSavedVocab } from "@/components/unseen/unseen-helpers";
 
@@ -1395,25 +1396,11 @@ export function useUnseenPractice() {
     if (!q) return;
 
     if (q.type === "copy") {
-      const ans = String(userAnswers[qId] || "");
-      const cleanUser = ans.trim().toLowerCase().replace(/[^\w\s]/g, "").replace(/\s+/g, " ");
-      const cleanTarget = (q.targetSentence || "").trim().toLowerCase().replace(/[^\w\s]/g, "").replace(/\s+/g, " ");
-      if (cleanUser === cleanTarget) {
-        setPracticeEvaluation((prev) => ({
-          ...prev,
-          [qId]: { points: 10, feedback: "העתקה מושלמת ומדויקת של המשפט מתוך הפסקה! כל הכבוד!" },
-        }));
-      } else if (cleanTarget.includes(cleanUser) && cleanUser.length > 8) {
-        setPracticeEvaluation((prev) => ({
-          ...prev,
-          [qId]: { points: 8, feedback: "הועתק חלק נכון מהמשפט. מומלץ להעתיק את המשפט השלם מההתחלה ועד הנקודה." },
-        }));
-      } else {
-        setPracticeEvaluation((prev) => ({
-          ...prev,
-          [qId]: { points: 0, feedback: `המשפט הנכון מהפסקה הוא: "${q.targetSentence}".` },
-        }));
-      }
+      const res = gradeCopyAnswer(String(userAnswers[qId] || ""), q.targetSentence);
+      setPracticeEvaluation((prev) => ({
+        ...prev,
+        [qId]: { points: res.points, feedback: res.feedbackHebrew },
+      }));
     } else if (q.type === "open") {
       const ans = String(userAnswers[qId] || "").toLowerCase();
       const expectedKws = (q.keywords || []).map((k) => k.toLowerCase());
@@ -1516,19 +1503,10 @@ export function useUnseenPractice() {
           points = isCorrect ? 10 : 0;
           feedbackHebrew = isCorrect ? "תשובה נכונה! איתור מדויק של המידע בפסקה." : (q.explanationHebrew || "");
         } else if (q.type === "copy") {
-          const cleanUser = String(ans || "").trim().toLowerCase().replace(/[^a-z0-9]/g, "");
-          const cleanTarget = (q.targetSentence || "").trim().toLowerCase().replace(/[^a-z0-9]/g, "");
-          if (cleanUser === cleanTarget) {
-            isCorrect = true;
-            points = 10;
-            feedbackHebrew = "העתקה מושלמת ומדויקת של המשפט!";
-          } else if (cleanTarget.includes(cleanUser) && cleanUser.length > 8) {
-            isCorrect = true;
-            points = 8;
-            feedbackHebrew = "הועתק חלק עיקרי ונכון מהמשפט.";
-          } else {
-            feedbackHebrew = `המשפט הנכון הוא: "${q.targetSentence}".`;
-          }
+          const res = gradeCopyAnswer(String(ans || ""), q.targetSentence);
+          isCorrect = res.isCorrect;
+          points = res.points;
+          feedbackHebrew = res.feedbackHebrew;
         } else if (q.type === "open") {
           const cleanUser = String(ans || "").toLowerCase();
           const matches = (q.keywords || []).filter((kw) => cleanUser.includes(kw.toLowerCase()));
@@ -1668,12 +1646,10 @@ export function useUnseenPractice() {
           });
         }
       } else if (q.type === "copy") {
-        const cleanUser = String(ans || "").trim().toLowerCase().replace(/[^a-z0-9]/g, "");
-        const cleanTarget = (q.targetSentence || "").trim().toLowerCase().replace(/[^a-z0-9]/g, "");
-        if (cleanUser === cleanTarget || (cleanTarget.includes(cleanUser) && cleanUser.length > 8)) {
-          isCorrect = true;
-          points = 10;
-        } else {
+        const res = gradeCopyAnswer(String(ans || ""), q.targetSentence);
+        isCorrect = res.isCorrect;
+        points = res.points;
+        if (!isCorrect) {
           missedQuestions.push({
             prompt: q.prompt,
             correctText: q.targetSentence || "",

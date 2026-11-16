@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { gradeCopyAnswer } from "@/lib/copy-grading";
 import { MSUnseenQuestion } from "@/data/unseen-middle-school";
 import { UnseenEvaluationResult, UnseenQuestionEvaluation } from "@/types/unseen";
 import {
@@ -64,82 +65,6 @@ function normalizeString(str: string): string {
 }
 
 // Intelligent Heuristic Evaluator for Sentence Copying Questions
-function evaluateCopyHeuristic(
-  userAns: string,
-  targetSentence?: string
-): { points: number; isCorrect: boolean; feedbackHebrew: string } {
-  if (!userAns || !userAns.trim()) {
-    return {
-      points: 0,
-      isCorrect: false,
-      feedbackHebrew: "לא נכתבה תשובה. יש להעתיק את המשפט המדויק מתוך הפסקה.",
-    };
-  }
-
-  if (!targetSentence) {
-    return {
-      points: userAns.length > 10 ? 8 : 4,
-      isCorrect: userAns.length > 10,
-      feedbackHebrew: "המשפט שהועתק נבדק על בסיס הטקסט.",
-    };
-  }
-
-  const cleanUser = normalizeString(userAns);
-  const cleanTarget = normalizeString(targetSentence);
-
-  if (cleanUser === cleanTarget) {
-    return {
-      points: 10,
-      isCorrect: true,
-      feedbackHebrew: "העתקה מושלמת ומדויקת מתוך הפסקה! כל הכבוד!",
-    };
-  }
-
-  // Token Jaccard overlap
-  const userTokens = new Set(cleanUser.split(" "));
-  const targetTokens = new Set(cleanTarget.split(" "));
-  const common = [...userTokens].filter((t) => targetTokens.has(t));
-  const overlapRatio = common.length / Math.max(1, targetTokens.size);
-
-  if (cleanTarget.includes(cleanUser) && userTokens.size >= 4) {
-    return {
-      points: 9,
-      isCorrect: true,
-      feedbackHebrew: "העתקת את החלק המרכזי והנכון מתוך המשפט! להבא כדאי להעתיק את המשפט המלא מתחילתו ועד סופו.",
-    };
-  }
-
-  if (overlapRatio >= 0.65) {
-    return {
-      points: 9,
-      isCorrect: true,
-      feedbackHebrew: "המשפט הנכון זוהה והועתק בהצלחה!",
-    };
-  }
-
-  if (overlapRatio >= 0.45) {
-    return {
-      points: 8,
-      isCorrect: true,
-      feedbackHebrew: "זיהוי יפה של האזור הנכון בטקסט ורוב המשפט הנדרש.",
-    };
-  }
-
-  if (overlapRatio >= 0.3) {
-    return {
-      points: 5,
-      isCorrect: false,
-      feedbackHebrew: "הועתק חלק קטן מהרעיון, אך המשפט המלא והמדויק שונה.",
-    };
-  }
-
-  return {
-    points: 0,
-    isCorrect: false,
-    feedbackHebrew: `המשפט שהועתק אינו המשפט הנדרש מהפסקה. המשפט הנכון הוא: "${targetSentence}".`,
-  };
-}
-
 // Intelligent Heuristic Evaluator for Open-Ended Questions
 function evaluateOpenHeuristic(
   userAns: string,
@@ -262,7 +187,7 @@ function generateHeuristicEvaluation(
     }
 
     if (q.type === "copy") {
-      const evalRes = evaluateCopyHeuristic(String(ans || ""), q.targetSentence);
+      const evalRes = gradeCopyAnswer(String(ans || ""), q.targetSentence);
       return {
         id: q.id,
         number: q.number,
@@ -518,7 +443,7 @@ PEDAGOGICAL GRADING GUIDELINES (OFFICIAL ISRAELI MOE READING COMPREHENSION STAND
 
 3. FAIR SCORING FOR 'copy' QUESTIONS:
    - If the student identified and copied the correct sentence or the key clause containing the answer from the passage, award 9–10 points.
-   - Do NOT deduct points down to 7 or 8 for minor quotation mark or capitalization slips.
+   - Students may type the sentence by hand instead of copy-pasting. Do NOT deduct points for spelling typos, quotation marks or capitalization slips.
    - Award 0–4 points ONLY if the sentence copied is completely irrelevant or factually incorrect.
 
 4. GENEROUS PARTIAL CREDIT FOR 'open' QUESTIONS:
@@ -717,16 +642,17 @@ Return ONLY a raw, valid JSON object matching this schema (NO MARKDOWN CODE FENC
                 const aiOpen = openEvalMap.get(q.id);
                 let points = aiOpen ? aiOpen.points : 5;
                 let isCorrect = aiOpen ? aiOpen.isCorrect : points >= 6;
+                let feedbackHebrew = aiOpen?.feedbackHebrew || q.explanationHebrew || "";
 
                 // MOE Pedagogical Guardrails:
-                // 1. For sentence-copying questions: If student copied the target sentence (normalized) or key portion,
-                // ensure points are not unfairly deducted for minor mechanics or formatting slips.
-                if (q.type === "copy" && q.targetSentence && ans) {
-                  const cleanUser = normalizeString(String(ans));
-                  const cleanTarget = normalizeString(q.targetSentence);
-                  if (cleanUser && (cleanUser === cleanTarget || (cleanTarget.includes(cleanUser) && cleanUser.split(" ").length >= 4))) {
-                    points = Math.max(points, 9);
-                    isCorrect = true;
+                // 1. For sentence-copying questions: hand-typed copies with small spelling mistakes are graded by fuzzy word matching;
+                // the AI may score higher (e.g. for a correct key clause) but never lower.
+                if (q.type === "copy" && q.targetSentence) {
+                  const fuzzy = gradeCopyAnswer(String(ans || ""), q.targetSentence);
+                  if (fuzzy.points > points || !aiOpen) {
+                    points = fuzzy.points;
+                    isCorrect = fuzzy.isCorrect;
+                    feedbackHebrew = fuzzy.feedbackHebrew;
                   }
                 }
 
@@ -759,7 +685,7 @@ Return ONLY a raw, valid JSON object matching this schema (NO MARKDOWN CODE FENC
                   isCorrect,
                   points,
                   maxPoints: 10,
-                  feedbackHebrew: aiOpen?.feedbackHebrew || q.explanationHebrew || "",
+                  feedbackHebrew,
                   explanationHebrew: q.explanationHebrew,
                 };
               });
