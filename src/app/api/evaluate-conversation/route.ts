@@ -6,6 +6,7 @@ import {
   ConversationRubric,
   DialogueTurn,
 } from "@/types/conversation";
+import { gradeCopyAnswer } from "@/lib/copy-grading";
 import { errorMessage, extractJsonObject, jsonObject, jsonObjects, type JsonObject } from "@/lib/llm-json";
 
 const evaluationCache = new Map<
@@ -55,70 +56,10 @@ function normalizeString(str: string): string {
     .trim();
 }
 
-function evaluateCopyHeuristic(
-  userAns: string,
-  targetSentence?: string
-): { points: number; isCorrect: boolean; feedbackHebrew: string } {
-  if (!userAns || !userAns.trim()) {
-    return {
-      points: 0,
-      isCorrect: false,
-      feedbackHebrew: "לא נכתבה תשובה. יש להעתיק את המשפט המדויק מתוך השיחה.",
-    };
-  }
-  if (!targetSentence) {
-    return {
-      points: userAns.length > 10 ? 8 : 4,
-      isCorrect: userAns.length > 10,
-      feedbackHebrew: "המשפט שהועתק נבדק על בסיס השיחה.",
-    };
-  }
-  const cleanUser = normalizeString(userAns);
-  const cleanTarget = normalizeString(targetSentence);
-
-  if (cleanUser === cleanTarget) {
-    return {
-      points: 10,
-      isCorrect: true,
-      feedbackHebrew: "העתקה מושלמת ומדויקת מתוך השיחה! כל הכבוד!",
-    };
-  }
-
-  const userTokens = new Set(cleanUser.split(" "));
-  const targetTokens = new Set(cleanTarget.split(" "));
-  const common = [...userTokens].filter((t) => targetTokens.has(t));
-  const overlapRatio = common.length / Math.max(1, targetTokens.size);
-
-  if (cleanTarget.includes(cleanUser) && userTokens.size >= 4) {
-    return {
-      points: 9,
-      isCorrect: true,
-      feedbackHebrew:
-        "העתקת את החלק המרכזי והנכון מתוך השורה! להבא כדאי להעתיק את המשפט המלא.",
-    };
-  }
-
-  if (overlapRatio >= 0.65) {
-    return {
-      points: 9,
-      isCorrect: true,
-      feedbackHebrew: "העתקת את השורה הנכונה מהשיחה עם שינויים קלים בלבד.",
-    };
-  }
-
-  if (overlapRatio >= 0.4) {
-    return {
-      points: 6,
-      isCorrect: true,
-      feedbackHebrew: `העתקת חלק מהמידע הנכון, אך המשפט המלא בשיחה הוא: "${targetSentence}".`,
-    };
-  }
-
-  return {
-    points: 0,
-    isCorrect: false,
-    feedbackHebrew: `השורה שהועתקה אינה תואמת. המשפט הנכון מהשיחה הוא: "${targetSentence}".`,
-  };
+// MCQ answers and copy answers (which have a target sentence) are scored in code;
+// the AI only writes the overall comments for them.
+function isLockedQuestion(type: string, targetSentence?: string): boolean {
+  return type === "mcq" || type === "reply_mcq" || (type === "copy" && !!targetSentence);
 }
 
 function evaluateOpenOrReplyHeuristic(
@@ -235,7 +176,7 @@ function buildHeuristicEvaluation(
     }
 
     if (q.type === "copy") {
-      const res = evaluateCopyHeuristic(String(rawAns || ""), q.targetSentence);
+      const res = gradeCopyAnswer(String(rawAns || ""), q.targetSentence);
       totalScore += res.points;
       return {
         id: q.id,
@@ -406,12 +347,9 @@ export async function POST(request: Request) {
               ? q.options?.[userAnswers[q.id] as number]
               : "No answer"
             : String(userAnswers[q.id] || ""),
-        mcqLockedPoints:
-          q.type === "mcq" || q.type === "reply_mcq"
-            ? userAnswers[q.id] === q.correctIndex
-              ? 10
-              : 0
-            : undefined,
+        lockedPoints: isLockedQuestion(q.type, q.targetSentence)
+          ? baseHeuristic.breakdown.find((b) => b.id === q.id)?.points
+          : undefined,
       }));
 
       const prompt = `You are a warm, encouraging English teacher evaluating an Israeli student's ("${studentName}") Real-Life Conversation Practice on "${scenarioTitle}".
@@ -423,8 +361,8 @@ Questions and Student Answers:
 ${JSON.stringify(questionsPayload, null, 2)}
 
 Grading Guidelines:
-1. For "mcq" and "reply_mcq", keep the exact locked score ("mcqLockedPoints": 10 if correct, 0 if wrong) and write a brief, clear Hebrew explanation ("feedbackHebrew").
-2. For "copy", award 10 points if the student copied the correct sentence from the dialogue (forgive minor punctuation/capitalization differences), 7-9 for partial copy, 0 if wrong/empty.
+1. For "mcq" and "reply_mcq", keep the exact locked score ("lockedPoints": 10 if correct, 0 if wrong) and write a brief, clear Hebrew explanation ("feedbackHebrew").
+2. For "copy", the score is already fixed in "lockedPoints" (students may type the sentence by hand, so small spelling mistakes are forgiven). Return that exact number as "points"; do not change it.
 3. For "open", award 0-10 points based on comprehension accuracy according to the dialogue. Forgive minor spelling mistakes if the English meaning is clear.
 4. For "reply_open" ("What Would You Say?"), award 0-10 points based on:
    - Is it a natural, polite, and relevant real-life spoken response in English for the given "situationContext"?
@@ -540,6 +478,11 @@ Return ONLY a valid JSON object matching this schema:
       const mergedBreakdown: ConversationQuestionEvaluation[] = baseHeuristic.breakdown.map((item) => {
         const aiItem = aiQuestionEvaluations.find((x) => Number(x.number) === item.number);
         if (!aiItem) {
+          finalScore += item.points;
+          return item;
+        }
+        if (item.type === "copy" && isLockedQuestion(item.type, item.targetSentence)) {
+          // Deterministic score and feedback (incl. spelling notes); the AI may not override them.
           finalScore += item.points;
           return item;
         }
