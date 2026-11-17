@@ -87,12 +87,12 @@ const baseAllowed = [...vocab.FUNCTION_WORDS, ...vocab.ITEM_NAMES].map((x) => x.
 const allowedCache = new Map();
 function allowedFor(grade, extra = []) {
   if (!allowedCache.has(grade)) {
-    const words = vocab.gradeVocabulary(grade).flatMap((x) => x.toLowerCase().split(/\s+/));
-    allowedCache.set(grade, [...baseAllowed, ...words]);
+    allowedCache.set(grade, [...baseAllowed, ...vocab.vocabularyTokens(vocab.gradeVocabulary(grade))]);
   }
   return new Set([...allowedCache.get(grade), ...extra.map((x) => x.toLowerCase())]);
 }
 let missingGrade = 0;
+const ungradedUnknown = new Map();
 const gradesWithoutList = new Set();
 
 // ── Items ──
@@ -191,8 +191,11 @@ for (const i of GRAMMAR_ITEMS) {
   // Vocabulary (option B: levels 1–2 are written per grade from that grade's textbook list).
   if (i.level <= 2) {
     if (i.grade === undefined) {
-      if ([7, 8, 9].some((g) => vocab.hasGradeVocabulary(g))) err(w, "levels 1–2 items need a grade (7/8/9)");
-      else missingGrade++;
+      // Not yet rewritten per grade: warn, and show which words would fail even for grade 7.
+      missingGrade++;
+      for (const u of findUnknownWords(itemEnglishTextOf(i), allowedFor(7, i.allowWords))) {
+        ungradedUnknown.set(u, [...(ungradedUnknown.get(u) ?? []), i.id]);
+      }
     } else if (vocab.hasGradeVocabulary(i.grade)) {
       const allowed = allowedFor(i.grade, i.allowWords);
       const unknown = findUnknownWords(itemEnglishTextOf(i), allowed);
@@ -213,8 +216,12 @@ for (const t of GRAMMAR_TOPICS) {
   }
 }
 
-if (![7, 8, 9].some((g) => vocab.hasGradeVocabulary(g))) {
-  warn.push(`vocabulary lists not added yet – ${missingGrade} level 1–2 item(s) have no grade and were not vocabulary-checked`);
+if (missingGrade) {
+  warn.push(`${missingGrade} level 1–2 item(s) are not written per grade yet (no "grade" field)`);
+  if (ungradedUnknown.size) {
+    const list = [...ungradedUnknown].map(([w, ids]) => `${w} (${ids.join(", ")})`).join("; ");
+    warn.push(`words outside grade 7 vocabulary in those items: ${list}`);
+  }
 }
 for (const g of gradesWithoutList) warn.push(`grade ${g} vocabulary list is empty – its items were not vocabulary-checked`);
 

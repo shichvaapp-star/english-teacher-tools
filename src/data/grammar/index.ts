@@ -1,12 +1,20 @@
 import type { GrammarItem, GrammarTopic } from "@/types/grammar";
 import type { ClassGrade, LevelNumber } from "@/lib/levels";
 import { presentSimpleItems, presentSimpleTopic } from "@/data/grammar/topics/present-simple";
+import { presentSimpleGrade7Items } from "@/data/grammar/topics/present-simple-g7";
+import { presentSimpleGrade8Items } from "@/data/grammar/topics/present-simple-g8";
+import { presentSimpleGrade9Items } from "@/data/grammar/topics/present-simple-g9";
 
 export { GRAMMAR_GROUPS } from "@/data/grammar/groups";
 
 export const GRAMMAR_TOPICS: GrammarTopic[] = [presentSimpleTopic];
 
-export const GRAMMAR_ITEMS: GrammarItem[] = [...presentSimpleItems];
+export const GRAMMAR_ITEMS: GrammarItem[] = [
+  ...presentSimpleItems,
+  ...presentSimpleGrade7Items,
+  ...presentSimpleGrade8Items,
+  ...presentSimpleGrade9Items,
+];
 
 export function getGrammarTopic(id: string): GrammarTopic | undefined {
   return GRAMMAR_TOPICS.find((t) => t.id === id);
