@@ -26,13 +26,18 @@ import { firstConditionalItems, firstConditionalTopic } from "@/data/grammar/top
 import { relativeClausesItems, relativeClausesTopic } from "@/data/grammar/topics/relative-clauses";
 import { reportedSpeechItems, reportedSpeechTopic } from "@/data/grammar/topics/reported-speech";
 import { imperativesItems, imperativesTopic } from "@/data/grammar/topics/imperatives";
+import { pluralsCountableItems, pluralsCountableTopic } from "@/data/grammar/topics/plurals-countable";
+import { articlesItems, articlesTopic } from "@/data/grammar/topics/articles";
+import { possessivesItems, possessivesTopic } from "@/data/grammar/topics/possessives";
+import { quantityItems, quantityTopic } from "@/data/grammar/topics/quantity";
+import { pronounsItems, pronounsTopic } from "@/data/grammar/topics/pronouns";
 import { presentSimpleGrade7Items } from "@/data/grammar/topics/present-simple-g7";
 import { presentSimpleGrade8Items } from "@/data/grammar/topics/present-simple-g8";
 import { presentSimpleGrade9Items } from "@/data/grammar/topics/present-simple-g9";
 
 export { GRAMMAR_GROUPS } from "@/data/grammar/groups";
 
-export const GRAMMAR_TOPICS: GrammarTopic[] = [toBeTopic, thereIsAreTopic, presentSimpleTopic, presentProgressiveTopic, simpleVsProgressiveTopic, pastSimpleTopic, pastProgressiveTopic, pastSimpleVsProgressiveTopic, futureWillTopic, goingToTopic, willVsGoingToTopic, presentPerfectTopic, perfectVsPastTopic, questionsTopic, negativesTopic, canCouldTopic, mustShouldTopic, wouldLikeTopic, usedToTopic, passiveTopic, linkingWordsTopic, timeClausesTopic, firstConditionalTopic, relativeClausesTopic, reportedSpeechTopic, imperativesTopic];
+export const GRAMMAR_TOPICS: GrammarTopic[] = [toBeTopic, thereIsAreTopic, presentSimpleTopic, presentProgressiveTopic, simpleVsProgressiveTopic, pastSimpleTopic, pastProgressiveTopic, pastSimpleVsProgressiveTopic, futureWillTopic, goingToTopic, willVsGoingToTopic, presentPerfectTopic, perfectVsPastTopic, questionsTopic, negativesTopic, canCouldTopic, mustShouldTopic, wouldLikeTopic, usedToTopic, passiveTopic, linkingWordsTopic, timeClausesTopic, firstConditionalTopic, relativeClausesTopic, reportedSpeechTopic, imperativesTopic, pluralsCountableTopic, articlesTopic, possessivesTopic, quantityTopic, pronounsTopic];
 
 export const GRAMMAR_ITEMS: GrammarItem[] = [
   ...toBeItems,
@@ -64,6 +69,11 @@ export const GRAMMAR_ITEMS: GrammarItem[] = [
   ...relativeClausesItems,
   ...reportedSpeechItems,
   ...imperativesItems,
+  ...pluralsCountableItems,
+  ...articlesItems,
+  ...possessivesItems,
+  ...quantityItems,
+  ...pronounsItems,
 ];
 
 export function getGrammarTopic(id: string): GrammarTopic | undefined {
