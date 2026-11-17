@@ -5,7 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useAuth } from "@/lib/auth-context";
 import { db } from "@/lib/firebase";
-import { collection, getDocs } from "firebase/firestore";
+import { collection, getDocs, query, where } from "firebase/firestore";
 import { SubmissionItem } from "@/types/submission";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { UserNav } from "@/components/auth/user-nav";
@@ -62,7 +62,7 @@ export default function Home() {
 
       if (db) {
         try {
-          const snap = await getDocs(collection(db, "submissions"));
+          const snap = await getDocs(query(collection(db, "submissions"), where("studentId", "==", user.id)));
           const fbItems: SubmissionItem[] = [];
           snap.forEach((docSnap) => {
             const data = docSnap.data() as Omit<SubmissionItem, "id">;

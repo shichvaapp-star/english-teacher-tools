@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { db } from "@/lib/firebase";
-import { collection, getDocs, doc, setDoc } from "firebase/firestore";
+import { collection, getDocs, doc, setDoc, query, where } from "firebase/firestore";
 import { cleanForFirestore } from "@/lib/utils";
 import { SubmissionItem } from "@/types/submission";
 import { InProgressWorkItem } from "@/types/draft";
@@ -191,7 +191,7 @@ export default function StudentPortalPage() {
     // 2. Fetch from Firestore if user is logged in
     if (db && user) {
       try {
-        const snap = await getDocs(collection(db, "submissions"));
+        const snap = await getDocs(query(collection(db, "submissions"), where("studentId", "==", user.id)));
         const fbItems: SubmissionItem[] = [];
         snap.forEach((docSnap) => {
           const data = docSnap.data() as Omit<SubmissionItem, "id">;

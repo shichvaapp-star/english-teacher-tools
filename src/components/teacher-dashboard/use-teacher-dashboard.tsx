@@ -129,7 +129,7 @@ export function useTeacherDashboard() {
     // 2. Fetch from Firestore
     if (db && user && user.role === "teacher") {
       try {
-        const snap = await getDocs(collection(db, "submissions"));
+        const snap = await getDocs(query(collection(db, "submissions"), where("teacherId", "==", user.id)));
         const fbItems: SubmissionItem[] = [];
         snap.forEach((docSnap) => {
           const data = docSnap.data() as SubmissionItem;
@@ -418,7 +418,7 @@ export function useTeacherDashboard() {
     if (!db || !user || user.role !== "teacher") return;
 
     const unsub = onSnapshot(
-      collection(db, "submissions"),
+      query(collection(db, "submissions"), where("teacherId", "==", user.id)),
       (snap) => {
         const fbItems: SubmissionItem[] = [];
         snap.forEach((docSnap) => {
