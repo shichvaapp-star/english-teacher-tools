@@ -90,7 +90,7 @@ g7b.type("My math teacher ___ angry yesterday.", "be – past, not", ["wasn't", 
 g7b.type("___ the lesson interesting?", "be – past", "Was", "שאלה בעבר: Was + the lesson…? בלי did.", "Past question: Was + the lesson…? No did.", { trap: "tb-do" });
 g7b.mcq("Where ___ you yesterday?", ["were", "was", "did"], "you בעבר → were. בלי did.", "you, past → were. No did.");
 g7b.fix("My friends *is in the same band.", ["are"], "My friends = they, ולכן are.", "My friends = they → are.", { trap: "tb-agree" });
-g7b.fix("She *happy with her choice.", ["is"], "חסר הפועל: She is happy.", "The verb is missing: She is happy.", { trap: "tb-missing" });
+g7b.fix("She *happy with her choice.", ["is happy"], "חסר הפועל: She is happy.", "The verb is missing: She is happy.", { trap: "tb-missing" });
 g7b.fix("The meals *was great on the journey.", ["were"], "The meals = they, ולכן were.", "The meals = they → were.", { trap: "tb-was-were" });
 g7b.transform("The village is near the river.", ...NEG, ["The village isn't near the river.", "The village is not near the river."], "שלילה: is + not = isn't.", "is + not = isn't.");
 g7b.transform("They were at the office.", ...QUE, "Were they at the office?", "בשאלה were עובר להתחלה.", "In a question, were goes first.", { trap: "tb-do" });
@@ -119,7 +119,7 @@ g8b.type("The test ___ difficult at all.", "be – past, not", ["wasn't", "was n
 g8b.type("___ the actors good in the play?", "be – past", "Were", "שאלה בעבר עם רבים: Were + the actors…?", "Plural past question: Were + the actors…?", { trap: "tb-do" });
 g8b.mcq("How much ___ the tickets for last night's concert?", ["were", "was", "did"], "the tickets = they, ולכן were.", "the tickets = they → were.");
 g8b.fix("The ingredients *is in the fridge.", ["are"], "The ingredients = they, ולכן are.", "The ingredients = they → are.", { trap: "tb-agree" });
-g8b.fix("My brother *upset about the game.", ["is", "was"], "חסר הפועל: My brother is upset.", "The verb is missing: My brother is upset.", { trap: "tb-missing" });
+g8b.fix("My brother *upset about the game.", ["is upset", "was upset"], "חסר הפועל: My brother is upset.", "The verb is missing: My brother is upset.", { trap: "tb-missing" });
 g8b.fix("*Did you afraid of the storm?", ["Were"], "עם be לא משתמשים ב-did: Were you afraid?", "No did with be: Were you afraid?", { trap: "tb-do", allow: ["storm"] });
 g8b.transform("The museum was crowded.", ...NEG, ["The museum wasn't crowded.", "The museum was not crowded."], "שלילה: was + not = wasn't.", "was + not = wasn't.", { allow: ["crowded"] });
 g8b.transform("Your parents are at the concert.", ...QUE, "Are your parents at the concert?", "בשאלה are עובר להתחלה.", "In a question, are goes first.", { trap: "tb-do" });
@@ -148,7 +148,7 @@ g9b.type("The housework ___ easy at all.", "be – past, not", ["wasn't", "was n
 g9b.type("___ your grandparents born in Israel?", "be – past", "Were", "נולדו = were born. שאלה: Were + your grandparents…?", "were born → Were + your grandparents…?", { trap: "tb-born" });
 g9b.mcq("Why ___ the elevator so slow yesterday?", ["was", "were", "did"], "the elevator = it, בעבר → was.", "the elevator = it, past → was.");
 g9b.fix("The selfies *is on my phone.", ["are"], "The selfies = they, ולכן are.", "The selfies = they → are.", { trap: "tb-agree" });
-g9b.fix("My grandfather *born in 1950.", ["was", "was born"], "נולד = was born: My grandfather was born…", "Use was born.", { trap: "tb-born" });
+g9b.fix("My grandfather *born in 1950.", ["was born"], "נולד = was born: My grandfather was born…", "Use was born.", { trap: "tb-born" });
 g9b.fix("*Do you nervous before the marathon?", ["Are", "Were"], "עם be לא משתמשים ב-do: Are you nervous?", "No do with be: Are you nervous?", { trap: "tb-do", allow: ["nervous"] });
 g9b.transform("The firefighters were brave.", ...NEG, ["The firefighters weren't brave.", "The firefighters were not brave."], "שלילה: were + not = weren't.", "were + not = weren't.");
 g9b.transform("The neighborhood is quiet.", ...QUE, "Is the neighborhood quiet?", "בשאלה is עובר להתחלה.", "In a question, is goes first.", { trap: "tb-do" });

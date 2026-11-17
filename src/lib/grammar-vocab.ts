@@ -29,6 +29,7 @@ const IRREGULAR: Record<string, string> = {
   shone: "shine", sank: "sink", sunk: "sink", spun: "spin", stuck: "stick", struck: "strike",
   hung: "hang", bent: "bend", blew: "blow", blown: "blow", froze: "freeze", frozen: "freeze",
   stung: "sting", swung: "swing", tore: "tear", torn: "tear", wept: "weep", wound: "wind",
+  stolen: "steal", shown: "show", sewn: "sew",   done: "do", been: "be", put: "put", cut: "cut", hit: "hit", set: "set",
 };
 
 /** Possible base forms for an inflected word (the word itself first). */
@@ -119,9 +120,10 @@ export function findUnknownWords(texts: string[], allowed: Set<string>): string[
       .replace(/n[’']t\b/gi, " not")
       .replace(/(^|\s)[’'](s|m|re|ve|ll|d)\b/gi, " ")
       .replace(/[’'](m|re|ve|ll|d)\b/gi, " ")
-      .match(/[A-Za-z][A-Za-z’'-]*/g);
+      .match(/[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ’'-]*/g);
     for (const raw of words ?? []) {
-      for (const part of raw.split("-")) {
+      for (const piece of raw.split("-")) {
+        const part = piece.replace(/^[’']+|[’']+$/g, "");
         if (!part) continue;
         if (lemmaCandidates(part).some((c) => allowed.has(c))) continue;
         unknown.add(part.toLowerCase());

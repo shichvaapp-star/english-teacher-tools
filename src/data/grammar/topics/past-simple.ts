@@ -161,7 +161,7 @@ l3.mcq("Who ___ the window?", ["broke", "did break", "breaked"], "שאלה על 
 l3.mcq("What ___ you tell your parents?", ["did", "do", "was"], "שאלה על המושא – עם did: What did you tell…?", "Object question → What did you tell…?");
 l3.type("The thief ___ my bike from the garden.", "steal", "stole", "steal הוא יוצא דופן: stole.", "steal is irregular: stole.", { trap: "pst-irregular", allow: ["thief"] });
 l3.type("Our teacher ___ us a new song yesterday.", "teach", "taught", "teach הוא יוצא דופן: taught.", "teach is irregular: taught.", { trap: "pst-irregular" });
-l3.fix("Who *did call you last night?", ["called"], "שאלה על הנושא – בלי did: Who called you?", "Subject question: Who called you?", { trap: "pst-who" });
+l3.fix("Who *call you last night?", ["called"], "שאלה על הנושא בעבר – בלי did: Who called you?", "Subject question, past: Who called you?", { trap: "pst-who" });
 l3.fix("She *catched the ball with one hand.", ["caught"], "catch הוא יוצא דופן: caught.", "catch is irregular: caught.", { trap: "pst-irregular" });
 l3.fix("Did the war *ended in 1945?", ["end"], "אחרי Did – צורת בסיס: end.", "After Did → end.", { trap: "pst-did-past", allow: ["war"] });
 l3.transform("Somebody took my phone.", "Ask a question with 'Who'.", "שאלו שאלה עם Who", ["Who took your phone?", "Who took my phone?"], "שאלה על הנושא: Who + took…? (בלי did)", "Subject question: Who took…?", { trap: "pst-who" });

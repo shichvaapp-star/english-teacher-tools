@@ -89,7 +89,7 @@ g7b.type("There ___ any pepper in the kitchen.", "be – present, not", ["isn't"
 g7b.type("___ there any danger on the journey?", "be – past", "Was", "שאלה בעבר עם danger → Was there…?", "Past question, uncountable → Was there…?", { trap: "ti-question" });
 g7b.mcq("How many players ___ on your team?", ["are there", "there are", "is there"], "אחרי How many שואלים: are there?", "How many → are there?");
 g7b.fix("There *is two rivers near the village.", ["are"], "two rivers = הרבה → there are.", "two rivers → there are.", { trap: "ti-agree" });
-g7b.fix("*It has a theater in our town.", ["There is", "There's"], "'יש' = There is, לא It has.", "Use There is, not It has.", { trap: "ti-it-has" });
+g7b.fix("There *has a theater in our town.", ["is"], "'יש' = there is, לא there has.", "Use there is, not there has.", { trap: "ti-have" });
 g7b.fix("There *is a band at the party last night.", ["was"], "last night = עבר → there was.", "last night → there was.", { trap: "ti-past" });
 g7b.transform("There is a guide on the bus.", ...QUE, "Is there a guide on the bus?", "בשאלה is עובר לפני there.", "In a question, is goes before there.", { trap: "ti-question" });
 g7b.transform("There were many people on the bridge.", ...NEG, ["There weren't many people on the bridge.", "There were not many people on the bridge."], "שלילה: were + not = weren't.", "were + not = weren't.");
@@ -118,7 +118,7 @@ g8b.type("There ___ any traffic on the road this morning.", "be – past, not", 
 g8b.type("___ there a museum in your town?", "be – present", "Is", "שאלה עם אחד: Is there…?", "Question with one thing: Is there…?", { trap: "ti-question" });
 g8b.mcq("How many people ___ at the concert last night?", ["were there", "there were", "was there"], "How many + עבר → were there?", "How many, past → were there?");
 g8b.fix("There *is a lot of actors in the movie.", ["are"], "a lot of actors = הרבה → there are.", "a lot of actors → there are.", { trap: "ti-agree" });
-g8b.fix("*It has a big supermarket near my house.", ["There is", "There's"], "'יש' = There is, לא It has.", "Use There is, not It has.", { trap: "ti-it-has" });
+g8b.fix("There *has a big supermarket near my house.", ["is"], "'יש' = there is, לא there has.", "Use there is, not there has.", { trap: "ti-have" });
 g8b.fix("There *are an accident on the highway yesterday.", ["was"], "an accident = אחד, ו-yesterday = עבר, ולכן there was.", "one accident, past → there was.", { trap: "ti-past" });
 g8b.transform("There are drums in the music room.", ...QUE, "Are there drums in the music room?", "בשאלה are עובר לפני there.", "In a question, are goes before there.", { trap: "ti-question" });
 g8b.transform("There was a lot of traffic.", ...NEG, ["There wasn't a lot of traffic.", "There was not a lot of traffic.", "There wasn't much traffic."], "שלילה: was + not = wasn't.", "was + not = wasn't.");
@@ -147,7 +147,7 @@ g9b.type("There ___ any equipment in the lab.", "be – past, not", ["wasn't", "
 g9b.type("___ there any good documentaries on TV last night?", "be – past", "Were", "documentaries = הרבה, עבר → Were there…?", "plural, past → Were there…?", { trap: "ti-question", allow: ["tv"] });
 g9b.mcq("How many floors ___ in the tower?", ["are there", "there are", "is there"], "אחרי How many שואלים: are there?", "How many → are there?", { allow: ["floors"] });
 g9b.fix("There *is many apps on my phone.", ["are"], "many apps = הרבה, ולכן there are.", "many apps → there are.", { trap: "ti-agree" });
-g9b.fix("*It has a gallery in the neighborhood.", ["There is", "There's"], "'יש' = There is, לא It has.", "Use There is, not It has.", { trap: "ti-it-has" });
+g9b.fix("There *has a gallery in the neighborhood.", ["is"], "'יש' = there is, לא there has.", "Use there is, not there has.", { trap: "ti-have" });
 g9b.fix("There *are a wedding in the garden last week.", ["was"], "a wedding = אחד, ו-last week = עבר, ולכן there was.", "one wedding, past → there was.", { trap: "ti-past" });
 g9b.transform("There is a sink in the kitchen.", ...QUE, "Is there a sink in the kitchen?", "בשאלה is עובר לפני there.", "In a question, is goes before there.", { trap: "ti-question" });
 g9b.transform("There were many strangers at the party.", ...NEG, ["There weren't many strangers at the party.", "There were not many strangers at the party."], "שלילה: were + not = weren't.", "were + not = weren't.");
@@ -161,7 +161,7 @@ l3.mcq("There ___ a test tomorrow, so study tonight!", ["will be", "will have", 
 l3.type("How many countries ___ in Europe?", "be – present", "are there", "אחרי How many שואלים: are there?", "How many → are there?", { allow: ["europe"] });
 l3.type("There ___ much traffic when we left.", "be – past, not", ["wasn't", "was not"], "traffic לא סופרים, עבר → wasn't.", "traffic is uncountable, past → wasn't.");
 l3.fix("There *have many problems with this plan.", ["are"], "אין there have → there are.", "Never 'there have' → there are.", { trap: "ti-have" });
-l3.fix("*It has a lot of noise in the street.", ["There is", "There's"], "There is, לא It has.", "Use There is, not It has.", { trap: "ti-it-has" });
+l3.fix("There *has a lot of noise in the street.", ["is"], "'יש' = there is, לא there has.", "Use there is, not there has.", { trap: "ti-have" });
 l3.fix("There *was a lot of people at the meeting.", ["were"], "people = רבים → there were.", "people is plural → there were.", { trap: "ti-agree" });
 l3.transform("There were 30 students in the room.", "Ask a question with 'How many'.", "שאלו שאלה עם How many", ["How many students were there in the room?", "How many students were there?"], "סדר המילים: How many + students + were there?", "How many + students + were there?");
 l3.transform("There is going to be a storm.", ...NEG, ["There isn't going to be a storm.", "There is not going to be a storm."], "שלילה: isn't going to be.", "isn't going to be.", { allow: ["storm"] });

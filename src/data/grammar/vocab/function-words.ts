@@ -46,7 +46,7 @@ export const FUNCTION_WORDS: string[] = [
   "get", "go", "come", "make", "take", "give", "say", "tell", "see", "know", "think",
   "want", "need", "like", "love", "look", "play", "eat", "drink", "live", "work", "study",
   // classroom / instruction words
-  "promise", "sure", "worry",
+  "promise", "sure", "worry", "rule", "rules",
 ];
 
 /** Names used in items (they are not vocabulary). */

@@ -154,6 +154,19 @@ for (const i of GRAMMAR_ITEMS) {
       if (i.wrongIndex < 0 || i.wrongIndex >= i.tokens.length) err(w, "wrongIndex out of range");
       if (!i.answers.length) err(w, "no answers");
       if (i.answers.some((a) => normalizeAnswer(a) === normalizeAnswer(i.tokens[i.wrongIndex]))) err(w, "correction equals the wrong token");
+      // The correction replaces only the clicked word – the result must not repeat a word
+      // ("going to to", "There is has").
+      for (const ans of i.answers) {
+        const words = i.tokens
+          .map((t, k) => (k === i.wrongIndex ? ans : t))
+          .join(" ")
+          .toLowerCase()
+          .replace(/[^a-z' ]/g, " ")
+          .split(/\s+/)
+          .filter(Boolean);
+        const dup = words.find((x, k) => k > 0 && x === words[k - 1]);
+        if (dup) err(w, `correction "${ans}" gives a repeated word: ${dup}`);
+      }
       break;
     case "transform":
       if (!i.answers.length) err(w, "no answers");

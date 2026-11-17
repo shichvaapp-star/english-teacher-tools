@@ -103,7 +103,7 @@ l3.mcq("\"Where's Dana?\" \"She's ___ to the supermarket. She'll be back soon.\"
 l3.mcq("I ___ him yesterday at the stadium.", ["saw", "have seen", "have saw"], "yesterday = זמן מוגדר בעבר → עבר פשוט: saw.", "yesterday → past simple: saw.", { trap: "prf-time" });
 l3.type("How long have you ___ your best friend?", "know", "known", "How long + have + you + known (צורה שלישית).", "How long have you known…?");
 l3.type("I've ___ paid for the tickets, so you don't need to.", "already", "already", "already בחיוב – כבר.", "already in a positive sentence.");
-l3.fix("I *have visited Rome last summer.", ["visited"], "last summer = זמן מוגדר → עבר פשוט: visited.", "last summer → visited.", { trap: "prf-time", allow: ["rome"] });
+l3.fix("I have *visit Rome many times.", ["visited"], "אחרי have – צורה שלישית: visited.", "After have → visited.", { trap: "prf-v2", allow: ["rome"] });
 l3.fix("I haven't *never been on a plane.", ["ever"], "never כבר שלילה: I have never / I haven't ever.", "I haven't ever been.", { trap: "prf-double-neg" });
 l3.fix("We *know each other since first grade.", ["have known", "'ve known"], "מצב שנמשך עד היום + since → have known.", "Up to now + since → have known.", { trap: "prf-present" });
 l3.transform("I have finished my project.", "Make it negative and add 'yet'.", "הפכו לשלילה והוסיפו yet", ["I haven't finished my project yet.", "I have not finished my project yet."], "שלילה + yet: haven't … yet.", "haven't … yet.");

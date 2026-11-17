@@ -87,7 +87,7 @@ g7b.type("We usually take the bus, but today we ___ .", "walk", ["are walking", 
 g7b.type("I ___ the answer to this question.", "know", "know", "know הוא פועל מצב – תמיד הווה פשוט.", "know is a state verb → simple.", { trap: "sp-state" });
 g7b.mcq("What ___ you usually do after school?", ["do", "are", "is"], "usually = הרגל: What do you usually do?", "usually → What do you usually do?");
 g7b.fix("Look! It *snows on the mountain.", ["is snowing"], "Look! = עכשיו: It is snowing.", "Look! → It is snowing.", { trap: "sp-now-simple" });
-g7b.fix("I *am going to the club every Tuesday.", ["go"], "every Tuesday = הרגל: I go.", "every Tuesday → I go.", { trap: "sp-habit-prog" });
+g7b.mcq("I ___ to the club every Tuesday.", ["go", "am going", "going"], "every Tuesday = הרגל: I go.", "every Tuesday → I go.", { trap: "sp-habit-prog" });
 g7b.fix("*Do you listening to me?", ["Are"], "עם ing שואלים Are: Are you listening?", "With -ing: Are you listening?", { trap: "sp-do-be" });
 g7b.transform("He plays in the band.", "Add 'now' – change the verb.", "הוסיפו now – שנו את הפועל", ["He is playing in the band now.", "He's playing in the band now."], "now = עכשיו, ולכן is playing.", "now → is playing.");
 g7b.transform("She is cooking a meal now.", "Change 'now' to 'every day'.", "החליפו את now ב-every day", ["She cooks a meal every day."], "every day → הווה פשוט: cooks.", "every day → cooks.");
@@ -116,7 +116,7 @@ g8b.type("I usually eat a sandwich, but today I ___ pasta.", "have", ["am having
 g8b.type("This bag ___ to my sister.", "belong", "belongs", "belong הוא פועל מצב – הווה פשוט: belongs.", "belong is a state verb → belongs.", { trap: "sp-state" });
 g8b.mcq("How often ___ you download new songs?", ["do", "are", "is"], "How often = הרגל: How often do you…?", "How often → do you…?");
 g8b.fix("Listen! My phone *rings in my bag.", ["is ringing"], "Listen! = עכשיו: is ringing.", "Listen! → is ringing.", { trap: "sp-now-simple" });
-g8b.fix("We *are visiting our grandparents every weekend.", ["visit"], "every weekend = הרגל: we visit.", "every weekend → we visit.", { trap: "sp-habit-prog" });
+g8b.mcq("We ___ our grandparents every weekend.", ["visit", "are visiting", "visits"], "every weekend = הרגל: we visit.", "every weekend → we visit.", { trap: "sp-habit-prog" });
 g8b.fix("*Do they recording a new song now?", ["Are"], "עם ing שואלים Are: Are they recording?", "With -ing: Are they recording?", { trap: "sp-do-be" });
 g8b.transform("She chats with her friends online.", "Add 'right now' – change the verb.", "הוסיפו right now – שנו את הפועל", ["She is chatting with her friends online right now.", "She's chatting with her friends online right now."], "right now = עכשיו, ולכן is chatting.", "right now → is chatting.");
 g8b.transform("They are traveling abroad this month.", "Change 'this month' to 'every summer'.", "החליפו את this month ב-every summer", ["They travel abroad every summer."], "every summer → הווה פשוט: travel.", "every summer → travel.");
@@ -145,7 +145,7 @@ g9b.type("We usually sleep at home, but this week we ___ in a hotel.", "sleep", 
 g9b.type("I ___ you – you're right.", "believe", "believe", "believe הוא פועל מצב – הווה פשוט.", "believe is a state verb → simple.", { trap: "sp-state" });
 g9b.mcq("How often ___ you update your apps?", ["do", "are", "is"], "How often = הרגל: How often do you…?", "How often → do you…?");
 g9b.fix("Look! The dolphins *jump out of the water.", ["are jumping"], "Look! = עכשיו: are jumping.", "Look! → are jumping.", { trap: "sp-now-simple" });
-g9b.fix("My parents *are binge-watching series every weekend.", ["binge-watch"], "every weekend = הרגל: binge-watch.", "every weekend → binge-watch.", { trap: "sp-habit-prog" });
+g9b.mcq("My parents ___ series every weekend.", ["binge-watch", "are binge-watching", "binge-watches"], "every weekend = הרגל: binge-watch.", "every weekend → binge-watch.", { trap: "sp-habit-prog" });
 g9b.fix("*Does she translating the article now?", ["Is"], "עם ing שואלים Is: Is she translating?", "With -ing: Is she translating?", { trap: "sp-do-be" });
 g9b.transform("He repairs old furniture.", "Add 'at the moment' – change the verb.", "הוסיפו at the moment – שנו את הפועל", ["He is repairing old furniture at the moment.", "He's repairing old furniture at the moment."], "at the moment = עכשיו, ולכן is repairing.", "at the moment → is repairing.");
 g9b.transform("She is working from home this month.", "Change 'this month' to 'every Friday'.", "החליפו את this month ב-every Friday", ["She works from home every Friday."], "every Friday → הווה פשוט: works.", "every Friday → works.");
@@ -158,9 +158,9 @@ l3.mcq("I ___ it's a great idea.", ["think", "am thinking", "thinking"], "think 
 l3.mcq("Quiet, please! I ___ about the problem.", ["am thinking", "think", "thinks"], "think about = לחשוב עכשיו → מתמשך.", "think about (now) → progressive.");
 l3.type("The train ___ at 7:45 tomorrow morning.", "leave", "leaves", "לוח זמנים רשמי → הווה פשוט גם לעתיד.", "Timetable → simple, even for the future.");
 l3.type("We ___ our cousins at the airport at 6 tonight.", "meet", ["are meeting", "'re meeting"], "תוכנית אישית סגורה → הווה מתמשך.", "Personal arrangement → progressive.", { allow: ["cousins"] });
-l3.fix("This bag *is belonging to my teacher.", ["belongs"], "belong – פועל מצב, בלי ing.", "belong is a state verb – no -ing.", { trap: "sp-state" });
-l3.fix("We *are having two cars.", ["have"], "have במובן 'יש לנו' – בלי ing.", "have (= own) – no -ing.", { trap: "sp-have" });
-l3.fix("Every morning he *is running in the park.", ["runs"], "every morning = הרגל → runs.", "every morning → runs.", { trap: "sp-habit-prog" });
+l3.mcq("This bag ___ to my teacher.", ["belongs", "is belonging", "belonging"], "belong – פועל מצב, בלי ing.", "belong is a state verb – no -ing.", { trap: "sp-state" });
+l3.mcq("We ___ two cars.", ["have", "are having", "having"], "have במובן 'יש לנו' – בלי ing.", "have (= own) – no -ing.", { trap: "sp-have" });
+l3.mcq("Every morning he ___ in the park.", ["runs", "is running", "run"], "every morning = הרגל → runs.", "every morning → runs.", { trap: "sp-habit-prog" });
 l3.transform("She works in a bank.", "Say it's only temporary – use 'this month' and 'from home'.", "אמרו שזה זמני – השתמשו ב-this month ו-from home", ["She is working from home this month.", "She's working from home this month.", "This month she is working from home."], "מצב זמני → is working.", "Temporary → is working.");
 l3.transform("I'm seeing the dentist on Monday.", ...QUE, ["Are you seeing the dentist on Monday?"], "שאלה בהווה מתמשך: Are you seeing…?", "Are you seeing…?", { allow: ["dentist"] });
 l3.sort(["✓ Correct", "✗ Wrong"], [["I'm having lunch now.", "✓ Correct"], ["I'm having a brother.", "✗ Wrong"], ["The film starts at nine.", "✓ Correct"], ["She is wanting a new phone.", "✗ Wrong"], ["Look! It's snowing.", "✓ Correct"], ["He is going to the gym every day.", "✗ Wrong"]], "התיקונים: I have a brother · She wants · He goes … every day.", "Fixes: I have a brother · She wants · He goes … every day.");

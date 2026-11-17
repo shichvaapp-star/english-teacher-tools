@@ -32,7 +32,7 @@ export function gradeVocabulary(grade: ClassGrade): string[] {
 export function vocabularyTokens(entries: string[]): string[] {
   const out = new Set<string>();
   for (const e of entries) {
-    for (const w of e.toLowerCase().replace(/[’]/g, "'").match(/[a-z][a-z'-]*/g) ?? []) {
+    for (const w of e.toLowerCase().replace(/[’]/g, "'").match(/[a-zà-ÿ][a-zà-ÿ'-]*/g) ?? []) {
       out.add(w.replace(/'$/, ""));
       // "o'clock", "it's" etc. – also allow the parts
       for (const p of w.split(/['-]/)) if (p.length > 1) out.add(p);

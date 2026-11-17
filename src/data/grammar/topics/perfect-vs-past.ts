@@ -82,8 +82,8 @@ b.type("I ___ it for the first time in 2018.", "see", "saw", "in 2018 = זמן �
 b.type("We ___ each other since first grade.", "know", ["have known", "'ve known"], "since + עד היום → have known.", "since + up to now → have known.", { trap: "pvp-still" });
 b.type("When ___ the marathon start?", "do", "did", "When…? → עבר פשוט: did.", "When…? → did.", { trap: "pvp-when" });
 b.mcq("My grandfather ___ in a factory for 40 years. Now he's retired.", ["worked", "has worked", "works"], "תקופה שנגמרה (הוא כבר בפנסיה) → worked.", "A finished period → worked.", { allow: ["retired"] });
-b.fix("I *have met her at the wedding last month.", ["met"], "last month → עבר פשוט: met.", "last month → met.", { trap: "pvp-time" });
-b.fix("When *have you finished the project?", ["did"], "When…? → עבר פשוט: When did you finish?", "When did you finish?", { trap: "pvp-when" });
+b.fix("I *meet her at the wedding last month.", ["met"], "last month = זמן מוגדר → עבר פשוט: met.", "last month → met.", { trap: "pvp-time" });
+b.mcq("When ___ you finish the project?", ["did", "have", "has"], "When…? → עבר פשוט: When did you finish?", "When…? → did.", { trap: "pvp-when" });
 b.fix("We *live in this apartment since 2015.", ["have lived", "'ve lived"], "since + עד היום → have lived.", "since → have lived.", { trap: "pvp-still" });
 b.transform("She has been to Paris.", "Add a time: 'last year'.", "הוסיפו זמן: last year", ["She went to Paris last year.", "She was in Paris last year."], "עם last year → עבר פשוט: went.", "last year → went.", { allow: ["paris"] });
 b.transform("You visited the new gallery.", "Ask about the experience with 'ever'.", "שאלו על ניסיון עם ever", ["Have you ever visited the new gallery?", "Have you visited the new gallery?"], "ניסיון → Have you ever visited…?", "Experience → Have you ever visited…?");
@@ -96,7 +96,7 @@ l3.mcq("Oh no! I ___ my keys. I can't get into the house.", ["have lost", "lost"
 l3.mcq("Shakespeare ___ more than 30 plays.", ["wrote", "has written", "writes"], "אדם שכבר לא חי → עבר פשוט: wrote.", "Not alive anymore → wrote.", { allow: ["shakespeare", "plays"] });
 l3.type("I ___ three cups of coffee today.", "drink", ["have drunk", "'ve drunk"], "today עדיין לא נגמר → have drunk.", "today (not finished) → have drunk.");
 l3.type("A fire ___ a shop in Tel Aviv. It started at 2 a.m.", "destroy", ["has destroyed", "'s destroyed"], "חדשות – משפט ראשון בהווה מושלם.", "News – first sentence in present perfect.");
-l3.fix("I *have broken my arm when I was ten.", ["broke"], "when I was ten = זמן מוגדר → broke.", "when I was ten → broke.", { trap: "pvp-time" });
+l3.mcq("I ___ my arm when I was ten.", ["broke", "have broken", "have broke"], "when I was ten = זמן מוגדר → עבר פשוט: broke.", "when I was ten → broke.", { trap: "pvp-time" });
 l3.fix("Have you ever *saw a whale?", ["seen"], "אחרי have – צורה שלישית: Have you ever seen…?", "After have → seen.", { trap: "pvp-ever", allow: ["whale"] });
 l3.fix("He *works here since 2020.", ["has worked", "'s worked"], "since + עד היום → has worked.", "since → has worked.", { trap: "pvp-still" });
 l3.transform("They have won the league.", "Add a detail in the past: they scored in the last minute.", "הוסיפו פרט בעבר: they scored in the last minute", ["They have won the league. They scored in the last minute.", "They've won the league. They scored in the last minute."], "חדשות בהווה מושלם, פרט בעבר פשוט.", "News in present perfect, detail in past simple.", { allow: ["scored"] });

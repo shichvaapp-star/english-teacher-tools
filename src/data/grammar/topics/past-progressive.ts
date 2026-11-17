@@ -159,8 +159,8 @@ l3.mcq("I ___ home when it started to rain.", ["was walking", "walked", "were wa
 l3.mcq("While I was cooking, my brother ___ the table.", ["was setting", "set", "sets"], "שתי פעולות ארוכות במקביל (while) → was setting.", "Two long actions (while) → was setting.");
 l3.type("Who ___ to when I came in?", "you / talk", "were you talking", "שאלה: Who + were + you + talking?", "Who were you talking to?");
 l3.type("I ___ the answer, but I was too shy to say it.", "know", "knew", "know הוא פועל מצב – עבר פשוט: knew.", "know is a state verb → knew.", { trap: "ppr-state" });
-l3.fix("I *was knowing all the answers.", ["knew"], "know – פועל מצב, בלי ing.", "know is a state verb – no -ing.", { trap: "ppr-state" });
-l3.fix("Why *you were laughing?", ["were you"], "בשאלה: Why + were + you…?", "Question order: Why were you…?", { trap: "ppr-question" });
+l3.mcq("I ___ all the answers in the test.", ["knew", "was knowing", "knowing"], "know – פועל מצב, גם בעבר בלי ing: knew.", "know is a state verb → knew.", { trap: "ppr-state" });
+l3.fix("Why *was you laughing?", ["were"], "עם you – were: Why were you laughing?", "you → were.", { trap: "ppr-was-were" });
 l3.fix("The students *was working quietly when the bell rang.", ["were"], "The students = they, ולכן were.", "The students = they → were.", { trap: "ppr-was-were", allow: ["quietly", "bell"] });
 l3.transform("She was talking to someone.", "Ask a question with 'Who'.", "שאלו שאלה עם Who", ["Who was she talking to?"], "המבנה: Who + was + she + talking to?", "Who was she talking to?");
 l3.transform("We were sleeping at midnight.", ...NEG, ["We weren't sleeping at midnight.", "We were not sleeping at midnight."], "שלילה: weren't sleeping.", "weren't sleeping.");

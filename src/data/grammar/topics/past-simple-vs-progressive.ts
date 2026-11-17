@@ -86,7 +86,7 @@ g8b.type("While the teacher ___, the students were taking notes.", "talk", "was 
 g8b.type("The car ___ when we were driving to the airport.", "break down", "broke down", "פעולה קצרה שקטעה → broke down.", "Short interrupting action → broke down.");
 g8b.mcq("What ___ you doing when the accident happened?", ["were", "did", "was"], "What were you doing when…? – מה עשית באמצע.", "What were you doing when…?");
 g8b.fix("I *watched the news when the lights went out.", ["was watching"], "פעולה ארוכה ברקע → was watching.", "Long background action → was watching.", { trap: "spp-both-simple", allow: ["lights"] });
-g8b.fix("She was taking a shower when the phone *was ringing.", ["rang"], "פעולה קצרה → rang.", "Short action → rang.", { trap: "spp-short-prog", allow: ["shower"] });
+g8b.mcq("She was taking a shower when the phone ___ .", ["rang", "was ringing", "rings"], "פעולה קצרה שקטעה → rang.", "Short interrupting action → rang.", { trap: "spp-short-prog", allow: ["shower"] });
 g8b.fix("While I *cooked dinner, I cut my finger.", ["was cooking"], "אחרי while → was cooking.", "After while → was cooking.", { trap: "spp-while-simple" });
 g8b.transform("They were playing football when it started to rain.", ...QUE, "Were they playing football when it started to rain?", "שאלה: Were + they + playing…?", "Were they playing…?", { allow: ["rain"] });
 g8b.transform("I was reading. My brother came in.", "Join with 'when'.", "חברו עם when", ["I was reading when my brother came in.", "When my brother came in, I was reading."], "ארוכה + when + קצרה.", "long + when + short.");
@@ -115,7 +115,7 @@ g9b.type("While the reporter ___ the firefighter, a fire truck arrived.", "inter
 g9b.type("She ___ off the ladder while she was painting the wall.", "fall", "fell", "פעולה קצרה → fell.", "Short action → fell.", { allow: ["wall"] });
 g9b.mcq("What ___ you doing when the elevator stopped?", ["were", "did", "was"], "What were you doing when…? – מה עשית באמצע.", "What were you doing when…?");
 g9b.fix("I *binge-watched a series when my parents came home.", ["was binge-watching"], "פעולה ארוכה ברקע → was binge-watching.", "Long background action → was binge-watching.", { trap: "spp-both-simple" });
-g9b.fix("He was repairing the oven when he *was cutting his hand.", ["cut"], "פעולה קצרה → cut.", "Short action → cut.", { trap: "spp-short-prog" });
+g9b.mcq("He was repairing the oven when he ___ his hand.", ["cut", "was cutting", "cuts"], "פעולה קצרה שקטעה → cut.", "Short interrupting action → cut.", { trap: "spp-short-prog" });
 g9b.fix("While she *translated the article, the power went out.", ["was translating"], "אחרי while → was translating.", "After while → was translating.", { trap: "spp-while-simple", allow: ["power"] });
 g9b.transform("They were sailing when the storm started.", ...QUE, "Were they sailing when the storm started?", "שאלה: Were + they + sailing…?", "Were they sailing…?", { allow: ["storm"] });
 g9b.transform("We were jogging in the park. We saw a famous actor.", "Join with 'while'.", "חברו עם while", ["While we were jogging in the park, we saw a famous actor.", "We saw a famous actor while we were jogging in the park."], "while + ארוכה, קצרה.", "while + long, short.", { allow: ["jogging", "famous"] });
@@ -129,7 +129,7 @@ l3.mcq("When she saw the spider, she ___ .", ["screamed", "was screaming", "scre
 l3.type("I ___ that he was lying.", "know", "knew", "know – פועל מצב → knew.", "know is a state verb → knew.", { trap: "spp-state" });
 l3.type("Just as we ___ the house, it started to pour.", "leave", "were leaving", "באמצע לצאת (just as) → were leaving.", "In the middle of leaving → were leaving.", { allow: ["pour"] });
 l3.fix("When the teacher came in, the students *talked loudly.", ["were talking"], "רקע ארוך → were talking.", "Background → were talking.", { trap: "spp-both-simple" });
-l3.fix("I *was knowing the answer, so I raised my hand.", ["knew"], "know – פועל מצב, עבר פשוט: knew.", "know is a state verb → knew.", { trap: "spp-state", allow: ["raised"] });
+l3.mcq("I ___ the answer, so I raised my hand.", ["knew", "was knowing", "know"], "know – פועל מצב, עבר פשוט: knew.", "know is a state verb → knew.", { trap: "spp-state", allow: ["raised"] });
 l3.fix("While he *drove to work, he listened to the news.", ["was driving"], "אחרי while → was driving.", "After while → was driving.", { trap: "spp-while-simple" });
 l3.transform("He was cooking. The fire alarm went off.", "Join with 'when'.", "חברו עם when", ["He was cooking when the fire alarm went off.", "When the fire alarm went off, he was cooking."], "ארוכה + when + קצרה.", "long + when + short.", { allow: ["alarm"] });
 l3.transform("I saw the accident.", "Ask what the person was doing (What … when …?).", "שאלו מה האדם עשה כשזה קרה", ["What were you doing when you saw the accident?"], "שאלה: What were you doing when…?", "What were you doing when…?");

@@ -158,8 +158,8 @@ l3.mcq("I ___ what you mean.", ["understand", "am understanding", "understanding
 l3.mcq("We ___ to Rome on Sunday. The tickets are booked.", ["are flying", "fly", "flying"], "תוכנית סגורה לעתיד הקרוב → are flying.", "Fixed plan for the near future → are flying.", { allow: ["rome", "booked"] });
 l3.type("Prices ___ these days.", "rise", ["are rising", "'re rising"], "these days = מצב זמני שמשתנה → are rising. rise → rising.", "these days = changing situation → are rising.", { allow: ["prices"] });
 l3.type("Who ___ to on the phone?", "you / talk", "are you talking", "שאלה: Who + are + you + talking?", "Who + are + you + talking?");
-l3.fix("I *am wanting a new phone.", ["want"], "want – פועל מצב, בלי ing.", "want is a state verb – no -ing.", { trap: "pp-state" });
-l3.fix("Why *you are laughing?", ["are you"], "בשאלה: Why + are + you…?", "Question order: Why are you…?", { trap: "pp-question" });
+l3.mcq("I ___ a new phone for my birthday.", ["want", "am wanting", "wanting"], "want – פועל מצב, בלי ing.", "want is a state verb – no -ing.", { trap: "pp-state" });
+l3.fix("Why *is you laughing?", ["are"], "עם you – are: Why are you laughing?", "you → are.", { trap: "pp-question" });
 l3.fix("She is *stoping the car.", ["stopping"], "stop → stopping (מכפילים p).", "stop → stopping (double p).", { trap: "pp-spelling" });
 l3.transform("My cousin is living in London this year.", "Ask a question with 'Where'.", "שאלו שאלה עם Where", ["Where is your cousin living this year?", "Where is my cousin living this year?", "Where is he living this year?", "Where is she living this year?"], "Where + is + נושא + living?", "Where + is + subject + living?", { allow: ["london", "cousin"] });
 l3.transform("We are meeting at the café tonight.", ...NEG, ["We aren't meeting at the café tonight.", "We are not meeting at the café tonight.", "We're not meeting at the café tonight."], "שלילה: are + not + meeting.", "are not + meeting.");

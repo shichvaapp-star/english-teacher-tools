@@ -87,7 +87,7 @@ g7b.type("Look! The baby ___ .", "fall", ["is going to fall", "'s going to fall"
 g7b.type("We ___ the bus. We're going to walk.", "not / take", ["aren't going to take", "are not going to take", "'re not going to take"], "שלילה: aren't going to take.", "aren't going to take.");
 g7b.type("___ your parents going to come to the show?", "be", "Are", "שאלה: Are + your parents + going to…?", "Are your parents going to…?", { allow: ["show"] });
 g7b.mcq("What ___ you going to do this weekend?", ["are", "do", "will"], "שאלה: What + are + you + going to do?", "What are you going to do?");
-g7b.fix("My brother *going to join the band.", ["is going to", "'s going to"], "חסר is: My brother is going to join.", "Missing is.", { trap: "gt-no-be" });
+g7b.fix("My brother *going to join the band.", ["is going"], "חסר is: My brother is going to join.", "Missing is.", { trap: "gt-no-be" });
 g7b.fix("We are going *travel to a new village.", ["to travel"], "חסר to: going to travel.", "Missing to: going to travel.", { trap: "gt-no-to" });
 g7b.fix("She is going to *helps the guide.", ["help"], "אחרי going to – צורת בסיס: help.", "After going to → help.", { trap: "gt-form" });
 g7b.transform("They are going to cross the bridge.", ...NEG, ["They aren't going to cross the bridge.", "They are not going to cross the bridge.", "They're not going to cross the bridge."], "שלילה: aren't going to.", "aren't going to.");
@@ -116,7 +116,7 @@ g8b.type("Look at that driver! He ___ an accident.", "have", ["is going to have"
 g8b.type("I ___ the party. I have too much homework.", "not / go to", ["am not going to go to", "'m not going to go to"], "שלילה עם I: am not going to go to.", "I'm not going to go to.");
 g8b.type("___ your friends going to perform at the concert?", "be", "Are", "שאלה: Are + your friends + going to…?", "Are your friends going to…?");
 g8b.mcq("When ___ you going to start your project?", ["are", "do", "will"], "שאלה: When + are + you + going to start?", "When are you going to start?");
-g8b.fix("The actors *going to rehearse tonight.", ["are going to", "'re going to"], "חסר are: The actors are going to…", "Missing are.", { trap: "gt-no-be", allow: ["rehearse"] });
+g8b.fix("The actors *going to rehearse tonight.", ["are going"], "חסר are: The actors are going to…", "Missing are.", { trap: "gt-no-be", allow: ["rehearse"] });
 g8b.fix("I am going *download the movie later.", ["to download"], "חסר to: going to download.", "Missing to: going to download.", { trap: "gt-no-to" });
 g8b.fix("She is going to *decorates the room.", ["decorate"], "אחרי going to – צורת בסיס: decorate.", "After going to → decorate.", { trap: "gt-form" });
 g8b.transform("We are going to fly to Rome.", ...NEG, ["We aren't going to fly to Rome.", "We are not going to fly to Rome.", "We're not going to fly to Rome."], "שלילה: aren't going to.", "aren't going to.", { allow: ["rome"] });
@@ -145,7 +145,7 @@ g9b.type("Watch out! That ladder ___ .", "fall", ["is going to fall", "'s going 
 g9b.type("I ___ about the noise. It's not worth it.", "not / complain", ["am not going to complain", "'m not going to complain"], "שלילה עם I: am not going to complain.", "I'm not going to complain.", { allow: ["worth"] });
 g9b.type("___ the neighbors going to come to the party?", "be", "Are", "שאלה: Are + the neighbors + going to…?", "Are the neighbors going to…?");
 g9b.mcq("Who ___ you going to invite to the wedding?", ["are", "do", "will"], "שאלה: Who + are + you + going to invite?", "Who are you going to invite?", { allow: ["invite"] });
-g9b.fix("The firefighters *going to check the building.", ["are going to", "'re going to"], "חסר are: The firefighters are going to…", "Missing are.", { trap: "gt-no-be", allow: ["building"] });
+g9b.fix("The firefighters *going to check the building.", ["are going"], "חסר are: The firefighters are going to…", "Missing are.", { trap: "gt-no-be", allow: ["building"] });
 g9b.fix("I am going *update my apps tonight.", ["to update"], "חסר to: going to update.", "Missing to: going to update.", { trap: "gt-no-to" });
 g9b.fix("She is going to *borrows my jacket.", ["borrow"], "אחרי going to – צורת בסיס: borrow.", "After going to → borrow.", { trap: "gt-form" });
 g9b.transform("We are going to repair the sink.", ...NEG, ["We aren't going to repair the sink.", "We are not going to repair the sink.", "We're not going to repair the sink."], "שלילה: aren't going to.", "aren't going to.");
@@ -159,9 +159,9 @@ l3.mcq("Watch out! You ___ that glass!", ["are going to break", "will break", "b
 l3.mcq("I ___ call you, but my phone died.", ["was going to", "am going to", "will"], "תוכנית בעבר שלא קרתה → was going to.", "A past plan that didn't happen → was going to.", { allow: ["died"] });
 l3.type("We ___ to Eilat this weekend. We booked the hotel.", "go", ["are going to go", "'re going to go", "are going"], "תוכנית שכבר סגורה → are going to go.", "Decided plan → are going to go.", { allow: ["booked", "hotel"] });
 l3.type("They ___ fly, but in the end they drove.", "be going to", "were going to", "תוכנית שהשתנתה → were going to.", "A plan that changed → were going to.");
-l3.fix("She *going to study medicine.", ["is going to", "'s going to"], "חסר is.", "Missing is.", { trap: "gt-no-be", allow: ["medicine"] });
+l3.fix("She *going to study medicine.", ["is going"], "חסר is.", "Missing is.", { trap: "gt-no-be", allow: ["medicine"] });
 l3.fix("I'm going *buy a new laptop.", ["to buy"], "חסר to: going to buy.", "Missing to.", { trap: "gt-no-to", allow: ["laptop"] });
-l3.fix("Why *you are going to leave so early?", ["are you"], "בשאלה: Why + are + you + going to…?", "Question order: Why are you going to…?", { trap: "gt-question" });
+l3.fix("Why *is you going to leave so early?", ["are"], "עם you – are: Why are you going to…?", "you → are.", { trap: "gt-agree" });
 l3.transform("I'm going to study medicine.", "Ask a question with 'What'.", "שאלו שאלה עם What", ["What are you going to study?"], "שאלה: What + are + you + going to study?", "What are you going to study?", { allow: ["medicine"] });
 l3.transform("We were going to fly.", "Add what happened instead: 'but we drove'.", "הוסיפו מה קרה בפועל: but we drove", ["We were going to fly, but we drove.", "We were going to fly but we drove."], "was / were going to + but + מה שקרה.", "were going to …, but …");
 l3.sort(["✓ Correct", "✗ Wrong"], [["It's going to rain.", "✓ Correct"], ["He going to win.", "✗ Wrong"], ["We're going to go home.", "✓ Correct"], ["She is going to plays.", "✗ Wrong"], ["I was going to call you.", "✓ Correct"], ["They is going to come.", "✗ Wrong"]], "התיקונים: He is going to · She is going to play · They are going to.", "Fixes: He is going to · She is going to play · They are going to.", { allow: ["rain"] });

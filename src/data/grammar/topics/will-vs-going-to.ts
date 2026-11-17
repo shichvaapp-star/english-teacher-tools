@@ -82,8 +82,8 @@ function grade7() {
   b.type("Look at the river! It ___ the bridge.", "cover", ["is going to cover", "'s going to cover"], "רואים שהמים עולים → going to.", "Evidence → going to.");
   b.type("I think our team ___ tomorrow.", "win", ["will win", "'ll win"], "תחזית לפי דעה (I think) → will.", "Opinion → will.");
   b.mcq("\"We need milk.\" \"OK, I ___ some.\"", ["'ll buy", "'m going to buy", "buy"], "OK = החלטה של הרגע → will.", "OK → decision now → will.");
-  b.fix("I promise I *am going to clean my room.", ["will", "'ll"], "הבטחה → will.", "Promise → will.", { trap: "wg-promise" });
-  b.fix("The phone is ringing. I *am going to answer it.", ["will", "'ll"], "החלטה של הרגע → will.", "Decision now → will.", { trap: "wg-now-goingto" });
+  b.mcq("I promise I ___ my room.", ["'ll clean", "'m going to clean", "clean"], "הבטחה → will.", "Promise → will.", { trap: "wg-promise" });
+  b.mcq("The phone is ringing. I ___ it!", ["'ll answer", "'m going to answer", "answered"], "החלטה של הרגע → will.", "Decision now → will.", { trap: "wg-now-goingto" });
   b.fix("Look at those black clouds! It *will snow.", ["is going to", "'s going to"], "רואים סימן → going to.", "Evidence → going to.", { trap: "wg-evidence", allow: ["clouds", "snow"] });
   b.transform("We have a plan to visit the village.", "Say it with 'going to'.", "אמרו את זה עם going to", ["We are going to visit the village.", "We're going to visit the village."], "תוכנית → are going to visit.", "Plan → are going to visit.");
   b.transform("Do you want me to help you?", "Offer with 'will' (I'll…).", "הציעו עזרה עם will", ["I'll help you.", "I will help you."], "הצעה → I'll help you.", "Offer → I'll help you.");
@@ -114,8 +114,8 @@ function grade8() {
   b.type("Look at that driver! He ___ the red light.", "miss", ["is going to miss", "'s going to miss"], "רואים סימן → going to.", "Evidence → going to.", { allow: ["driver", "red"] });
   b.type("I think the concert ___ amazing.", "be", ["will be", "'ll be"], "תחזית לפי דעה (I think) → will.", "Opinion → will.");
   b.mcq("\"There's no milk.\" \"OK, I ___ some at the supermarket.\"", ["'ll get", "'m going to get", "get"], "OK = החלטה של הרגע → will.", "OK → decision now → will.");
-  b.fix("I promise I *am going to apologize to her.", ["will", "'ll"], "הבטחה → will.", "Promise → will.", { trap: "wg-promise" });
-  b.fix("Someone's at the door. I *am going to open it.", ["will", "'ll"], "החלטה של הרגע → will.", "Decision now → will.", { trap: "wg-now-goingto" });
+  b.mcq("I promise I ___ to her.", ["'ll apologize", "'m going to apologize", "apologized"], "הבטחה → will.", "Promise → will.", { trap: "wg-promise" });
+  b.mcq("Someone's at the door. I ___ it!", ["'ll open", "'m going to open", "opened"], "החלטה של הרגע → will.", "Decision now → will.", { trap: "wg-now-goingto" });
   b.fix("Look at the sky! There *will be a storm.", ["is going to"], "רואים סימן → going to.", "Evidence → going to.", { trap: "wg-evidence", allow: ["sky", "storm"] });
   b.transform("Our plan is to travel abroad in July.", "Say it with 'going to'.", "אמרו את זה עם going to", ["We are going to travel abroad in July.", "We're going to travel abroad in July."], "תוכנית → are going to travel.", "Plan → are going to travel.");
   b.transform("Do you want me to drive you to the airport?", "Offer with 'will' (I'll…).", "הציעו עזרה עם will", ["I'll drive you to the airport.", "I will drive you to the airport."], "הצעה → I'll drive you.", "Offer → I'll drive you.");
@@ -146,8 +146,8 @@ function grade9() {
   b.type("Look at those runners! They ___ the record.", "break", ["are going to break", "'re going to break"], "רואים שהם מהירים מאוד → going to.", "Evidence → going to.", { allow: ["runners"] });
   b.type("I think the new app ___ popular.", "become", ["will become", "'ll become"], "תחזית לפי דעה (I think) → will.", "Opinion → will.");
   b.mcq("\"The neighbors are complaining.\" \"OK, I ___ the music down.\"", ["'ll turn", "'m going to turn", "turn"], "OK = החלטה של הרגע → will.", "OK → decision now → will.", { allow: ["turn"] });
-  b.fix("I promise I *am going to repair the oven.", ["will", "'ll"], "הבטחה → will.", "Promise → will.", { trap: "wg-promise" });
-  b.fix("Someone's at the door. I *am going to see who it is.", ["will", "'ll"], "החלטה של הרגע → will.", "Decision now → will.", { trap: "wg-now-goingto" });
+  b.mcq("I promise I ___ the oven.", ["'ll repair", "'m going to repair", "repaired"], "הבטחה → will.", "Promise → will.", { trap: "wg-promise" });
+  b.mcq("Someone's at the door. I ___ who it is.", ["'ll see", "'m going to see", "saw"], "החלטה של הרגע → will.", "Decision now → will.", { trap: "wg-now-goingto" });
   b.fix("Look at the dark sky! It *will snow.", ["is going to", "'s going to"], "רואים סימן → going to.", "Evidence → going to.", { trap: "wg-evidence", allow: ["sky", "snow"] });
   b.transform("Our plan is to sail to the island in August.", "Say it with 'going to'.", "אמרו את זה עם going to", ["We are going to sail to the island in August.", "We're going to sail to the island in August."], "תוכנית → are going to sail.", "Plan → are going to sail.");
   b.transform("Do you want me to wipe the table?", "Offer with 'will' (I'll…).", "הציעו עזרה עם will", ["I'll wipe the table.", "I will wipe the table.", "I'll wipe it."], "הצעה → I'll wipe the table.", "Offer → I'll wipe the table.");
@@ -164,7 +164,7 @@ l3.mcq("She's ten meters ahead. She ___ the race!", ["'s going to win", "'ll win
 l3.type("I'm sure you ___ the exam.", "pass", ["will pass", "'ll pass"], "הערכה / דעה (I'm sure) → will.", "Opinion (I'm sure) → will.", { allow: ["exam"] });
 l3.type("When I ___ home, I'll call you.", "get", "get", "אחרי when לעתיד – הווה פשוט.", "After when (future) → present.");
 l3.fix("Look out! The vase *will fall!", ["is going to", "'s going to"], "סימן ברור → going to.", "Evidence → going to.", { trap: "wg-evidence", allow: ["vase"] });
-l3.fix("\"Coffee or tea?\" \"I *am going to have tea, please.\"", ["will", "'ll"], "החלטה של הרגע → I'll have.", "Decision now → I'll have.", { trap: "wg-now-goingto", allow: ["tea"] });
+l3.mcq("\"Coffee or tea?\" \"I ___ tea, please.\"", ["'ll have", "'m going to have", "had"], "החלטה של הרגע → I'll have.", "Decision now → I'll have.", { trap: "wg-now-goingto", allow: ["tea"] });
 l3.fix("I *will study medicine – I decided years ago.", ["am going to", "'m going to"], "החלטה ישנה → going to.", "Old decision → going to.", { trap: "wg-plan-will", allow: ["medicine"] });
 l3.transform("I'll call her.", "Make it a plan you made earlier (going to).", "הפכו לתוכנית שהחלטתם מראש (going to)", ["I'm going to call her.", "I am going to call her."], "תוכנית → am going to call.", "Plan → am going to call.");
 l3.transform("It is going to rain.", "Make it an opinion ('I think…').", "הפכו לדעה (I think…)", ["I think it will rain.", "I think it'll rain."], "דעה → I think + will.", "Opinion → I think + will.", { allow: ["rain"] });

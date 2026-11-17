@@ -87,7 +87,7 @@ g7b.type("Don't tell Dad. He ___ happy about it.", "not / be", ["won't be", "wil
 g7b.type("___ your parents drive us to the club?", "will", "Will", "שאלה בעתיד: Will + your parents + drive?", "Will your parents drive…?");
 g7b.mcq("When ___ the journey start?", ["will", "does it", "is"], "שאלה בעתיד: When will the journey start?", "When will … start?");
 g7b.fix("My sister will *comes to the theater with us.", ["come"], "אחרי will – צורת בסיס: come.", "After will → come.", { trap: "wl-s" });
-g7b.fix("I will *to send you the list.", ["send"], "אחרי will אין to.", "No to after will.", { trap: "wl-to" });
+g7b.fix("I will *sends you the list.", ["send"], "אחרי will – צורת בסיס, בלי s: send.", "After will → send.", { trap: "wl-s" });
 g7b.fix("I promise I *pay you back tomorrow.", ["will pay", "'ll pay"], "הבטחה לעתיד → I will pay.", "Promise → I will pay.", { trap: "wl-present" });
 g7b.transform("The team will practice on Friday.", ...NEG, ["The team won't practice on Friday.", "The team will not practice on Friday."], "שלילה: won't + practice.", "won't practice.");
 g7b.transform("She will join the band.", ...QUE, "Will she join the band?", "בשאלה Will עובר להתחלה.", "Will goes first.");
@@ -116,7 +116,7 @@ g8b.type("Don't worry. It ___ long.", "not / take", ["won't take", "will not tak
 g8b.type("___ the director choose me for the role?", "will", "Will", "שאלה בעתיד: Will + the director + choose?", "Will the director choose…?");
 g8b.mcq("How long ___ the flight take?", ["will", "does it", "is"], "שאלה בעתיד: How long will the flight take?", "How long will … take?");
 g8b.fix("I'm sure my sister will *loves the gift.", ["love"], "אחרי will – צורת בסיס: love.", "After will → love.", { trap: "wl-s", allow: ["gift"] });
-g8b.fix("We will *to decorate the room tomorrow.", ["decorate"], "אחרי will אין to.", "No to after will.", { trap: "wl-to" });
+g8b.fix("We will *decorated the room tomorrow.", ["decorate"], "אחרי will – צורת בסיס: decorate.", "After will → decorate.", { trap: "wl-s" });
 g8b.fix("I promise I *call you when I land.", ["will call", "'ll call"], "הבטחה לעתיד → I will call.", "Promise → I will call.", { trap: "wl-present" });
 g8b.transform("The museum will open on Sunday.", ...NEG, ["The museum won't open on Sunday.", "The museum will not open on Sunday."], "שלילה: won't + open.", "won't open.");
 g8b.transform("They will win the competition.", ...QUE, "Will they win the competition?", "בשאלה Will עובר להתחלה.", "Will goes first.");
@@ -145,7 +145,7 @@ g9b.type("Don't lend him money. He ___ it back.", "not / pay", ["won't pay", "wi
 g9b.type("___ the neighbors complain about the party?", "will", "Will", "שאלה בעתיד: Will + the neighbors + complain?", "Will the neighbors complain…?");
 g9b.mcq("What time ___ the exhibition open?", ["will", "does it", "is"], "שאלה בעתיד: What time will the exhibition open?", "What time will … open?");
 g9b.fix("I'm sure the firefighter will *saves the cat.", ["save"], "אחרי will – צורת בסיס: save.", "After will → save.", { trap: "wl-s" });
-g9b.fix("We will *to sail to the island next week.", ["sail"], "אחרי will אין to.", "No to after will.", { trap: "wl-to" });
+g9b.fix("We will *sailing to the island next week.", ["sail"], "אחרי will – צורת בסיס: sail.", "After will → sail.", { trap: "wl-s" });
 g9b.fix("I promise I *return your novel on Monday.", ["will return", "'ll return"], "הבטחה לעתיד → I will return.", "Promise → I will return.", { trap: "wl-present" });
 g9b.transform("The elevator will work tomorrow.", ...NEG, ["The elevator won't work tomorrow.", "The elevator will not work tomorrow."], "שלילה: won't + work.", "won't work.");
 g9b.transform("She will translate the speech.", ...QUE, "Will she translate the speech?", "בשאלה Will עובר להתחלה.", "Will goes first.");
@@ -158,9 +158,9 @@ l3.mcq("When I ___ home, I'll call you.", ["get", "will get", "got"], "אחרי 
 l3.mcq("She ___ win – she's the best player.", ["will probably", "probably will to", "will probable"], "will + probably + פועל.", "will + probably + verb.");
 l3.type("If it rains, we ___ at home.", "stay", ["will stay", "'ll stay"], "If + הווה, will + פועל: will stay.", "If + present, will + verb.", { allow: ["rains"] });
 l3.type("I don't think the plan ___ .", "work", "will work", "אחרי I don't think – will: will work.", "I don't think … will work.");
-l3.fix("As soon as I *will finish, I'll help you.", ["finish"], "אחרי as soon as לעתיד – הווה פשוט.", "After as soon as → present.", { trap: "wl-when" });
-l3.fix("If it *will rain, we'll stay at home.", ["rains"], "אחרי if לעתיד – הווה פשוט: rains.", "After if (future) → present: rains.", { trap: "wl-when", allow: ["rain"] });
-l3.fix("There *will have a test on Monday.", ["will be"], "there will be (לא will have).", "there will be.");
+l3.fix("When she *arrive, we'll start the meeting.", ["arrives"], "אחרי when לעתיד – הווה פשוט: she arrives.", "After when (future) → present: arrives.", { trap: "wl-when", allow: ["arrive", "arrives", "meeting"] });
+l3.fix("If it *rain tomorrow, we'll stay at home.", ["rains"], "אחרי if לעתיד – הווה פשוט, ועם it מוסיפים s: rains.", "After if (future) → present: rains.", { trap: "wl-when", allow: ["rain"] });
+l3.fix("There will *have a test on Monday.", ["be"], "there will be (לא will have).", "there will be.");
 l3.transform("You will close the door.", "Make it a polite request.", "הפכו לבקשה מנומסת", ["Will you close the door, please?", "Will you close the door?", "Will you please close the door?"], "בקשה: Will you…, please?", "Request: Will you…, please?");
 l3.transform("I think it will snow tomorrow.", "Make it negative (I don't think…).", "הפכו לשלילה (I don't think…)", ["I don't think it will snow tomorrow.", "I do not think it will snow tomorrow."], "שלילה: I don't think + it will snow.", "I don't think it will snow.");
 l3.sort(["✓ Correct", "✗ Wrong"], [["When she arrives, we'll start.", "✓ Correct"], ["If you will come, I'll be happy.", "✗ Wrong"], ["It will definitely rain.", "✓ Correct"], ["There will have a party.", "✗ Wrong"], ["Will you help me, please?", "✓ Correct"], ["He will to call you.", "✗ Wrong"]], "התיקונים: If you come · There will be · He will call.", "Fixes: If you come · There will be · He will call.", { allow: ["arrives", "rain"] });
