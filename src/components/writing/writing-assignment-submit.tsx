@@ -3,7 +3,6 @@
 import React from "react";
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -21,7 +20,6 @@ import { type WritingPracticeController } from "@/components/writing/use-writing
 export function WritingAssignmentSubmit({ c }: { c: WritingPracticeController }) {
   const {
     activeMode,
-    feedback,
     handleSubmitToTeacher,
     isSubmitting,
     selectedLevel,
@@ -45,21 +43,6 @@ export function WritingAssignmentSubmit({ c }: { c: WritingPracticeController })
       {/* ASSIGNMENT MODE: SUBMIT TO TEACHER */}
       {activeMode === "submit" && (
         <div className="space-y-4 pt-1">
-          {/* Optional banner if already evaluated with AI */}
-          {feedback && !submissionSuccess && (
-            <div className="p-3 rounded-xl border border-primary/30 bg-primary/5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs" dir="rtl">
-              <div className="flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-primary shrink-0" />
-                <span className="text-foreground">
-                  ציון AI מקדים שקיבלת באימון: <strong className="font-bold text-primary">{feedback.score} / 100</strong>
-                </span>
-              </div>
-              <Badge variant="outline" className="text-[10px] border-primary/40 text-primary">
-                החיבור ייבדק רשמית ע&quot;י המורה
-              </Badge>
-            </div>
-          )}
-
           {!submissionSuccess ? (
             <Card className="border border-purple-500/40 bg-card p-4 sm:p-5 space-y-3.5 shadow-xs" dir="rtl">
               <div className="border-b border-border/50 pb-2.5">
