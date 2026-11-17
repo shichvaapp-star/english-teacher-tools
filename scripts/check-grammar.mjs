@@ -1,0 +1,192 @@
+// Validates the grammar content bank (src/data/grammar).
+// Runs the TypeScript data directly (Node strips types); "@/..." and
+// extensionless imports are resolved by the small hook below.
+import { registerHooks } from "node:module";
+import { existsSync } from "node:fs";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import path from "node:path";
+
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+
+registerHooks({
+  resolve(specifier, context, nextResolve) {
+    let target = null;
+    if (specifier.startsWith("@/")) target = path.join(root, "src", specifier.slice(2));
+    else if (specifier.startsWith(".") && context.parentURL?.endsWith(".ts")) {
+      target = path.resolve(path.dirname(fileURLToPath(context.parentURL)), specifier);
+    }
+    if (target) {
+      for (const cand of [target, `${target}.ts`, `${target}.tsx`, path.join(target, "index.ts")]) {
+        if (existsSync(cand) && !cand.endsWith(path.sep)) {
+          try {
+            if (path.extname(cand)) return nextResolve(pathToFileURL(cand).href, context);
+          } catch {
+            /* try next */
+          }
+        }
+      }
+    }
+    return nextResolve(specifier, context);
+  },
+});
+
+const { GRAMMAR_TOPICS, GRAMMAR_ITEMS } = await import(pathToFileURL(path.join(root, "src/data/grammar/index.ts")).href);
+const { gradeGrammarItem, normalizeAnswer } = await import(
+  pathToFileURL(path.join(root, "src/lib/grammar-grading.ts")).href
+);
+
+// Minimum items per topic per level (raise as content grows).
+const MIN_ITEMS_PER_LEVEL = 12;
+const LEVEL1_ALLOWED = new Set(["mcq", "gap_bank", "unscramble", "match_halves", "sort", "gap_type"]);
+
+const errors = [];
+const warn = [];
+const err = (where, msg) => errors.push(`${where}: ${msg}`);
+const hasHebrew = (s) => typeof s === "string" && /[֐-׿]/.test(s);
+
+// ── Topics ──
+const topicIds = new Set();
+for (const t of GRAMMAR_TOPICS) {
+  if (topicIds.has(t.id)) err(t.id, "duplicate topic id");
+  topicIds.add(t.id);
+  if (!hasHebrew(t.titleHe)) err(t.id, "titleHe missing Hebrew");
+  if (!t.bandRefs?.length) err(t.id, "no bandRefs");
+  if (!Object.keys(t.grades ?? {}).length) err(t.id, "no grades");
+  for (const lvl of [1, 2, 3]) {
+    const card = t.rule?.[lvl];
+    if (!card) { err(t.id, `missing rule card for level ${lvl}`); continue; }
+    if (!card.points?.length) err(t.id, `L${lvl} no rule points`);
+    if (card.points?.length > 4) err(t.id, `L${lvl} too many rule boxes (max 4)`);
+    for (const [k, pt] of (card.points ?? []).entries()) {
+      const where = `${t.id} L${lvl} box ${k + 1}`;
+      if (!hasHebrew(pt.he)) err(where, "he title missing Hebrew");
+      if (!pt.en?.trim()) err(where, "en title missing");
+      if (pt.he.length > 60 || pt.en.length > 60) err(where, "title too long (max 60 chars)");
+      if (!pt.examples?.length) err(where, "no examples");
+      for (const ex of pt.examples ?? []) {
+        if (hasHebrew(ex)) err(where, `example contains Hebrew: ${ex}`);
+        if ((ex.match(/\*\*/g) ?? []).length % 2) err(where, `unbalanced ** in: ${ex}`);
+      }
+    }
+    if (!card.form?.length) err(t.id, `L${lvl} form table empty`);
+  }
+  const trapIds = new Set();
+  for (const tr of t.traps ?? []) {
+    if (trapIds.has(tr.id)) err(t.id, `duplicate trap ${tr.id}`);
+    trapIds.add(tr.id);
+    if (!hasHebrew(tr.whyHe)) err(t.id, `trap ${tr.id} whyHe not Hebrew`);
+  }
+  t._trapIds = trapIds;
+}
+
+// ── Items ──
+const itemIds = new Set();
+const counts = {};
+const bodyOf = (i) => JSON.stringify({ ...i, id: undefined });
+const seenBodies = new Map();
+
+function correctResponse(i) {
+  switch (i.type) {
+    case "mcq": case "gap_bank": return { type: i.type, value: i.answer };
+    case "gap_type": case "transform": return { type: i.type, value: i.answers[0] };
+    case "write_own": return null;
+    case "unscramble": return { type: "unscramble", order: [...i.words] };
+    case "find_fix": return { type: "find_fix", index: i.wrongIndex, value: i.answers[0] };
+    case "sort": return { type: "sort", placement: Object.fromEntries(i.entries.map((e) => [e.text, e.bucket])) };
+    case "match_halves": return { type: "match_halves", matches: Object.fromEntries(i.pairs.map((p) => [p.left, p.right])) };
+    case "cloze_text": return { type: "cloze_text", values: i.blanks.map((b) => b.answers[0]) };
+    default: return null;
+  }
+}
+
+for (const i of GRAMMAR_ITEMS) {
+  const w = i.id ?? "(no id)";
+  if (itemIds.has(i.id)) err(w, "duplicate item id");
+  itemIds.add(i.id);
+  const topic = GRAMMAR_TOPICS.find((t) => t.id === i.topicId);
+  if (!topic) err(w, `unknown topicId ${i.topicId}`);
+  if (![1, 2, 3].includes(i.level)) err(w, "bad level");
+  if (!hasHebrew(i.explanationHe)) err(w, "explanationHe missing Hebrew");
+  if (!i.explanationEn?.trim()) err(w, "explanationEn missing");
+  if (i.trapId && topic && !topic._trapIds.has(i.trapId)) err(w, `unknown trapId ${i.trapId}`);
+  if (i.level === 1 && !LEVEL1_ALLOWED.has(i.type)) err(w, `type ${i.type} not allowed at level 1`);
+  if (i.type === "write_own" && i.level !== 3) err(w, "write_own is level 3 only");
+
+  const body = bodyOf(i);
+  if (seenBodies.has(body)) err(w, `duplicate content of ${seenBodies.get(body)}`);
+  seenBodies.set(body, w);
+
+  switch (i.type) {
+    case "mcq":
+    case "gap_bank": {
+      const opts = i.type === "mcq" ? i.options : i.wordBank;
+      if ((i.sentence.match(/___/g) ?? []).length !== 1) err(w, "sentence needs exactly one ___");
+      if (opts.filter((o) => o === i.answer).length !== 1) err(w, "answer must appear exactly once in options");
+      if (new Set(opts.map(normalizeAnswer)).size !== opts.length) err(w, "options not distinct after normalizing");
+      if (opts.length < 2) err(w, "need at least 2 options");
+      break;
+    }
+    case "gap_type":
+      if ((i.sentence.match(/___/g) ?? []).length !== 1) err(w, "sentence needs exactly one ___");
+      if (!i.answers.length) err(w, "no answers");
+      if (!i.baseForm) err(w, "no baseForm");
+      break;
+    case "unscramble":
+      if (i.words.length < 3) err(w, "too few words");
+      break;
+    case "find_fix":
+      if (i.wrongIndex < 0 || i.wrongIndex >= i.tokens.length) err(w, "wrongIndex out of range");
+      if (!i.answers.length) err(w, "no answers");
+      if (i.answers.some((a) => normalizeAnswer(a) === normalizeAnswer(i.tokens[i.wrongIndex]))) err(w, "correction equals the wrong token");
+      break;
+    case "transform":
+      if (!i.answers.length) err(w, "no answers");
+      if (!hasHebrew(i.taskHe)) err(w, "taskHe missing Hebrew");
+      break;
+    case "sort":
+      for (const e of i.entries) if (!i.buckets.includes(e.bucket)) err(w, `entry "${e.text}" has unknown bucket`);
+      if (new Set(i.entries.map((e) => e.text)).size !== i.entries.length) err(w, "duplicate sort entries");
+      break;
+    case "match_halves":
+      if (new Set(i.pairs.map((p) => p.left)).size !== i.pairs.length) err(w, "duplicate left halves");
+      if (new Set(i.pairs.map((p) => p.right)).size !== i.pairs.length) err(w, "duplicate right halves");
+      break;
+    case "cloze_text": {
+      const nums = [...i.text.matchAll(/\{(\d+)\}/g)].map((m) => Number(m[1]));
+      if (nums.length !== i.blanks.length || nums.some((n, k) => n !== k + 1)) err(w, "blanks {1}..{n} don't match blanks[]");
+      for (const b of i.blanks) if (!b.answers.length) err(w, "blank with no answers");
+      break;
+    }
+    case "write_own":
+      if (!i.modelAnswers.length) err(w, "no modelAnswers");
+      if (!hasHebrew(i.taskHe)) err(w, "taskHe missing Hebrew");
+      break;
+    default:
+      err(w, `unknown type ${i.type}`);
+  }
+
+  // The key must grade as correct.
+  const r = correctResponse(i);
+  if (r) {
+    const g = gradeGrammarItem(i, r);
+    if (!g.isCorrect) err(w, "answer key does not grade as correct");
+  }
+
+  const k = `${i.topicId}:${i.level}`;
+  counts[k] = (counts[k] ?? 0) + 1;
+}
+
+for (const t of GRAMMAR_TOPICS) {
+  for (const lvl of [1, 2, 3]) {
+    const n = counts[`${t.id}:${lvl}`] ?? 0;
+    if (n < MIN_ITEMS_PER_LEVEL) err(t.id, `level ${lvl} has ${n} items (min ${MIN_ITEMS_PER_LEVEL})`);
+  }
+}
+
+for (const m of warn) console.warn(`warn  ${m}`);
+if (errors.length) {
+  for (const e of errors) console.error(`error ${e}`);
+  console.error(`\ncheck-grammar: ${errors.length} problem(s).`);
+  process.exit(1);
+}
+console.log(`check-grammar: OK – ${GRAMMAR_TOPICS.length} topic(s), ${GRAMMAR_ITEMS.length} item(s).`);
