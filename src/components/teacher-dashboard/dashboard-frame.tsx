@@ -9,11 +9,22 @@ import { TeacherDashboardSignInGate } from "./teacher-dashboard-sign-in-gate";
 import { TeacherDashboardStudentModal } from "./teacher-dashboard-student-modal";
 import { TeacherDashboardPrintSheet } from "./teacher-dashboard-print-sheet";
 import { DashboardShell } from "./shell/dashboard-shell";
+import { useAuth } from "@/lib/auth-context";
+import { Loader2 } from "lucide-react";
 
 /** Sign-in gate + app shell + the modals every dashboard route can open. */
 export function DashboardFrame({ children }: { children: React.ReactNode }) {
   const c = useDashboard();
   const { user } = c;
+  const { isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background text-muted-foreground">
+        <Loader2 className="h-5 w-5 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   if (!user || user.role !== "teacher") {
     return <TeacherDashboardSignInGate c={c} />;

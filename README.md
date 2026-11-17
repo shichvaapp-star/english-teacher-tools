@@ -102,6 +102,14 @@ firestore.rules        Firestore security rules (deploy with the Firebase CLI)
 | `shared_vocab_banks` | Word banks teachers share with each other |
 | `site_suggestions` | Edit suggestions sent from any page |
 | `users/{uid}` | Per-user saved words and tutor profile |
+| `student_login_guards` | Wrong-PIN counters (server only) |
+
+### Who can see what
+Teachers sign in with Firebase email/password. Students sign in with name + PIN through
+`/api/student-auth/login`: the server checks the PIN and gives the browser a Firebase
+token, so Firestore knows which student is asking. `firestore.rules` then limits each
+student to their own records and each teacher to their own class. The student sign-in
+picker gets teacher and student names from `/api/public/*`, which never return PINs or emails.
 
 After changing `firestore.rules`, deploy them:
 
@@ -112,3 +120,7 @@ firebase deploy --only firestore:rules
 ## Deployment
 
 The site is deployed on Vercel. Every pull request gets a preview deployment, and merging into `main` deploys to production. Set the same environment variables in the Vercel project settings.
+
+The server also needs `FIREBASE_SERVICE_ACCOUNT_KEY`: the JSON file from Firebase console →
+Project settings → Service accounts → Generate new private key, pasted whole as the value.
+Without it, student sign-in and sign-up return an error.

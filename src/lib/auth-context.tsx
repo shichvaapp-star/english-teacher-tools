@@ -1,14 +1,17 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, useSyncExternalStore } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { ActiveUser, StudentProfile, TeacherProfile, StudentGroup } from "@/types/auth";
+import type { PublicStudent, PublicTeacher, RosterEntry, StudentAuthResponse } from "@/types/student-auth";
 import { isBuiltInAdminEmail } from "@/config/admins";
 import {
   signInWithEmailAndPassword,
+  signInWithCustomToken,
   createUserWithEmailAndPassword,
   signOut as fbSignOut,
   updateProfile,
   onAuthStateChanged,
+  type User as FirebaseUser,
 } from "firebase/auth";
 import {
   collection,
@@ -23,12 +26,13 @@ import {
 } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 
-const emptySubscribe = () => () => {};
+type Result = { success: boolean; error?: string };
 
 interface AuthContextType {
   user: ActiveUser | null;
+  /** Teacher directory. Public entries have no email; admins get the full records. */
   teachers: TeacherProfile[];
-  loginTeacher: (email: string, password?: string) => Promise<{ success: boolean; error?: string }>;
+  loginTeacher: (email: string, password?: string) => Promise<Result>;
   registerTeacher: (data: { name: string; email: string; schoolName: string; password?: string }) => Promise<{ success: boolean; teacher?: TeacherProfile; error?: string }>;
   registerStudent: (data: {
     teacherId: string;
@@ -37,8 +41,11 @@ interface AuthContextType {
     classNumber: number;
     group?: StudentGroup;
     pin: string;
-  }) => Promise<{ success: boolean; error?: string }>;
-  loginStudent: (data: { teacherId: string; studentName: string; pin: string }) => Promise<{ success: boolean; error?: string }>;
+  }) => Promise<Result>;
+  loginStudent: (data: { teacherId: string; studentName: string; pin: string }) => Promise<Result>;
+  /** Names for the student sign-in picker (no PINs). Works without being signed in. */
+  getRoster: (teacherId: string) => Promise<RosterEntry[]>;
+  /** Full student records. Only the owning teacher or an admin may read these. */
   getStudentsByTeacher: (teacherId: string) => Promise<StudentProfile[]>;
   addStudentByTeacher: (data: {
     studentName: string;
@@ -47,267 +54,233 @@ interface AuthContextType {
     group?: StudentGroup;
     pin: string;
   }) => Promise<{ success: boolean; student?: StudentProfile; error?: string }>;
-  updateStudent: (studentId: string, updates: Partial<StudentProfile>) => Promise<{ success: boolean; error?: string }>;
-  deleteStudent: (studentId: string) => Promise<{ success: boolean; error?: string }>;
-  deleteTeacherAccount: (teacherId: string, options?: { transferToTeacherId?: string }) => Promise<{ success: boolean; error?: string }>;
-  updateTeacherAccount: (teacherId: string, updates: Partial<TeacherProfile>) => Promise<{ success: boolean; error?: string }>;
-  setTeacherAdminStatus: (teacherId: string, isAdmin: boolean) => Promise<{ success: boolean; error?: string }>;
-  claimAdminRole: () => Promise<{ success: boolean; error?: string }>;
+  updateStudent: (studentId: string, updates: Partial<StudentProfile>) => Promise<Result>;
+  deleteStudent: (studentId: string) => Promise<Result>;
+  deleteTeacherAccount: (teacherId: string, options?: { transferToTeacherId?: string }) => Promise<Result>;
+  updateTeacherAccount: (teacherId: string, updates: Partial<TeacherProfile>) => Promise<Result>;
+  setTeacherAdminStatus: (teacherId: string, isAdmin: boolean) => Promise<Result>;
   logout: () => void;
+  /** True until Firebase has told us who (if anyone) is signed in. */
   isLoading: boolean;
 }
 
-const isMockTeacher = (t: Partial<TeacherProfile>): boolean => {
-  if (!t) return true;
-  return (
-    t.id === "teacher-1" ||
-    t.id === "teacher-2" ||
-    t.id === "teacher-3" ||
-    t.email === "sarah.cohen@school.edu.il" ||
-    t.email === "david.levi@school.edu.il" ||
-    t.email === "rachel.stern@school.edu.il" ||
-    (t.email ? t.email.endsWith("@school.edu.il") : false)
-  );
-};
+const emptySubscribe = () => () => {};
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const STORAGE_KEYS = {
-  USER: "ett_active_user",
-  TEACHERS: "ett_teachers_list",
-  STUDENTS: "ett_students_list",
-};
+/**
+ * Keys from the old client-side login. They held the session (editable via DevTools)
+ * and copies of student records with PINs, so they are wiped on load.
+ */
+const LEGACY_STORAGE_KEYS = ["ett_active_user", "ett_teachers_list", "ett_students_list"];
+
+const isMockTeacher = (t: Partial<TeacherProfile>): boolean =>
+  t.id === "teacher-1" ||
+  t.id === "teacher-2" ||
+  t.id === "teacher-3" ||
+  (t.email ? t.email.toLowerCase().endsWith("@school.edu.il") : false);
+
+function teacherFromDoc(id: string, d: Record<string, unknown>, fallbackEmail = ""): TeacherProfile {
+  const email = String(d.email || fallbackEmail).toLowerCase().trim();
+  return {
+    id,
+    name: String(d.name || "Teacher"),
+    email,
+    schoolName: String(d.schoolName || ""),
+    teacherCode: String(d.teacherCode || ""),
+    createdAt: String(d.createdAt || new Date().toISOString()),
+    isAdmin: isBuiltInAdminEmail(email) || d.isAdmin === true,
+  };
+}
+
+function teacherToActiveUser(t: TeacherProfile): ActiveUser {
+  return {
+    id: t.id,
+    name: t.name,
+    role: "teacher",
+    email: t.email,
+    schoolName: t.schoolName,
+    teacherCode: t.teacherCode,
+    isAdmin: !!t.isAdmin,
+  };
+}
+
+function studentToActiveUser(s: PublicStudent): ActiveUser {
+  return {
+    id: s.id,
+    name: s.name,
+    role: "student",
+    teacherId: s.teacherId,
+    teacherName: s.teacherName,
+    schoolName: s.schoolName,
+    classGrade: s.classGrade,
+    classNumber: s.classNumber,
+    fullClass: s.fullClass,
+    group: s.group,
+  };
+}
+
+function publicToTeacherProfile(t: PublicTeacher): TeacherProfile {
+  return { ...t, email: "" };
+}
+
+function errorMessage(err: unknown, fallback: string): string {
+  const code = (err as { code?: string }).code;
+  if (code === "permission-denied") return "You don't have permission to do that.";
+  return (err as Error)?.message || fallback;
+}
+
+/** Builds the signed-in user from Firebase Auth + Firestore. The only source of truth. */
+async function resolveUser(fbUser: FirebaseUser): Promise<ActiveUser | null> {
+  if (!db) return null;
+  const token = await fbUser.getIdTokenResult();
+
+  if (token.claims.role === "student") {
+    const snap = await getDoc(doc(db, "students", fbUser.uid));
+    if (!snap.exists()) return null; // removed by the teacher
+    const d = snap.data() as StudentProfile;
+    return studentToActiveUser({
+      id: snap.id,
+      name: d.name,
+      teacherId: d.teacherId,
+      teacherName: d.teacherName,
+      schoolName: typeof token.claims.schoolName === "string" ? token.claims.schoolName : "",
+      classGrade: d.classGrade,
+      classNumber: d.classNumber,
+      fullClass: d.fullClass,
+      group: d.group,
+    });
+  }
+
+  if (!fbUser.email) return null;
+  const snap = await getDoc(doc(db, "teachers", fbUser.uid));
+  const profile = snap.exists()
+    ? teacherFromDoc(snap.id, snap.data(), fbUser.email)
+    : teacherFromDoc(fbUser.uid, { name: fbUser.displayName || fbUser.email.split("@")[0] }, fbUser.email);
+  return teacherToActiveUser(profile);
+}
+
+async function callStudentAuth(path: string, body: object): Promise<StudentAuthResponse> {
+  try {
+    const res = await fetch(path, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    return (await res.json()) as StudentAuthResponse;
+  } catch {
+    return { error: "Could not reach the server. Check your internet connection." };
+  }
+}
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<ActiveUser | null>(() => {
-    if (typeof window === "undefined") return null;
+  const [user, setUser] = useState<ActiveUser | null>(null);
+  const [authResolved, setAuthResolved] = useState(false);
+  const [teachers, setTeachers] = useState<TeacherProfile[]>([]);
+  // While a login/sign-up call is setting the user itself, the auth listener stands aside.
+  const busyRef = useRef(false);
+
+  useEffect(() => {
     try {
-      const stored = localStorage.getItem(STORAGE_KEYS.USER);
-      return stored ? JSON.parse(stored) : null;
+      LEGACY_STORAGE_KEYS.forEach((k) => localStorage.removeItem(k));
     } catch {
-      return null;
+      // Ignore storage errors
     }
-  });
+  }, []);
 
-  const [teachers, setTeachers] = useState<TeacherProfile[]>(() => {
-    if (typeof window === "undefined") return [];
-    try {
-      const storedTeachers = localStorage.getItem(STORAGE_KEYS.TEACHERS);
-      if (storedTeachers) {
-        const parsed = JSON.parse(storedTeachers);
-        if (Array.isArray(parsed)) {
-          const clean = parsed.filter((t) => !isMockTeacher(t));
-          localStorage.setItem(STORAGE_KEYS.TEACHERS, JSON.stringify(clean));
-          return clean;
-        }
-      }
-      localStorage.setItem(STORAGE_KEYS.TEACHERS, JSON.stringify([]));
-      return [];
-    } catch {
-      return [];
-    }
-  });
+  // Firebase Auth decides who is signed in.
+  // Firebase failed to start in this browser: nothing to wait for. (Server render: keep loading.)
+  const authUnavailable = useSyncExternalStore(emptySubscribe, () => auth === null, () => false);
 
-  const isHydrated = useSyncExternalStore(
-    emptySubscribe,
-    () => true,
-    () => false
-  );
-  const isLoading = !isHydrated;
-
-  // Listen to Firebase Auth state
   useEffect(() => {
     if (!auth) return;
-    const unsubscribe = onAuthStateChanged(auth, (fbUser) => {
-      if (fbUser && fbUser.email) {
-        const email = fbUser.email.toLowerCase().trim();
-        const isSuperAdminEmail = isBuiltInAdminEmail(email);
-        if (isSuperAdminEmail) {
-          setUser((curr) => {
-            if (curr && !curr.isAdmin) {
-              const updated = { ...curr, isAdmin: true };
-              try {
-                localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(updated));
-              } catch {
-                // Ignore
-              }
-              return updated;
-            }
-            return curr;
-          });
-        }
+    const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
+      if (busyRef.current) return;
+      if (!fbUser) {
+        setUser(null);
+        setAuthResolved(true);
+        return;
+      }
+      try {
+        const resolved = await resolveUser(fbUser);
+        if (!resolved && auth) await fbSignOut(auth);
+        setUser(resolved);
+      } catch (err) {
+        console.warn("Could not restore session:", err);
+        setUser(null);
+      } finally {
+        setAuthResolved(true);
       }
     });
     return () => unsubscribe();
   }, []);
 
-  // Sync real teachers from Firestore if available
+  // Teacher directory: public fields for everyone, full records for admins.
+  const isAdmin = !!user?.isAdmin;
   useEffect(() => {
     let isMounted = true;
-    async function syncTeachersFromFirestore() {
-      if (!db) return;
-      try {
-        const snap = await getDocs(collection(db, "teachers"));
-        if (!snap.empty && isMounted) {
-          const list: TeacherProfile[] = [];
-          snap.forEach((docSnap) => {
-            const data = docSnap.data();
-            const candEmail = (data.email || "").toLowerCase().trim();
-            const isSuperAdminEmail = isBuiltInAdminEmail(candEmail);
-            const candidate: TeacherProfile = {
-              id: docSnap.id,
-              name: data.name || "Teacher",
-              email: data.email || "",
-              schoolName: data.schoolName || "Ben Gurion Middle School",
-              teacherCode: data.teacherCode || "",
-              createdAt: data.createdAt || new Date().toISOString(),
-              isAdmin: isSuperAdminEmail || !!data.isAdmin,
-            };
-            if (!isMockTeacher(candidate)) {
-              list.push(candidate);
-            }
-          });
-
-          if (isMounted) {
-            setTeachers(list);
-            try {
-              localStorage.setItem(STORAGE_KEYS.TEACHERS, JSON.stringify(list));
-            } catch {
-              // Ignore storage quota
-            }
-
-            // Sync admin status to active user session if needed
-            setUser((currentUser) => {
-              if (currentUser && currentUser.role === "teacher") {
-                const currentProfile = list.find((t) => t.id === currentUser.id || t.email.toLowerCase() === (currentUser.email || "").toLowerCase());
-                if (currentProfile && currentProfile.isAdmin !== currentUser.isAdmin) {
-                  const updatedUser = { ...currentUser, isAdmin: currentProfile.isAdmin };
-                  try {
-                    localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(updatedUser));
-                  } catch {
-                    // Ignore
-                  }
-                  return updatedUser;
-                }
-              }
-              return currentUser;
-            });
-          }
+    async function loadTeachers() {
+      if (isAdmin && db) {
+        try {
+          const snap = await getDocs(collection(db, "teachers"));
+          const list = snap.docs
+            .map((d) => teacherFromDoc(d.id, d.data()))
+            .filter((t) => !isMockTeacher(t));
+          if (isMounted) setTeachers(list);
+          return;
+        } catch (err) {
+          console.warn("Admin teacher list notice:", err);
         }
+      }
+      try {
+        const res = await fetch("/api/public/teachers");
+        const list = (await res.json()) as PublicTeacher[];
+        if (isMounted && Array.isArray(list)) setTeachers(list.map(publicToTeacherProfile));
       } catch (err) {
-        console.warn("Firestore fetch teachers notice:", err);
+        console.warn("Teacher directory notice:", err);
       }
     }
-    syncTeachersFromFirestore();
+    loadTeachers();
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [isAdmin]);
 
-  const loginTeacher = async (email: string, password?: string): Promise<{ success: boolean; error?: string }> => {
+  const loginTeacher = async (email: string, password?: string): Promise<Result> => {
     const trimmedEmail = email.trim().toLowerCase();
     const cleanPassword = (password || "").trim();
 
-    if (!trimmedEmail) {
-      return { success: false, error: "Please enter your teacher email." };
-    }
-    if (!cleanPassword) {
-      return { success: false, error: "Please enter your password." };
-    }
+    if (!trimmedEmail) return { success: false, error: "Please enter your teacher email." };
+    if (!cleanPassword) return { success: false, error: "Please enter your password." };
+    if (!auth) return { success: false, error: "Sign-in is unavailable right now." };
 
-    let uid: string | null = null;
-
-    if (auth) {
-      try {
-        const cred = await signInWithEmailAndPassword(auth, trimmedEmail, cleanPassword);
-        uid = cred.user.uid;
-      } catch (authErr: unknown) {
-        const errCode = (authErr as { code?: string; message?: string }).code;
-        const errMsg = (authErr as { message?: string }).message;
-        if (
-          errCode === "auth/invalid-credential" ||
-          errCode === "auth/wrong-password" ||
-          errCode === "auth/user-not-found"
-        ) {
-          return { success: false, error: "Incorrect email or password. Please verify your credentials." };
-        }
-        if (errCode === "auth/too-many-requests") {
-          return { success: false, error: "Too many failed attempts. Please try again in a few moments." };
-        }
-        if (errCode === "auth/invalid-email") {
-          return { success: false, error: "Invalid email address format." };
-        }
-        if (errCode === "auth/operation-not-allowed") {
-          return {
-            success: false,
-            error:
-              "Email/Password provider is disabled in Firebase! Go to Firebase Console -> Authentication -> Sign-in method, click 'Email/Password' and toggle 'Enable'.",
-          };
-        }
-        console.error("Firebase Auth signIn error:", authErr);
-        return {
-          success: false,
-          error: errMsg || "Failed to sign in with Firebase.",
-        };
-      }
-    }
-
-    // Try finding teacher profile in existing list or Firestore
-    let teacherProfile = teachers.find((t) => t.email.toLowerCase() === trimmedEmail || (uid && t.id === uid));
-
-    const isSuperAdminEmail = isBuiltInAdminEmail(trimmedEmail);
-
-    if (!teacherProfile && db && uid) {
-      try {
-        const docSnap = await getDoc(doc(db, "teachers", uid));
-        if (docSnap.exists()) {
-          const d = docSnap.data();
-          teacherProfile = {
-            id: docSnap.id,
-            name: d.name || "Teacher",
-            email: d.email || trimmedEmail,
-            schoolName: d.schoolName || "Ben Gurion Middle School",
-            teacherCode: d.teacherCode || "TEACHER-01",
-            createdAt: d.createdAt || new Date().toISOString(),
-            isAdmin: isSuperAdminEmail || !!d.isAdmin,
-          };
-        }
-      } catch (dbErr) {
-        console.warn("Firestore fetch teacher notice:", dbErr);
-      }
-    }
-
-    if (!teacherProfile) {
-      teacherProfile = {
-        id: uid || `teacher-${Date.now()}`,
-        name: trimmedEmail.split("@")[0],
-        email: trimmedEmail,
-        schoolName: "Ben Gurion Middle School",
-        teacherCode: `TEACHER-${Math.floor(10 + Math.random() * 90)}`,
-        createdAt: new Date().toISOString(),
-        isAdmin: isSuperAdminEmail,
-      };
-    } else if (isSuperAdminEmail && !teacherProfile.isAdmin) {
-      teacherProfile = { ...teacherProfile, isAdmin: true };
-    }
-
-    const activeUser: ActiveUser = {
-      id: teacherProfile.id,
-      name: teacherProfile.name,
-      role: "teacher",
-      email: teacherProfile.email,
-      schoolName: teacherProfile.schoolName,
-      teacherCode: teacherProfile.teacherCode,
-      isAdmin: isSuperAdminEmail || !!teacherProfile.isAdmin,
-    };
-
-    setUser(activeUser);
+    busyRef.current = true;
     try {
-      localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(activeUser));
-    } catch {
-      // Ignore storage errors
+      const cred = await signInWithEmailAndPassword(auth, trimmedEmail, cleanPassword);
+      const resolved = await resolveUser(cred.user);
+      setUser(resolved);
+      setAuthResolved(true);
+      return resolved ? { success: true } : { success: false, error: "No teacher profile found for this account." };
+    } catch (authErr: unknown) {
+      const errCode = (authErr as { code?: string }).code;
+      if (
+        errCode === "auth/invalid-credential" ||
+        errCode === "auth/wrong-password" ||
+        errCode === "auth/user-not-found"
+      ) {
+        return { success: false, error: "Incorrect email or password. Please verify your credentials." };
+      }
+      if (errCode === "auth/too-many-requests") {
+        return { success: false, error: "Too many failed attempts. Please try again in a few moments." };
+      }
+      if (errCode === "auth/invalid-email") {
+        return { success: false, error: "Invalid email address format." };
+      }
+      console.error("Firebase Auth signIn error:", authErr);
+      return { success: false, error: errorMessage(authErr, "Failed to sign in.") };
+    } finally {
+      busyRef.current = false;
     }
-    return { success: true };
   };
 
   const registerTeacher = async (data: {
@@ -319,26 +292,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const trimmedEmail = data.email.trim().toLowerCase();
     const cleanPassword = (data.password || "").trim();
 
-    if (!data.name.trim()) {
-      return { success: false, error: "Please enter your full name." };
-    }
-    if (!trimmedEmail) {
-      return { success: false, error: "Please enter your teacher email." };
-    }
+    if (!data.name.trim()) return { success: false, error: "Please enter your full name." };
+    if (!trimmedEmail) return { success: false, error: "Please enter your teacher email." };
     if (!cleanPassword || cleanPassword.length < 6) {
       return { success: false, error: "Password must be at least 6 characters." };
     }
+    if (!auth || !db) return { success: false, error: "Sign-up is unavailable right now." };
 
-    let uid = `teacher-${Date.now()}`;
-
-    if (auth) {
+    busyRef.current = true;
+    try {
+      let uid: string;
       try {
         const cred = await createUserWithEmailAndPassword(auth, trimmedEmail, cleanPassword);
         uid = cred.user.uid;
         await updateProfile(cred.user, { displayName: data.name.trim() });
       } catch (authErr: unknown) {
-        const errCode = (authErr as { code?: string; message?: string }).code;
-        const errMsg = (authErr as { message?: string }).message;
+        const errCode = (authErr as { code?: string }).code;
         if (errCode === "auth/email-already-in-use") {
           return { success: false, error: "An account with this email already exists. Please log in instead." };
         }
@@ -348,66 +317,54 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (errCode === "auth/invalid-email") {
           return { success: false, error: "Please enter a valid email address." };
         }
-        if (errCode === "auth/operation-not-allowed") {
-          return {
-            success: false,
-            error:
-              "Email/Password provider is disabled in Firebase! Go to Firebase Console -> Authentication -> Sign-in method, click 'Email/Password' and toggle 'Enable'.",
-          };
-        }
         console.error("Firebase Auth createUser error:", authErr);
-        return {
-          success: false,
-          error: errMsg || "Failed to create account in Firebase.",
-        };
+        return { success: false, error: errorMessage(authErr, "Failed to create account.") };
       }
-    }
 
-    const codeBase = data.name.split(" ")[0].toUpperCase().replace(/[^A-Z]/g, "") || "TEACHER";
-    const isSuperAdminEmail = isBuiltInAdminEmail(trimmedEmail);
-    const newTeacher: TeacherProfile = {
-      id: uid,
-      name: data.name.trim(),
-      email: trimmedEmail,
-      schoolName: data.schoolName.trim() || "Ben Gurion Middle School",
-      teacherCode: `${codeBase}-${Math.floor(10 + Math.random() * 90)}`,
-      createdAt: new Date().toISOString(),
-      isAdmin: isSuperAdminEmail,
-    };
+      const codeBase = data.name.split(" ")[0].toUpperCase().replace(/[^A-Z]/g, "") || "TEACHER";
+      const newTeacher: TeacherProfile = {
+        id: uid,
+        name: data.name.trim(),
+        email: trimmedEmail,
+        schoolName: data.schoolName.trim() || "Ben Gurion Middle School",
+        teacherCode: `${codeBase}-${Math.floor(10 + Math.random() * 90)}`,
+        createdAt: new Date().toISOString(),
+        isAdmin: isBuiltInAdminEmail(trimmedEmail),
+      };
 
-    if (db) {
       try {
         await setDoc(doc(db, "teachers", uid), newTeacher);
       } catch (dbErr) {
         console.warn("Firestore save teacher notice:", dbErr);
       }
-    }
 
-    const updated = [newTeacher, ...teachers.filter((t) => t.email.toLowerCase() !== trimmedEmail)];
-    setTeachers(updated);
+      setTeachers((prev) => [publicToTeacherProfile(newTeacher), ...prev.filter((t) => t.id !== uid)]);
+      setUser(teacherToActiveUser(newTeacher));
+      setAuthResolved(true);
+      return { success: true, teacher: newTeacher };
+    } finally {
+      busyRef.current = false;
+    }
+  };
+
+  /** Shared tail of student login / sign-up: trade the server's token for a Firebase session. */
+  const finishStudentAuth = async (res: StudentAuthResponse): Promise<Result> => {
+    if (!res.token || !res.student) {
+      return { success: false, error: res.error || "Something went wrong. Please try again." };
+    }
+    if (!auth) return { success: false, error: "Sign-in is unavailable right now." };
+    busyRef.current = true;
     try {
-      localStorage.setItem(STORAGE_KEYS.TEACHERS, JSON.stringify(updated));
-    } catch {
-      // Ignore
+      await signInWithCustomToken(auth, res.token);
+      setUser(studentToActiveUser(res.student));
+      setAuthResolved(true);
+      return { success: true };
+    } catch (err) {
+      console.error("Student sign-in error:", err);
+      return { success: false, error: errorMessage(err, "Sign-in failed. Please try again.") };
+    } finally {
+      busyRef.current = false;
     }
-
-    const activeUser: ActiveUser = {
-      id: newTeacher.id,
-      name: newTeacher.name,
-      role: "teacher",
-      email: newTeacher.email,
-      schoolName: newTeacher.schoolName,
-      teacherCode: newTeacher.teacherCode,
-      isAdmin: isSuperAdminEmail,
-    };
-
-    setUser(activeUser);
-    try {
-      localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(activeUser));
-    } catch {
-      // Ignore
-    }
-    return { success: true, teacher: newTeacher };
   };
 
   const registerStudent = async (data: {
@@ -417,225 +374,52 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     classNumber: number;
     group?: StudentGroup;
     pin: string;
-  }): Promise<{ success: boolean; error?: string }> => {
+  }): Promise<Result> => {
     const trimmedName = data.studentName.trim();
-    const cleanPin = data.pin.trim();
-
-    // Validate name is in English
-    const englishNameRegex = /^[A-Za-z\s'-]+$/;
-    if (!trimmedName || !englishNameRegex.test(trimmedName)) {
-      return {
-        success: false,
-        error: "Please enter your full name in English letters only (A-Z).",
-      };
+    if (!trimmedName || !/^[A-Za-z\s'-]+$/.test(trimmedName)) {
+      return { success: false, error: "Please enter your full name in English letters only (A-Z)." };
     }
-    if (cleanPin.length < 4) {
-      return { success: false, error: "PIN must be at least 4 digits." };
-    }
-
-    const teacher = teachers.find(
-      (t) => t.id === data.teacherId || t.teacherCode.toLowerCase() === data.teacherId.toLowerCase()
+    if (data.pin.trim().length < 4) return { success: false, error: "PIN must be at least 4 digits." };
+    return finishStudentAuth(
+      await callStudentAuth("/api/student-auth/register", { ...data, studentName: trimmedName, pin: data.pin.trim() })
     );
-    if (!teacher) {
-      return { success: false, error: "Selected teacher not found. Please pick your teacher." };
-    }
-
-    const fullClass = `${data.classGrade}׳${data.classNumber}`;
-    const studentId = `student-${Date.now()}`;
-    const newStudent: StudentProfile = {
-      id: studentId,
-      name: trimmedName,
-      pin: cleanPin,
-      teacherId: teacher.id,
-      teacherName: teacher.name,
-      classGrade: data.classGrade,
-      classNumber: data.classNumber,
-      fullClass: fullClass,
-      group: data.group,
-      createdAt: new Date().toISOString(),
-    };
-
-    // 1. Save to Firestore for cross-device persistence
-    if (db) {
-      try {
-        await setDoc(doc(db, "students", studentId), newStudent);
-      } catch (dbErr) {
-        console.warn("Firestore save student error:", dbErr);
-      }
-    }
-
-    // 2. Save to local storage
-    let studentsList: StudentProfile[] = [];
-    try {
-      const storedStudentsRaw = localStorage.getItem(STORAGE_KEYS.STUDENTS);
-      studentsList = storedStudentsRaw ? JSON.parse(storedStudentsRaw) : [];
-    } catch {
-      studentsList = [];
-    }
-    studentsList.push(newStudent);
-    try {
-      localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(studentsList));
-    } catch {
-      // Ignore
-    }
-
-    // 3. Set active user session
-    const activeUser: ActiveUser = {
-      id: newStudent.id,
-      name: newStudent.name,
-      role: "student",
-      teacherId: teacher.id,
-      teacherName: teacher.name,
-      schoolName: teacher.schoolName,
-      classGrade: data.classGrade,
-      classNumber: data.classNumber,
-      fullClass: fullClass,
-      group: data.group,
-    };
-
-    setUser(activeUser);
-    try {
-      localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(activeUser));
-    } catch {
-      // Ignore
-    }
-    return { success: true };
   };
 
-  const loginStudent = async (data: {
-    teacherId: string;
-    studentName: string;
-    pin: string;
-  }): Promise<{ success: boolean; error?: string }> => {
-    const trimmedName = data.studentName.trim().toLowerCase();
-    const cleanPin = data.pin.trim();
-
-    if (!trimmedName) {
-      return { success: false, error: "Please enter or select your name." };
-    }
-    if (cleanPin.length < 4) {
-      return { success: false, error: "PIN must be at least 4 digits." };
-    }
-
-    const teacher = teachers.find(
-      (t) => t.id === data.teacherId || t.teacherCode.toLowerCase() === data.teacherId.toLowerCase()
+  const loginStudent = async (data: { teacherId: string; studentName: string; pin: string }): Promise<Result> => {
+    if (!data.studentName.trim()) return { success: false, error: "Please enter or select your name." };
+    if (data.pin.trim().length < 4) return { success: false, error: "PIN must be at least 4 digits." };
+    return finishStudentAuth(
+      await callStudentAuth("/api/student-auth/login", {
+        teacherId: data.teacherId,
+        studentName: data.studentName.trim(),
+        pin: data.pin.trim(),
+      })
     );
-    if (!teacher) {
-      return { success: false, error: "Selected teacher not found. Please pick your teacher or check the code." };
-    }
-
-    let foundStudent: StudentProfile | null = null;
-
-    // 1. Check Firestore for cross-device support
-    if (db) {
-      try {
-        const q = query(
-          collection(db, "students"),
-          where("teacherId", "==", teacher.id)
-        );
-        const snap = await getDocs(q);
-        snap.forEach((docSnap) => {
-          const s = docSnap.data() as StudentProfile;
-          if (s.name.toLowerCase().trim() === trimmedName) {
-            foundStudent = { ...s, id: docSnap.id };
-          }
-        });
-      } catch (err) {
-        console.warn("Firestore student login lookup error:", err);
-      }
-    }
-
-    // 2. Fallback to local storage
-    if (!foundStudent) {
-      try {
-        const storedStudentsRaw = localStorage.getItem(STORAGE_KEYS.STUDENTS);
-        const studentsList: StudentProfile[] = storedStudentsRaw ? JSON.parse(storedStudentsRaw) : [];
-        const match = studentsList.find(
-          (s) => s.teacherId === teacher.id && s.name.toLowerCase().trim() === trimmedName
-        );
-        if (match) {
-          foundStudent = match;
-        }
-      } catch {
-        // Ignore
-      }
-    }
-
-    if (!foundStudent) {
-      return {
-        success: false,
-        error: "Student account not found for this teacher. Please use the Sign Up tab first.",
-      };
-    }
-
-    if (foundStudent.pin !== cleanPin) {
-      return { success: false, error: "Incorrect 4-digit PIN. Please try again." };
-    }
-
-    const activeUser: ActiveUser = {
-      id: foundStudent.id,
-      name: foundStudent.name,
-      role: "student",
-      teacherId: teacher.id,
-      teacherName: teacher.name,
-      schoolName: teacher.schoolName,
-      classGrade: foundStudent.classGrade,
-      classNumber: foundStudent.classNumber,
-      fullClass: foundStudent.fullClass,
-      group: foundStudent.group,
-    };
-
-    setUser(activeUser);
-    try {
-      localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(activeUser));
-    } catch {
-      // Ignore
-    }
-    return { success: true };
   };
 
-  const getStudentsByTeacher = async (teacherId: string): Promise<StudentProfile[]> => {
+  const getRoster = useCallback(async (teacherId: string): Promise<RosterEntry[]> => {
     if (!teacherId) return [];
-    const teacher = teachers.find(
-      (t) => t.id === teacherId || t.teacherCode.toLowerCase() === teacherId.toLowerCase()
-    );
-    const targetId = teacher ? teacher.id : teacherId;
-    const listMap = new Map<string, StudentProfile>();
-
-    // 1. From local storage
     try {
-      const storedStudentsRaw = localStorage.getItem(STORAGE_KEYS.STUDENTS);
-      if (storedStudentsRaw) {
-        const localList: StudentProfile[] = JSON.parse(storedStudentsRaw);
-        localList
-          .filter((s) => s.teacherId === targetId)
-          .forEach((s) => listMap.set(s.id || s.name.toLowerCase(), s));
-      }
+      const res = await fetch(`/api/public/roster?teacherId=${encodeURIComponent(teacherId)}`);
+      const list = (await res.json()) as RosterEntry[];
+      return Array.isArray(list) ? list : [];
     } catch {
-      // Ignore
+      return [];
     }
+  }, []);
 
-    // 2. From Firestore
-    if (db) {
-      try {
-        const q = query(
-          collection(db, "students"),
-          where("teacherId", "==", targetId)
-        );
-        const snap = await getDocs(q);
-        snap.forEach((docSnap) => {
-          const s = docSnap.data() as StudentProfile;
-          listMap.set(docSnap.id, { ...s, id: docSnap.id });
-        });
-      } catch (err) {
-        console.warn("Firestore getStudentsByTeacher error:", err);
-      }
+  const getStudentsByTeacher = useCallback(async (teacherId: string): Promise<StudentProfile[]> => {
+    if (!teacherId || !db) return [];
+    try {
+      const snap = await getDocs(query(collection(db, "students"), where("teacherId", "==", teacherId)));
+      const students = snap.docs.map((d) => ({ ...(d.data() as StudentProfile), id: d.id }));
+      students.sort((a, b) => a.name.localeCompare(b.name));
+      return students;
+    } catch (err) {
+      console.warn("Firestore getStudentsByTeacher error:", err);
+      return [];
     }
-
-    const students = Array.from(listMap.values());
-    students.sort((a, b) => a.name.localeCompare(b.name));
-    return students;
-  };
+  }, []);
 
   const addStudentByTeacher = async (data: {
     studentName: string;
@@ -647,23 +431,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!user || user.role !== "teacher") {
       return { success: false, error: "Only teachers can add students to their roster." };
     }
+    if (!db) return { success: false, error: "Database unavailable." };
 
     const trimmedName = data.studentName.trim();
     const cleanPin = data.pin.trim();
-
-    const englishNameRegex = /^[A-Za-z\s'-]+$/;
-    if (!trimmedName || !englishNameRegex.test(trimmedName)) {
-      return {
-        success: false,
-        error: "Please enter the student's full name in English letters only (A-Z).",
-      };
+    if (!trimmedName || !/^[A-Za-z\s'-]+$/.test(trimmedName)) {
+      return { success: false, error: "Please enter the student's full name in English letters only (A-Z)." };
     }
-    if (cleanPin.length < 4) {
-      return { success: false, error: "PIN must be at least 4 digits." };
-    }
+    if (cleanPin.length < 4) return { success: false, error: "PIN must be at least 4 digits." };
 
-    const fullClass = `${data.classGrade}׳${data.classNumber}`;
-    const studentId = `student-${Date.now()}`;
+    const studentId = `student-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     const newStudent: StudentProfile = {
       id: studentId,
       name: trimmedName,
@@ -672,276 +449,114 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       teacherName: user.name,
       classGrade: data.classGrade,
       classNumber: data.classNumber,
-      fullClass: fullClass,
-      group: data.group,
+      fullClass: `${data.classGrade}׳${data.classNumber}`,
+      ...(data.group ? { group: data.group } : {}),
       createdAt: new Date().toISOString(),
     };
 
-    // 1. Save to Firestore
-    if (db) {
-      try {
-        await setDoc(doc(db, "students", studentId), newStudent);
-      } catch (dbErr) {
-        console.warn("Firestore save student error:", dbErr);
-      }
-    }
-
-    // 2. Save to local storage
     try {
-      const storedStudentsRaw = localStorage.getItem(STORAGE_KEYS.STUDENTS);
-      const studentsList: StudentProfile[] = storedStudentsRaw ? JSON.parse(storedStudentsRaw) : [];
-      studentsList.push(newStudent);
-      localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(studentsList));
-    } catch {
-      // Ignore
+      await setDoc(doc(db, "students", studentId), newStudent);
+      return { success: true, student: newStudent };
+    } catch (dbErr) {
+      console.warn("Firestore save student error:", dbErr);
+      return { success: false, error: errorMessage(dbErr, "Could not save the student.") };
     }
-
-    return { success: true, student: newStudent };
   };
 
-  const updateStudent = async (
-    studentId: string,
-    updates: Partial<StudentProfile>
-  ): Promise<{ success: boolean; error?: string }> => {
-    if (!studentId) {
-      return { success: false, error: "Missing student ID." };
-    }
-
-    // 1. Update in Firestore
-    if (db) {
-      try {
-        await updateDoc(doc(db, "students", studentId), updates);
-      } catch (dbErr) {
-        console.warn("Firestore update student error:", dbErr);
-      }
-    }
-
-    // 2. Update in localStorage
+  const updateStudent = async (studentId: string, updates: Partial<StudentProfile>): Promise<Result> => {
+    if (!studentId) return { success: false, error: "Missing student ID." };
+    if (!db) return { success: false, error: "Database unavailable." };
     try {
-      const storedStudentsRaw = localStorage.getItem(STORAGE_KEYS.STUDENTS);
-      if (storedStudentsRaw) {
-        const studentsList: StudentProfile[] = storedStudentsRaw ? JSON.parse(storedStudentsRaw) : [];
-        const updatedList = studentsList.map((s) =>
-          s.id === studentId ? { ...s, ...updates } : s
-        );
-        localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(updatedList));
-      }
-    } catch {
-      // Ignore
+      await updateDoc(doc(db, "students", studentId), updates);
+      return { success: true };
+    } catch (dbErr) {
+      console.warn("Firestore update student error:", dbErr);
+      return { success: false, error: errorMessage(dbErr, "Could not update the student.") };
     }
-
-    return { success: true };
   };
 
-  const deleteStudent = async (studentId: string): Promise<{ success: boolean; error?: string }> => {
-    if (!studentId) {
-      return { success: false, error: "Missing student ID." };
-    }
-
-    // 1. Delete from Firestore
-    if (db) {
-      try {
-        await deleteDoc(doc(db, "students", studentId));
-      } catch (dbErr) {
-        console.warn("Firestore delete student error:", dbErr);
-      }
-    }
-
-    // 2. Delete from localStorage
+  const deleteStudent = async (studentId: string): Promise<Result> => {
+    if (!studentId) return { success: false, error: "Missing student ID." };
+    if (!db) return { success: false, error: "Database unavailable." };
     try {
-      const storedStudentsRaw = localStorage.getItem(STORAGE_KEYS.STUDENTS);
-      if (storedStudentsRaw) {
-        const studentsList: StudentProfile[] = storedStudentsRaw ? JSON.parse(storedStudentsRaw) : [];
-        const updatedList = studentsList.filter((s) => s.id !== studentId);
-        localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(updatedList));
-      }
-    } catch {
-      // Ignore
+      await deleteDoc(doc(db, "students", studentId));
+      return { success: true };
+    } catch (dbErr) {
+      console.warn("Firestore delete student error:", dbErr);
+      return { success: false, error: errorMessage(dbErr, "Could not delete the student.") };
     }
-
-    return { success: true };
   };
 
-  const updateTeacherAccount = async (
-    teacherId: string,
-    updates: Partial<TeacherProfile>
-  ): Promise<{ success: boolean; error?: string }> => {
-    if (!teacherId) {
-      return { success: false, error: "Missing teacher ID." };
-    }
+  const updateTeacherAccount = async (teacherId: string, updates: Partial<TeacherProfile>): Promise<Result> => {
+    if (!teacherId) return { success: false, error: "Missing teacher ID." };
+    if (!db) return { success: false, error: "Database unavailable." };
 
-    if (db) {
-      try {
-        await updateDoc(doc(db, "teachers", teacherId), updates);
-      } catch (dbErr) {
-        console.warn("Firestore update teacher error:", dbErr);
-      }
-    }
-
-    const updated = teachers.map((t) => (t.id === teacherId ? { ...t, ...updates } : t));
-    setTeachers(updated);
     try {
-      localStorage.setItem(STORAGE_KEYS.TEACHERS, JSON.stringify(updated));
-    } catch {
-      // Ignore
+      await updateDoc(doc(db, "teachers", teacherId), updates);
+    } catch (dbErr) {
+      console.warn("Firestore update teacher error:", dbErr);
+      return { success: false, error: errorMessage(dbErr, "Could not update the teacher.") };
     }
 
+    setTeachers((prev) => prev.map((t) => (t.id === teacherId ? { ...t, ...updates } : t)));
     if (user && user.id === teacherId) {
-      const updatedUser: ActiveUser = {
+      setUser({
         ...user,
         ...(updates.name ? { name: updates.name } : {}),
         ...(updates.email ? { email: updates.email } : {}),
         ...(updates.schoolName ? { schoolName: updates.schoolName } : {}),
         ...(updates.teacherCode ? { teacherCode: updates.teacherCode } : {}),
         ...(typeof updates.isAdmin === "boolean" ? { isAdmin: updates.isAdmin } : {}),
-      };
-      setUser(updatedUser);
-      try {
-        localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(updatedUser));
-      } catch {
-        // Ignore
-      }
+      });
     }
-
     return { success: true };
   };
 
-  const setTeacherAdminStatus = async (
-    teacherId: string,
-    isAdmin: boolean
-  ): Promise<{ success: boolean; error?: string }> => {
-    return updateTeacherAccount(teacherId, { isAdmin });
-  };
-
-  const claimAdminRole = async (): Promise<{ success: boolean; error?: string }> => {
-    if (!user || user.role !== "teacher") {
-      return { success: false, error: "You must be signed in as a teacher to activate admin privileges." };
-    }
-    const res = await updateTeacherAccount(user.id, { isAdmin: true });
-    if (res.success) {
-      const updatedUser: ActiveUser = { ...user, isAdmin: true };
-      setUser(updatedUser);
-      try {
-        localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(updatedUser));
-      } catch {
-        // Ignore
-      }
-    }
-    return res;
-  };
+  const setTeacherAdminStatus = async (teacherId: string, isAdminValue: boolean): Promise<Result> =>
+    updateTeacherAccount(teacherId, { isAdmin: isAdminValue });
 
   const deleteTeacherAccount = async (
     teacherId: string,
     options?: { transferToTeacherId?: string }
-  ): Promise<{ success: boolean; error?: string }> => {
-    if (!teacherId) {
-      return { success: false, error: "Missing teacher ID." };
-    }
-
+  ): Promise<Result> => {
+    if (!teacherId) return { success: false, error: "Missing teacher ID." };
     if (user && user.id === teacherId) {
       return { success: false, error: "Cannot delete your own active admin account." };
     }
+    if (!db) return { success: false, error: "Database unavailable." };
+    const firestore = db;
 
     try {
-      // If a target teacher is chosen to absorb the duplicate account's students & assignments:
       if (options?.transferToTeacherId) {
         const targetTeacher = teachers.find((t) => t.id === options.transferToTeacherId);
         if (!targetTeacher) {
           return { success: false, error: "Target teacher to transfer records to was not found." };
         }
+        const moveTo = { teacherId: targetTeacher.id, teacherName: targetTeacher.name };
 
-        if (db) {
-          // 1. Reassign students
+        for (const col of ["students", "assignments", "submissions"] as const) {
           try {
-            const studentsSnap = await getDocs(
-              query(collection(db, "students"), where("teacherId", "==", teacherId))
-            );
-            for (const sDoc of studentsSnap.docs) {
-              await updateDoc(doc(db, "students", sDoc.id), {
-                teacherId: targetTeacher.id,
-                teacherName: targetTeacher.name,
-              });
+            const snap = await getDocs(query(collection(firestore, col), where("teacherId", "==", teacherId)));
+            for (const d of snap.docs) {
+              await updateDoc(doc(firestore, col, d.id), moveTo);
             }
-          } catch (stErr) {
-            console.warn("Error transferring students in Firestore:", stErr);
+          } catch (err) {
+            console.warn(`Error transferring ${col} in Firestore:`, err);
           }
-
-          // 2. Reassign assignments
-          try {
-            const assignSnap = await getDocs(
-              query(collection(db, "assignments"), where("teacherId", "==", teacherId))
-            );
-            for (const aDoc of assignSnap.docs) {
-              await updateDoc(doc(db, "assignments", aDoc.id), {
-                teacherId: targetTeacher.id,
-                teacherName: targetTeacher.name,
-              });
-            }
-          } catch (asErr) {
-            console.warn("Error transferring assignments in Firestore:", asErr);
-          }
-
-          // 3. Reassign submissions
-          try {
-            const subSnap = await getDocs(
-              query(collection(db, "submissions"), where("teacherId", "==", teacherId))
-            );
-            for (const subDoc of subSnap.docs) {
-              await updateDoc(doc(db, "submissions", subDoc.id), {
-                teacherId: targetTeacher.id,
-                teacherName: targetTeacher.name,
-              });
-            }
-          } catch (subErr) {
-            console.warn("Error transferring submissions in Firestore:", subErr);
-          }
-        }
-
-        // Migrate local storage records
-        try {
-          const storedStudentsRaw = localStorage.getItem(STORAGE_KEYS.STUDENTS);
-          if (storedStudentsRaw) {
-            const sList: StudentProfile[] = JSON.parse(storedStudentsRaw);
-            const updatedSList = sList.map((s) =>
-              s.teacherId === teacherId
-                ? { ...s, teacherId: targetTeacher.id, teacherName: targetTeacher.name }
-                : s
-            );
-            localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(updatedSList));
-          }
-        } catch (locErr) {
-          console.warn("Error transferring local students:", locErr);
         }
       }
 
-      // Delete the teacher doc from Firestore
-      if (db) {
-        await deleteDoc(doc(db, "teachers", teacherId));
-      }
-
-      // Remove teacher from state and local storage
-      const updatedTeachers = teachers.filter((t) => t.id !== teacherId);
-      setTeachers(updatedTeachers);
-      try {
-        localStorage.setItem(STORAGE_KEYS.TEACHERS, JSON.stringify(updatedTeachers));
-      } catch {
-        // Ignore
-      }
-
+      await deleteDoc(doc(firestore, "teachers", teacherId));
+      setTeachers((prev) => prev.filter((t) => t.id !== teacherId));
       return { success: true };
     } catch (err: unknown) {
       console.error("deleteTeacherAccount error:", err);
-      return { success: false, error: (err as Error)?.message || "Failed to delete teacher account." };
+      return { success: false, error: errorMessage(err, "Failed to delete teacher account.") };
     }
   };
 
   const logout = () => {
     setUser(null);
-    try {
-      localStorage.removeItem(STORAGE_KEYS.USER);
-    } catch {
-      // Ignore
-    }
     if (auth) {
       fbSignOut(auth).catch((err) => console.warn("Firebase signout notice:", err));
     }
@@ -956,6 +571,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         registerTeacher,
         registerStudent,
         loginStudent,
+        getRoster,
         getStudentsByTeacher,
         addStudentByTeacher,
         updateStudent,
@@ -963,9 +579,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         deleteTeacherAccount,
         updateTeacherAccount,
         setTeacherAdminStatus,
-        claimAdminRole,
         logout,
-        isLoading,
+        isLoading: !authResolved && !authUnavailable,
       }}
     >
       {children}

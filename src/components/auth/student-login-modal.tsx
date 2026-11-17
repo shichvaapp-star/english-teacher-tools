@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/lib/auth-context";
-import { StudentProfile, formatTeacherDisplayName } from "@/types/auth";
+import { formatTeacherDisplayName } from "@/types/auth";
+import type { RosterEntry } from "@/types/student-auth";
 import {
   Dialog,
   DialogContent,
@@ -32,7 +33,7 @@ interface StudentLoginModalProps {
 }
 
 export function StudentLoginModal({ open, onOpenChange, initialMode = "login" }: StudentLoginModalProps) {
-  const { teachers, registerStudent, loginStudent, getStudentsByTeacher } = useAuth();
+  const { teachers, registerStudent, loginStudent, getRoster } = useAuth();
 
   const [mode, setMode] = useState<"login" | "signup">(initialMode);
   const [prevOpen, setPrevOpen] = useState(open);
@@ -56,7 +57,7 @@ export function StudentLoginModal({ open, onOpenChange, initialMode = "login" }:
   const [signupPin, setSignupPin] = useState("");
 
   // Teacher's students list for login
-  const [teacherStudents, setTeacherStudents] = useState<StudentProfile[]>([]);
+  const [teacherStudents, setTeacherStudents] = useState<RosterEntry[]>([]);
   const [isLoadingStudents, setIsLoadingStudents] = useState(false);
 
   // Status & Feedback
@@ -74,7 +75,7 @@ export function StudentLoginModal({ open, onOpenChange, initialMode = "login" }:
     async function loadStudents() {
       setIsLoadingStudents(true);
       try {
-        const students = await getStudentsByTeacher(effectiveTeacherId);
+        const students = await getRoster(effectiveTeacherId);
         if (isMounted) {
           setTeacherStudents(students);
           if (students.length > 0 && !loginStudentName) {
@@ -314,8 +315,8 @@ export function StudentLoginModal({ open, onOpenChange, initialMode = "login" }:
                   className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring cursor-pointer"
                 >
                   <option value="">-- בחר/י את שמך מהרשימה --</option>
-                  {teacherStudents.map((s) => (
-                    <option key={s.id} value={s.name}>
+                  {teacherStudents.map((s, i) => (
+                    <option key={`${s.name}-${i}`} value={s.name}>
                       {s.name} {s.fullClass ? `(${s.fullClass})` : ""}
                     </option>
                   ))}

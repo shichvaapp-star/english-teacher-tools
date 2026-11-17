@@ -8,6 +8,14 @@ import { cleanForFirestore } from "@/lib/utils";
 const DRAFTS_LOCAL_STORAGE_KEY = "ett_in_progress_drafts";
 export const DRAFTS_CHANGED_EVENT = "ett_drafts_changed";
 
+/**
+ * Firestore document id for a draft. Local draft ids are per task only
+ * (`draft_<type>_<taskId>`), so the student id is added to keep students apart.
+ */
+function remoteDraftId(studentId: string, draftId: string): string {
+  return `${studentId}__${draftId}`;
+}
+
 function notifyDraftsChanged() {
   if (typeof window !== "undefined") {
     window.dispatchEvent(new CustomEvent(DRAFTS_CHANGED_EVENT));
@@ -85,7 +93,7 @@ export async function saveDraft(draft: InProgressWorkItem): Promise<void> {
           ...updatedDraft,
           timestamp: updatedDraft.lastUpdated,
         });
-        await setDoc(doc(db, "drafts", draft.id), payload, { merge: true });
+        await setDoc(doc(db, "drafts", remoteDraftId(draft.studentId, draft.id)), payload, { merge: true });
       } catch (fbErr) {
         console.warn("Firestore draft save notice:", fbErr);
       }
@@ -98,18 +106,21 @@ export async function saveDraft(draft: InProgressWorkItem): Promise<void> {
 /**
  * Deletes a draft by ID from localStorage and Firestore.
  */
-export async function deleteDraft(draftId: string, _studentId?: string): Promise<void> {
+export async function deleteDraft(draftId: string, studentId?: string): Promise<void> {
   if (typeof window === "undefined") return;
 
   try {
     const all = getStoredDrafts();
+    const owner = studentId || all.find((d) => d.id === draftId)?.studentId;
     const filtered = all.filter((d) => d.id !== draftId);
     localStorage.setItem(DRAFTS_LOCAL_STORAGE_KEY, JSON.stringify(filtered));
     notifyDraftsChanged();
 
-    if (db && draftId) {
+    if (db && draftId && owner && owner !== "guest") {
       try {
-        await deleteDoc(doc(db, "drafts", draftId));
+        await deleteDoc(doc(db, "drafts", remoteDraftId(owner, draftId)));
+        // Drafts saved before per-student ids used the bare draft id.
+        await deleteDoc(doc(db, "drafts", draftId)).catch(() => {});
       } catch (fbErr) {
         console.warn("Firestore draft delete notice:", fbErr);
       }

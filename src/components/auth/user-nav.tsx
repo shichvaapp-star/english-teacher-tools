@@ -11,7 +11,7 @@ import { HeaderTooltip } from "@/components/ui/header-tooltip";
 import { SuggestEditDialog } from "@/components/suggestions/suggest-edit-dialog";
 
 export function UserNav() {
-  const { user, logout, claimAdminRole } = useAuth();
+  const { user, logout } = useAuth();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [teacherModalOpen, setTeacherModalOpen] = useState(false);
   const [studentModalOpen, setStudentModalOpen] = useState(false);
@@ -158,20 +158,6 @@ export function UserNav() {
                     <ShieldCheck className="h-3.5 w-3.5 text-purple-600" />
                     <span>ניהול מורים (Admin Control)</span>
                   </Link>
-                )}
-
-                {!user.isAdmin && (
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      setDropdownOpen(false);
-                      await claimAdminRole();
-                    }}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-xs text-purple-700 dark:text-purple-300 hover:bg-purple-500/10 rounded-lg transition text-left cursor-pointer mb-1"
-                  >
-                    <ShieldCheck className="h-3.5 w-3.5 text-purple-600" />
-                    <span>הפעל הרשאות מנהל (Claim Admin)</span>
-                  </button>
                 )}
 
                 <button
