@@ -53,7 +53,7 @@ export default function StudentPortalPage() {
   const [drafts, setDrafts] = useState<InProgressWorkItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [typeFilter, setTypeFilter] = useState<"all" | "writing" | "unseen" | "vocab" | "conversation">("all");
+  const [typeFilter, setTypeFilter] = useState<"all" | "writing" | "unseen" | "vocab" | "conversation" | "grammar">("all");
   const [statusFilter, setStatusFilter] = useState<"all" | "submitted" | "reviewed" | "practice">("all");
 
   // Selected item for details modal
@@ -539,7 +539,7 @@ export default function StudentPortalPage() {
             {/* Type Filter */}
             <select
               value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value as "all" | "writing" | "unseen" | "vocab" | "conversation")}
+              onChange={(e) => setTypeFilter(e.target.value as "all" | "writing" | "unseen" | "vocab" | "conversation" | "grammar")}
               className="h-9 rounded-md border border-input bg-background px-3 text-xs shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring cursor-pointer"
             >
               <option value="all">כל סוגי המשימות (הכל)</option>
@@ -547,6 +547,7 @@ export default function StudentPortalPage() {
               <option value="unseen">📖 מבחני אנסין (Unseen)</option>
               <option value="writing">✍️ מטלות כתיבה (Writing)</option>
               <option value="conversation">💬 שיחות מהחיים (Conversation)</option>
+              <option value="grammar">🧩 תרגול דקדוק (Grammar)</option>
             </select>
 
             {/* Status Filter */}

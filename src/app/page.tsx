@@ -23,6 +23,7 @@ import {
   Clock,
   Play,
   MessageSquare,
+  Shapes,
 } from "lucide-react";
 import { StudentAssignedTaskPrompt } from "@/components/student/student-assigned-task-prompt";
 import { getStoredDrafts } from "@/lib/drafts-storage";
@@ -141,6 +142,16 @@ export default function Home() {
       bgColor: "bg-amber-500/10",
       borderColor: "hover:border-amber-500/40",
       href: "/conversation",
+    },
+    {
+      englishTitle: "Grammar Practice",
+      hebrewTitle: "דקדוק ומבנים",
+      logo: "/images/logos/grammar-logo.svg",
+      icon: Shapes,
+      color: "text-type-grammar",
+      bgColor: "bg-type-grammar/10",
+      borderColor: "hover:border-type-grammar/40",
+      href: "/grammar",
     },
   ];
 
@@ -286,12 +297,12 @@ export default function Home() {
           </p>
 
           <p className="text-sm sm:text-base text-muted-foreground max-w-xl mx-auto leading-relaxed pt-1" dir="rtl">
-            ברוכים הבאים למרחב התרגול באנגלית. בחרו באחד התחומים למטה כדי להתחיל לתרגל קריאת אנסין, שינון אוצר מילים, כתיבה ושיחות מהחיים!
+            ברוכים הבאים למרחב התרגול באנגלית. בחרו באחד התחומים למטה כדי להתחיל לתרגל קריאת אנסין, שינון אוצר מילים, כתיבה, שיחות מהחיים ודקדוק!
           </p>
         </div>
 
-        {/* 4 Core Section Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 lg:gap-4 xl:gap-6 max-w-6xl mx-auto">
+        {/* Core Section Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 sm:gap-5 lg:gap-4 xl:gap-6 max-w-6xl mx-auto">
           {sections.map((sec) => {
             return (
               <Link
@@ -452,6 +463,9 @@ export default function Home() {
             </Link>
             <Link href="/conversation" className="hover:text-foreground transition">
               שיחות מהחיים
+            </Link>
+            <Link href="/grammar" className="hover:text-foreground transition">
+              דקדוק
             </Link>
           </div>
         </div>
