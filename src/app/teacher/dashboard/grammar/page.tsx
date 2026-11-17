@@ -10,7 +10,7 @@ import { PageHeader } from "@/components/teacher-dashboard/shared-ui/page-header
 import { useDashboard } from "@/components/teacher-dashboard/teacher-dashboard-context";
 import { GRAMMAR_GROUPS, GRAMMAR_TOPICS, getGrammarItems } from "@/data/grammar";
 import { RuleCardBody, type RuleLang } from "@/components/grammar/grammar-rule-sheet";
-import { EXERCISE_TYPE_LABEL } from "@/components/grammar/exercises";
+import { EXERCISE_TYPE_LABEL, ExerciseTypeTip } from "@/components/grammar/exercises";
 import { GrammarPrintSheet } from "@/components/grammar/grammar-print-sheet";
 import { HeText } from "@/components/grammar/he-text";
 import { expectedAnswer } from "@/lib/grammar-grading";
@@ -137,9 +137,13 @@ export default function GrammarBankPage() {
             <div className="flex flex-wrap items-center gap-1.5">
               <span className="w-28 text-xs text-muted-foreground">סוגי תרגילים</span>
               {usedTypes.map((t) => (
-                <Chip key={t} on={types.includes(t)} onClick={() => setTypes((p) => (p.includes(t) ? p.filter((x) => x !== t) : [...p, t]))}>
-                  {EXERCISE_TYPE_LABEL[t].he}
-                </Chip>
+                <ExerciseTypeTip key={t} type={t}>
+                  <span className="inline-flex">
+                    <Chip on={types.includes(t)} onClick={() => setTypes((p) => (p.includes(t) ? p.filter((x) => x !== t) : [...p, t]))}>
+                      {EXERCISE_TYPE_LABEL[t].he}
+                    </Chip>
+                  </span>
+                </ExerciseTypeTip>
               ))}
             </div>
           )}

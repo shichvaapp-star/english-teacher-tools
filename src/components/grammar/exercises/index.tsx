@@ -2,6 +2,7 @@
 
 import React from "react";
 import type { GrammarExerciseType, GrammarItem } from "@/types/grammar";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { ChoiceExercise } from "@/components/grammar/exercises/choice-exercise";
 import { GapTypeExercise, TransformExercise, WriteOwnExercise } from "@/components/grammar/exercises/text-exercises";
 import {
@@ -13,18 +14,30 @@ import {
 } from "@/components/grammar/exercises/structure-exercises";
 import { ContextLine, InstructionLine, type ExerciseProps } from "@/components/grammar/exercises/shared";
 
-export const EXERCISE_TYPE_LABEL: Record<GrammarExerciseType, { he: string; en: string }> = {
-  mcq: { he: "בחירה", en: "Choose" },
-  gap_bank: { he: "בנק מילים", en: "Word bank" },
-  gap_type: { he: "הקלדת הצורה", en: "Type the form" },
-  unscramble: { he: "בניית משפט", en: "Build the sentence" },
-  find_fix: { he: "מצאו ותקנו", en: "Find & fix" },
-  transform: { he: "שינוי משפט", en: "Transform" },
-  sort: { he: "מיון", en: "Sort" },
-  match_halves: { he: "התאמת חצאים", en: "Match halves" },
-  cloze_text: { he: "טקסט קצר", en: "Short text" },
-  write_own: { he: "כתיבה חופשית", en: "Write your own" },
+export const EXERCISE_TYPE_LABEL: Record<GrammarExerciseType, { he: string; en: string; descHe: string }> = {
+  mcq: { he: "בחירה", en: "Choose", descHe: "משפט עם מקום ריק – בוחרים את התשובה הנכונה מתוך כמה אפשרויות." },
+  gap_bank: { he: "בנק מילים", en: "Word bank", descHe: "משלימים את המשפט במילה מתוך בנק מילים." },
+  gap_type: { he: "הקלדת הצורה", en: "Type the form", descHe: "מקלידים את הפועל שבסוגריים בצורה הנכונה." },
+  unscramble: { he: "בניית משפט", en: "Build the sentence", descHe: "לוחצים על המילים לפי הסדר הנכון כדי לבנות משפט." },
+  find_fix: { he: "מצאו ותקנו", en: "Find & fix", descHe: "יש במשפט מילה אחת שגויה – לוחצים עליה וכותבים את התיקון." },
+  transform: { he: "שינוי משפט", en: "Transform", descHe: "כותבים את המשפט מחדש לפי ההוראה – למשל שלילה או שאלה." },
+  sort: { he: "מיון", en: "Sort", descHe: "משייכים כל מילה או משפט לקבוצה הנכונה." },
+  match_halves: { he: "התאמת חצאים", en: "Match halves", descHe: "מתאימים לכל תחילת משפט את הסוף שלו." },
+  cloze_text: { he: "טקסט קצר", en: "Short text", descHe: "קטע קצר עם כמה מקומות ריקים – משלימים את הפעלים בצורה הנכונה." },
+  write_own: { he: "כתיבה חופשית", en: "Write your own", descHe: "כותבים משפטים משלכם לפי המשימה. הבדיקה נעשית בעזרת AI." },
 };
+
+/** Wraps a chip so hovering (or focusing) it explains the exercise type. */
+export function ExerciseTypeTip({ type, children }: { type: GrammarExerciseType; children: React.ReactElement }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger render={children} />
+      <TooltipContent className="max-w-60 font-hebrew text-right leading-snug" dir="rtl">
+        {EXERCISE_TYPE_LABEL[type].descHe}
+      </TooltipContent>
+    </Tooltip>
+  );
+}
 
 const DEFAULT_INSTRUCTION_HE: Record<GrammarExerciseType, string> = {
   mcq: "בחרו את התשובה הנכונה",

@@ -4,7 +4,7 @@ import React from "react";
 import { ChevronLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { LEVELS, LEVEL_DESCRIPTION_HE, LEVEL_NAME_HE } from "@/lib/levels";
-import { EXERCISE_TYPE_LABEL } from "@/components/grammar/exercises";
+import { EXERCISE_TYPE_LABEL, ExerciseTypeTip } from "@/components/grammar/exercises";
 import type { GrammarPracticeController } from "@/components/grammar/use-grammar-practice";
 
 const GRADES = [
@@ -79,8 +79,8 @@ export function GrammarTopicsScreen({ c }: { c: GrammarPracticeController }) {
             {c.availableTypes.map((t) => {
               const on = c.typeFilter.includes(t);
               return (
+                <ExerciseTypeTip key={t} type={t}>
                 <button
-                  key={t}
                   type="button"
                   onClick={() => c.toggleType(t)}
                   className={cn(
@@ -90,6 +90,7 @@ export function GrammarTopicsScreen({ c }: { c: GrammarPracticeController }) {
                 >
                   {EXERCISE_TYPE_LABEL[t].he}
                 </button>
+                </ExerciseTypeTip>
               );
             })}
           </div>

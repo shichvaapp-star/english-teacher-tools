@@ -114,6 +114,8 @@ export function findUnknownWords(texts: string[], allowed: Set<string>): string[
   const unknown = new Set<string>();
   for (const text of texts) {
     const words = text
+      .replace(/\bwon[’']t\b/gi, "will not")
+      .replace(/\bcan[’']t\b/gi, "can not")
       .replace(/n[’']t\b/gi, " not")
       .replace(/(^|\s)[’'](s|m|re|ve|ll|d)\b/gi, " ")
       .replace(/[’'](m|re|ve|ll|d)\b/gi, " ")

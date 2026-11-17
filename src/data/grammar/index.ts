@@ -7,13 +7,19 @@ import { presentProgressiveItems, presentProgressiveTopic } from "@/data/grammar
 import { simpleVsProgressiveItems, simpleVsProgressiveTopic } from "@/data/grammar/topics/simple-vs-progressive";
 import { pastSimpleItems, pastSimpleTopic } from "@/data/grammar/topics/past-simple";
 import { pastProgressiveItems, pastProgressiveTopic } from "@/data/grammar/topics/past-progressive";
+import { pastSimpleVsProgressiveItems, pastSimpleVsProgressiveTopic } from "@/data/grammar/topics/past-simple-vs-progressive";
+import { futureWillItems, futureWillTopic } from "@/data/grammar/topics/future-will";
+import { goingToItems, goingToTopic } from "@/data/grammar/topics/going-to";
+import { willVsGoingToItems, willVsGoingToTopic } from "@/data/grammar/topics/will-vs-going-to";
+import { presentPerfectItems, presentPerfectTopic } from "@/data/grammar/topics/present-perfect";
+import { perfectVsPastItems, perfectVsPastTopic } from "@/data/grammar/topics/perfect-vs-past";
 import { presentSimpleGrade7Items } from "@/data/grammar/topics/present-simple-g7";
 import { presentSimpleGrade8Items } from "@/data/grammar/topics/present-simple-g8";
 import { presentSimpleGrade9Items } from "@/data/grammar/topics/present-simple-g9";
 
 export { GRAMMAR_GROUPS } from "@/data/grammar/groups";
 
-export const GRAMMAR_TOPICS: GrammarTopic[] = [toBeTopic, thereIsAreTopic, presentSimpleTopic, presentProgressiveTopic, simpleVsProgressiveTopic, pastSimpleTopic, pastProgressiveTopic];
+export const GRAMMAR_TOPICS: GrammarTopic[] = [toBeTopic, thereIsAreTopic, presentSimpleTopic, presentProgressiveTopic, simpleVsProgressiveTopic, pastSimpleTopic, pastProgressiveTopic, pastSimpleVsProgressiveTopic, futureWillTopic, goingToTopic, willVsGoingToTopic, presentPerfectTopic, perfectVsPastTopic];
 
 export const GRAMMAR_ITEMS: GrammarItem[] = [
   ...toBeItems,
@@ -26,6 +32,12 @@ export const GRAMMAR_ITEMS: GrammarItem[] = [
   ...simpleVsProgressiveItems,
   ...pastSimpleItems,
   ...pastProgressiveItems,
+  ...pastSimpleVsProgressiveItems,
+  ...futureWillItems,
+  ...goingToItems,
+  ...willVsGoingToItems,
+  ...presentPerfectItems,
+  ...perfectVsPastItems,
 ];
 
 export function getGrammarTopic(id: string): GrammarTopic | undefined {

@@ -4,7 +4,7 @@ import React from "react";
 import { BookOpenCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { GRAMMAR_GROUPS, GRAMMAR_ITEMS, GRAMMAR_TOPICS } from "@/data/grammar";
-import { EXERCISE_TYPE_LABEL } from "@/components/grammar/exercises";
+import { EXERCISE_TYPE_LABEL, ExerciseTypeTip } from "@/components/grammar/exercises";
 import type { ExerciseLevel } from "@/types/assignment";
 import type { GrammarExerciseType } from "@/types/grammar";
 
@@ -101,8 +101,8 @@ export function GrammarAssignPicker({
           </p>
           <div className="flex flex-wrap gap-1.5">
             {usedTypes.map((t) => (
+              <ExerciseTypeTip key={t} type={t}>
               <button
-                key={t}
                 type="button"
                 onClick={() => onTypesChange(toggle(types, t))}
                 className={cn(
@@ -112,6 +112,7 @@ export function GrammarAssignPicker({
               >
                 {EXERCISE_TYPE_LABEL[t].he}
               </button>
+              </ExerciseTypeTip>
             ))}
           </div>
         </div>
