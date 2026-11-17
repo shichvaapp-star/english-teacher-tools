@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { Loader2, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Confetti } from "@/components/confetti";
 import { cn } from "@/lib/utils";
@@ -39,6 +40,34 @@ export function GrammarResultsScreen({ c }: { c: GrammarPracticeController }) {
             ))}
           </div>
         </section>
+      )}
+
+      {/* Assignment turn-in */}
+      {c.assignment && !c.isTeacher && (
+        <div className="rounded-2xl border border-type-grammar/40 bg-type-grammar/5 p-4 text-center space-y-3">
+          {c.receiptCode ? (
+            <>
+              <p className="font-bold text-success">✓ המשימה הוגשה למורה</p>
+              <p className="text-sm text-muted-foreground">
+                קוד אישור: <span className="font-mono font-semibold text-foreground" dir="ltr">{c.receiptCode}</span>
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="text-sm">זו משימה מהמורה. אפשר לתרגל את הטעויות לפני ההגשה – ההגשה כוללת את הניסיון הראשון.</p>
+              <Button
+                size="lg"
+                onClick={c.submitToTeacher}
+                disabled={c.submitting || !c.canSubmit}
+                className="h-11 px-6 font-bold cursor-pointer gap-2"
+              >
+                {c.submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                הגשה למורה
+              </Button>
+              {c.submitError && <p className="text-sm text-destructive">ההגשה נכשלה. בדקו את החיבור ונסו שוב.</p>}
+            </>
+          )}
+        </div>
       )}
 
       <div className="flex flex-wrap gap-2 justify-center">

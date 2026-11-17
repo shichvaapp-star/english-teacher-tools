@@ -13,7 +13,7 @@ import {
   Bell,
   PenTool,
   BookOpen,
-  BookA,
+  BookA, BookOpenCheck,
   MessageSquare,
   Calendar,
   ArrowLeft,
@@ -171,7 +171,9 @@ export function StudentAssignedTaskPrompt() {
   const levelParam = assignment.level ? `&level=${encodeURIComponent(assignment.level)}` : "";
   const isFreeChoice = assignment.isFreeChoice || assignment.isAdaptiveDavid || assignment.taskId === "free_choice" || assignment.taskId === "adaptive_david";
   const targetUrl =
-    assignment.type === "vocab"
+    assignment.type === "grammar"
+      ? `/grammar?assignmentId=${assignment.id}`
+      : assignment.type === "vocab"
       ? `/vocabulary?assignmentId=${assignment.id}`
       : assignment.type === "writing"
       ? (isFreeChoice
@@ -204,7 +206,12 @@ export function StudentAssignedTaskPrompt() {
               </span>
 
               <Badge variant="secondary" className="text-3xs gap-1 font-semibold">
-                {assignment.type === "vocab" ? (
+                {assignment.type === "grammar" ? (
+                  <>
+                    <BookOpenCheck className="h-2.5 w-2.5 text-type-grammar" />
+                    <span>דקדוק</span>
+                  </>
+                ) : assignment.type === "vocab" ? (
                   <>
                     <BookA className="h-2.5 w-2.5 text-emerald-500" />
                     <span>אוצר מילים</span>

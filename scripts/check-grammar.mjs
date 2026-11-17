@@ -31,6 +31,8 @@ registerHooks({
 });
 
 const { GRAMMAR_TOPICS, GRAMMAR_ITEMS } = await import(pathToFileURL(path.join(root, "src/data/grammar/index.ts")).href);
+const vocab = await import(pathToFileURL(path.join(root, "src/data/grammar/vocab/index.ts")).href);
+const { findUnknownWords } = await import(pathToFileURL(path.join(root, "src/lib/grammar-vocab.ts")).href);
 const { gradeGrammarItem, normalizeAnswer } = await import(
   pathToFileURL(path.join(root, "src/lib/grammar-grading.ts")).href
 );
@@ -78,6 +80,20 @@ for (const t of GRAMMAR_TOPICS) {
   }
   t._trapIds = trapIds;
 }
+
+// ── Vocabulary helpers ──
+const { itemEnglishText: itemEnglishTextOf } = await import(pathToFileURL(path.join(root, "src/lib/grammar-vocab.ts")).href);
+const baseAllowed = [...vocab.FUNCTION_WORDS, ...vocab.ITEM_NAMES].map((x) => x.toLowerCase());
+const allowedCache = new Map();
+function allowedFor(grade, extra = []) {
+  if (!allowedCache.has(grade)) {
+    const words = vocab.gradeVocabulary(grade).flatMap((x) => x.toLowerCase().split(/\s+/));
+    allowedCache.set(grade, [...baseAllowed, ...words]);
+  }
+  return new Set([...allowedCache.get(grade), ...extra.map((x) => x.toLowerCase())]);
+}
+let missingGrade = 0;
+const gradesWithoutList = new Set();
 
 // ── Items ──
 const itemIds = new Set();
@@ -172,6 +188,20 @@ for (const i of GRAMMAR_ITEMS) {
     if (!g.isCorrect) err(w, "answer key does not grade as correct");
   }
 
+  // Vocabulary (option B: levels 1–2 are written per grade from that grade's textbook list).
+  if (i.level <= 2) {
+    if (i.grade === undefined) {
+      if ([7, 8, 9].some((g) => vocab.hasGradeVocabulary(g))) err(w, "levels 1–2 items need a grade (7/8/9)");
+      else missingGrade++;
+    } else if (vocab.hasGradeVocabulary(i.grade)) {
+      const allowed = allowedFor(i.grade, i.allowWords);
+      const unknown = findUnknownWords(itemEnglishTextOf(i), allowed);
+      if (unknown.length) err(w, `words not in grade ${i.grade} vocabulary: ${unknown.join(", ")}`);
+    } else {
+      gradesWithoutList.add(i.grade);
+    }
+  }
+
   const k = `${i.topicId}:${i.level}`;
   counts[k] = (counts[k] ?? 0) + 1;
 }
@@ -182,6 +212,11 @@ for (const t of GRAMMAR_TOPICS) {
     if (n < MIN_ITEMS_PER_LEVEL) err(t.id, `level ${lvl} has ${n} items (min ${MIN_ITEMS_PER_LEVEL})`);
   }
 }
+
+if (![7, 8, 9].some((g) => vocab.hasGradeVocabulary(g))) {
+  warn.push(`vocabulary lists not added yet – ${missingGrade} level 1–2 item(s) have no grade and were not vocabulary-checked`);
+}
+for (const g of gradesWithoutList) warn.push(`grade ${g} vocabulary list is empty – its items were not vocabulary-checked`);
 
 for (const m of warn) console.warn(`warn  ${m}`);
 if (errors.length) {

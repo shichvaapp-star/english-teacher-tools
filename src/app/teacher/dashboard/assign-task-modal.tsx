@@ -3,6 +3,9 @@
 import React, { useState, useMemo } from "react";
 import { StudentProfile, StudentGroup } from "@/types/auth";
 import { TeacherAssignment, AssignmentTargetType, ExerciseLevel, AssignedVocabWord, AssignmentType } from "@/types/assignment";
+import type { GrammarExerciseType } from "@/types/grammar";
+import { GRAMMAR_TOPICS, getGrammarTopic } from "@/data/grammar";
+import { GrammarAssignPicker } from "@/components/grammar/grammar-assign-picker";
 import { ALL_WRITING_TASKS } from "@/data/writing-tasks";
 import { MIDDLE_SCHOOL_UNSEENS } from "@/data/unseen-middle-school";
 import { REAL_LIFE_CONVERSATIONS } from "@/data/conversations";
@@ -29,6 +32,7 @@ import {
   AlertCircle,
   Sparkles,
   BookA,
+  BookOpenCheck,
   Search,
   Filter,
   User,
@@ -72,6 +76,13 @@ export function AssignTaskModal({
     ALL_WRITING_TASKS[0]?.id || ""
   );
   const [customTitle, setCustomTitle] = useState("");
+
+  // Grammar Assignment State
+  const [grammarTopicIds, setGrammarTopicIds] = useState<string[]>(() =>
+    GRAMMAR_TOPICS[0] ? [GRAMMAR_TOPICS[0].id] : []
+  );
+  const [grammarTypes, setGrammarTypes] = useState<GrammarExerciseType[]>([]);
+  const [grammarItemCount, setGrammarItemCount] = useState<number | null>(null);
   const [customHebrewTitle, setCustomHebrewTitle] = useState("");
 
   // Vocabulary Assignment State
@@ -152,6 +163,11 @@ export function AssignTaskModal({
         if (initialAssignmentTemplate.vocabWords) {
           setSelectedVocabWords(initialAssignmentTemplate.vocabWords);
         }
+        if (initialAssignmentTemplate.grammarConfig) {
+          setGrammarTopicIds(initialAssignmentTemplate.grammarConfig.topicIds);
+          setGrammarTypes(initialAssignmentTemplate.grammarConfig.exerciseTypes ?? []);
+          setGrammarItemCount(initialAssignmentTemplate.grammarConfig.itemCount ?? null);
+        }
         if (initialAssignmentTemplate.title) {
           setCustomTitle(initialAssignmentTemplate.title);
         }
@@ -161,7 +177,9 @@ export function AssignTaskModal({
         if (initialAssignmentTemplate.taskId) {
           setSelectedTaskId(initialAssignmentTemplate.taskId);
         }
-        setIsShared(true);
+        // Templates from the shared library stay shared; a grammar topic opened from
+        // the grammar bank page passes isShared: false.
+        setIsShared(initialAssignmentTemplate.isShared ?? true);
       }
 
       if (preselectedVocabBank) {
@@ -230,7 +248,9 @@ export function AssignTaskModal({
   // When changing level, ensure selectedTaskId points to a valid task in that level
   const handleLevelChange = (lvl: "all" | ExerciseLevel) => {
     setSelectedLevel(lvl);
-    if (taskType === "writing") {
+    if (taskType === "grammar") {
+      return;
+    } else if (taskType === "writing") {
       const pool = lvl === "all" ? ALL_WRITING_TASKS : ALL_WRITING_TASKS.filter((t) => t.level === lvl);
       if (!pool.some((t) => t.id === selectedTaskId)) {
         setSelectedTaskId(pool[0]?.id || "");
@@ -260,6 +280,10 @@ export function AssignTaskModal({
     } else if (type === "conversation") {
       const pool = selectedLevel === "all" ? REAL_LIFE_CONVERSATIONS : REAL_LIFE_CONVERSATIONS.filter((s) => s.level === selectedLevel);
       setSelectedTaskId(pool[0]?.id || REAL_LIFE_CONVERSATIONS[0]?.id || "");
+    } else if (type === "grammar") {
+      setCoachWithDavid(false);
+      setSelectionMode("specific");
+      setSelectedTaskId(grammarTopicIds[0] ?? "");
     } else {
       setSelectedTaskId("vocab_assigned");
       if (selectedVocabWords.length === 0) {
@@ -538,7 +562,19 @@ export function AssignTaskModal({
 
     const levelSuffixEnglish = selectedLevel !== "all" ? ` (${selectedLevel})` : "";
 
-    if (taskType === "vocab") {
+    if (taskType === "grammar") {
+      const topics = grammarTopicIds.map((id) => getGrammarTopic(id)).filter((t) => t !== undefined);
+      if (topics.length === 0) {
+        setError("יש לבחור לפחות נושא דקדוק אחד.");
+        return;
+      }
+      title =
+        customTitle.trim() ||
+        (topics.length === 1 ? `Grammar: ${topics[0].title}` : `Grammar Review (${topics.length} topics)`) + levelSuffixEnglish;
+      hebrewTitle =
+        customHebrewTitle.trim() ||
+        (topics.length === 1 ? `דקדוק: ${topics[0].titleHe}` : `חזרה בדקדוק (${topics.length} נושאים)`) + levelSuffixHebrew;
+    } else if (taskType === "vocab") {
       if (selectedVocabWords.length === 0) {
         setError("יש לבחור לפחות מילה אחת למשימת אוצר המילים.");
         return;
@@ -624,7 +660,9 @@ export function AssignTaskModal({
       title,
       hebrewTitle,
       taskId:
-        taskType === "vocab"
+        taskType === "grammar"
+          ? grammarTopicIds[0]
+          : taskType === "vocab"
           ? "vocab_assigned"
           : isAdaptiveDavid
           ? "adaptive_david"
@@ -632,6 +670,14 @@ export function AssignTaskModal({
           ? "free_choice"
           : selectedTaskId,
       vocabWords: taskType === "vocab" ? selectedVocabWords : undefined,
+      grammarConfig:
+        taskType === "grammar"
+          ? {
+              topicIds: grammarTopicIds,
+              exerciseTypes: grammarTypes.length ? grammarTypes : undefined,
+              itemCount: grammarItemCount ?? undefined,
+            }
+          : undefined,
       level: finalLevel,
       isFreeChoice: isFreeChoice || isAdaptiveDavid,
       isAdaptiveDavid,
@@ -706,7 +752,7 @@ export function AssignTaskModal({
           {/* 1. Task Type Switcher */}
           <div className="space-y-1.5">
             <label className="font-bold text-foreground block">סוג המשימה:</label>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
               <button
                 type="button"
                 onClick={() => handleTypeChange("writing")}
@@ -758,10 +804,37 @@ export function AssignTaskModal({
                 <BookA className="h-4 w-4 text-success shrink-0" />
                 <span>🔤 מילים</span>
               </button>
+
+              <button
+                type="button"
+                onClick={() => handleTypeChange("grammar")}
+                className={`flex flex-col sm:flex-row items-center justify-center gap-1.5 p-2.5 rounded-xl border text-xs font-bold transition-all cursor-pointer text-center ${
+                  taskType === "grammar"
+                    ? "border-type-grammar bg-type-grammar/15 text-type-grammar font-black shadow-2xs ring-1 ring-type-grammar/40"
+                    : "border-border hover:bg-muted/40 text-muted-foreground"
+                }`}
+              >
+                <BookOpenCheck className="h-4 w-4 text-type-grammar shrink-0" />
+                <span>📐 דקדוק</span>
+              </button>
             </div>
           </div>
 
-          {taskType === "vocab" ? (
+          {taskType === "grammar" ? (
+            <GrammarAssignPicker
+              topicIds={grammarTopicIds}
+              onTopicIdsChange={(ids) => {
+                setGrammarTopicIds(ids);
+                setSelectedTaskId(ids[0] ?? "");
+              }}
+              types={grammarTypes}
+              onTypesChange={setGrammarTypes}
+              itemCount={grammarItemCount}
+              onItemCountChange={setGrammarItemCount}
+              level={selectedLevel}
+              onLevelChange={setSelectedLevel}
+            />
+          ) : taskType === "vocab" ? (
             /* Vocabulary Word Builder Section */
             <div className="space-y-3 p-3.5 rounded-xl border border-success/30 bg-success/5">
               <div className="flex items-center justify-between">

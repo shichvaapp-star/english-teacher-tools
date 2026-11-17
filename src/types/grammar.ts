@@ -89,6 +89,14 @@ interface GrammarItemBase {
   id: string;
   topicId: string;
   level: LevelNumber;
+  /**
+   * Grade whose textbook vocabulary this item uses. Levels 1–2 items are
+   * written per grade (7/8/9). Omitted = shared by all grades (level 3, or
+   * items written before the vocabulary lists existed).
+   */
+  grade?: ClassGrade;
+  /** Extra words allowed in this item beyond the grade list (use sparingly). */
+  allowWords?: string[];
   /** Situation shown above the task (curriculum's "[added context]"). */
   context?: string;
   /** Short task line (Hebrew) shown above the item, e.g. "בחרו את הצורה הנכונה". */
@@ -211,4 +219,8 @@ export interface GrammarGrade {
   parts?: boolean[];
   /** The expected answer to show after checking. */
   expected: string;
+  /** Personal feedback from the AI grading agent. */
+  feedbackHe?: string;
+  feedbackEn?: string;
+  aiGraded?: boolean;
 }

@@ -2,7 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
-import { ArrowLeft, BookOpenCheck, CircleHelp } from "lucide-react";
+import { ArrowLeft, BookOpenCheck, CircleHelp, Key } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { UserNav } from "@/components/auth/user-nav";
 import { HeaderTooltip } from "@/components/ui/header-tooltip";
@@ -42,9 +42,9 @@ export function GrammarHeader({ c }: { c: GrammarPracticeController }) {
             <BookOpenCheck className="h-4 w-4" />
           </div>
           <span className="font-bold text-sm sm:text-base truncate">
-            {inPractice ? c.topic?.title : "Grammar"}
+            {inPractice ? (c.assignment ? c.assignment.title : c.topic?.title) : "Grammar"}
             <span className="text-muted-foreground font-normal font-hebrew">
-              {" "}· {inPractice ? c.topic?.titleHe : "דקדוק"}
+              {" "}· {inPractice ? (c.assignment ? c.assignment.hebrewTitle : c.topic?.titleHe) : "דקדוק"}
             </span>
           </span>
         </div>
@@ -60,6 +60,18 @@ export function GrammarHeader({ c }: { c: GrammarPracticeController }) {
               <CircleHelp className="h-4 w-4 text-type-grammar" />
               <span>כלל</span>
             </Button>
+          )}
+          {c.isTeacher && (
+            <HeaderTooltip label="מפתחות AI">
+              <button
+                type="button"
+                onClick={() => c.setAiSettingsOpen(true)}
+                className="inline-flex items-center justify-center h-9 w-9 text-muted-foreground hover:text-foreground rounded-lg border border-border/60 hover:bg-muted/40 transition-colors cursor-pointer"
+                aria-label="מפתחות AI"
+              >
+                <Key className="h-4 w-4" />
+              </button>
+            </HeaderTooltip>
           )}
           <ThemeToggle />
           <div className="h-4 w-px bg-border hidden sm:block" />

@@ -7,14 +7,48 @@ import { LEVELS, LEVEL_DESCRIPTION_HE, LEVEL_NAME_HE } from "@/lib/levels";
 import { EXERCISE_TYPE_LABEL } from "@/components/grammar/exercises";
 import type { GrammarPracticeController } from "@/components/grammar/use-grammar-practice";
 
+const GRADES = [
+  { n: 7, he: "כיתה ז׳" },
+  { n: 8, he: "כיתה ח׳" },
+  { n: 9, he: "כיתה ט׳" },
+] as const;
+
 export function GrammarTopicsScreen({ c }: { c: GrammarPracticeController }) {
   if (c.screen !== "topics") return null;
 
   return (
     <div className="mx-auto w-full max-w-2xl space-y-8 font-hebrew" dir="rtl">
+      {c.assignmentError && (
+        <p className="rounded-xl border border-warning/40 bg-warning/10 px-4 py-3 text-sm">
+          לא הצלחנו לפתוח את המשימה מהמורה. אפשר לתרגל חופשי בינתיים.
+        </p>
+      )}
+
+      {/* Grade – only teachers choose (students use their class) */}
+      {c.isTeacher && (
+        <section className="space-y-2">
+          <p className="text-sm text-muted-foreground">שכבה (אוצר המילים של הספר)</p>
+          <div className="grid grid-cols-3 gap-2">
+            {GRADES.map((g) => (
+              <button
+                key={g.n}
+                type="button"
+                onClick={() => c.setTeacherGrade(g.n)}
+                className={cn(
+                  "rounded-xl border px-3 py-2 text-sm font-bold transition-colors cursor-pointer",
+                  c.classGrade === g.n ? "border-type-grammar bg-type-grammar/10" : "border-border hover:bg-muted/50"
+                )}
+              >
+                {g.he}
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* Level */}
       <section className="space-y-2">
-        <p className="text-sm text-muted-foreground">הרמה שלי</p>
+        <p className="text-sm text-muted-foreground">{c.isTeacher ? "רמה" : "הרמה שלי"}</p>
         <div className="grid grid-cols-3 gap-2">
           {LEVELS.map((l) => (
             <button
@@ -69,7 +103,7 @@ export function GrammarTopicsScreen({ c }: { c: GrammarPracticeController }) {
           <div className="divide-y divide-border/60 rounded-xl border border-border overflow-hidden">
             {topics.map((t) => {
               const best = c.progress[`${t.id}:${c.level}`];
-              const inGrade = c.studentGrade ? t.grades[c.studentGrade] !== undefined : true;
+              const inGrade = t.grades[c.classGrade] !== undefined;
               return (
                 <button
                   key={t.id}

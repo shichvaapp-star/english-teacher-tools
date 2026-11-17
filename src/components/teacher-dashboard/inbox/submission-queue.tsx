@@ -36,6 +36,7 @@ const TYPE_OPTIONS: FilterOption[] = [
   { value: "unseen", label: "אנסין" },
   { value: "vocab", label: "אוצר מילים" },
   { value: "conversation", label: "שיחה" },
+  { value: "grammar", label: "דקדוק" },
 ];
 
 const GROUP_OPTIONS: FilterOption[] = [

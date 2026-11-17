@@ -18,9 +18,14 @@ export function splitBidi(text: string): { latin: boolean; text: string }[] {
   let last = 0;
   for (const m of text.matchAll(LATIN_RUN)) {
     const start = m.index ?? 0;
+    let run = m[0];
+    // A ")" closing a bracket opened in the Hebrew text belongs to the Hebrew,
+    // otherwise the brackets point the wrong way.
+    const unbalanced = run.split(")").length > run.split("(").length;
+    if (unbalanced) run = run.replace(/\)[.?!]*$/, "");
     if (start > last) parts.push({ latin: false, text: text.slice(last, start) });
-    parts.push({ latin: true, text: m[0] });
-    last = start + m[0].length;
+    parts.push({ latin: true, text: run });
+    last = start + run.length;
   }
   if (last < text.length) parts.push({ latin: false, text: text.slice(last) });
 

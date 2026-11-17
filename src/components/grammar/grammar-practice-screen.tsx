@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect } from "react";
-import { Lightbulb, RotateCcw } from "lucide-react";
+import { Lightbulb, Loader2, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { GrammarExercise } from "@/components/grammar/exercises";
@@ -43,6 +43,18 @@ export function GrammarPracticeScreen({ c }: { c: GrammarPracticeController }) {
   const checked = c.grade !== null;
   const hint = hintFor(item, c.topic);
   const progressPct = Math.round((c.index / Math.max(1, c.queue.length)) * 100);
+
+  const ai = c.grade?.aiGraded ? c.grade : null;
+  const aiFeedback = ai && (ai.feedbackHe || ai.feedbackEn) && (
+    <div className="space-y-1 rounded-lg bg-background/60 px-3 py-2">
+      {ai.feedbackHe && (c.showBothLangs || c.ruleLang === "he") && (
+        <p className="font-hebrew font-medium" dir="rtl"><HeText text={ai.feedbackHe} /></p>
+      )}
+      {ai.feedbackEn && (c.showBothLangs || c.ruleLang === "en" || !ai.feedbackHe) && (
+        <p className={cn("font-medium", c.showBothLangs && "text-muted-foreground font-normal")} dir="ltr">{ai.feedbackEn}</p>
+      )}
+    </div>
+  );
 
   const explanation = (
     <div className="space-y-1">
@@ -122,6 +134,7 @@ export function GrammarPracticeScreen({ c }: { c: GrammarPracticeController }) {
               <span className="font-semibold">{c.grade.expected}</span>
             </p>
           )}
+          {aiFeedback && <div className="text-sm">{aiFeedback}</div>}
           <div className="text-sm">{explanation}</div>
         </div>
       )}
@@ -137,9 +150,15 @@ export function GrammarPracticeScreen({ c }: { c: GrammarPracticeController }) {
             size="lg"
             onClick={c.check}
             disabled={!c.canCheck}
-            className="min-w-32 h-11 text-base font-bold cursor-pointer font-hebrew"
+            className="min-w-32 h-11 text-base font-bold cursor-pointer font-hebrew gap-2"
           >
-            בדיקה
+            {c.aiChecking ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" /> בודק…
+              </>
+            ) : (
+              "בדיקה"
+            )}
           </Button>
         )}
       </div>

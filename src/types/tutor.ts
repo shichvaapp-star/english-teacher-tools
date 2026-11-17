@@ -5,6 +5,7 @@ export interface SkillMastery {
   reading: number; // 0 - 100
   vocabulary: number; // 0 - 100
   writing: number; // 0 - 100
+  grammar?: number; // 0 - 100 (average best score across practised grammar topics)
 }
 
 export interface TaskTopicOption {

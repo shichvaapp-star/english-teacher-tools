@@ -289,6 +289,7 @@ export async function POST(request: Request) {
     const readingSkill = profile?.skills?.reading || 60;
     const vocabSkill = profile?.skills?.vocabulary || 60;
     const writingSkill = profile?.skills?.writing || 60;
+    const grammarSkill = profile?.skills?.grammar;
     const unseenTopics = getUnseenTopicsForLevel(currentLevel);
     const writingTopics = getWritingTopicsForLevel(currentLevel);
 
@@ -301,7 +302,7 @@ Your mission is to build the student's confidence and guide them across the plat
 STUDENT CONTEXT:
 - Student Name: ${studentName}
 - Current Level: ${currentLevel} (${currentBand})
-- Skills: Reading ${readingSkill}/100 | Vocabulary ${vocabSkill}/100 | Writing ${writingSkill}/100
+- Skills: Reading ${readingSkill}/100 | Vocabulary ${vocabSkill}/100 | Writing ${writingSkill}/100${grammarSkill !== undefined ? ` | Grammar ${grammarSkill}/100` : ""}
 - Available Unseen Topics for ${currentLevel}: ${unseenTopics.map((t) => `${t.emoji} ${t.nameHebrew} (${t.titleEnglish})`).join(", ")}
 - Available Writing Topics for ${currentLevel}: ${writingTopics.map((t) => `${t.emoji} ${t.nameHebrew} (${t.titleEnglish})`).join(", ")}
 

@@ -7,6 +7,7 @@ import { GrammarTopicsScreen } from "@/components/grammar/grammar-topics-screen"
 import { GrammarPracticeScreen } from "@/components/grammar/grammar-practice-screen";
 import { GrammarResultsScreen } from "@/components/grammar/grammar-results-screen";
 import { GrammarRuleSheet } from "@/components/grammar/grammar-rule-sheet";
+import { GrammarAiSettingsModal } from "@/components/grammar/grammar-ai-settings-modal";
 
 export default function GrammarPage() {
   const c = useGrammarPractice();
@@ -20,6 +21,8 @@ export default function GrammarPage() {
         <GrammarPracticeScreen c={c} />
         <GrammarResultsScreen c={c} />
       </main>
+
+      <GrammarAiSettingsModal c={c} />
 
       {c.topic && (
         <GrammarRuleSheet

@@ -1,5 +1,6 @@
 import {
   BookA,
+  BookOpenCheck,
   ClipboardList,
   Home,
   Inbox,
@@ -12,7 +13,16 @@ import {
 
 export const DASHBOARD_BASE = "/teacher/dashboard";
 
-export type NavKey = "home" | "turnIns" | "assignments" | "students" | "banks" | "shared" | "adminTeachers" | "suggestions";
+export type NavKey =
+  | "home"
+  | "turnIns"
+  | "assignments"
+  | "students"
+  | "banks"
+  | "grammar"
+  | "shared"
+  | "adminTeachers"
+  | "suggestions";
 
 export interface NavItem {
   key: NavKey;
@@ -28,6 +38,7 @@ export const NAV_ITEMS: NavItem[] = [
   { key: "assignments", href: `${DASHBOARD_BASE}/assignments`, label: "משימות", icon: ClipboardList },
   { key: "students", href: `${DASHBOARD_BASE}/students`, label: "תלמידים", icon: Users },
   { key: "banks", href: `${DASHBOARD_BASE}/banks`, label: "מאגרי מילים", icon: BookA },
+  { key: "grammar", href: `${DASHBOARD_BASE}/grammar`, label: "מאגר דקדוק", icon: BookOpenCheck },
   { key: "shared", href: `${DASHBOARD_BASE}/shared`, label: "מאגר משותף", icon: Share2 },
   { key: "adminTeachers", href: `${DASHBOARD_BASE}/admin/teachers`, label: "ניהול מורים", icon: ShieldCheck, admin: true },
   { key: "suggestions", href: `${DASHBOARD_BASE}/admin/suggestions`, label: "הצעות ומשוב", icon: MessageSquarePlus, admin: true },

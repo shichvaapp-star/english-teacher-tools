@@ -90,6 +90,73 @@ function PointBox({ point, index, lang }: { point: RulePoint; index: number; lan
   );
 }
 
+/** Rule boxes, form table, signal words and common mistakes for one level. */
+export function RuleCardBody({ topic, level, lang }: { topic: GrammarTopic; level: LevelNumber; lang: RuleLang }) {
+  const card = topic.rule[level];
+  // Fewer mistakes for lower levels keeps the panel short.
+  const traps = topic.traps.slice(0, level === 1 ? 3 : level === 2 ? 4 : topic.traps.length);
+  const L = LABELS[lang];
+  return (
+    <div className="space-y-6">
+      {/* Rule boxes */}
+      <div className="space-y-3">
+        {card.points.map((p, i) => (
+          <PointBox key={p.en} point={p} index={i} lang={lang} />
+        ))}
+      </div>
+
+      {/* Form */}
+      <div className="space-y-2">
+        <SectionLabel lang={lang}>{L.form}</SectionLabel>
+        <div className="rounded-xl border border-border overflow-hidden" dir="ltr">
+          {card.form.map((row) => (
+            <div key={row.pattern} className="flex gap-3 border-b border-border/60 last:border-b-0 px-3 py-2">
+              <span className="w-4 shrink-0 font-bold text-type-grammar">{FORM_SIGN[row.kind]}</span>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold">{row.pattern}</p>
+                <p className="text-sm text-muted-foreground">{row.example}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Signal words */}
+      {card.timeWords && card.timeWords.length > 0 && (
+        <div className="space-y-2">
+          <SectionLabel lang={lang}>{L.words}</SectionLabel>
+          <div className="flex flex-wrap gap-1.5" dir="ltr">
+            {card.timeWords.map((w) => (
+              <span key={w} className="rounded-full bg-muted px-2.5 py-0.5 text-sm">{w}</span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Common mistakes */}
+      {traps.length > 0 && (
+        <div className="space-y-2">
+          <SectionLabel lang={lang}>{`⚠️ ${L.watch}`}</SectionLabel>
+          {traps.map((t) => (
+            <div key={t.id} className="rounded-xl border border-border overflow-hidden">
+              <div className="space-y-0.5 px-4 py-2.5 text-base" dir="ltr">
+                <p className="text-destructive/80 line-through decoration-destructive/60">✗ {t.wrong}</p>
+                <p className="font-semibold text-success">✓ {t.right}</p>
+              </div>
+              <p
+                className={cn("border-t border-border/60 bg-muted/30 px-4 py-2 text-sm text-muted-foreground", lang === "he" && "font-hebrew")}
+                dir={lang === "he" ? "rtl" : "ltr"}
+              >
+                {lang === "he" ? <HeText text={t.whyHe} /> : t.whyEn}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function GrammarRuleSheet({
   topic,
   level,
@@ -105,11 +172,6 @@ export function GrammarRuleSheet({
   open: boolean;
   onOpenChange: (o: boolean) => void;
 }) {
-  const card = topic.rule[level];
-  // Fewer mistakes for lower levels keeps the panel short.
-  const traps = topic.traps.slice(0, level === 1 ? 3 : level === 2 ? 4 : topic.traps.length);
-  const L = LABELS[lang];
-
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="data-[side=right]:w-full data-[side=right]:sm:max-w-md overflow-y-auto p-5">
@@ -135,61 +197,7 @@ export function GrammarRuleSheet({
             </div>
           </div>
 
-          {/* Rule boxes */}
-          <div className="space-y-3">
-            {card.points.map((p, i) => (
-              <PointBox key={p.en} point={p} index={i} lang={lang} />
-            ))}
-          </div>
-
-          {/* Form */}
-          <div className="space-y-2">
-            <SectionLabel lang={lang}>{L.form}</SectionLabel>
-            <div className="rounded-xl border border-border overflow-hidden" dir="ltr">
-              {card.form.map((row) => (
-                <div key={row.pattern} className="flex gap-3 border-b border-border/60 last:border-b-0 px-3 py-2">
-                  <span className="w-4 shrink-0 font-bold text-type-grammar">{FORM_SIGN[row.kind]}</span>
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold">{row.pattern}</p>
-                    <p className="text-sm text-muted-foreground">{row.example}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Signal words */}
-          {card.timeWords && card.timeWords.length > 0 && (
-            <div className="space-y-2">
-              <SectionLabel lang={lang}>{L.words}</SectionLabel>
-              <div className="flex flex-wrap gap-1.5" dir="ltr">
-                {card.timeWords.map((w) => (
-                  <span key={w} className="rounded-full bg-muted px-2.5 py-0.5 text-sm">{w}</span>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Common mistakes */}
-          {traps.length > 0 && (
-            <div className="space-y-2">
-              <SectionLabel lang={lang}>{`⚠️ ${L.watch}`}</SectionLabel>
-              {traps.map((t) => (
-                <div key={t.id} className="rounded-xl border border-border overflow-hidden">
-                  <div className="space-y-0.5 px-4 py-2.5 text-base" dir="ltr">
-                    <p className="text-destructive/80 line-through decoration-destructive/60">✗ {t.wrong}</p>
-                    <p className="font-semibold text-success">✓ {t.right}</p>
-                  </div>
-                  <p
-                    className={cn("border-t border-border/60 bg-muted/30 px-4 py-2 text-sm text-muted-foreground", lang === "he" && "font-hebrew")}
-                    dir={lang === "he" ? "rtl" : "ltr"}
-                  >
-                    {lang === "he" ? <HeText text={t.whyHe} /> : t.whyEn}
-                  </p>
-                </div>
-              ))}
-            </div>
-          )}
+          <RuleCardBody topic={topic} level={level} lang={lang} />
         </div>
       </SheetContent>
     </Sheet>

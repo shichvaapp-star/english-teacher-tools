@@ -110,6 +110,78 @@ function VocabContent({ sub }: { sub: SubmissionItem }) {
   );
 }
 
+const GRAMMAR_TYPE_HE: Record<string, string> = {
+  mcq: "בחירה",
+  gap_bank: "בנק מילים",
+  gap_type: "הקלדת הצורה",
+  unscramble: "בניית משפט",
+  find_fix: "מצאו ותקנו",
+  transform: "שינוי משפט",
+  sort: "מיון",
+  match_halves: "התאמת חצאים",
+  cloze_text: "טקסט קצר",
+  write_own: "כתיבה חופשית",
+};
+
+function GrammarContent({ sub }: { sub: SubmissionItem }) {
+  const summary = sub.grammarSummary;
+  const entries = summary?.entries ?? [];
+  const review = entries.filter((e) => e.needsReview).length;
+  const hints = entries.filter((e) => e.usedHint).length;
+  return (
+    <div className="space-y-5">
+      <div className="grid grid-cols-3 gap-2">
+        <Metric label="נכונים" value={summary ? `${summary.correctItems}/${summary.totalItems}` : "—"} />
+        <Metric label="ציון" value={sub.score ?? "—"} />
+        <Metric label="רמה" value={summary ? `${summary.level}${summary.grade ? ` · כיתה ${summary.grade}` : ""}` : "—"} />
+      </div>
+      {(review > 0 || hints > 0) && (
+        <p className="text-2xs text-muted-foreground">
+          {review > 0 && <span className="font-semibold text-warning-foreground dark:text-warning">{review} תשובות ממתינות לבדיקה שלך. </span>}
+          {hints > 0 && <span>{hints} תרגילים נפתרו בעזרת רמז.</span>}
+        </p>
+      )}
+      <Section title={`תשובות התלמיד/ה (${entries.length} תרגילים)`}>
+        <div className="space-y-2">
+          {entries.map((e, idx) => {
+            const tone = e.needsReview
+              ? { border: "border-warning/40", bg: "bg-warning/5", text: "text-warning-foreground dark:text-warning" }
+              : pointsTone(e.points * 10);
+            return (
+              <div key={`${e.itemId}-${idx}`} className={cn("space-y-1.5 rounded-lg border p-3 text-xs", tone.border, tone.bg)}>
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-2xs text-muted-foreground">
+                    {idx + 1}. {GRAMMAR_TYPE_HE[e.exerciseType] ?? e.exerciseType}
+                    {e.usedHint && " · רמז"}
+                    {e.aiGraded && " · נבדק ב-AI"}
+                  </span>
+                  <span className={cn("shrink-0 font-semibold tabular-nums", tone.text)}>
+                    {e.needsReview ? "לבדיקה" : `${Math.round(e.points * 10)}/10`}
+                  </span>
+                </div>
+                <div className="space-y-0.5" dir="ltr">
+                  <p className="font-medium text-foreground">{e.prompt}</p>
+                  <p className="text-muted-foreground">
+                    <span className="text-2xs">Student: </span>
+                    <span className={cn("font-medium", tone.text)}>{e.studentAnswer || "—"}</span>
+                  </p>
+                  {!e.isCorrect && e.expected && (
+                    <p className="text-muted-foreground">
+                      <span className="text-2xs">Expected: </span>
+                      <span className="font-medium text-foreground">{e.expected}</span>
+                    </p>
+                  )}
+                </div>
+                {e.feedbackHebrew && !e.isCorrect && <p className="text-2xs text-muted-foreground">{e.feedbackHebrew}</p>}
+              </div>
+            );
+          })}
+        </div>
+      </Section>
+    </div>
+  );
+}
+
 function Metric({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="rounded-lg border border-border bg-muted/30 p-3">
@@ -321,7 +393,9 @@ export function AiEvaluationPanel({
 export function SubmissionContent({ sub }: { sub: SubmissionItem }) {
   return (
     <div className="space-y-5">
-      {sub.type === "vocab" ? (
+      {sub.type === "grammar" ? (
+        <GrammarContent sub={sub} />
+      ) : sub.type === "vocab" ? (
         <VocabContent sub={sub} />
       ) : sub.type === "writing" ? (
         <WritingContent sub={sub} />

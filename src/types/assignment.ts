@@ -1,8 +1,20 @@
 import { StudentGroup } from "./auth";
+import type { GrammarExerciseType } from "./grammar";
 
 export type AssignmentTargetType = "all" | "class" | "group" | "students";
 export type ExerciseLevel = "Level 1" | "Level 2" | "Level 3";
-export type AssignmentType = "writing" | "unseen" | "vocab" | "conversation";
+export type AssignmentType = "writing" | "unseen" | "vocab" | "conversation" | "grammar";
+
+export interface GrammarAssignmentConfig {
+  /** One topic, or several for a mixed review. */
+  topicIds: string[];
+  /** Empty / missing = the usual mix for the level. */
+  exerciseTypes?: GrammarExerciseType[];
+  /** Number of items (default: all items of the level). */
+  itemCount?: number;
+  /** Let students continue with AI "more practice" after the set. */
+  allowAiPractice?: boolean;
+}
 
 export interface AssignedVocabWord {
   id: string;
@@ -21,6 +33,7 @@ export interface TeacherAssignment {
   hebrewTitle: string;
   taskId?: string; // ID of specific writing task or unseen passage or preset vocab id
   vocabWords?: AssignedVocabWord[]; // Words pre-assigned by the teacher
+  grammarConfig?: GrammarAssignmentConfig; // Grammar assignments only
   level?: ExerciseLevel; // Selected exercise level: Level 1, Level 2, or Level 3
   isFreeChoice?: boolean;
   isAdaptiveDavid?: boolean; // David selects a task matching each student's personal level (Level 1/2/3)

@@ -399,7 +399,7 @@ export const presentSimpleItems: GrammarItem[] = [
     source: "Dan eats breakfast at home.",
     taskEn: "Make it negative.", taskHe: "הפכו לשלילה",
     answers: ["Dan doesn't eat breakfast at home.", "Dan does not eat breakfast at home."],
-    explanationHe: "doesn't + eat (ה-s עוברת ל-does).",
+    explanationHe: "doesn't + eat – ה-s עוברת ל-does.",
     explanationEn: "doesn't + eat (the -s moves to does).",
   },
   {
@@ -541,7 +541,7 @@ export const presentSimpleItems: GrammarItem[] = [
     source: "Shira studies Arabic.",
     taskEn: "Make it negative.", taskHe: "הפכו לשלילה",
     answers: ["Shira doesn't study Arabic.", "Shira does not study Arabic."],
-    explanationHe: "doesn't + study (ה-ies חוזר ל-y).",
+    explanationHe: "doesn't + study – ה-ies חוזר להיות y.",
     explanationEn: "doesn't + study (ies goes back to y).",
   },
   {
