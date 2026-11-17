@@ -34,13 +34,14 @@ import { pronounsItems, pronounsTopic } from "@/data/grammar/topics/pronouns";
 import { adjectiveOrderItems, adjectiveOrderTopic } from "@/data/grammar/topics/adjective-order";
 import { comparativesItems, comparativesTopic } from "@/data/grammar/topics/comparatives";
 import { superlativesItems, superlativesTopic } from "@/data/grammar/topics/superlatives";
+import { sequencingAdverbsItems, sequencingAdverbsTopic } from "@/data/grammar/topics/sequencing-adverbs";
 import { presentSimpleGrade7Items } from "@/data/grammar/topics/present-simple-g7";
 import { presentSimpleGrade8Items } from "@/data/grammar/topics/present-simple-g8";
 import { presentSimpleGrade9Items } from "@/data/grammar/topics/present-simple-g9";
 
 export { GRAMMAR_GROUPS } from "@/data/grammar/groups";
 
-export const GRAMMAR_TOPICS: GrammarTopic[] = [toBeTopic, thereIsAreTopic, presentSimpleTopic, presentProgressiveTopic, simpleVsProgressiveTopic, pastSimpleTopic, pastProgressiveTopic, pastSimpleVsProgressiveTopic, futureWillTopic, goingToTopic, willVsGoingToTopic, presentPerfectTopic, perfectVsPastTopic, questionsTopic, negativesTopic, canCouldTopic, mustShouldTopic, wouldLikeTopic, usedToTopic, passiveTopic, linkingWordsTopic, timeClausesTopic, firstConditionalTopic, relativeClausesTopic, reportedSpeechTopic, imperativesTopic, pluralsCountableTopic, articlesTopic, possessivesTopic, quantityTopic, pronounsTopic, adjectiveOrderTopic, comparativesTopic, superlativesTopic];
+export const GRAMMAR_TOPICS: GrammarTopic[] = [toBeTopic, thereIsAreTopic, presentSimpleTopic, presentProgressiveTopic, simpleVsProgressiveTopic, pastSimpleTopic, pastProgressiveTopic, pastSimpleVsProgressiveTopic, futureWillTopic, goingToTopic, willVsGoingToTopic, presentPerfectTopic, perfectVsPastTopic, questionsTopic, negativesTopic, canCouldTopic, mustShouldTopic, wouldLikeTopic, usedToTopic, passiveTopic, linkingWordsTopic, timeClausesTopic, firstConditionalTopic, relativeClausesTopic, reportedSpeechTopic, imperativesTopic, pluralsCountableTopic, articlesTopic, possessivesTopic, quantityTopic, pronounsTopic, adjectiveOrderTopic, comparativesTopic, superlativesTopic, sequencingAdverbsTopic];
 
 export const GRAMMAR_ITEMS: GrammarItem[] = [
   ...toBeItems,
@@ -80,6 +81,7 @@ export const GRAMMAR_ITEMS: GrammarItem[] = [
   ...adjectiveOrderItems,
   ...comparativesItems,
   ...superlativesItems,
+  ...sequencingAdverbsItems,
 ];
 
 export function getGrammarTopic(id: string): GrammarTopic | undefined {
