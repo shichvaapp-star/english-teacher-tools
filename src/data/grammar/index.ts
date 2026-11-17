@@ -1,19 +1,31 @@
 import type { GrammarItem, GrammarTopic } from "@/types/grammar";
 import type { ClassGrade, LevelNumber } from "@/lib/levels";
+import { toBeItems, toBeTopic } from "@/data/grammar/topics/to-be";
+import { thereIsAreItems, thereIsAreTopic } from "@/data/grammar/topics/there-is-are";
 import { presentSimpleItems, presentSimpleTopic } from "@/data/grammar/topics/present-simple";
+import { presentProgressiveItems, presentProgressiveTopic } from "@/data/grammar/topics/present-progressive";
+import { simpleVsProgressiveItems, simpleVsProgressiveTopic } from "@/data/grammar/topics/simple-vs-progressive";
+import { pastSimpleItems, pastSimpleTopic } from "@/data/grammar/topics/past-simple";
+import { pastProgressiveItems, pastProgressiveTopic } from "@/data/grammar/topics/past-progressive";
 import { presentSimpleGrade7Items } from "@/data/grammar/topics/present-simple-g7";
 import { presentSimpleGrade8Items } from "@/data/grammar/topics/present-simple-g8";
 import { presentSimpleGrade9Items } from "@/data/grammar/topics/present-simple-g9";
 
 export { GRAMMAR_GROUPS } from "@/data/grammar/groups";
 
-export const GRAMMAR_TOPICS: GrammarTopic[] = [presentSimpleTopic];
+export const GRAMMAR_TOPICS: GrammarTopic[] = [toBeTopic, thereIsAreTopic, presentSimpleTopic, presentProgressiveTopic, simpleVsProgressiveTopic, pastSimpleTopic, pastProgressiveTopic];
 
 export const GRAMMAR_ITEMS: GrammarItem[] = [
+  ...toBeItems,
+  ...thereIsAreItems,
   ...presentSimpleItems,
   ...presentSimpleGrade7Items,
   ...presentSimpleGrade8Items,
   ...presentSimpleGrade9Items,
+  ...presentProgressiveItems,
+  ...simpleVsProgressiveItems,
+  ...pastSimpleItems,
+  ...pastProgressiveItems,
 ];
 
 export function getGrammarTopic(id: string): GrammarTopic | undefined {

@@ -205,15 +205,28 @@ for (const i of GRAMMAR_ITEMS) {
     }
   }
 
-  const k = `${i.topicId}:${i.level}`;
+  // Count per topic:level:grade ("all" = shared items).
+  const k = `${i.topicId}:${i.level}:${i.grade ?? "all"}`;
   counts[k] = (counts[k] ?? 0) + 1;
+  if (topic && i.grade !== undefined && topic.grades[i.grade] === undefined) {
+    err(w, `grade ${i.grade} is not one of this topic's curriculum grades`);
+  }
 }
 
+// Every curriculum grade of a topic needs its own levels 1–2 set (shared items count too);
+// level 3 is shared.
 for (const t of GRAMMAR_TOPICS) {
-  for (const lvl of [1, 2, 3]) {
-    const n = counts[`${t.id}:${lvl}`] ?? 0;
-    if (n < MIN_ITEMS_PER_LEVEL) err(t.id, `level ${lvl} has ${n} items (min ${MIN_ITEMS_PER_LEVEL})`);
+  const grades = Object.keys(t.grades).map(Number);
+  for (const lvl of [1, 2]) {
+    for (const g of grades) {
+      const n = (counts[`${t.id}:${lvl}:${g}`] ?? 0) + (counts[`${t.id}:${lvl}:all`] ?? 0);
+      if (n < MIN_ITEMS_PER_LEVEL) err(t.id, `level ${lvl} grade ${g} has ${n} items (min ${MIN_ITEMS_PER_LEVEL})`);
+    }
   }
+  const n3 = Object.entries(counts)
+    .filter(([k]) => k.startsWith(`${t.id}:3:`))
+    .reduce((a, [, v]) => a + v, 0);
+  if (n3 < MIN_ITEMS_PER_LEVEL) err(t.id, `level 3 has ${n3} items (min ${MIN_ITEMS_PER_LEVEL})`);
 }
 
 if (missingGrade) {

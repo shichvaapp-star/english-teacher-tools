@@ -23,6 +23,12 @@ const IRREGULAR: Record<string, string> = {
   children: "child", men: "man", women: "woman", people: "person", feet: "foot",
   teeth: "tooth", mice: "mouse", better: "good", best: "good", worse: "bad", worst: "bad",
   further: "far", farther: "far", has: "have", had: "have", does: "do", did: "do",
+  lying: "lie", dying: "die", tying: "tie",
+  fought: "fight", drew: "draw", drawn: "draw", became: "become", bit: "bite", bitten: "bite",
+  fed: "feed", lit: "light", dug: "dig", forgave: "forgive", forgiven: "forgive", swum: "swim",
+  shone: "shine", sank: "sink", sunk: "sink", spun: "spin", stuck: "stick", struck: "strike",
+  hung: "hang", bent: "bend", blew: "blow", blown: "blow", froze: "freeze", frozen: "freeze",
+  stung: "sting", swung: "swing", tore: "tear", torn: "tear", wept: "weep", wound: "wind",
 };
 
 /** Possible base forms for an inflected word (the word itself first). */
@@ -109,6 +115,7 @@ export function findUnknownWords(texts: string[], allowed: Set<string>): string[
   for (const text of texts) {
     const words = text
       .replace(/n[’']t\b/gi, " not")
+      .replace(/(^|\s)[’'](s|m|re|ve|ll|d)\b/gi, " ")
       .replace(/[’'](m|re|ve|ll|d)\b/gi, " ")
       .match(/[A-Za-z][A-Za-z’'-]*/g);
     for (const raw of words ?? []) {
