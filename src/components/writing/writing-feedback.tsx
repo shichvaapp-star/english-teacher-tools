@@ -30,13 +30,16 @@ export function WritingFeedback({ c }: { c: WritingPracticeController }) {
     setActiveMode,
     setShowDetailedRubric,
     showDetailedRubric,
+    submissionSuccess,
   } = c;
+  const isPractice = activeMode === "practice";
   return (
     <>
       {/* ACTION BUTTONS & FEEDBACK */}
-      {activeMode === "practice" && (
+      {/* Shown in both modes: students can get AI feedback before submitting to the teacher. */}
+      {(isPractice || !submissionSuccess) && (
         <div className="space-y-4 pt-1">
-          <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-3">
+          <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-3" dir="rtl">
             <Button
               onClick={handleEvaluate}
               disabled={isEvaluating || isTurningInToDavid}
@@ -48,14 +51,16 @@ export function WritingFeedback({ c }: { c: WritingPracticeController }) {
               </span>
             </Button>
 
-            <Button
-              onClick={() => setActiveMode("submit")}
-              variant="outline"
-              className="flex-1 h-11 text-xs sm:text-sm font-bold cursor-pointer gap-2 border-purple-500/50 bg-purple-500/10 hover:bg-purple-500/20 text-purple-700 dark:text-purple-300 shadow-xs"
-            >
-              <Send className="h-4 w-4 text-purple-600 dark:text-purple-400" />
-              <span>הגש למורה בכיתה 📤</span>
-            </Button>
+            {isPractice && (
+              <Button
+                onClick={() => setActiveMode("submit")}
+                variant="outline"
+                className="flex-1 h-11 text-xs sm:text-sm font-bold cursor-pointer gap-2 border-purple-500/50 bg-purple-500/10 hover:bg-purple-500/20 text-purple-700 dark:text-purple-300 shadow-xs"
+              >
+                <Send className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                <span>הגש למורה בכיתה 📤</span>
+              </Button>
+            )}
           </div>
 
           {/* AI Feedback Card - Clean, Progressive & Student-Friendly */}
@@ -205,7 +210,8 @@ export function WritingFeedback({ c }: { c: WritingPracticeController }) {
                 </div>
               )}
 
-              {/* 5. Next Step Action Callout */}
+              {/* 5. Next Step Action Callout (practice mode only; submit form is already below) */}
+              {isPractice && (
               <div className="p-4 rounded-xl bg-purple-500/10 border-2 border-purple-500/35 flex flex-col sm:flex-row items-center justify-between gap-3 text-right">
                 <div className="space-y-0.5">
                   <h5 className="text-xs sm:text-sm font-bold text-foreground flex items-center gap-1.5">
@@ -227,6 +233,7 @@ export function WritingFeedback({ c }: { c: WritingPracticeController }) {
                   </Button>
                 </div>
               </div>
+              )}
 
               {/* 6. Progressive Disclosure: Toggle for Full MOE Rubric & Vocabulary Upgrades */}
               <div className="pt-2 border-t border-border/60">
