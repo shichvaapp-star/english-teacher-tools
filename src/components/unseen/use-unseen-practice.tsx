@@ -1,5 +1,6 @@
 "use client";
 
+import { isHebrewOnly } from "@/lib/hebrew-text";
 import React, { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { usePrintOptions } from "@/components/print/use-print-options";
@@ -1009,7 +1010,7 @@ export function useUnseenPractice() {
       const cached = localStorage.getItem(cacheKey);
       if (cached) {
         const parsed = JSON.parse(cached);
-        if (parsed?.hebrew) {
+        if (parsed?.hebrew && isHebrewOnly(parsed.hebrew)) {
           setClickedWord({
             word: clean,
             hebrew: parsed.hebrew,
@@ -1170,7 +1171,7 @@ export function useUnseenPractice() {
       const cached = localStorage.getItem(cacheKey);
       if (cached) {
         const parsed = JSON.parse(cached);
-        if (parsed?.hebrew) {
+        if (parsed?.hebrew && isHebrewOnly(parsed.hebrew)) {
           setClickedWord({
             word: clean,
             hebrew: parsed.hebrew,
@@ -1276,7 +1277,7 @@ export function useUnseenPractice() {
       const cached = localStorage.getItem(cacheKey);
       if (cached) {
         const parsed = JSON.parse(cached);
-        if (parsed?.hebrew) {
+        if (parsed?.hebrew && isHebrewOnly(parsed.hebrew)) {
           setQuestionTranslations((prev) => ({
             ...prev,
             [questionId]: { hebrew: parsed.hebrew, loading: false, visible: true },
