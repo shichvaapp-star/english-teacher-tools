@@ -80,7 +80,7 @@ g7a.match([["big", "bigger"], ["good", "better"], ["happy", "happier"], ["bad", 
 
 const g7b = itemSet(T, "cm", 2, 7);
 g7b.type("This bowl is ___ than that one.", "big", "bigger", "big → bigger (מכפילים g).", "big → bigger.", { trap: "cm-spelling" });
-g7b.type("I'm ___ today than yesterday.", "happy", "happier", "y, ולכן ier: happier.", "happy → happier.");
+g7b.type("I'm ___ today than yesterday.", "happy", "happier", "y בסוף הופך ל-ier: happier.", "happy → happier.");
 g7b.type("The journey was ___ than we expected.", "long", "longer", "long, ולכן longer.", "long → longer.");
 g7b.type("This activity is ___ than the last one.", "exciting", "more exciting", "תואר ארוך → more exciting.", "Long → more exciting.", { trap: "cm-long", allow: ["exciting"] });
 g7b.mcq("She's ___ taller than me.", ["much", "more", "very"], "הרבה יותר → much taller.", "much + comparative.");
@@ -109,7 +109,7 @@ g8a.match([["hot", "hotter"], ["good", "better"], ["busy", "busier"], ["bad", "w
 
 const g8b = itemSet(T, "cm", 2, 8);
 g8b.type("It's ___ in Eilat than in Haifa.", "hot", "hotter", "hot → hotter (מכפילים t).", "hot → hotter.", { trap: "cm-spelling" });
-g8b.type("The café is ___ on weekends.", "busy", "busier", "y, ולכן ier: busier.", "busy → busier.", { allow: ["busy", "busier"] });
+g8b.type("The café is ___ on weekends.", "busy", "busier", "y בסוף הופך ל-ier: busier.", "busy → busier.", { allow: ["busy", "busier"] });
 g8b.type("This flight is ___ than the last one.", "short", "shorter", "short, ולכן shorter.", "short → shorter.");
 g8b.type("This concert was ___ than the last one.", "exciting", "more exciting", "תואר ארוך → more exciting.", "Long → more exciting.", { trap: "cm-long", allow: ["exciting"] });
 g8b.mcq("The new camera is ___ better than the old one.", ["much", "more", "very"], "הרבה יותר → much better.", "much + comparative.");
@@ -138,7 +138,7 @@ g9a.match([["thin", "thinner"], ["good", "better"], ["easy", "easier"], ["bad", 
 
 const g9b = itemSet(T, "cm", 2, 9);
 g9b.type("This ladder is ___ than the old one.", "thin", "thinner", "thin → thinner (מכפילים n).", "thin → thinner.", { trap: "cm-spelling", allow: ["thinner"] });
-g9b.type("The new app is ___ to use.", "easy", "easier", "y, ולכן ier: easier.", "easy → easier.", { allow: ["easy", "easier"] });
+g9b.type("The new app is ___ to use.", "easy", "easier", "y בסוף הופך ל-ier: easier.", "easy → easier.", { allow: ["easy", "easier"] });
 g9b.type("The tower is ___ than the stadium.", "old", "older", "old, ולכן older.", "old → older.");
 g9b.type("This sofa is ___ than the old one.", "comfortable", "more comfortable", "תואר ארוך → more comfortable.", "Long → more comfortable.", { trap: "cm-long", allow: ["sofa", "comfortable"] });
 g9b.mcq("The new stadium is ___ bigger than the old one.", ["much", "more", "very"], "הרבה יותר → much bigger.", "much + comparative.");
@@ -158,7 +158,7 @@ l3.type("It's getting ___ every day.", "cold – and – cold", "colder and cold
 l3.type("This test isn't as ___ as the last one.", "difficult", "difficult", "not as + תואר + as (בלי er).", "not as + adjective + as.", { allow: ["difficult"] });
 l3.fix("She is as *taller as her sister.", ["tall"], "as + תואר רגיל + as: as tall as.", "as + plain adjective + as.");
 l3.mcq("Prices are getting ___.", ["more and more expensive", "more expensive and expensive", "expensiver and expensiver"], "הולך ונעשה + תואר ארוך → more and more expensive.", "more and more + long adjective.", { allow: ["prices", "expensiver"] });
-l3.fix("This exercise is *easyer than the last one.", ["easier"], "y, ולכן ier: easier.", "easy → easier.", { allow: ["easyer", "easier"] });
+l3.fix("This exercise is *easyer than the last one.", ["easier"], "y בסוף הופך ל-ier: easier.", "easy → easier.", { allow: ["easyer", "easier"] });
 l3.transform("Tom is 15. Dan is 15 too.", "Compare with 'as … as'.", "השוו עם as … as", ["Tom is as old as Dan.", "Dan is as old as Tom."], "שימו לב: as old as.", "as old as.");
 l3.transform("If you practice more, you get better.", "Say it with 'The more …, the better …'.", "אמרו את זה עם The more …, the better …", ["The more you practice, the better you get."], "שימו לב: The more … the better.", "The more …, the better.");
 l3.sort(["✓ Correct", "✗ Wrong"], [["She's taller than me.", "✓ Correct"], ["She's more taller than me.", "✗ Wrong"], ["It's not as hot as yesterday.", "✓ Correct"], ["It's as hotter as yesterday.", "✗ Wrong"], ["The sooner, the better.", "✓ Correct"], ["This is gooder.", "✗ Wrong"]], "התיקונים: taller · as hot as · better.", "Fixes: taller · as hot as · better.", { allow: ["sooner"] });
