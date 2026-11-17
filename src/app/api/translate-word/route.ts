@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
 import { lookupBuiltInTranslation } from "@/data/built-in-dictionary";
+import { isHebrewOnly, stripForeignScripts } from "@/lib/hebrew-text";
+
+const HEBREW_ONLY_RULE =
+  "CRITICAL: The \"hebrew\" field must be written ONLY in Hebrew letters. Never include words in Hindi, Arabic, Russian, Chinese or any other language or script. Do not transliterate.";
 
 interface TranslationResult {
   english: string;
@@ -110,7 +114,8 @@ Return ONLY a raw JSON object matching this schema:
   "hebrew": "Accurate and natural Hebrew translation of the entire selected text",
   "partOfSpeech": "noun",
   "example": ""
-}`
+}
+${HEBREW_ONLY_RULE}`
       : `You are an expert English-Hebrew translator and English middle-school teacher. Translate the given English word into natural Hebrew.
 Return ONLY a raw JSON object matching this schema:
 {
@@ -118,7 +123,11 @@ Return ONLY a raw JSON object matching this schema:
   "hebrew": "Hebrew translation (natural, accurate, comma-separated if multiple common meanings)",
   "partOfSpeech": "noun" | "verb" | "adjective" | "adverb",
   "example": "A short, simple example sentence in English showing the word in context."
-}`;
+}
+${HEBREW_ONLY_RULE}`;
+
+    // A translation that mixed in other scripts; used (cleaned) only if nothing better arrives.
+    let mixedCandidate: TranslationResult | null = null;
 
     // 1. Try Groq (Fastest, ~200ms)
     if (groqApiKey) {
@@ -142,8 +151,12 @@ Return ONLY a raw JSON object matching this schema:
           const content = data.choices?.[0]?.message?.content;
           if (content) {
             const parsed: TranslationResult = JSON.parse(content);
-            serverTranslationCache.set(cacheKey, parsed);
-            return NextResponse.json({ success: true, data: parsed, source: "groq" });
+            if (isHebrewOnly(parsed.hebrew ?? "")) {
+              serverTranslationCache.set(cacheKey, parsed);
+              return NextResponse.json({ success: true, data: parsed, source: "groq" });
+            }
+            mixedCandidate ??= parsed;
+            console.warn("Groq translation contained non-Hebrew script, trying next provider");
           }
         }
       } catch (err) {
@@ -176,8 +189,12 @@ Return ONLY a raw JSON object matching this schema:
             const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
             if (text) {
               const parsed: TranslationResult = JSON.parse(text);
-              serverTranslationCache.set(cacheKey, parsed);
-              return NextResponse.json({ success: true, data: parsed, source: "gemini" });
+              if (isHebrewOnly(parsed.hebrew ?? "")) {
+                serverTranslationCache.set(cacheKey, parsed);
+                return NextResponse.json({ success: true, data: parsed, source: "gemini" });
+              }
+              mixedCandidate ??= parsed;
+              console.warn(`Gemini ${model} translation contained non-Hebrew script, trying next`);
             }
           }
         } catch {
@@ -188,7 +205,7 @@ Return ONLY a raw JSON object matching this schema:
 
     // 3. Fallback to free dictionary/MyMemory
     const fallbackHebrew = await translateWithFreeFallback(cleanWord);
-    if (fallbackHebrew) {
+    if (fallbackHebrew && isHebrewOnly(fallbackHebrew)) {
       const fallbackResult: TranslationResult = {
         english: cleanWord,
         hebrew: fallbackHebrew,
@@ -197,6 +214,15 @@ Return ONLY a raw JSON object matching this schema:
       };
       serverTranslationCache.set(cacheKey, fallbackResult);
       return NextResponse.json({ success: true, data: fallbackResult, fallback: true });
+    }
+
+    // 4. Last resort: drop the foreign-script words from the mixed AI answer
+    if (mixedCandidate) {
+      const cleaned = stripForeignScripts(mixedCandidate.hebrew ?? "");
+      if (isHebrewOnly(cleaned)) {
+        const cleanedResult: TranslationResult = { ...mixedCandidate, hebrew: cleaned };
+        return NextResponse.json({ success: true, data: cleanedResult, source: "cleaned" });
+      }
     }
 
     return NextResponse.json({ success: false, reason: "translation_unavailable" }, { status: 500 });
