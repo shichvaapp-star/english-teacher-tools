@@ -111,6 +111,7 @@ export default function Home() {
       color: "text-sky-500 dark:text-sky-400",
       bgColor: "bg-sky-500/10",
       borderColor: "hover:border-sky-500/40",
+      id: "unseen",
       href: "/unseen",
     },
     {
@@ -121,6 +122,7 @@ export default function Home() {
       color: "text-emerald-500 dark:text-emerald-400",
       bgColor: "bg-emerald-500/10",
       borderColor: "hover:border-emerald-500/40",
+      id: "vocabulary",
       href: "/vocabulary",
     },
     {
@@ -131,6 +133,7 @@ export default function Home() {
       color: "text-purple-500 dark:text-purple-400",
       bgColor: "bg-purple-500/10",
       borderColor: "hover:border-purple-500/40",
+      id: "writing",
       href: "/writing",
     },
     {
@@ -141,6 +144,7 @@ export default function Home() {
       color: "text-amber-500 dark:text-amber-400",
       bgColor: "bg-amber-500/10",
       borderColor: "hover:border-amber-500/40",
+      id: "conversation",
       href: "/conversation",
     },
     {
@@ -151,7 +155,25 @@ export default function Home() {
       color: "text-type-grammar",
       bgColor: "bg-type-grammar/10",
       borderColor: "hover:border-type-grammar/40",
+      id: "grammar",
       href: "/grammar",
+    },
+  ];
+
+  const sectionGroups = [
+    {
+      id: "skills",
+      hebrewTitle: "מיומנויות",
+      englishTitle: "Skills",
+      ids: ["unseen", "writing", "conversation"],
+      centered: false,
+    },
+    {
+      id: "language",
+      hebrewTitle: "ארגז כלים לשוני",
+      englishTitle: "Language toolkit",
+      ids: ["vocabulary", "grammar"],
+      centered: true,
     },
   ];
 
@@ -301,39 +323,60 @@ export default function Home() {
           </p>
         </div>
 
-        {/* Core Section Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 sm:gap-5 lg:gap-4 xl:gap-6 max-w-6xl mx-auto">
-          {sections.map((sec) => {
-            return (
-              <Link
-                key={sec.englishTitle}
-                href={sec.href}
-                className={`group flex flex-col items-center text-center justify-between p-5 sm:p-6 lg:px-3.5 lg:py-5 xl:p-6 rounded-2xl border border-border/70 bg-card hover:bg-card/90 hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200 cursor-pointer ${sec.borderColor}`}
-              >
-                <div className="flex justify-center mb-4 sm:mb-6 lg:mb-4 xl:mb-5">
-                  <div className="h-16 w-16 sm:h-20 sm:w-20 lg:h-16 lg:w-16 xl:h-20 xl:w-20 rounded-2xl overflow-hidden border border-border/80 bg-[#121214] shadow-md transition-transform group-hover:scale-105 shrink-0 flex items-center justify-center">
-                    <Image
-                      src={sec.logo}
-                      alt={sec.englishTitle}
-                      width={80}
-                      height={80}
-                      className="w-full h-full object-cover rounded-2xl"
-                      loading="eager"
-                    />
-                  </div>
-                </div>
+        {/* Core Section Cards, grouped: skills + language toolkit.
+            A 6-column grid keeps all five cards the same width; the two
+            language cards start at column 2 so they sit centred. */}
+        <div className="max-w-6xl mx-auto space-y-8">
+          {sectionGroups.map((group) => (
+            <section key={group.id} aria-labelledby={`home-group-${group.id}`} className="space-y-4">
+              <div className="flex items-center gap-3" dir="rtl">
+                <h2 id={`home-group-${group.id}`} className="text-base sm:text-lg font-normal text-foreground">
+                  {group.hebrewTitle}
+                </h2>
+                <span className="text-xs sm:text-sm text-muted-foreground font-sans" dir="ltr">
+                  {group.englishTitle}
+                </span>
+                <div className="h-px flex-1 bg-border" aria-hidden="true" />
+              </div>
 
-                <div className="space-y-1 w-full text-center">
-                  <h3 className="text-lg sm:text-xl md:text-lg lg:text-base xl:text-lg font-normal text-foreground font-sans tracking-tight leading-snug break-words">
-                    {sec.englishTitle}
-                  </h3>
-                  <p className="text-xs sm:text-sm font-normal text-primary truncate" dir="rtl" title={sec.hebrewTitle}>
-                    {sec.hebrewTitle}
-                  </p>
-                </div>
-              </Link>
-            );
-          })}
+              <div className="grid grid-cols-1 sm:grid-cols-6 gap-4 sm:gap-5 xl:gap-6">
+                {group.ids.map((id, index) => {
+                  const sec = sections.find((s) => s.id === id);
+                  if (!sec) return null;
+                  const offset = group.centered && index === 0 ? "sm:col-start-2" : "";
+                  return (
+                    <Link
+                      key={sec.id}
+                      href={sec.href}
+                      className={`group sm:col-span-2 ${offset} flex flex-col items-center text-center justify-between p-5 sm:p-6 rounded-2xl border border-border/70 bg-card hover:bg-card/90 hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200 cursor-pointer ${sec.borderColor}`}
+                    >
+                      <div className="flex justify-center mb-4 sm:mb-5">
+                        <div className="h-16 w-16 sm:h-20 sm:w-20 rounded-2xl overflow-hidden border border-border/80 bg-[#121214] shadow-md transition-transform group-hover:scale-105 shrink-0 flex items-center justify-center">
+                          <Image
+                            src={sec.logo}
+                            alt={sec.englishTitle}
+                            width={80}
+                            height={80}
+                            className="w-full h-full object-cover rounded-2xl"
+                            loading="eager"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-1 w-full text-center">
+                        <h3 className="text-lg sm:text-xl md:text-lg xl:text-xl font-normal text-foreground font-sans tracking-tight leading-snug break-words">
+                          {sec.englishTitle}
+                        </h3>
+                        <p className="text-xs sm:text-sm font-normal text-primary truncate" dir="rtl" title={sec.hebrewTitle}>
+                          {sec.hebrewTitle}
+                        </p>
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+            </section>
+          ))}
         </div>
 
         {/* Student Assigned Tasks Prompt & Submissions Section */}
@@ -451,7 +494,7 @@ export default function Home() {
             <span>חטיבת ביניים בן גוריון</span>
           </div>
 
-          <div className="flex items-center gap-4 text-2xs">
+          <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-2xs">
             <Link href="/unseen" className="hover:text-foreground transition">
               בלשי האנסין
             </Link>
