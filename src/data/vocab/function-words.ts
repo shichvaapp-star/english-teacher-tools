@@ -57,7 +57,7 @@ export const ITEM_NAMES: string[] = [
   "haifa", "tel", "aviv", "jerusalem", "eilat", "be'er", "sheva", "israel", "english",
   "hebrew", "arabic", "russian",
   // more names used in reading and conversation content
-  "gal", "roy", "sara", "tv", "hmm", "oh", "wow", "um", "ah", "ms", "mr", "mrs", "dr", "chinese", "japanese", "arab", "york", "rome", "new", "italian", "british", "american", "french", "spanish", "german", "greek", "tal", "nir", "neta", "daniel", "amir", "itamar", "michal", "dor", "noam", "hadar", "omri", "shir", "grandma", "grandpa", "mount", "rex", "anna", "yuval", "nadav", "eden", "ella", "liam", "alon", "maor",
+  "gal", "roy", "sara", "tv", "hmm", "oh", "wow", "um", "ah", "ms", "mr", "mrs", "dr", "chinese", "japanese", "arab", "york", "rome", "new", "italian", "british", "american", "french", "spanish", "german", "greek", "tal", "nir", "neta", "lia", "eden", "gil", "shai", "eitan", "keren", "rotem", "yossi", "ori", "daniel", "amir", "itamar", "michal", "dor", "noam", "hadar", "omri", "shir", "grandma", "grandpa", "mount", "rex", "anna", "yuval", "nadav", "eden", "ella", "liam", "alon", "maor",
   "hila", "neta", "avi", "ido", "rina", "jack", "emma", "sam", "lily", "max", "leo",
   "mia", "zoe", "ori", "keren", "lee", "jordan", "cohen", "levi", "london", "paris",
   "america", "europe", "africa", "asia", "australia", "japan", "china", "india",

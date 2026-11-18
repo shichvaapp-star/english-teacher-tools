@@ -19,7 +19,7 @@ const { WRITING_TASKS } = await load("src/data/writing/index.ts");
 const TARGETS = {
   unseen: { min: 10, strict: true },
   conversation: { min: 8, strict: true },
-  writing: { min: 8, strict: false },
+  writing: { min: 8, strict: true },
 };
 
 const errors = [];
