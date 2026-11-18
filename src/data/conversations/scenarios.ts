@@ -6,8 +6,9 @@ import { CONVERSATIONS_G7_L2 } from "@/data/conversations/g7-l2";
 import { CONVERSATIONS_G7_L3 } from "@/data/conversations/g7-l3";
 import { CONVERSATIONS_G8_L1 } from "@/data/conversations/g8-l1";
 import { CONVERSATIONS_G8_L2 } from "@/data/conversations/g8-l2";
+import { CONVERSATIONS_G8_L3 } from "@/data/conversations/g8-l3";
 
-export const CONVERSATION_SCENARIOS: ConversationScenario[] = [...CONVERSATIONS_G7_L1, ...CONVERSATIONS_G7_L2, ...CONVERSATIONS_G7_L3, ...CONVERSATIONS_G8_L1, ...CONVERSATIONS_G8_L2];
+export const CONVERSATION_SCENARIOS: ConversationScenario[] = [...CONVERSATIONS_G7_L1, ...CONVERSATIONS_G7_L2, ...CONVERSATIONS_G7_L3, ...CONVERSATIONS_G8_L1, ...CONVERSATIONS_G8_L2, ...CONVERSATIONS_G8_L3];
 
 export function getConversationScenarios(
   grade: ClassGrade,
