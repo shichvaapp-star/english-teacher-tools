@@ -6,6 +6,9 @@ import type { ClassGrade } from "@/lib/levels";
 import type { PartOfSpeech } from "@/types/vocabulary";
 import { GRADE_VOCAB } from "@/data/vocab";
 import type { VocabEntry } from "@/data/vocab/types";
+import { GRADE_7_EXAMPLES } from "@/data/vocab/cards/examples-7";
+import { GRADE_8_EXAMPLES } from "@/data/vocab/cards/examples-8";
+import { GRADE_9_EXAMPLES } from "@/data/vocab/cards/examples-9";
 
 export interface VocabCard {
   id: string;
@@ -54,7 +57,7 @@ function buildCards(grade: ClassGrade, list: VocabEntry[], examples: ExampleSpec
   });
 }
 
-const EXAMPLES: Record<ClassGrade, ExampleSpec[]> = { 7: [], 8: [], 9: [] };
+const EXAMPLES: Record<ClassGrade, ExampleSpec[]> = { 7: GRADE_7_EXAMPLES, 8: GRADE_8_EXAMPLES, 9: GRADE_9_EXAMPLES };
 
 export const VOCAB_CARDS: VocabCard[] = ([7, 8, 9] as const).flatMap((g) =>
   EXAMPLES[g].length ? buildCards(g, GRADE_VOCAB[g], EXAMPLES[g]) : []
