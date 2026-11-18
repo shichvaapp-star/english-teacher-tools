@@ -20,7 +20,7 @@ export interface AssignedVocabWord {
   id: string;
   english: string;
   hebrew: string;
-  partOfSpeech?: "noun" | "verb" | "adjective" | "adverb" | "preposition" | "phrase";
+  partOfSpeech?: "noun" | "verb" | "adjective" | "adverb" | "preposition" | "pronoun" | "conjunction" | "phrase";
   example?: string;
 }
 
