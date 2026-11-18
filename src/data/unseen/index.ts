@@ -10,8 +10,9 @@ import { UNSEEN_G8_L2 } from "@/data/unseen/g8-l2";
 import { UNSEEN_G8_L3 } from "@/data/unseen/g8-l3";
 import { UNSEEN_G9_L1 } from "@/data/unseen/g9-l1";
 import { UNSEEN_G9_L2 } from "@/data/unseen/g9-l2";
+import { UNSEEN_G9_L3 } from "@/data/unseen/g9-l3";
 
-export const UNSEEN_STORIES: MSUnseenStory[] = [...UNSEEN_G7_L1, ...UNSEEN_G7_L2, ...UNSEEN_G7_L3, ...UNSEEN_G8_L1, ...UNSEEN_G8_L2, ...UNSEEN_G8_L3, ...UNSEEN_G9_L1, ...UNSEEN_G9_L2];
+export const UNSEEN_STORIES: MSUnseenStory[] = [...UNSEEN_G7_L1, ...UNSEEN_G7_L2, ...UNSEEN_G7_L3, ...UNSEEN_G8_L1, ...UNSEEN_G8_L2, ...UNSEEN_G8_L3, ...UNSEEN_G9_L1, ...UNSEEN_G9_L2, ...UNSEEN_G9_L3];
 
 export function getUnseenStories(grade: ClassGrade, level?: MSUnseenStory["level"]): MSUnseenStory[] {
   return UNSEEN_STORIES.filter((s) => s.grade === grade && (!level || s.level === level));

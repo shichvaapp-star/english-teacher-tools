@@ -17,7 +17,7 @@ const { WRITING_TASKS } = await load("src/data/writing/index.ts");
 // Targets per grade × level. While a section is being written, shortfalls are
 // warnings; once `strict` is on they fail the check.
 const TARGETS = {
-  unseen: { min: 10, strict: false },
+  unseen: { min: 10, strict: true },
   conversation: { min: 8, strict: false },
   writing: { min: 8, strict: false },
 };
