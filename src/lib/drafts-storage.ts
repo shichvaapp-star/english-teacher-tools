@@ -63,8 +63,17 @@ export function findDraft(predicate: (d: InProgressWorkItem) => boolean): InProg
 /**
  * Saves or updates a draft in localStorage and Firestore (if student is logged in).
  */
+// Set while a draft is being discarded so a pending auto-save can't bring it back
+// before the page navigates away. Resets on the next page load.
+let draftSavesSuspended = false;
+
+/** Stops all draft saves until the next page load (used right before discarding a draft). */
+export function suspendDraftSaves(): void {
+  draftSavesSuspended = true;
+}
+
 export async function saveDraft(draft: InProgressWorkItem): Promise<void> {
-  if (typeof window === "undefined") return;
+  if (typeof window === "undefined" || draftSavesSuspended) return;
 
   try {
     const all = getStoredDrafts();

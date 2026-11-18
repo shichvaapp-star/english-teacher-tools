@@ -321,6 +321,11 @@ export function useWritingPractice() {
   }, [essayText, stage, currentTask, selectedLevel, currentAssignmentId, user?.id, user?.name, customTopicInput]);
 
   // Save and exit back to student portal
+  // Draft id of the exercise on screen (used by the "discard draft" button).
+  const currentDraftId = currentAssignmentId
+    ? `draft_writing_assign_${currentAssignmentId}`
+    : `draft_writing_${currentTask.id}`;
+
   const handleSaveAndExit = async () => {
     if (essayText.trim().length >= 3) {
       const draftId = currentAssignmentId
@@ -1171,6 +1176,7 @@ export function useWritingPractice() {
     handleRestoreDraft,
     handleDiscardDraft,
     handleSaveAndExit,
+    currentDraftId,
     selectedTeacherId,
     setSelectedTeacherId,
     studentClass,

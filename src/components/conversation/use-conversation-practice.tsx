@@ -365,6 +365,11 @@ export function useConversationPractice() {
     user?.name,
   ]);
 
+  // Draft id of the exercise on screen (used by the "discard draft" button).
+  const currentDraftId = currentAssignmentId
+    ? `draft_conversation_assign_${currentAssignmentId}`
+    : `draft_conversation_${currentScenario.id}`;
+
   const handleSaveAndExit = async () => {
     if (typeof window !== "undefined") {
       window.location.href = user?.role === "student" ? "/student" : "/";
@@ -1372,6 +1377,7 @@ export function useConversationPractice() {
     gradeLocked: forcedGrade !== null,
     handleGradeSelect,
     handleSaveAndExit,
+    currentDraftId,
     handleSpeak,
     handleSpeakText,
     handleWordClick,

@@ -6,6 +6,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { UserNav } from "@/components/auth/user-nav";
 import { HeaderTooltip } from "@/components/ui/header-tooltip";
 import { Button } from "@/components/ui/button";
+import { DiscardDraftButton } from "@/components/shared/discard-draft-button";
 import {
   BookA,
   ArrowLeft,
@@ -24,6 +25,7 @@ export function VocabularyHeader({ c }: { c: VocabularyPracticeController }) {
     cardIndex,
     draftStatus,
     handleSaveAndExit,
+    currentDraftId,
     lastSavedTimeText,
     masteredIds,
     quizIndex,
@@ -100,6 +102,7 @@ export function VocabularyHeader({ c }: { c: VocabularyPracticeController }) {
                 <span className="hidden sm:inline">שמור וצא</span>
               </Button>
             )}
+            <DiscardDraftButton draftId={currentDraftId} />
 
             {activeAssignment && (
               <Button
