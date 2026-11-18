@@ -9,7 +9,7 @@ import { GrammarAssignPicker } from "@/components/grammar/grammar-assign-picker"
 import { ALL_WRITING_TASKS } from "@/data/writing-tasks";
 import { gradeUnits } from "@/data/vocab/cards";
 import { CLASS_GRADES, GRADE_LABELS as CLASS_GRADE_LABELS, type ClassGrade } from "@/lib/levels";
-import { MIDDLE_SCHOOL_UNSEENS } from "@/data/unseen-middle-school";
+import { MIDDLE_SCHOOL_UNSEENS, findUnseenStoryById } from "@/data/unseen-middle-school";
 import { REAL_LIFE_CONVERSATIONS } from "@/data/conversations";
 import {
   curriculumWords,
@@ -565,7 +565,7 @@ export function AssignTaskModal({
       title = matched ? matched.title : "Conversation Practice";
       hebrewTitle = matched ? matched.hebrewTitle : "תרגול שיחה מהחיים";
     } else {
-      const matched = MIDDLE_SCHOOL_UNSEENS.find((s) => s.id === selectedTaskId);
+      const matched = findUnseenStoryById(selectedTaskId);
       title = matched ? matched.title : "Unseen Test";
       hebrewTitle = matched ? matched.hebrewTitle : "מבחן אנסין";
     }

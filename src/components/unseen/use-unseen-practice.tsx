@@ -10,7 +10,9 @@ import { doc, setDoc } from "firebase/firestore";
 import { cleanForFirestore } from "@/lib/utils";
 import { SubmissionItem, SubmissionQuestionBreakdown } from "@/types/submission";
 import { UnseenEvaluationResult } from "@/types/unseen";
-import { MIDDLE_SCHOOL_UNSEENS, MSUnseenStory, MSUnseenQuestion, randomizeQuestionsOptions } from "@/data/unseen-middle-school";
+import { useClassGrade } from "@/components/shared/use-class-grade";
+import { parseClassGrade, type ClassGrade } from "@/lib/levels";
+import { MIDDLE_SCHOOL_UNSEENS, findUnseenStoryById, MSUnseenStory, MSUnseenQuestion, randomizeQuestionsOptions } from "@/data/unseen-middle-school";
 import { lookupBuiltInTranslation } from "@/data/built-in-dictionary";
 import {
   saveWordToBuilder,
@@ -45,7 +47,9 @@ export function useUnseenPractice() {
   const [isFromDavid, setIsFromDavid] = useState(false);
   const [isTurningInToDavid, setIsTurningInToDavid] = useState(false);
   // Core exercise state. Declared before the snapshot-restore effect below, which sets it.
-  // Level Selection (No grade references)
+  // Grade (7/8/9 – whose textbook vocabulary) and level. An assignment or ?grade= can fix the grade.
+  const [forcedGrade, setForcedGrade] = useState<ClassGrade | null>(null);
+  const { grade, setGrade, classGrade } = useClassGrade(forcedGrade);
   const [selectedLevel, setSelectedLevel] = useState<"Level 1" | "Level 2" | "Level 3">("Level 2");
   // Mode Selection: Practice (immediate feedback) vs. Graded (submit for score)
   const [mode, setMode] = useState<"practice" | "graded">("practice");
@@ -144,6 +148,8 @@ export function useUnseenPractice() {
       if (params.get("stage") === "exercise") {
         setStage("exercise");
       }
+      const gradeQueryParam = parseClassGrade(params.get("grade"));
+      if (gradeQueryParam) setForcedGrade(gradeQueryParam);
       const levelQueryParam = params.get("level") as "Level 1" | "Level 2" | "Level 3" | null;
       if (levelQueryParam && (levelQueryParam === "Level 1" || levelQueryParam === "Level 2" || levelQueryParam === "Level 3")) {
         setSelectedLevel(levelQueryParam);
@@ -151,8 +157,9 @@ export function useUnseenPractice() {
       const passageParam = params.get("passageId") || params.get("story");
       const assignIdParam = params.get("assignmentId");
       if (passageParam && passageParam !== "free_choice" && passageParam !== "adaptive_david") {
-        const found = MIDDLE_SCHOOL_UNSEENS.find((s) => s.id === passageParam);
+        const found = findUnseenStoryById(passageParam);
         if (found) {
+          setStories((prev) => (prev.some((s) => s.id === found.id) ? prev : [...prev, found]));
           setSelectedLevel(found.level);
           setSelectedStoryId(found.id);
           setStage("exercise");
@@ -172,6 +179,7 @@ export function useUnseenPractice() {
               if (matchedAssign.level) {
                 setSelectedLevel(matchedAssign.level);
               }
+              if (matchedAssign.grade) setForcedGrade(matchedAssign.grade);
             }
           }
         } catch {}
@@ -186,12 +194,22 @@ export function useUnseenPractice() {
     }
   }, []);
 
-  // Filtered stories for selected level
-  const levelStories = stories.filter((s) => s.level === selectedLevel);
+  // Filtered stories for the selected grade and level (stories without a grade – AI or legacy – count as the current grade)
+  const levelStories = stories.filter((s) => s.level === selectedLevel && (s.grade ?? grade) === grade);
 
   // Active Story
   const currentStory: MSUnseenStory =
     stories.find((s) => s.id === selectedStoryId) || levelStories[0] || MIDDLE_SCHOOL_UNSEENS[0];
+
+  // While choosing, keep the selected story inside the chosen grade and level.
+  const firstLevelStoryId = levelStories[0]?.id;
+  const selectedInList = levelStories.some((s) => s.id === selectedStoryId);
+  useEffect(() => {
+    if (stage === "settings" && !selectedInList && firstLevelStoryId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setSelectedStoryId(firstLevelStoryId);
+    }
+  }, [stage, selectedInList, firstLevelStoryId]);
 
   // Natural Voice Speech Dictation Player (includes passage title)
   const speech = useSpeechPlayer(currentStory.paragraphs, currentStory.title);
@@ -459,7 +477,8 @@ export function useUnseenPractice() {
           setSelectedLevel(savedStory.level || payload.level || "Level 2");
           setSelectedStoryId(savedStory.id);
         } else if (payload.storyId && payload.storyId !== currentStory.id) {
-          const found = MIDDLE_SCHOOL_UNSEENS.find((s) => s.id === payload.storyId);
+          const found = findUnseenStoryById(payload.storyId);
+          if (found) setStories((prev) => (prev.some((s) => s.id === found.id) ? prev : [...prev, found]));
           if (found) {
             setSelectedLevel(found.level);
             setSelectedStoryId(found.id);
@@ -791,9 +810,14 @@ export function useUnseenPractice() {
   ];
 
   // Handle switching level
-  const handleLevelSelect = (lvl: "Level 1" | "Level 2" | "Level 3") => {
+  const handleGradeSelect = (g: ClassGrade) => {
+    setGrade(g);
+    handleLevelSelect(selectedLevel, g);
+  };
+
+  const handleLevelSelect = (lvl: "Level 1" | "Level 2" | "Level 3", g: ClassGrade = grade) => {
     setSelectedLevel(lvl);
-    const matching = stories.filter((s) => s.level === lvl);
+    const matching = stories.filter((s) => s.level === lvl && (s.grade ?? g) === g);
     if (matching.length > 0) {
       const chosenId = matching[0].id;
       setSelectedStoryId(chosenId);
@@ -896,7 +920,7 @@ export function useUnseenPractice() {
       const res = await fetch("/api/generate-unseen", {
         method: "POST",
         headers,
-        body: JSON.stringify({ level: selectedLevel, topic: topicToUse }),
+        body: JSON.stringify({ level: selectedLevel, topic: topicToUse, grade }),
       });
 
       const data = await res.json();
@@ -1453,6 +1477,7 @@ export function useUnseenPractice() {
           storyTitle: currentStory.title,
           hebrewTitle: currentStory.hebrewTitle,
           storyLevel: currentStory.level,
+          grade: currentStory.grade ?? grade,
           paragraphs: currentStory.paragraphs,
           questions: currentStory.questions,
           userAnswers,
@@ -1868,6 +1893,10 @@ export function useUnseenPractice() {
     setIsTurningInToDavid,
     selectedLevel,
     setSelectedLevel,
+    grade,
+    classGrade,
+    gradeLocked: forcedGrade !== null,
+    handleGradeSelect,
     mode,
     setMode,
     selectedStoryId,

@@ -1,6 +1,7 @@
 import { LEVEL_1_UNSEENS } from "./unseen/legacy/level-1";
 import { LEVEL_2_UNSEENS } from "./unseen/legacy/level-2";
 import { LEVEL_3_UNSEENS } from "./unseen/legacy/level-3";
+import { UNSEEN_STORIES } from "./unseen";
 
 import type { MSUnseenQuestion, MSUnseenStory } from "@/types/unseen";
 export type { MSUnseenQuestion, MSUnseenStory };
@@ -73,10 +74,14 @@ export function randomizeQuestionsOptions<T extends { type?: string; options?: s
   });
 }
 
-export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
-  ...LEVEL_1_UNSEENS,
-  ...LEVEL_2_UNSEENS,
-  ...LEVEL_3_UNSEENS,
-];
+/** The current library: grade × level stories in each grade's textbook vocabulary. */
+export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = UNSEEN_STORIES;
 
-export { LEVEL_1_UNSEENS, LEVEL_2_UNSEENS, LEVEL_3_UNSEENS };
+/** Stories from before the grade rewrite – no longer listed, but old submissions and assignments still open them. */
+export const LEGACY_UNSEENS: MSUnseenStory[] = [...LEVEL_1_UNSEENS, ...LEVEL_2_UNSEENS, ...LEVEL_3_UNSEENS];
+
+/** Finds a story by id in the current library or the legacy one. */
+export function findUnseenStoryById(id: string | null | undefined): MSUnseenStory | undefined {
+  if (!id) return undefined;
+  return UNSEEN_STORIES.find((s) => s.id === id) ?? LEGACY_UNSEENS.find((s) => s.id === id);
+}

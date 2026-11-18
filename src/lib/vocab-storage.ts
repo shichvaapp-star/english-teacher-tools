@@ -1,6 +1,9 @@
 import { db } from "@/lib/firebase";
 import { collection, doc, getDocs, setDoc, deleteDoc } from "firebase/firestore";
-import { MIDDLE_SCHOOL_UNSEENS } from "@/data/unseen-middle-school";
+import { MIDDLE_SCHOOL_UNSEENS, LEGACY_UNSEENS } from "@/data/unseen-middle-school";
+
+// Saved words may come from current or older stories.
+const ALL_KNOWN_UNSEENS = [...MIDDLE_SCHOOL_UNSEENS, ...LEGACY_UNSEENS];
 import { ALL_WRITING_TASKS } from "@/data/writing-tasks";
 import { REAL_LIFE_CONVERSATIONS } from "@/data/conversations";
 import { getVocabCards } from "@/data/vocab/cards";
@@ -69,7 +72,7 @@ function inferUnseenStoryForWord(englishWord: string): { title: string; category
   }
 
   // 2. Check vocabularyHints in built-in MIDDLE_SCHOOL_UNSEENS
-  for (const story of MIDDLE_SCHOOL_UNSEENS) {
+  for (const story of ALL_KNOWN_UNSEENS) {
     if (
       story.vocabularyHints?.some(
         (h) => normalizeVocabWord(h.word) === norm
@@ -85,7 +88,7 @@ function inferUnseenStoryForWord(englishWord: string): { title: string; category
   // 3. Check full text paragraphs in built-in MIDDLE_SCHOOL_UNSEENS
   const escaped = norm.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const wordRegex = new RegExp(`\\b${escaped}\\b`, "i");
-  for (const story of MIDDLE_SCHOOL_UNSEENS) {
+  for (const story of ALL_KNOWN_UNSEENS) {
     if (
       wordRegex.test(story.title) ||
       story.paragraphs.some((p) => wordRegex.test(p))
@@ -111,7 +114,7 @@ export function formatExerciseDisplayTitle(
   const clean = sourceTitle.trim();
 
   if (sourceType === "unseen") {
-    const matchedStory = MIDDLE_SCHOOL_UNSEENS.find(
+    const matchedStory = ALL_KNOWN_UNSEENS.find(
       (s) =>
         s.title.toLowerCase() === clean.toLowerCase() ||
         s.hebrewTitle === clean

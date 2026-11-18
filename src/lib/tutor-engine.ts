@@ -12,7 +12,9 @@ import {
 } from "@/types/tutor";
 import { TeacherAssignment } from "@/types/assignment";
 import { ActiveUser } from "@/types/auth";
-import { MIDDLE_SCHOOL_UNSEENS } from "@/data/unseen-middle-school";
+import { MIDDLE_SCHOOL_UNSEENS, findUnseenStoryById, type MSUnseenStory } from "@/data/unseen-middle-school";
+import { getUnseenStories } from "@/data/unseen";
+import { hebrewGradeToNumber, type ClassGrade } from "@/lib/levels";
 import { ALL_WRITING_TASKS } from "@/data/writing-tasks";
 import { BUILT_IN_DICTIONARY } from "@/data/built-in-dictionary";
 import {
@@ -1576,7 +1578,7 @@ function createUnseenTopicOption(
   nameEnglish: string,
   emoji: string
 ): TaskTopicOption | null {
-  const story = MIDDLE_SCHOOL_UNSEENS.find((s) => s.id === storyId);
+  const story = findUnseenStoryById(storyId);
   if (!story) return null;
   return {
     id: topicId,
@@ -1620,33 +1622,14 @@ function createWritingTopicOption(
  * All titles, Hebrew translations, descriptions, and target URLs are dynamically
  * resolved directly from the single-source-of-truth MIDDLE_SCHOOL_UNSEENS database.
  */
-export function getUnseenTopicsForLevel(level: TutorLevel): TaskTopicOption[] {
-  if (level === "Level 1") {
-    return [
-      createUnseenTopicOption("story-level1-1", "animals", "בעלי חיים", "Animals & Pets", "🐶"),
-      createUnseenTopicOption("story-level1-2", "space_robots", "רובוטים וחלל", "Space & Robots", "🚀"),
-      createUnseenTopicOption("story-level1-3", "adventure_nature", "הרפתקאות וטבע", "Adventures in Nature", "🌲"),
-      createUnseenTopicOption("story-level1-4", "baking_food", "אפייה ובישול", "Baking & Food", "🥐"),
-      createUnseenTopicOption("story-level1-5", "ocean_marine", "עולם הים ודולפינים", "Marine Life & Reef", "🐬"),
-    ].filter((t): t is TaskTopicOption => t !== null);
-  } else if (level === "Level 2") {
-    return [
-      createUnseenTopicOption("story-level2-1", "desert_nature", "מדבר ועצי הנגב", "Desert & Ecology", "🏜️"),
-      createUnseenTopicOption("story-level2-2", "history_mystery", "היסטוריה ותעלומות", "History & Mystery", "🏛️"),
-      createUnseenTopicOption("story-level2-3", "bees_ecology", "דבורים ואקולוגיה", "Honeybees & Nature", "🐝"),
-      createUnseenTopicOption("story-level2-4", "heroism_rescue", "גבורה וכלבי הצלה", "Rescue & Heroism", "🐕"),
-      createUnseenTopicOption("story-level2-5", "solar_tech", "מכוניות סולאריות ומדע", "Solar Energy & Tech", "☀️"),
-    ].filter((t): t is TaskTopicOption => t !== null);
-  } else {
-    // Level 3
-    return [
-      createUnseenTopicOption("story-level3-1", "whales_ocean", "לווייתנים ומעמקי הים", "Whales & Deep Ocean", "🐋"),
-      createUnseenTopicOption("story-level3-2", "coral_science", "שוניות אלמוגים ומדע", "Coral Reefs & Science", "🪸"),
-      createUnseenTopicOption("story-level3-3", "archaeology_rosetta", "ארכיאולוגיה וכתב עתיק", "Archaeology & Rosetta Stone", "📜"),
-      createUnseenTopicOption("story-level3-4", "bionic_medicine", "רפואה ואיברים ביוניים", "Bionics & Medicine", "🦾"),
-      createUnseenTopicOption("story-level3-5", "mars_space", "חקר מאדים ורובוטיקה", "Mars Exploration & AI", "🚀"),
-    ].filter((t): t is TaskTopicOption => t !== null);
-  }
+export function getUnseenTopicsForLevel(level: TutorLevel, grade: ClassGrade = 7): TaskTopicOption[] {
+  // Five stories spread across the grade × level library.
+  const pool = getUnseenStories(grade, level);
+  const picks = [0, 2, 4, 6, 8].map((i) => pool[i]).filter((s): s is MSUnseenStory => Boolean(s));
+  return picks
+    .map((story) => createUnseenTopicOption(story.id, story.id, story.hebrewTitle, story.title, "📖"))
+    .filter((t): t is TaskTopicOption => t !== null)
+    .map((t) => ({ ...t, targetUrl: `${t.targetUrl}&grade=${grade}` }));
 }
 
 /**
@@ -1761,11 +1744,11 @@ export function syncMissionWithDatabase(
       : undefined;
 
     let matchingStory = matchedTopic
-      ? MIDDLE_SCHOOL_UNSEENS.find((s) => s.id === matchedTopic!.taskId)
+      ? findUnseenStoryById(matchedTopic!.taskId)
       : undefined;
 
     if (!matchingStory && mission.taskId) {
-      matchingStory = MIDDLE_SCHOOL_UNSEENS.find((s) => s.id === mission.taskId);
+      matchingStory = findUnseenStoryById(mission.taskId);
       if (matchingStory && !matchedTopic) {
         matchedTopic = freshTopics.find((t) => t.taskId === matchingStory!.id);
       }
@@ -1774,7 +1757,7 @@ export function syncMissionWithDatabase(
     if (!matchingStory && mission.targetUrl) {
       const match = mission.targetUrl.match(/[?&](?:passageId|story)=([^&]+)/);
       if (match && match[1]) {
-        matchingStory = MIDDLE_SCHOOL_UNSEENS.find((s) => s.id === match[1]);
+        matchingStory = findUnseenStoryById(match[1]);
         if (matchingStory && !matchedTopic) {
           matchedTopic = freshTopics.find((t) => t.taskId === matchingStory!.id);
         }
@@ -1783,7 +1766,7 @@ export function syncMissionWithDatabase(
 
     if (!matchingStory && freshTopics.length > 0) {
       matchedTopic = freshTopics[0];
-      matchingStory = MIDDLE_SCHOOL_UNSEENS.find((s) => s.id === matchedTopic!.taskId);
+      matchingStory = findUnseenStoryById(matchedTopic!.taskId);
     }
 
     if (matchingStory) {
@@ -2336,7 +2319,8 @@ export async function getPendingTeacherAssignmentsForStudent(
     const targetLevel: TutorLevel = a.level ? (a.level as TutorLevel) : studentLevel;
 
     if (a.type === "unseen") {
-      const levelTopics = getUnseenTopicsForLevel(targetLevel).map((t) => ({
+      const targetGrade: ClassGrade = a.grade ?? hebrewGradeToNumber(studentUser?.classGrade) ?? 7;
+      const levelTopics = getUnseenTopicsForLevel(targetLevel, targetGrade).map((t) => ({
         ...t,
         targetUrl: `/unseen?passageId=${t.taskId}&assignmentId=${a.id}&from=david`,
       }));
@@ -2467,7 +2451,7 @@ export function generateTeacherAssignmentPrepMessage(
   }
 
   if (prepWords.length < 4 && mission.type === "unseen") {
-    const passage = MIDDLE_SCHOOL_UNSEENS.find((p) => p.id === mission.taskId);
+    const passage = findUnseenStoryById(mission.taskId);
     if (passage?.vocabularyHints) {
       for (const v of passage.vocabularyHints) {
         if (prepWords.length >= 5) break;

@@ -16,6 +16,7 @@ import {
 import { type UnseenPracticeController } from "@/components/unseen/use-unseen-practice";
 import { UnseenAiGenerator } from "@/components/unseen/unseen-ai-generator";
 import { UnseenLibraryGrid } from "@/components/unseen/unseen-library-grid";
+import { GradePicker } from "@/components/shared/grade-picker";
 
 export function UnseenSettingsStage({ c }: { c: UnseenPracticeController }) {
   const {
@@ -81,6 +82,17 @@ export function UnseenSettingsStage({ c }: { c: UnseenPracticeController }) {
               <span>התחלת תרגול</span>
               <ArrowLeft className="h-3.5 w-3.5" />
             </Button>
+          </div>
+
+          {/* Grade: whose textbook vocabulary the stories use */}
+          <div className="bg-card border border-border/70 rounded-xl p-3.5 sm:p-4 shadow-2xs">
+            <GradePicker
+              grade={c.grade}
+              onChange={c.handleGradeSelect}
+              classGrade={c.classGrade}
+              disabled={c.gradeLocked}
+              accent="unseen"
+            />
           </div>
 
           {/* Setting 1: Level Selection */}
