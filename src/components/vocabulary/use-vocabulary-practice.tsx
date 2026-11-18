@@ -351,6 +351,11 @@ export function useVocabularyPractice() {
   }, [cardIndex, masteredIds, quizIndex, quizScore, studyMode, activeCategory, activeAssignment?.id, activeGrade, unit, activePool.length, completedModes, user?.id, user?.name]);
 
   // Save and exit back to student portal
+  // Draft id of the exercise on screen (used by the "discard draft" button).
+  const currentDraftId = activeAssignment
+    ? `draft_vocab_assign_${activeAssignment.id}`
+    : `draft_vocab_${activeCategory}${activeGrade ? `_u${unit}` : ""}`;
+
   const handleSaveAndExit = async () => {
     const hasProgress = cardIndex > 0 || masteredIds.size > 0 || quizIndex > 0;
     if (hasProgress) {
@@ -1064,6 +1069,7 @@ export function useVocabularyPractice() {
     handleDiscardDraft,
     activePool,
     handleSaveAndExit,
+    currentDraftId,
     enrichedWords,
     wordStats,
     availableExercises,

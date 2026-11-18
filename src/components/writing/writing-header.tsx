@@ -6,6 +6,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { UserNav } from "@/components/auth/user-nav";
 import { HeaderTooltip } from "@/components/ui/header-tooltip";
 import { Button } from "@/components/ui/button";
+import { DiscardDraftButton } from "@/components/shared/discard-draft-button";
 import { loadSavedWords } from "@/lib/vocab-storage";
 import {
   PenTool,
@@ -27,6 +28,7 @@ export function WritingHeader({ c }: { c: WritingPracticeController }) {
     handleBackToSettings,
     handleOpenHistory,
     handleSaveAndExit,
+    currentDraftId,
     handleStartWriting,
     hasAiKeys,
     lastSavedTimeText,
@@ -117,6 +119,7 @@ export function WritingHeader({ c }: { c: WritingPracticeController }) {
                   <Save className="h-3.5 w-3.5 text-primary" />
                   <span className="hidden sm:inline">שמור וצא</span>
                 </Button>
+                <DiscardDraftButton draftId={currentDraftId} />
               </>
             )}
 

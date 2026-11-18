@@ -583,6 +583,11 @@ export function useUnseenPractice() {
   }, [userAnswers, checkedQuestions, activeQuestionIndex, stage, currentStory, selectedLevel, mode, currentAssignmentId, isSubmitted, user?.id, user?.name]);
 
   // Save and exit back to student portal
+  // Draft id of the exercise on screen (used by the "discard draft" button).
+  const currentDraftId = currentAssignmentId
+    ? `draft_unseen_assign_${currentAssignmentId}`
+    : `draft_unseen_${currentStory.id}`;
+
   const handleSaveAndExit = async () => {
     const answeredCount = Object.keys(userAnswers).filter(
       (k) => userAnswers[k] !== undefined && userAnswers[k] !== ""
@@ -1987,6 +1992,7 @@ export function useUnseenPractice() {
     handleRestoreDraft,
     handleDiscardDraft,
     handleSaveAndExit,
+    currentDraftId,
     clickedWord,
     setClickedWord,
     selectedPassageText,

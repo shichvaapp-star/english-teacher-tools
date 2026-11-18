@@ -6,6 +6,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { UserNav } from "@/components/auth/user-nav";
 import { HeaderTooltip } from "@/components/ui/header-tooltip";
 import { Button } from "@/components/ui/button";
+import { DiscardDraftButton } from "@/components/shared/discard-draft-button";
 import {
   ArrowLeft,
   MessageSquare,
@@ -23,6 +24,7 @@ export function ConversationHeader({ c }: { c: ConversationPracticeController })
     dialoguePlayer,
     draftStatus,
     handleSaveAndExit,
+    currentDraftId,
     lastSavedTimeText,
     savedWords,
     setShowVocabDrawer,
@@ -107,6 +109,7 @@ export function ConversationHeader({ c }: { c: ConversationPracticeController })
                   <Save className="h-3.5 w-3.5 text-primary" />
                   <span className="hidden sm:inline">שמור וצא</span>
                 </Button>
+                <DiscardDraftButton draftId={currentDraftId} />
               </>
             )}
 
