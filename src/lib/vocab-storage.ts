@@ -5,7 +5,7 @@ import { MIDDLE_SCHOOL_UNSEENS, LEGACY_UNSEENS } from "@/data/unseen-middle-scho
 // Saved words may come from current or older stories.
 const ALL_KNOWN_UNSEENS = [...MIDDLE_SCHOOL_UNSEENS, ...LEGACY_UNSEENS];
 import { ALL_WRITING_TASKS } from "@/data/writing-tasks";
-import { REAL_LIFE_CONVERSATIONS } from "@/data/conversations";
+import { REAL_LIFE_CONVERSATIONS, LEGACY_CONVERSATIONS } from "@/data/conversations";
 import { getVocabCards } from "@/data/vocab/cards";
 import { GRADE_HE, type ClassGrade } from "@/lib/levels";
 
@@ -136,7 +136,7 @@ export function formatExerciseDisplayTitle(
   }
 
   if (sourceType === "conversation") {
-    const matchedScenario = REAL_LIFE_CONVERSATIONS.find(
+    const matchedScenario = [...REAL_LIFE_CONVERSATIONS, ...LEGACY_CONVERSATIONS].find(
       (c) =>
         c.title.toLowerCase() === clean.toLowerCase() ||
         c.hebrewTitle === clean

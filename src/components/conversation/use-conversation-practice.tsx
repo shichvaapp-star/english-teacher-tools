@@ -11,7 +11,9 @@ import { doc, setDoc } from "firebase/firestore";
 import { cleanForFirestore } from "@/lib/utils";
 import { SubmissionItem, SubmissionQuestionBreakdown } from "@/types/submission";
 import { ConversationScenario, ConversationCategory, ConversationEvaluationResult } from "@/types/conversation";
-import { REAL_LIFE_CONVERSATIONS, randomizeConversationQuestionsOptions } from "@/data/conversations";
+import { REAL_LIFE_CONVERSATIONS, findConversationById, randomizeConversationQuestionsOptions } from "@/data/conversations";
+import { useClassGrade } from "@/components/shared/use-class-grade";
+import { parseClassGrade, type ClassGrade } from "@/lib/levels";
 import { lookupBuiltInTranslation } from "@/data/built-in-dictionary";
 import {
   saveWordToBuilder,
@@ -38,6 +40,9 @@ export function useConversationPractice() {
   const [stage, setStage] = useState<"settings" | "exercise">("settings");
   const [mobileTab, setMobileTab] = useState<"text" | "questions">("text");
 
+  // Grade (7/8/9 – whose textbook vocabulary); an assignment or ?grade= can fix it.
+  const [forcedGrade, setForcedGrade] = useState<ClassGrade | null>(null);
+  const { grade, setGrade, classGrade } = useClassGrade(forcedGrade);
   const [selectedLevel, setSelectedLevel] = useState<"Level 1" | "Level 2" | "Level 3">("Level 2");
   const [selectedCategory, setSelectedCategory] = useState<ConversationCategory | "all">("all");
   const [selectedScenarioId, setSelectedScenarioId] = useState<string>(
@@ -193,6 +198,8 @@ export function useConversationPractice() {
     if (params.get("stage") === "exercise") {
       setStage("exercise");
     }
+    const gradeParam = parseClassGrade(params.get("grade"));
+    if (gradeParam) setForcedGrade(gradeParam);
     const levelParam = params.get("level") as "Level 1" | "Level 2" | "Level 3" | null;
     if (levelParam && ["Level 1", "Level 2", "Level 3"].includes(levelParam)) {
       setSelectedLevel(levelParam);
@@ -200,8 +207,9 @@ export function useConversationPractice() {
     const scenarioParam = params.get("scenarioId") || params.get("passageId") || params.get("story");
     const assignIdParam = params.get("assignmentId");
     if (scenarioParam && scenarioParam !== "free_choice" && scenarioParam !== "adaptive_david") {
-      const found = REAL_LIFE_CONVERSATIONS.find((s) => s.id === scenarioParam);
+      const found = findConversationById(scenarioParam);
       if (found) {
+        setScenarios((prev) => (prev.some((s) => s.id === found.id) ? prev : [...prev, found]));
         setSelectedLevel(found.level);
         setSelectedScenarioId(found.id);
         setStage("exercise");
@@ -218,6 +226,7 @@ export function useConversationPractice() {
           if (matchedAssign) {
             setActiveAssignment(matchedAssign);
             if (matchedAssign.level) setSelectedLevel(matchedAssign.level);
+            if (matchedAssign.grade) setForcedGrade(matchedAssign.grade);
           }
         }
       } catch {}
@@ -241,13 +250,31 @@ export function useConversationPractice() {
   }, [teachers, selectedTeacherId, user?.teacherId]);
 
   // Filtered scenarios for Settings Stage
+  // Scenarios of the chosen grade (AI-made or legacy ones without a grade count as the current grade).
+  const gradeScenarios = useMemo(() => scenarios.filter((s) => (s.grade ?? grade) === grade), [scenarios, grade]);
+
   const filteredScenarios = useMemo(() => {
-    return scenarios.filter((s) => {
+    return gradeScenarios.filter((s) => {
       if (s.level !== selectedLevel) return false;
       if (selectedCategory !== "all" && s.category !== selectedCategory) return false;
       return true;
     });
-  }, [scenarios, selectedLevel, selectedCategory]);
+  }, [gradeScenarios, selectedLevel, selectedCategory]);
+
+  // While choosing, keep the selected scenario inside the chosen grade, level and category.
+  const firstFilteredId = filteredScenarios[0]?.id;
+  const selectedInFilter = filteredScenarios.some((s) => s.id === selectedScenarioId);
+  useEffect(() => {
+    if (stage === "settings" && !selectedInFilter && firstFilteredId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setSelectedScenarioId(firstFilteredId);
+    }
+  }, [stage, selectedInFilter, firstFilteredId]);
+
+  const handleGradeSelect = (g: ClassGrade) => {
+    setGrade(g);
+    setExpandedScenarioId(null);
+  };
 
   // Draft Restoration & Auto-Save
   useEffect(() => {
@@ -803,6 +830,7 @@ export function useConversationPractice() {
           level: selectedLevel,
           topic: topicToUse,
           category: selectedCategory,
+          grade,
         }),
       });
 
@@ -911,6 +939,8 @@ export function useConversationPractice() {
             turns: currentScenario.turns,
             questions: [q],
             userAnswers: { [qId]: rawAns },
+            grade: currentScenario.grade ?? grade,
+            level: currentScenario.level,
             studentName: user?.name || "תלמיד/ה",
           }),
         });
@@ -998,6 +1028,8 @@ export function useConversationPractice() {
           turns: currentScenario.turns,
           questions: currentScenario.questions,
           userAnswers,
+          grade: currentScenario.grade ?? grade,
+          level: currentScenario.level,
           studentName: (studentNameInput.trim() || user?.name || "תלמיד/ה").trim(),
         }),
       });
@@ -1334,6 +1366,11 @@ export function useConversationPractice() {
     dialogueSavedVocabWords,
     printOptions,
     filteredScenarios,
+    gradeScenarios,
+    grade,
+    classGrade,
+    gradeLocked: forcedGrade !== null,
+    handleGradeSelect,
     handleSaveAndExit,
     handleSpeak,
     handleSpeakText,

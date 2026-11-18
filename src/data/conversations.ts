@@ -6,6 +6,7 @@ import {
 import { LEVEL_1_CONVERSATIONS } from "./conversations/legacy/level-1";
 import { LEVEL_2_CONVERSATIONS } from "./conversations/legacy/level-2";
 import { LEVEL_3_CONVERSATIONS } from "./conversations/legacy/level-3";
+import { CONVERSATION_SCENARIOS } from "./conversations/scenarios";
 
 export { LEVEL_1_CONVERSATIONS } from "./conversations/legacy/level-1";
 export { LEVEL_2_CONVERSATIONS } from "./conversations/legacy/level-2";
@@ -88,8 +89,18 @@ export function randomizeConversationQuestionsOptions(
   });
 }
 
-export const REAL_LIFE_CONVERSATIONS: ConversationScenario[] = [
+/** The current library: grade × level scenarios in each grade's textbook vocabulary. */
+export const REAL_LIFE_CONVERSATIONS: ConversationScenario[] = CONVERSATION_SCENARIOS;
+
+/** Scenarios from before the grade rewrite – no longer listed, but old submissions and assignments still open them. */
+export const LEGACY_CONVERSATIONS: ConversationScenario[] = [
   ...LEVEL_1_CONVERSATIONS,
   ...LEVEL_2_CONVERSATIONS,
   ...LEVEL_3_CONVERSATIONS,
 ];
+
+/** Finds a scenario by id in the current library or the legacy one. */
+export function findConversationById(id: string | null | undefined): ConversationScenario | undefined {
+  if (!id) return undefined;
+  return CONVERSATION_SCENARIOS.find((s) => s.id === id) ?? LEGACY_CONVERSATIONS.find((s) => s.id === id);
+}
