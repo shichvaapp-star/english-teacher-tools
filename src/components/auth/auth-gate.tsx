@@ -51,7 +51,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (user || true) { // TEMP-BYPASS
+  if (user) {
     return <>{children}</>;
   }
 
