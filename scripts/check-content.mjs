@@ -63,6 +63,9 @@ function uniqueIds(section, items) {
   }
 }
 
+// Words of the task instructions themselves (always allowed in prompts).
+const INSTRUCTION_WORDS = ["copy", "paragraph", "line", "lines", "sentence", "sentences", "text", "story", "title", "conversation", "dialogue", "answer"];
+
 const norm = (s) => s.toLowerCase().replace(/[’]/g, "'").replace(/\s+/g, " ").trim();
 
 function checkMcq(where, q) {
@@ -145,7 +148,7 @@ for (const s of UNSEEN_STORIES) {
     ...s.questions.flatMap((q) => [q.prompt, ...(q.options ?? []), q.modelAnswer, q.targetSentence]),
   ];
   const glossed = vocab.vocabularyTokens(s.vocabularyHints.map((h) => h.word));
-  checkVocabulary("unseen", w, s.grade, s.level, text, [...glossed, ...(s.allowWords ?? [])]);
+  checkVocabulary("unseen", w, s.grade, s.level, text, [...glossed, ...INSTRUCTION_WORDS, ...(s.allowWords ?? [])]);
 }
 
 // ── Conversation ──
@@ -183,7 +186,7 @@ for (const s of CONVERSATION_SCENARIOS) {
     ...s.questions.flatMap((q) => [q.prompt, q.situationContext, ...(q.options ?? []), q.modelAnswer]),
   ];
   const names = s.speakers.flatMap((sp) => sp.name.split(/[\s()]+/));
-  checkVocabulary("conversation", w, s.grade, s.level, text, [...names, ...(s.allowWords ?? [])]);
+  checkVocabulary("conversation", w, s.grade, s.level, text, [...names, ...INSTRUCTION_WORDS, ...(s.allowWords ?? [])]);
 }
 
 // ── Writing ──

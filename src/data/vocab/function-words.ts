@@ -42,6 +42,7 @@ export const FUNCTION_WORDS: string[] = [
   // numbers
   "zero", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten",
   "eleven", "twelve", "twenty", "thirty", "hundred", "thousand", "second", "third",
+  "fourth", "fifth", "sixth", "seventh", "eighth", "ninth", "tenth", "hundreds", "thousands",
   // tiny everyday verbs used to build sentences
   "get", "go", "come", "make", "take", "give", "say", "tell", "see", "know", "think",
   "want", "need", "like", "love", "look", "play", "eat", "drink", "live", "work", "study",
@@ -55,4 +56,10 @@ export const ITEM_NAMES: string[] = [
   "lior", "adam", "sarah", "david", "michal", "amit", "roni", "yael", "ben",
   "haifa", "tel", "aviv", "jerusalem", "eilat", "be'er", "sheva", "israel", "english",
   "hebrew", "arabic", "russian",
+  // more names used in reading and conversation content
+  "gal", "roy", "rex", "anna", "yuval", "nadav", "eden", "ella", "liam", "alon", "maor",
+  "hila", "neta", "avi", "ido", "rina", "jack", "emma", "sam", "lily", "max", "leo",
+  "mia", "zoe", "ori", "keren", "lee", "jordan", "cohen", "levi", "london", "paris",
+  "america", "europe", "africa", "asia", "australia", "japan", "china", "india",
+  "france", "italy", "russia", "morocco", "israeli", "ethiopia", "germany", "mexico", "brazil", "turkey", "jaffa", "nazareth", "acre", "tiberias", "eilat", "spain", "canada", "egypt", "greece", "galilee", "negev", "kinneret",
 ];
