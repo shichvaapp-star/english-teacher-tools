@@ -32,7 +32,6 @@ export function ConversationSettingsStage({ c }: { c: ConversationPracticeContro
     handleWordClick,
     isGeneratingAi,
     mode,
-    scenarios,
     selectedCategory,
     selectedLevel,
     selectedScenarioId,
