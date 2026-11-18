@@ -49,7 +49,7 @@ export function DiscardDraftButton({ draftId }: { draftId: string }) {
     setBusy(true);
     suspendDraftSaves();
     await deleteDraft(draftId, user?.id);
-    window.location.href = user?.role === "student" ? "/student" : "/";
+    window.location.replace(user?.role === "student" ? "/student" : "/");
   };
 
   return (

@@ -6,6 +6,7 @@ import { useAuth } from "@/lib/auth-context";
 import { db } from "@/lib/firebase";
 import { cleanForFirestore } from "@/lib/utils";
 import { useClassGrade } from "@/components/shared/use-class-grade";
+import { useHistoryStage } from "@/components/shared/use-history-stage";
 import { hebrewGradeToNumber, labelToLevel, type ClassGrade, type LevelNumber } from "@/lib/levels";
 import { gradeGrammarItem, isResponseComplete, matchesAny } from "@/lib/grammar-grading";
 import { AI_GRADED_TYPES, type GrammarAiResponse } from "@/lib/grammar-ai";
@@ -28,6 +29,7 @@ const HINT_PENALTY = 0.75;
 const AI_TIMEOUT_MS = 15000;
 
 export type GrammarScreen = "topics" | "practice" | "results";
+const GRAMMAR_SCREENS: readonly GrammarScreen[] = ["topics", "practice", "results"];
 
 export interface QueueEntry {
   key: string;
@@ -153,7 +155,7 @@ export function useGrammarPractice() {
   // Everyone may switch grade (default: own class); an assignment can fix it.
   const { grade, setGrade: setClassGrade } = useClassGrade(assignment?.grade ?? null);
 
-  const [screen, setScreen] = useState<GrammarScreen>("topics");
+  const [screen, setScreen] = useHistoryStage<GrammarScreen>("screen", "topics", GRAMMAR_SCREENS);
   const [sessionTopicIds, setSessionTopicIds] = useState<string[]>([]);
   const [queue, setQueue] = useState<QueueEntry[]>([]);
   const [index, setIndex] = useState(0);

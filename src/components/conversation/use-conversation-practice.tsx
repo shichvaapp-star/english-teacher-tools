@@ -3,6 +3,7 @@
 import { isHebrewOnly } from "@/lib/hebrew-text";
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { useHistoryStage } from "@/components/shared/use-history-stage";
 import { toPartOfSpeech } from "@/types/vocabulary";
 import type { ConversationDraftPayload } from "@/types/draft";
 import { useAuth } from "@/lib/auth-context";
@@ -37,7 +38,7 @@ export function useConversationPractice() {
   const { user, teachers } = useAuth();
   const [scenarios, setScenarios] = useState<ConversationScenario[]>(REAL_LIFE_CONVERSATIONS);
 
-  const [stage, setStage] = useState<"settings" | "exercise">("settings");
+  const [stage, setStage] = useHistoryStage<"settings" | "exercise">("stage", "settings", ["settings", "exercise"]);
   const [mobileTab, setMobileTab] = useState<"text" | "questions">("text");
 
   // Grade (7/8/9 – whose textbook vocabulary); an assignment or ?grade= can fix it.
@@ -172,7 +173,7 @@ export function useConversationPractice() {
             setSelectedLevel(snap.selectedLevel || restored.level || "Level 2");
             setSelectedScenarioId(restored.id);
           }
-          setStage(snap.stage || "exercise");
+          setStage(snap.stage === "settings" ? "settings" : "exercise", { replace: true });
           if (snap.mode) setMode(snap.mode);
           if (snap.userAnswers) setUserAnswers(snap.userAnswers);
           if (snap.checkedQuestions) setCheckedQuestions(snap.checkedQuestions);
@@ -196,7 +197,7 @@ export function useConversationPractice() {
       setIsFromDavid(true);
     }
     if (params.get("stage") === "exercise") {
-      setStage("exercise");
+      setStage("exercise", { replace: true });
     }
     const gradeParam = parseClassGrade(params.get("grade"));
     if (gradeParam) setForcedGrade(gradeParam);
@@ -212,7 +213,7 @@ export function useConversationPractice() {
         setScenarios((prev) => (prev.some((s) => s.id === found.id) ? prev : [...prev, found]));
         setSelectedLevel(found.level);
         setSelectedScenarioId(found.id);
-        setStage("exercise");
+        setStage("exercise", { replace: true });
         setMode(params.get("from") === "david" ? "practice" : "graded");
       }
     }
@@ -302,7 +303,7 @@ export function useConversationPractice() {
           setActiveQuestionIndex(payload.activeQuestionIndex);
         }
         if (payload.mode) setMode(payload.mode);
-        if (draftIdParam) setStage("exercise");
+        if (draftIdParam) setStage("exercise", { replace: true });
       }
     }
   }, [currentScenario.id, currentAssignmentId, isSubmitted]);
@@ -372,7 +373,7 @@ export function useConversationPractice() {
 
   const handleSaveAndExit = async () => {
     if (typeof window !== "undefined") {
-      window.location.href = user?.role === "student" ? "/student" : "/";
+      window.location.replace(user?.role === "student" ? "/student" : "/");
     }
   };
 
@@ -1227,7 +1228,7 @@ export function useConversationPractice() {
     });
 
     if (typeof window !== "undefined") {
-      router.push("/tutor?turnIn=1");
+      router.replace("/tutor?turnIn=1");
     }
   };
 

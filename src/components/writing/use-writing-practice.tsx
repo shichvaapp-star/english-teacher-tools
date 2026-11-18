@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useHistoryStage } from "@/components/shared/use-history-stage";
 import { useClassGrade } from "@/components/shared/use-class-grade";
 import { parseClassGrade, type ClassGrade } from "@/lib/levels";
 import { useAuth } from "@/lib/auth-context";
@@ -31,7 +32,7 @@ export function useWritingPractice() {
   const { user, teachers } = useAuth();
 
   // App Stage: "settings" vs "writing"
-  const [stage, setStage] = useState<"settings" | "writing">("settings");
+  const [stage, setStage] = useHistoryStage<"settings" | "writing">("stage", "settings", ["settings", "writing"]);
 
   // Level Selection: Level 1, Level 2, Level 3
   const [selectedLevel, setSelectedLevel] = useState<WritingLevel>("Level 2");
@@ -140,7 +141,7 @@ export function useWritingPractice() {
         if (found) {
           setSelectedLevel(found.level);
           setSelectedTaskId(found.id);
-          setStage("writing");
+          setStage("writing", { replace: true });
         }
       }
       if (assignIdParam) {
@@ -245,7 +246,7 @@ export function useWritingPractice() {
           setCustomTopicInput(payload.customTopic.prompt);
         }
         if (draftIdParam || params.get("task") || params.get("assignmentId")) {
-          setStage("writing");
+          setStage("writing", { replace: true });
         }
         setActiveDraftPrompt(matched);
       } else {
@@ -357,7 +358,7 @@ export function useWritingPractice() {
         },
       });
     }
-    router.push("/student");
+    router.replace("/student");
   };
   const [selectedTeacherId, setSelectedTeacherId] = useState(() => {
     return user?.teacherId || "";
@@ -891,10 +892,10 @@ export function useWritingPractice() {
         teacherNote: evalData?.teacherNote,
       });
 
-      router.push("/tutor?turnIn=1");
+      router.replace("/tutor?turnIn=1");
     } catch (e) {
       console.error("Turn in to David error:", e);
-      router.push("/tutor?turnIn=1");
+      router.replace("/tutor?turnIn=1");
     } finally {
       setIsTurningInToDavid(false);
     }
