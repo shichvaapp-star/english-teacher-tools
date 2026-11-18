@@ -168,7 +168,9 @@ export function StudentAssignedTaskPrompt() {
 
   // Focus on first pending assignment
   const assignment = pendingAssignments[0];
-  const levelParam = assignment.level ? `&level=${encodeURIComponent(assignment.level)}` : "";
+  const levelParam =
+    (assignment.level ? `&level=${encodeURIComponent(assignment.level)}` : "") +
+    (assignment.grade ? `&grade=${assignment.grade}` : "");
   const isFreeChoice = assignment.isFreeChoice || assignment.isAdaptiveDavid || assignment.taskId === "free_choice" || assignment.taskId === "adaptive_david";
   const targetUrl =
     assignment.type === "grammar"

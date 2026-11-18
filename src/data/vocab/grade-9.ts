@@ -1,7 +1,7 @@
 // Grade 9 textbook vocabulary – Mindset Plus, by unit (from the teacher's Google Sheet).
 // Levels 1–2 grammar items for grade 9 may use these words, earlier grades' lists,
 // Band I (band-1.ts) and the function words in function-words.ts.
-import type { VocabEntry } from "@/data/grammar/vocab/types";
+import type { VocabEntry } from "@/data/vocab/types";
 
 export const GRADE_9_VOCAB: VocabEntry[] = [
   { unit: 1, word: "ancient", pos: "adj", he: "עתיק" },

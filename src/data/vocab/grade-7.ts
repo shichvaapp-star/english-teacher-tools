@@ -1,7 +1,7 @@
 // Grade 7 textbook vocabulary – Teamwork, by unit (from the teacher's Google Sheet).
 // Levels 1–2 grammar items for grade 7 may use these words, earlier grades' lists,
 // Band I (band-1.ts) and the function words in function-words.ts.
-import type { VocabEntry } from "@/data/grammar/vocab/types";
+import type { VocabEntry } from "@/data/vocab/types";
 
 export const GRADE_7_VOCAB: VocabEntry[] = [
   { unit: 1, word: "activity", pos: "n", he: "פעילות" },

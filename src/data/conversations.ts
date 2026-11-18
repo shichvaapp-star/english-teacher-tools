@@ -3,13 +3,13 @@ import {
   ConversationCategory,
   ConversationQuestion,
 } from "@/types/conversation";
-import { LEVEL_1_CONVERSATIONS } from "./conversations/level-1";
-import { LEVEL_2_CONVERSATIONS } from "./conversations/level-2";
-import { LEVEL_3_CONVERSATIONS } from "./conversations/level-3";
+import { LEVEL_1_CONVERSATIONS } from "./conversations/legacy/level-1";
+import { LEVEL_2_CONVERSATIONS } from "./conversations/legacy/level-2";
+import { LEVEL_3_CONVERSATIONS } from "./conversations/legacy/level-3";
 
-export { LEVEL_1_CONVERSATIONS } from "./conversations/level-1";
-export { LEVEL_2_CONVERSATIONS } from "./conversations/level-2";
-export { LEVEL_3_CONVERSATIONS } from "./conversations/level-3";
+export { LEVEL_1_CONVERSATIONS } from "./conversations/legacy/level-1";
+export { LEVEL_2_CONVERSATIONS } from "./conversations/legacy/level-2";
+export { LEVEL_3_CONVERSATIONS } from "./conversations/legacy/level-3";
 
 export const CONVERSATION_CATEGORIES: {
   id: ConversationCategory | "all";

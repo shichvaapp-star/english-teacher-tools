@@ -35,6 +35,7 @@ export interface TeacherAssignment {
   vocabWords?: AssignedVocabWord[]; // Words pre-assigned by the teacher
   grammarConfig?: GrammarAssignmentConfig; // Grammar assignments only
   level?: ExerciseLevel; // Selected exercise level: Level 1, Level 2, or Level 3
+  grade?: 7 | 8 | 9; // Content grade (textbook vocabulary); missing = each student's own choice
   isFreeChoice?: boolean;
   isAdaptiveDavid?: boolean; // David selects a task matching each student's personal level (Level 1/2/3)
   focusWords?: string[]; // Optional teacher-selected English words for David to pre-teach and quiz

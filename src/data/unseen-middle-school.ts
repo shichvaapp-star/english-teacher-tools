@@ -1,37 +1,9 @@
-import { LEVEL_1_UNSEENS } from "./unseen/level-1";
-import { LEVEL_2_UNSEENS } from "./unseen/level-2";
-import { LEVEL_3_UNSEENS } from "./unseen/level-3";
+import { LEVEL_1_UNSEENS } from "./unseen/legacy/level-1";
+import { LEVEL_2_UNSEENS } from "./unseen/legacy/level-2";
+import { LEVEL_3_UNSEENS } from "./unseen/legacy/level-3";
 
-export interface MSUnseenQuestion {
-  id: string;
-  number: number;
-  paragraphIndex: number;
-  linesHint?: string;
-  type: "mcq" | "open" | "copy";
-  prompt: string;
-  options?: string[];
-  correctIndex?: number;
-  targetSentence?: string;
-  modelAnswer?: string;
-  keywords?: string[];
-  explanationHebrew: string;
-  points: number;
-}
-
-export interface MSUnseenStory {
-  id: string;
-  title: string;
-  hebrewTitle: string;
-  level: "Level 1" | "Level 2" | "Level 3";
-  levelLabel: string;
-  levelDescription: string;
-  paragraphs: string[];
-  vocabularyHints: { word: string; translation: string }[];
-  questions: MSUnseenQuestion[];
-  totalPoints: number;
-  generationPrompt?: string;
-  isAiGenerated?: boolean;
-}
+import type { MSUnseenQuestion, MSUnseenStory } from "@/types/unseen";
+export type { MSUnseenQuestion, MSUnseenStory };
 
 /**
  * Shuffles multiple-choice question options and balances correct answer positions across A (0), B (1), C (2), and D (3)

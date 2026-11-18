@@ -5,6 +5,7 @@ import { doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
 import { useAuth } from "@/lib/auth-context";
 import { db } from "@/lib/firebase";
 import { cleanForFirestore } from "@/lib/utils";
+import { useClassGrade } from "@/components/shared/use-class-grade";
 import { hebrewGradeToNumber, labelToLevel, type ClassGrade, type LevelNumber } from "@/lib/levels";
 import { gradeGrammarItem, isResponseComplete, matchesAny } from "@/lib/grammar-grading";
 import { AI_GRADED_TYPES, type GrammarAiResponse } from "@/lib/grammar-ai";
@@ -137,8 +138,6 @@ export function useGrammarPractice() {
   const uid = user?.id ?? null;
   const isTeacher = user?.role === "teacher";
   const studentGrade: ClassGrade | null = hebrewGradeToNumber(user?.classGrade);
-  const [teacherGrade, setTeacherGrade] = useState<ClassGrade>(7);
-  const grade: ClassGrade = studentGrade ?? teacherGrade;
 
   const storedLevel = parseLevel(useStoredRaw(LEVEL_KEY));
   const progressRaw = useStoredRaw(PROGRESS_KEY);
@@ -151,6 +150,8 @@ export function useGrammarPractice() {
   const [assignmentError, setAssignmentError] = useState(false);
   const assignmentLevel = labelToLevel(assignment?.level);
   const level: LevelNumber = assignmentLevel ?? storedLevel;
+  // Everyone may switch grade (default: own class); an assignment can fix it.
+  const { grade, setGrade: setClassGrade } = useClassGrade(assignment?.grade ?? null);
 
   const [screen, setScreen] = useState<GrammarScreen>("topics");
   const [sessionTopicIds, setSessionTopicIds] = useState<string[]>([]);
@@ -465,7 +466,7 @@ export function useGrammarPractice() {
       grammarSummary: {
         topicIds: sessionTopicIds,
         level,
-        grade: studentGrade ?? undefined,
+        grade,
         totalItems: attempts.length,
         correctItems: attempts.filter((a) => a.grade.isCorrect).length,
         entries,
@@ -501,15 +502,15 @@ export function useGrammarPractice() {
     setSubmitting(false);
     if (ok) setReceiptCode(code);
     else setSubmitError(true);
-  }, [assignment, user, submitting, officialAttempts, sessionTopicIds, level, studentGrade]);
+  }, [assignment, user, submitting, officialAttempts, sessionTopicIds, level, grade]);
 
   return {
     // profile
     isTeacher,
     studentGrade,
     classGrade: grade,
-    teacherGrade,
-    setTeacherGrade,
+    setClassGrade,
+    gradeLocked: Boolean(assignment?.grade),
     level,
     setLevel,
     levelLocked: assignmentLevel !== null,

@@ -4,14 +4,9 @@ import React from "react";
 import { ChevronLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { LEVELS, LEVEL_DESCRIPTION_HE, LEVEL_NAME_HE } from "@/lib/levels";
+import { GradePicker } from "@/components/shared/grade-picker";
 import { EXERCISE_TYPE_LABEL, ExerciseTypeTip } from "@/components/grammar/exercises";
 import type { GrammarPracticeController } from "@/components/grammar/use-grammar-practice";
-
-const GRADES = [
-  { n: 7, he: "כיתה ז׳" },
-  { n: 8, he: "כיתה ח׳" },
-  { n: 9, he: "כיתה ט׳" },
-] as const;
 
 export function GrammarTopicsScreen({ c }: { c: GrammarPracticeController }) {
   if (c.screen !== "topics") return null;
@@ -24,27 +19,14 @@ export function GrammarTopicsScreen({ c }: { c: GrammarPracticeController }) {
         </p>
       )}
 
-      {/* Grade – only teachers choose (students use their class) */}
-      {c.isTeacher && (
-        <section className="space-y-2">
-          <p className="text-sm text-muted-foreground">שכבה (אוצר המילים של הספר)</p>
-          <div className="grid grid-cols-3 gap-2">
-            {GRADES.map((g) => (
-              <button
-                key={g.n}
-                type="button"
-                onClick={() => c.setTeacherGrade(g.n)}
-                className={cn(
-                  "rounded-xl border px-3 py-2 text-sm font-bold transition-colors cursor-pointer",
-                  c.classGrade === g.n ? "border-type-grammar bg-type-grammar/10" : "border-border hover:bg-muted/50"
-                )}
-              >
-                {g.he}
-              </button>
-            ))}
-          </div>
-        </section>
-      )}
+      {/* Grade – everyone may switch; defaults to the student's class */}
+      <GradePicker
+        grade={c.classGrade}
+        onChange={c.setClassGrade}
+        classGrade={c.studentGrade}
+        disabled={c.gradeLocked}
+        accent="grammar"
+      />
 
       {/* Level */}
       <section className="space-y-2">

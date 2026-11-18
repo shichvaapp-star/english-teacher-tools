@@ -62,6 +62,10 @@ export interface ConversationScenario {
   level: "Level 1" | "Level 2" | "Level 3";
   levelLabel: string;
   levelDescription: string;
+  /** Content grade (7/8/9): the textbook vocabulary it is written in. Missing on legacy content. */
+  grade?: 7 | 8 | 9;
+  /** Words outside the grade vocabulary that are deliberately used (names, glossed words). */
+  allowWords?: string[];
   speakers: DialogueSpeaker[];
   turns: DialogueTurn[];
   usefulPhrases: UsefulConversationPhrase[];

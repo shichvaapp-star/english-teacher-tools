@@ -1,37 +1,11 @@
 // Validates the grammar content bank (src/data/grammar).
-// Runs the TypeScript data directly (Node strips types); "@/..." and
-// extensionless imports are resolved by the small hook below.
-import { registerHooks } from "node:module";
-import { existsSync } from "node:fs";
-import { fileURLToPath, pathToFileURL } from "node:url";
+// Runs the TypeScript data directly via scripts/ts-loader.mjs.
+import { pathToFileURL } from "node:url";
 import path from "node:path";
-
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-
-registerHooks({
-  resolve(specifier, context, nextResolve) {
-    let target = null;
-    if (specifier.startsWith("@/")) target = path.join(root, "src", specifier.slice(2));
-    else if (specifier.startsWith(".") && context.parentURL?.endsWith(".ts")) {
-      target = path.resolve(path.dirname(fileURLToPath(context.parentURL)), specifier);
-    }
-    if (target) {
-      for (const cand of [target, `${target}.ts`, `${target}.tsx`, path.join(target, "index.ts")]) {
-        if (existsSync(cand) && !cand.endsWith(path.sep)) {
-          try {
-            if (path.extname(cand)) return nextResolve(pathToFileURL(cand).href, context);
-          } catch {
-            /* try next */
-          }
-        }
-      }
-    }
-    return nextResolve(specifier, context);
-  },
-});
+import { root } from "./ts-loader.mjs";
 
 const { GRAMMAR_TOPICS, GRAMMAR_ITEMS } = await import(pathToFileURL(path.join(root, "src/data/grammar/index.ts")).href);
-const vocab = await import(pathToFileURL(path.join(root, "src/data/grammar/vocab/index.ts")).href);
+const vocab = await import(pathToFileURL(path.join(root, "src/data/vocab/index.ts")).href);
 const { findUnknownWords } = await import(pathToFileURL(path.join(root, "src/lib/grammar-vocab.ts")).href);
 const { gradeGrammarItem, normalizeAnswer } = await import(
   pathToFileURL(path.join(root, "src/lib/grammar-grading.ts")).href
