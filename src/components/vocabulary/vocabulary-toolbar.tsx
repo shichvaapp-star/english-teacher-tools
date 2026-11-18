@@ -10,12 +10,20 @@ import {
   BookMarked,
   Plus,
 } from "lucide-react";
+import { CLASS_GRADES, GRADE_LABELS } from "@/lib/levels";
 import { type VocabularyPracticeController } from "@/components/vocabulary/use-vocabulary-practice";
+
+const BOOK_NAME = { 7: "Teamwork", 8: "New Directions Plus", 9: "Mindset Plus" } as const;
 
 export function VocabularyToolbar({ c }: { c: VocabularyPracticeController }) {
   const {
     activeAssignment,
     activeCategory,
+    activeGrade,
+    classGrade,
+    unit,
+    units,
+    setUnit,
     assignmentWords,
     filteredWords,
     savedUnseenWords,
@@ -68,41 +76,22 @@ export function VocabularyToolbar({ c }: { c: VocabularyPracticeController }) {
             <span>אוצר המילים שלי ({savedUnseenWords.length})</span>
           </Button>
 
-          <Button
-            variant={activeCategory === "grade7" ? "default" : "outline"}
-            size="sm"
-            className="text-xs h-8 cursor-pointer shrink-0"
-            onClick={() => {
-              setActiveCategory("grade7");
-              setCardIndex(0);
-            }}
-          >
-            רמה 1
-          </Button>
-
-          <Button
-            variant={activeCategory === "grade8" ? "default" : "outline"}
-            size="sm"
-            className="text-xs h-8 cursor-pointer shrink-0"
-            onClick={() => {
-              setActiveCategory("grade8");
-              setCardIndex(0);
-            }}
-          >
-            רמה 2
-          </Button>
-
-          <Button
-            variant={activeCategory === "grade9" ? "default" : "outline"}
-            size="sm"
-            className="text-xs h-8 cursor-pointer shrink-0"
-            onClick={() => {
-              setActiveCategory("grade9");
-              setCardIndex(0);
-            }}
-          >
-            רמה 3
-          </Button>
+          {CLASS_GRADES.map((g) => (
+            <Button
+              key={g}
+              variant={activeCategory === `grade${g}` ? "default" : "outline"}
+              size="sm"
+              className="text-xs h-8 cursor-pointer shrink-0 gap-1"
+              onClick={() => {
+                setActiveCategory(`grade${g}`);
+                setCardIndex(0);
+              }}
+              title={BOOK_NAME[g]}
+            >
+              <span>{GRADE_LABELS[g].he}</span>
+              {classGrade === g && <span className="size-1.5 rounded-full bg-current opacity-60" aria-label="הכיתה שלי" />}
+            </Button>
+          ))}
         </div>
 
         <div className="flex items-center gap-2 w-full sm:w-auto">
@@ -131,6 +120,27 @@ export function VocabularyToolbar({ c }: { c: VocabularyPracticeController }) {
           </Button>
         </div>
       </div>
+
+      {/* Textbook units of the chosen grade */}
+      {activeGrade && units.length > 0 && (
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none print:hidden" dir="rtl">
+          <span className="text-xs font-semibold text-muted-foreground ml-1 shrink-0">
+            {BOOK_NAME[activeGrade]} · יחידה:
+          </span>
+          {units.map((u) => (
+            <Button
+              key={u}
+              variant={unit === u ? "default" : "outline"}
+              size="sm"
+              className="h-7 min-w-8 px-2 text-xs cursor-pointer shrink-0"
+              onClick={() => setUnit(u)}
+              aria-pressed={unit === u}
+            >
+              {u}
+            </Button>
+          ))}
+        </div>
+      )}
 
       {/* Study Mode Tabs */}
       <div className="flex items-center justify-between gap-2 print:hidden w-full overflow-x-auto pb-1">

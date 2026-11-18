@@ -2,12 +2,15 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useClassGrade } from "@/components/shared/use-class-grade";
+import { parseClassGrade, type ClassGrade } from "@/lib/levels";
 import { useAuth } from "@/lib/auth-context";
 import { db } from "@/lib/firebase";
 import { collection, getDocs, query, where, doc, setDoc } from "firebase/firestore";
 import { cleanForFirestore } from "@/lib/utils";
 import {
   ALL_WRITING_TASKS,
+  findWritingTaskById,
   WritingTask,
   WritingLevel,
   TaskCategory,
@@ -42,10 +45,15 @@ export function useWritingPractice() {
   // All Tasks Pool
   const [tasks, setTasks] = useState<WritingTask[]>(ALL_WRITING_TASKS);
 
+  // Grade (7/8/9 – whose textbook vocabulary); an assignment or ?grade= can fix it.
+  const [forcedGrade, setForcedGrade] = useState<ClassGrade | null>(null);
+  const { grade, setGrade, classGrade } = useClassGrade(forcedGrade);
+
   // Filter tasks by level and category
+  // Tasks of the chosen grade and level (AI-made or legacy tasks without a grade count as the current grade).
   const levelTasks = useMemo(() => {
-    return tasks.filter((t) => t.level === selectedLevel);
-  }, [tasks, selectedLevel]);
+    return tasks.filter((t) => t.level === selectedLevel && (t.grade ?? grade) === grade);
+  }, [tasks, selectedLevel, grade]);
 
   const filteredTasks = useMemo(() => {
     if (selectedCategory === "all") return levelTasks;
@@ -62,6 +70,16 @@ export function useWritingPractice() {
     if (found) return found;
     return filteredTasks[0] || levelTasks[0] || ALL_WRITING_TASKS[0];
   }, [tasks, selectedTaskId, filteredTasks, levelTasks]);
+
+  // While choosing, keep the selected task inside the chosen grade and level.
+  const firstFilteredTaskId = filteredTasks[0]?.id;
+  const selectedTaskInList = filteredTasks.some((t) => t.id === selectedTaskId);
+  useEffect(() => {
+    if (stage === "settings" && !selectedTaskInList && firstFilteredTaskId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setSelectedTaskId(firstFilteredTaskId);
+    }
+  }, [stage, selectedTaskInList, firstFilteredTaskId]);
 
   // Topic Source in Settings: "library" vs "ai_generator"
   const [topicSourceTab, setTopicSourceTab] = useState<"library" | "ai_generator">("library");
@@ -107,6 +125,8 @@ export function useWritingPractice() {
       const params = new URLSearchParams(window.location.search);
       const taskIdParam = params.get("task");
       const assignIdParam = params.get("assignmentId");
+      const gradeQueryParam = parseClassGrade(params.get("grade"));
+      if (gradeQueryParam) setForcedGrade(gradeQueryParam);
       const levelQueryParam = params.get("level") as WritingLevel | null;
       if (levelQueryParam && (levelQueryParam === "Level 1" || levelQueryParam === "Level 2" || levelQueryParam === "Level 3")) {
         setSelectedLevel(levelQueryParam);
@@ -115,7 +135,8 @@ export function useWritingPractice() {
         setIsFromDavid(true);
       }
       if (taskIdParam && taskIdParam !== "free_choice" && taskIdParam !== "adaptive_david") {
-        const found = ALL_WRITING_TASKS.find((t) => t.id === taskIdParam);
+        const found = findWritingTaskById(taskIdParam);
+        if (found) setTasks((prev) => (prev.some((t) => t.id === found.id) ? prev : [...prev, found]));
         if (found) {
           setSelectedLevel(found.level);
           setSelectedTaskId(found.id);
@@ -135,6 +156,7 @@ export function useWritingPractice() {
               if (matchedAssign.level) {
                 setSelectedLevel(matchedAssign.level);
               }
+              if (matchedAssign.grade) setForcedGrade(matchedAssign.grade);
             }
           }
         } catch {}
@@ -211,7 +233,8 @@ export function useWritingPractice() {
           setSelectedLevel(savedTask.level || payload.writingLevel || "Level 2");
           setSelectedTaskId(savedTask.id);
         } else if (payload.taskId && payload.taskId !== currentTask.id) {
-          const found = ALL_WRITING_TASKS.find((t) => t.id === payload.taskId);
+          const found = findWritingTaskById(payload.taskId);
+          if (found) setTasks((prev) => (prev.some((t) => t.id === found.id) ? prev : [...prev, found]));
           if (found) {
             setSelectedLevel(found.level);
             setSelectedTaskId(found.id);
@@ -396,9 +419,14 @@ export function useWritingPractice() {
   }, []);
 
   // Handle Level Selection
-  const handleLevelSelect = (lvl: WritingLevel) => {
+  const handleGradeSelect = (g: ClassGrade) => {
+    setGrade(g);
+    handleLevelSelect(selectedLevel, g);
+  };
+
+  const handleLevelSelect = (lvl: WritingLevel, g: ClassGrade = grade) => {
     setSelectedLevel(lvl);
-    const matching = tasks.filter((t) => t.level === lvl);
+    const matching = tasks.filter((t) => t.level === lvl && (t.grade ?? g) === g);
     if (matching.length > 0) {
       setSelectedTaskId(matching[0].id);
     }
@@ -572,6 +600,7 @@ export function useWritingPractice() {
         body: JSON.stringify({
           topic,
           level: selectedLevel,
+          grade,
           category: selectedCategory === "all" ? "opinion" : selectedCategory,
         }),
       });
@@ -642,6 +671,7 @@ export function useWritingPractice() {
           prompt: currentTask.prompt,
           category: currentTask.category,
           level: currentTask.level,
+          grade: currentTask.grade ?? grade,
           minWords: currentTask.minWords,
           maxWords: currentTask.maxWords,
         }),
@@ -740,6 +770,7 @@ export function useWritingPractice() {
             prompt: currentTask.prompt,
             category: currentTask.category,
             level: currentTask.level,
+            grade: currentTask.grade ?? grade,
             minWords: currentTask.minWords,
             maxWords: currentTask.maxWords,
           }),
@@ -887,6 +918,7 @@ export function useWritingPractice() {
         body: JSON.stringify({
           hebrewText: scaffoldInput.trim(),
           level: selectedLevel,
+          grade: currentTask.grade ?? grade,
           taskTitle: currentTask.title,
           currentEssay: essayText,
         }),
@@ -1155,6 +1187,10 @@ export function useWritingPractice() {
     setSubmissionsList,
     SUGGESTED_TOPICS,
     handleLevelSelect,
+    handleGradeSelect,
+    grade,
+    classGrade,
+    gradeLocked: forcedGrade !== null,
     wordList,
     wordCount,
     isWordCountMinReached,

@@ -21,7 +21,35 @@ export interface SubmissionQuestionBreakdown {
   feedbackHebrew?: string; // Nuanced teacher feedback specifically on student's answer
 }
 
-export type SubmissionType = "writing" | "unseen" | "vocab" | "conversation";
+export type SubmissionType = "writing" | "unseen" | "vocab" | "conversation" | "grammar";
+
+export interface GrammarSubmissionEntry {
+  itemId: string;
+  topicId: string;
+  exerciseType: string;
+  /** The task as plain text (sentence with ___, source sentence, etc.). */
+  prompt: string;
+  studentAnswer: string;
+  expected: string;
+  /** 0..1 after hint penalty. */
+  points: number;
+  isCorrect: boolean;
+  usedHint: boolean;
+  /** Not decided automatically – the teacher should look. */
+  needsReview: boolean;
+  feedbackHebrew?: string;
+  /** Graded (or re-graded) by the AI grading agent. */
+  aiGraded?: boolean;
+}
+
+export interface GrammarSubmissionSummary {
+  topicIds: string[];
+  level: 1 | 2 | 3;
+  grade?: 7 | 8 | 9;
+  totalItems: number;
+  correctItems: number;
+  entries: GrammarSubmissionEntry[];
+}
 
 export interface VocabPracticedWord {
   english: string;
@@ -54,6 +82,8 @@ export interface SubmissionItem {
   hebrewTitle: string;
   // Vocabulary specific
   vocabSummary?: VocabPracticeSummary;
+  // Grammar specific
+  grammarSummary?: GrammarSubmissionSummary;
   // Writing specific
   category?: string;
   essayText?: string;

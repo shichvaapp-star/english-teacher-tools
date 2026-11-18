@@ -7,9 +7,11 @@
     "prebuild": "npm run -s lint && npm run -s typecheck",
     "build": "next build --webpack",
     "start": "next start",
-    "lint": "npm run -s check:admins && eslint",
+    "lint": "npm run -s check:admins && npm run -s check:grammar && npm run -s check:content && eslint",
     "typecheck": "tsc --noEmit",
-    "check:admins": "node scripts/check-admin-sync.mjs"
+    "check:admins": "node scripts/check-admin-sync.mjs",
+    "check:grammar": "node --no-warnings scripts/check-grammar.mjs",
+    "check:content": "node --no-warnings scripts/check-content.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",

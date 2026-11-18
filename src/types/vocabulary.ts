@@ -1,6 +1,6 @@
 export type VocabBand = "Band I" | "Band II" | "Band III";
 
-export const PARTS_OF_SPEECH = ["noun", "verb", "adjective", "adverb", "preposition", "phrase"] as const;
+export const PARTS_OF_SPEECH = ["noun", "verb", "adjective", "adverb", "preposition", "pronoun", "conjunction", "phrase"] as const;
 export type PartOfSpeech = (typeof PARTS_OF_SPEECH)[number];
 
 /** The value as a PartOfSpeech if it is one (e.g. from a translation API), else undefined. */

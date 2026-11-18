@@ -2,6 +2,7 @@
 
 import React from "react";
 import { CONVERSATION_CATEGORIES } from "@/data/conversations";
+import { GradePicker } from "@/components/shared/grade-picker";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -31,7 +32,6 @@ export function ConversationSettingsStage({ c }: { c: ConversationPracticeContro
     handleWordClick,
     isGeneratingAi,
     mode,
-    scenarios,
     selectedCategory,
     selectedLevel,
     selectedScenarioId,
@@ -60,6 +60,17 @@ export function ConversationSettingsStage({ c }: { c: ConversationPracticeContro
           </p>
         </div>
 
+        {/* Grade: whose textbook vocabulary the conversations use */}
+        <Card className="p-4 border-border/70 bg-card">
+          <GradePicker
+            grade={c.grade}
+            onChange={c.handleGradeSelect}
+            classGrade={c.classGrade}
+            disabled={c.gradeLocked}
+            accent="conversation"
+          />
+        </Card>
+
         {/* Step 1: Level & Mode Selection */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Card className="p-4 border-border/70 bg-card space-y-3">
@@ -85,7 +96,7 @@ export function ConversationSettingsStage({ c }: { c: ConversationPracticeContro
                     onClick={() => {
                       setSelectedLevel(lvl);
                       setExpandedScenarioId(null);
-                      const firstInLevel = scenarios.find(
+                      const firstInLevel = c.gradeScenarios.find(
                         (s) =>
                           s.level === lvl &&
                           (selectedCategory === "all" || s.category === selectedCategory)
@@ -161,7 +172,7 @@ export function ConversationSettingsStage({ c }: { c: ConversationPracticeContro
                   onClick={() => {
                     setSelectedCategory(cat.id);
                     setExpandedScenarioId(null);
-                    const match = scenarios.find(
+                    const match = c.gradeScenarios.find(
                       (s) =>
                         s.level === selectedLevel &&
                         (cat.id === "all" || s.category === cat.id)

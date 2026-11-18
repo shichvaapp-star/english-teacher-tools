@@ -19,6 +19,10 @@ export interface GuidedStep {
 export interface WritingTask {
   id: string;
   level: WritingLevel;
+  /** Content grade (7/8/9): the textbook vocabulary it is written in. Missing on legacy content. */
+  grade?: 7 | 8 | 9;
+  /** Words outside the grade vocabulary that are deliberately used (names, glossed words). */
+  allowWords?: string[];
   category: TaskCategory;
   title: string;
   hebrewTitle: string;

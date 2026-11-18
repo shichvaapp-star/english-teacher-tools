@@ -1,3 +1,4 @@
+import { gradeExpectationsPrompt, gradeFromBody } from "@/lib/grade-prompt";
 import { NextResponse } from "next/server";
 import { extractJsonObject, jsonString, jsonStringArray } from "@/lib/llm-json";
 import { StudentTutorProfile, TutorLevel } from "@/types/tutor";
@@ -268,6 +269,7 @@ export async function POST(request: Request) {
       profile,
       userMessage = "",
     } = body;
+    const grade = gradeFromBody(body);
 
     const groqApiKey = request.headers.get("x-groq-api-key") || process.env.GROQ_API_KEY;
     const geminiApiKey = request.headers.get("x-gemini-api-key") || process.env.GEMINI_API_KEY;
@@ -289,8 +291,9 @@ export async function POST(request: Request) {
     const readingSkill = profile?.skills?.reading || 60;
     const vocabSkill = profile?.skills?.vocabulary || 60;
     const writingSkill = profile?.skills?.writing || 60;
-    const unseenTopics = getUnseenTopicsForLevel(currentLevel);
-    const writingTopics = getWritingTopicsForLevel(currentLevel);
+    const grammarSkill = profile?.skills?.grammar;
+    const unseenTopics = getUnseenTopicsForLevel(currentLevel, grade ?? 7);
+    const writingTopics = getWritingTopicsForLevel(currentLevel, grade ?? 7);
 
     const systemPrompt = `You are "David" (דוד), a warm, patient, and inspiring private English tutor for Israeli students, specially calibrated for struggling Middle School learners (Level 1 / Band I) as well as Level 2–3 students.
 Your mission is to build the student's confidence and guide them across the platform's 3 pillars:
@@ -301,7 +304,8 @@ Your mission is to build the student's confidence and guide them across the plat
 STUDENT CONTEXT:
 - Student Name: ${studentName}
 - Current Level: ${currentLevel} (${currentBand})
-- Skills: Reading ${readingSkill}/100 | Vocabulary ${vocabSkill}/100 | Writing ${writingSkill}/100
+${gradeExpectationsPrompt(grade, currentLevel)}
+- Skills: Reading ${readingSkill}/100 | Vocabulary ${vocabSkill}/100 | Writing ${writingSkill}/100${grammarSkill !== undefined ? ` | Grammar ${grammarSkill}/100` : ""}
 - Available Unseen Topics for ${currentLevel}: ${unseenTopics.map((t) => `${t.emoji} ${t.nameHebrew} (${t.titleEnglish})`).join(", ")}
 - Available Writing Topics for ${currentLevel}: ${writingTopics.map((t) => `${t.emoji} ${t.nameHebrew} (${t.titleEnglish})`).join(", ")}
 

@@ -16,6 +16,7 @@ import {
   Target,
   FileCheck,
 } from "lucide-react";
+import { GradePicker } from "@/components/shared/grade-picker";
 import { type WritingPracticeController } from "@/components/writing/use-writing-practice";
 
 export function WritingSettingsStage({ c }: { c: WritingPracticeController }) {
@@ -117,6 +118,17 @@ export function WritingSettingsStage({ c }: { c: WritingPracticeController }) {
           </div>
 
           {/* Setting 1: Level Selection */}
+          {/* Grade: whose textbook vocabulary the tasks use */}
+          <div className="bg-card border border-border/70 rounded-xl p-3.5 sm:p-4 shadow-2xs">
+            <GradePicker
+              grade={c.grade}
+              onChange={c.handleGradeSelect}
+              classGrade={c.classGrade}
+              disabled={c.gradeLocked}
+              accent="writing"
+            />
+          </div>
+
           <div className="bg-card border border-border/70 rounded-xl p-3.5 sm:p-4 shadow-2xs space-y-2.5">
             <div className="flex items-center justify-between" dir="rtl">
               <span className="text-xs font-medium text-foreground flex items-center gap-1.5 font-hebrew">

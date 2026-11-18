@@ -1,5 +1,5 @@
 import React from "react";
-import { BookA, BookOpen, MessageSquare, PenTool, type LucideIcon } from "lucide-react";
+import { BookA, BookOpen, BookOpenCheck, MessageSquare, PenTool, type LucideIcon } from "lucide-react";
 import { cn } from "cn";
 import type { SubmissionType } from "@/types/submission";
 
@@ -17,6 +17,7 @@ export const SUBMISSION_TYPE_META: Record<SubmissionType, TypeMeta> = {
   unseen: { label: "אנסין", icon: BookOpen, text: "text-type-unseen", bg: "bg-type-unseen/10" },
   vocab: { label: "אוצר מילים", icon: BookA, text: "text-type-vocab", bg: "bg-type-vocab/10" },
   conversation: { label: "שיחה", icon: MessageSquare, text: "text-type-conversation", bg: "bg-type-conversation/10" },
+  grammar: { label: "דקדוק", icon: BookOpenCheck, text: "text-type-grammar", bg: "bg-type-grammar/10" },
 };
 
 export function getTypeMeta(type: string | undefined): TypeMeta {

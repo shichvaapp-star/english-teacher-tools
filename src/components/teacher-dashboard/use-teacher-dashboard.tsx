@@ -22,7 +22,7 @@ import { StudentProfile, StudentGroup } from "@/types/auth";
 import { TeacherAssignment } from "@/types/assignment";
 import { SiteSuggestion } from "@/types/suggestion";
 import { TeacherVocabBank } from "@/types/vocab-bank";
-import { ALL_WRITING_TASKS } from "@/data/writing-tasks";
+import { ALL_WRITING_TASKS, LEGACY_WRITING_TASKS } from "@/data/writing-tasks";
 import type { WritingEvaluationResult } from "@/app/api/evaluate-writing/route";
 import {
   loadTeacherVocabBanks,
@@ -671,7 +671,7 @@ export function useTeacherDashboard() {
           if (openai) headers["x-openai-api-key"] = openai;
         }
 
-        const matchedTask = ALL_WRITING_TASKS.find(
+        const matchedTask = [...ALL_WRITING_TASKS, ...LEGACY_WRITING_TASKS].find(
           (t) => t.id === sub.taskId || t.title.toLowerCase() === (sub.taskTitle || "").toLowerCase()
         );
 

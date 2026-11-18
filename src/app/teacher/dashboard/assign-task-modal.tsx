@@ -3,14 +3,16 @@
 import React, { useState, useMemo } from "react";
 import { StudentProfile, StudentGroup } from "@/types/auth";
 import { TeacherAssignment, AssignmentTargetType, ExerciseLevel, AssignedVocabWord, AssignmentType } from "@/types/assignment";
+import type { GrammarExerciseType } from "@/types/grammar";
+import { GRAMMAR_TOPICS, getGrammarTopic } from "@/data/grammar";
+import { GrammarAssignPicker } from "@/components/grammar/grammar-assign-picker";
 import { ALL_WRITING_TASKS } from "@/data/writing-tasks";
-import { MIDDLE_SCHOOL_UNSEENS } from "@/data/unseen-middle-school";
+import { gradeUnits } from "@/data/vocab/cards";
+import { CLASS_GRADES, GRADE_LABELS as CLASS_GRADE_LABELS, type ClassGrade } from "@/lib/levels";
+import { MIDDLE_SCHOOL_UNSEENS, findUnseenStoryById } from "@/data/unseen-middle-school";
 import { REAL_LIFE_CONVERSATIONS } from "@/data/conversations";
-import { MINISTRY_VOCAB_WORDS } from "@/data/vocabulary-bands";
 import {
-  MIDDLE_SCHOOL_EASY,
-  MIDDLE_SCHOOL_MEDIUM,
-  MIDDLE_SCHOOL_HARD,
+  curriculumWords,
 } from "@/lib/vocab-storage";
 import { TeacherVocabBank, GRADE_LABELS, STANDARD_LEVEL_LABELS } from "@/types/vocab-bank";
 import { getLocalVocabBanks } from "@/lib/vocab-bank-storage";
@@ -29,6 +31,7 @@ import {
   AlertCircle,
   Sparkles,
   BookA,
+  BookOpenCheck,
   Search,
   Filter,
   User,
@@ -51,6 +54,18 @@ interface AssignTaskModalProps {
   initialAssignmentTemplate?: TeacherAssignment | null;
 }
 
+
+/** Keeps items of the level (or all levels) and grade; legacy items without a grade always pass. */
+function filterByLevelAndGrade<T extends { level: string; grade?: ClassGrade }>(
+  items: T[],
+  level: "all" | ExerciseLevel,
+  grade: "all" | ClassGrade
+): T[] {
+  return items.filter(
+    (t) => (level === "all" || t.level === level) && (grade === "all" || t.grade === undefined || t.grade === grade)
+  );
+}
+
 export function AssignTaskModal({
   open,
   onOpenChange,
@@ -66,12 +81,22 @@ export function AssignTaskModal({
 }: AssignTaskModalProps) {
   const [taskType, setTaskType] = useState<AssignmentType>("writing");
   const [selectedLevel, setSelectedLevel] = useState<"all" | ExerciseLevel>("all");
+  // "all" = each student works in their own class's grade.
+  const [selectedGrade, setSelectedGrade] = useState<"all" | ClassGrade>("all");
+  const vocabGrade: ClassGrade = selectedGrade === "all" ? 7 : selectedGrade;
   const [coachWithDavid, setCoachWithDavid] = useState<boolean>(false);
   const [selectionMode, setSelectionMode] = useState<"specific" | "adaptive_david" | "free_choice">("specific");
   const [selectedTaskId, setSelectedTaskId] = useState<string>(
     ALL_WRITING_TASKS[0]?.id || ""
   );
   const [customTitle, setCustomTitle] = useState("");
+
+  // Grammar Assignment State
+  const [grammarTopicIds, setGrammarTopicIds] = useState<string[]>(() =>
+    GRAMMAR_TOPICS[0] ? [GRAMMAR_TOPICS[0].id] : []
+  );
+  const [grammarTypes, setGrammarTypes] = useState<GrammarExerciseType[]>([]);
+  const [grammarItemCount, setGrammarItemCount] = useState<number | null>(null);
   const [customHebrewTitle, setCustomHebrewTitle] = useState("");
 
   // Vocabulary Assignment State
@@ -98,7 +123,7 @@ export function AssignTaskModal({
   }, [effectiveCustomBanks, selectedBankGradeFilter, selectedBankLevelFilter]);
 
   const [selectedVocabWords, setSelectedVocabWords] = useState<AssignedVocabWord[]>(() =>
-    MIDDLE_SCHOOL_MEDIUM.map((w) => ({
+    curriculumWords(7, 1).map((w) => ({
       id: w.id,
       english: w.english,
       hebrew: w.hebrew,
@@ -134,6 +159,7 @@ export function AssignTaskModal({
       setCoachWithDavid(false);
       setSelectionMode("specific");
       setSelectedLevel("all");
+      setSelectedGrade("all");
       setClassTargetScope("all");
       setStudentSearchQuery("");
 
@@ -141,6 +167,9 @@ export function AssignTaskModal({
         setTaskType(initialAssignmentTemplate.type);
         if (initialAssignmentTemplate.level) {
           setSelectedLevel(initialAssignmentTemplate.level);
+        }
+        if (initialAssignmentTemplate.grade) {
+          setSelectedGrade(initialAssignmentTemplate.grade);
         }
         setCoachWithDavid(!!initialAssignmentTemplate.coachWithDavid);
         if (initialAssignmentTemplate.instructions) {
@@ -152,6 +181,11 @@ export function AssignTaskModal({
         if (initialAssignmentTemplate.vocabWords) {
           setSelectedVocabWords(initialAssignmentTemplate.vocabWords);
         }
+        if (initialAssignmentTemplate.grammarConfig) {
+          setGrammarTopicIds(initialAssignmentTemplate.grammarConfig.topicIds);
+          setGrammarTypes(initialAssignmentTemplate.grammarConfig.exerciseTypes ?? []);
+          setGrammarItemCount(initialAssignmentTemplate.grammarConfig.itemCount ?? null);
+        }
         if (initialAssignmentTemplate.title) {
           setCustomTitle(initialAssignmentTemplate.title);
         }
@@ -161,7 +195,9 @@ export function AssignTaskModal({
         if (initialAssignmentTemplate.taskId) {
           setSelectedTaskId(initialAssignmentTemplate.taskId);
         }
-        setIsShared(true);
+        // Templates from the shared library stay shared; a grammar topic opened from
+        // the grammar bank page passes isShared: false.
+        setIsShared(initialAssignmentTemplate.isShared ?? true);
       }
 
       if (preselectedVocabBank) {
@@ -212,59 +248,62 @@ export function AssignTaskModal({
   }, [availableClasses]);
 
   // Tasks filtered by level
-  const availableWritingTasks = useMemo(() => {
-    if (selectedLevel === "all") return ALL_WRITING_TASKS;
-    return ALL_WRITING_TASKS.filter((t) => t.level === selectedLevel);
-  }, [selectedLevel]);
+  const availableWritingTasks = useMemo(
+    () => filterByLevelAndGrade(ALL_WRITING_TASKS, selectedLevel, selectedGrade),
+    [selectedLevel, selectedGrade]
+  );
 
-  const availableUnseens = useMemo(() => {
-    if (selectedLevel === "all") return MIDDLE_SCHOOL_UNSEENS;
-    return MIDDLE_SCHOOL_UNSEENS.filter((s) => s.level === selectedLevel);
-  }, [selectedLevel]);
+  const availableUnseens = useMemo(
+    () => filterByLevelAndGrade(MIDDLE_SCHOOL_UNSEENS, selectedLevel, selectedGrade),
+    [selectedLevel, selectedGrade]
+  );
 
-  const availableConversations = useMemo(() => {
-    if (selectedLevel === "all") return REAL_LIFE_CONVERSATIONS;
-    return REAL_LIFE_CONVERSATIONS.filter((s) => s.level === selectedLevel);
-  }, [selectedLevel]);
+  const availableConversations = useMemo(
+    () => filterByLevelAndGrade(REAL_LIFE_CONVERSATIONS, selectedLevel, selectedGrade),
+    [selectedLevel, selectedGrade]
+  );
 
   // When changing level, ensure selectedTaskId points to a valid task in that level
-  const handleLevelChange = (lvl: "all" | ExerciseLevel) => {
+  const handleLevelChange = (lvl: "all" | ExerciseLevel, grade: "all" | ClassGrade = selectedGrade) => {
     setSelectedLevel(lvl);
-    if (taskType === "writing") {
-      const pool = lvl === "all" ? ALL_WRITING_TASKS : ALL_WRITING_TASKS.filter((t) => t.level === lvl);
-      if (!pool.some((t) => t.id === selectedTaskId)) {
-        setSelectedTaskId(pool[0]?.id || "");
-      }
-    } else if (taskType === "conversation") {
-      const pool = lvl === "all" ? REAL_LIFE_CONVERSATIONS : REAL_LIFE_CONVERSATIONS.filter((s) => s.level === lvl);
-      if (!pool.some((s) => s.id === selectedTaskId)) {
-        setSelectedTaskId(pool[0]?.id || "");
-      }
-    } else {
-      const pool = lvl === "all" ? MIDDLE_SCHOOL_UNSEENS : MIDDLE_SCHOOL_UNSEENS.filter((s) => s.level === lvl);
-      if (!pool.some((s) => s.id === selectedTaskId)) {
-        setSelectedTaskId(pool[0]?.id || "");
-      }
+    if (taskType === "grammar" || taskType === "vocab") return;
+    const pool =
+      taskType === "writing"
+        ? filterByLevelAndGrade(ALL_WRITING_TASKS, lvl, grade)
+        : taskType === "conversation"
+        ? filterByLevelAndGrade(REAL_LIFE_CONVERSATIONS, lvl, grade)
+        : filterByLevelAndGrade(MIDDLE_SCHOOL_UNSEENS, lvl, grade);
+    if (!pool.some((t) => t.id === selectedTaskId)) {
+      setSelectedTaskId(pool[0]?.id || "");
     }
+  };
+
+  const handleGradeChange = (grade: "all" | ClassGrade) => {
+    setSelectedGrade(grade);
+    handleLevelChange(selectedLevel, grade);
   };
 
   // Switch task list based on type
   const handleTypeChange = (type: AssignmentType) => {
     setTaskType(type);
     if (type === "writing") {
-      const pool = selectedLevel === "all" ? ALL_WRITING_TASKS : ALL_WRITING_TASKS.filter((t) => t.level === selectedLevel);
+      const pool = filterByLevelAndGrade(ALL_WRITING_TASKS, selectedLevel, selectedGrade);
       setSelectedTaskId(pool[0]?.id || ALL_WRITING_TASKS[0]?.id || "");
     } else if (type === "unseen") {
-      const pool = selectedLevel === "all" ? MIDDLE_SCHOOL_UNSEENS : MIDDLE_SCHOOL_UNSEENS.filter((s) => s.level === selectedLevel);
+      const pool = filterByLevelAndGrade(MIDDLE_SCHOOL_UNSEENS, selectedLevel, selectedGrade);
       setSelectedTaskId(pool[0]?.id || MIDDLE_SCHOOL_UNSEENS[0]?.id || "");
     } else if (type === "conversation") {
-      const pool = selectedLevel === "all" ? REAL_LIFE_CONVERSATIONS : REAL_LIFE_CONVERSATIONS.filter((s) => s.level === selectedLevel);
+      const pool = filterByLevelAndGrade(REAL_LIFE_CONVERSATIONS, selectedLevel, selectedGrade);
       setSelectedTaskId(pool[0]?.id || REAL_LIFE_CONVERSATIONS[0]?.id || "");
+    } else if (type === "grammar") {
+      setCoachWithDavid(false);
+      setSelectionMode("specific");
+      setSelectedTaskId(grammarTopicIds[0] ?? "");
     } else {
       setSelectedTaskId("vocab_assigned");
       if (selectedVocabWords.length === 0) {
         setSelectedVocabWords(
-          MIDDLE_SCHOOL_MEDIUM.map((w) => ({
+          curriculumWords(vocabGrade, 1).map((w) => ({
             id: w.id,
             english: w.english,
             hebrew: w.hebrew,
@@ -281,21 +320,7 @@ export function AssignTaskModal({
     const list: AssignedVocabWord[] = [];
     const seen = new Set<string>();
 
-    MINISTRY_VOCAB_WORDS.forEach((w) => {
-      const key = w.word.toLowerCase().trim();
-      if (!seen.has(key)) {
-        seen.add(key);
-        list.push({
-          id: w.id,
-          english: w.word,
-          hebrew: w.hebrew,
-          partOfSpeech: w.partOfSpeech,
-          example: w.exampleSentence,
-        });
-      }
-    });
-
-    [...MIDDLE_SCHOOL_EASY, ...MIDDLE_SCHOOL_MEDIUM, ...MIDDLE_SCHOOL_HARD].forEach((w) => {
+    [...curriculumWords(7), ...curriculumWords(8), ...curriculumWords(9)].forEach((w) => {
       const key = w.english.toLowerCase().trim();
       if (!seen.has(key)) {
         seen.add(key);
@@ -328,66 +353,18 @@ export function AssignTaskModal({
     let titleEn = "";
     let titleHeb = "";
 
-    if (presetKey === "band1") {
-      words = MINISTRY_VOCAB_WORDS.filter((w) => w.band === "Band I").map((w) => ({
-        id: w.id,
-        english: w.word,
-        hebrew: w.hebrew,
-        partOfSpeech: w.partOfSpeech,
-        example: w.exampleSentence,
-      }));
-      titleEn = "Band I Vocabulary Drill";
-      titleHeb = "אוצר מילים יסודי - Band I";
-    } else if (presetKey === "band2") {
-      words = MINISTRY_VOCAB_WORDS.filter((w) => w.band === "Band II").map((w) => ({
-        id: w.id,
-        english: w.word,
-        hebrew: w.hebrew,
-        partOfSpeech: w.partOfSpeech,
-        example: w.exampleSentence,
-      }));
-      titleEn = "Band II Core Vocabulary";
-      titleHeb = "אוצר מילים חטיבת ביניים - Band II";
-    } else if (presetKey === "band3") {
-      words = MINISTRY_VOCAB_WORDS.filter((w) => w.band === "Band III").map((w) => ({
-        id: w.id,
-        english: w.word,
-        hebrew: w.hebrew,
-        partOfSpeech: w.partOfSpeech,
-        example: w.exampleSentence,
-      }));
-      titleEn = "Band III Advanced Vocabulary";
-      titleHeb = "אוצר מילים מתקדם - Band III";
-    } else if (presetKey === "grade7") {
-      words = MIDDLE_SCHOOL_EASY.map((w) => ({
+    // "u3" → unit 3 of the chosen grade
+    const unitNo = Number(presetKey.replace(/^u/, ""));
+    if (unitNo > 0) {
+      words = curriculumWords(vocabGrade, unitNo).map((w) => ({
         id: w.id,
         english: w.english,
         hebrew: w.hebrew,
         partOfSpeech: w.partOfSpeech,
         example: w.example,
       }));
-      titleEn = "Grade 7 Essential Vocabulary";
-      titleHeb = "אוצר מילים כיתה ז׳ - בסיסי";
-    } else if (presetKey === "grade8") {
-      words = MIDDLE_SCHOOL_MEDIUM.map((w) => ({
-        id: w.id,
-        english: w.english,
-        hebrew: w.hebrew,
-        partOfSpeech: w.partOfSpeech,
-        example: w.example,
-      }));
-      titleEn = "Grade 8 Core Vocabulary";
-      titleHeb = "אוצר מילים כיתה ח׳ - ליבה";
-    } else if (presetKey === "grade9") {
-      words = MIDDLE_SCHOOL_HARD.map((w) => ({
-        id: w.id,
-        english: w.english,
-        hebrew: w.hebrew,
-        partOfSpeech: w.partOfSpeech,
-        example: w.example,
-      }));
-      titleEn = "Grade 9 Academic Vocabulary";
-      titleHeb = "אוצר מילים כיתה ט׳ - אקדמי";
+      titleEn = `Grade ${vocabGrade} · Unit ${unitNo} Vocabulary`;
+      titleHeb = `אוצר מילים ${CLASS_GRADE_LABELS[vocabGrade].he} · יחידה ${unitNo}`;
     }
 
     if (words.length > 0) {
@@ -538,7 +515,19 @@ export function AssignTaskModal({
 
     const levelSuffixEnglish = selectedLevel !== "all" ? ` (${selectedLevel})` : "";
 
-    if (taskType === "vocab") {
+    if (taskType === "grammar") {
+      const topics = grammarTopicIds.map((id) => getGrammarTopic(id)).filter((t) => t !== undefined);
+      if (topics.length === 0) {
+        setError("יש לבחור לפחות נושא דקדוק אחד.");
+        return;
+      }
+      title =
+        customTitle.trim() ||
+        (topics.length === 1 ? `Grammar: ${topics[0].title}` : `Grammar Review (${topics.length} topics)`) + levelSuffixEnglish;
+      hebrewTitle =
+        customHebrewTitle.trim() ||
+        (topics.length === 1 ? `דקדוק: ${topics[0].titleHe}` : `חזרה בדקדוק (${topics.length} נושאים)`) + levelSuffixHebrew;
+    } else if (taskType === "vocab") {
       if (selectedVocabWords.length === 0) {
         setError("יש לבחור לפחות מילה אחת למשימת אוצר המילים.");
         return;
@@ -576,7 +565,7 @@ export function AssignTaskModal({
       title = matched ? matched.title : "Conversation Practice";
       hebrewTitle = matched ? matched.hebrewTitle : "תרגול שיחה מהחיים";
     } else {
-      const matched = MIDDLE_SCHOOL_UNSEENS.find((s) => s.id === selectedTaskId);
+      const matched = findUnseenStoryById(selectedTaskId);
       title = matched ? matched.title : "Unseen Test";
       hebrewTitle = matched ? matched.hebrewTitle : "מבחן אנסין";
     }
@@ -624,7 +613,9 @@ export function AssignTaskModal({
       title,
       hebrewTitle,
       taskId:
-        taskType === "vocab"
+        taskType === "grammar"
+          ? grammarTopicIds[0]
+          : taskType === "vocab"
           ? "vocab_assigned"
           : isAdaptiveDavid
           ? "adaptive_david"
@@ -632,7 +623,16 @@ export function AssignTaskModal({
           ? "free_choice"
           : selectedTaskId,
       vocabWords: taskType === "vocab" ? selectedVocabWords : undefined,
+      grammarConfig:
+        taskType === "grammar"
+          ? {
+              topicIds: grammarTopicIds,
+              exerciseTypes: grammarTypes.length ? grammarTypes : undefined,
+              itemCount: grammarItemCount ?? undefined,
+            }
+          : undefined,
       level: finalLevel,
+      grade: selectedGrade === "all" ? undefined : selectedGrade,
       isFreeChoice: isFreeChoice || isAdaptiveDavid,
       isAdaptiveDavid,
       focusWords: parsedFocusWords.length > 0 ? parsedFocusWords : undefined,
@@ -660,6 +660,7 @@ export function AssignTaskModal({
       setCoachWithDavid(false);
       setSelectionMode("specific");
       setSelectedLevel("all");
+      setSelectedGrade("all");
       setClassTargetScope("all");
       setSelectedClass("");
       setSelectedGroup(null);
@@ -706,7 +707,7 @@ export function AssignTaskModal({
           {/* 1. Task Type Switcher */}
           <div className="space-y-1.5">
             <label className="font-bold text-foreground block">סוג המשימה:</label>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
               <button
                 type="button"
                 onClick={() => handleTypeChange("writing")}
@@ -758,10 +759,62 @@ export function AssignTaskModal({
                 <BookA className="h-4 w-4 text-success shrink-0" />
                 <span>🔤 מילים</span>
               </button>
+
+              <button
+                type="button"
+                onClick={() => handleTypeChange("grammar")}
+                className={`flex flex-col sm:flex-row items-center justify-center gap-1.5 p-2.5 rounded-xl border text-xs font-bold transition-all cursor-pointer text-center ${
+                  taskType === "grammar"
+                    ? "border-type-grammar bg-type-grammar/15 text-type-grammar font-black shadow-2xs ring-1 ring-type-grammar/40"
+                    : "border-border hover:bg-muted/40 text-muted-foreground"
+                }`}
+              >
+                <BookOpenCheck className="h-4 w-4 text-type-grammar shrink-0" />
+                <span>📐 דקדוק</span>
+              </button>
             </div>
           </div>
 
-          {taskType === "vocab" ? (
+          {/* Content grade (textbook vocabulary) */}
+          <div className="space-y-1.5 p-3 rounded-xl border border-border/80 bg-muted/20">
+            <label className="font-bold text-foreground block">שכבה (לפי אוצר המילים של ספר הלימוד):</label>
+            <div className="grid grid-cols-4 gap-1.5">
+              {(["all", ...CLASS_GRADES] as const).map((g) => (
+                <button
+                  key={g}
+                  type="button"
+                  onClick={() => handleGradeChange(g)}
+                  aria-pressed={selectedGrade === g}
+                  className={`p-2 rounded-xl border text-center transition-all cursor-pointer flex flex-col items-center gap-0.5 ${
+                    selectedGrade === g
+                      ? "border-primary bg-primary/10 text-primary font-black ring-1 ring-primary"
+                      : "border-border text-muted-foreground hover:bg-muted/40"
+                  }`}
+                >
+                  <span className="text-xs font-bold">{g === "all" ? "כל תלמיד/ה" : CLASS_GRADE_LABELS[g].he}</span>
+                  <span className="text-3xs text-muted-foreground">
+                    {g === "all" ? "לפי הכיתה שלו/ה" : CLASS_GRADE_LABELS[g].en}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {taskType === "grammar" ? (
+            <GrammarAssignPicker
+              topicIds={grammarTopicIds}
+              onTopicIdsChange={(ids) => {
+                setGrammarTopicIds(ids);
+                setSelectedTaskId(ids[0] ?? "");
+              }}
+              types={grammarTypes}
+              onTypesChange={setGrammarTypes}
+              itemCount={grammarItemCount}
+              onItemCountChange={setGrammarItemCount}
+              level={selectedLevel}
+              onLevelChange={setSelectedLevel}
+            />
+          ) : taskType === "vocab" ? (
             /* Vocabulary Word Builder Section */
             <div className="space-y-3 p-3.5 rounded-xl border border-success/30 bg-success/5">
               <div className="flex items-center justify-between">
@@ -868,54 +921,22 @@ export function AssignTaskModal({
                     )}
                   </div>
                 ) : (
-                  /* Ministry Presets */
+                  /* Textbook unit presets for the chosen grade */
                   <div className="space-y-1.5">
                     <span className="text-2xs font-bold text-muted-foreground block">
-                      ערכות מילים מוכנות מראש (1-Click Presets):
+                      יחידות מספר הלימוד ({CLASS_GRADE_LABELS[vocabGrade].he}) – לחיצה בוחרת את כל מילות היחידה:
                     </span>
-                    <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => applyVocabPreset("grade7")}
-                        className="p-1.5 rounded-lg border border-border bg-background hover:bg-muted text-center cursor-pointer text-2xs font-medium transition-colors"
-                      >
-                        כיתה ז׳ (10)
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => applyVocabPreset("grade8")}
-                        className="p-1.5 rounded-lg border border-border bg-background hover:bg-muted text-center cursor-pointer text-2xs font-medium transition-colors"
-                      >
-                        כיתה ח׳ (8)
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => applyVocabPreset("grade9")}
-                        className="p-1.5 rounded-lg border border-border bg-background hover:bg-muted text-center cursor-pointer text-2xs font-medium transition-colors"
-                      >
-                        כיתה ט׳ (7)
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => applyVocabPreset("band1")}
-                        className="p-1.5 rounded-lg border border-border bg-background hover:bg-muted text-center cursor-pointer text-2xs font-medium transition-colors"
-                      >
-                        Band I (5)
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => applyVocabPreset("band2")}
-                        className="p-1.5 rounded-lg border border-border bg-background hover:bg-muted text-center cursor-pointer text-2xs font-medium transition-colors"
-                      >
-                        Band II (6)
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => applyVocabPreset("band3")}
-                        className="p-1.5 rounded-lg border border-border bg-background hover:bg-muted text-center cursor-pointer text-2xs font-medium transition-colors"
-                      >
-                        Band III (6)
-                      </button>
+                    <div className="grid grid-cols-4 sm:grid-cols-8 gap-1.5">
+                      {gradeUnits(vocabGrade).map((u) => (
+                        <button
+                          key={u}
+                          type="button"
+                          onClick={() => applyVocabPreset(`u${u}`)}
+                          className="p-1.5 rounded-lg border border-border bg-background hover:bg-muted text-center cursor-pointer text-2xs font-medium transition-colors"
+                        >
+                          יחידה {u} ({curriculumWords(vocabGrade, u).length})
+                        </button>
+                      ))}
                     </div>
                   </div>
                 )}

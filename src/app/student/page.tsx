@@ -53,7 +53,7 @@ export default function StudentPortalPage() {
   const [drafts, setDrafts] = useState<InProgressWorkItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [typeFilter, setTypeFilter] = useState<"all" | "writing" | "unseen" | "vocab" | "conversation">("all");
+  const [typeFilter, setTypeFilter] = useState<"all" | "writing" | "unseen" | "vocab" | "conversation" | "grammar">("all");
   const [statusFilter, setStatusFilter] = useState<"all" | "submitted" | "reviewed" | "practice">("all");
 
   // Selected item for details modal
@@ -100,6 +100,8 @@ export default function StudentPortalPage() {
       router.push(`/vocabulary?category=${sub.assignmentId ? "assignment" : "saved"}`);
     } else if (sub.type === "conversation") {
       router.push(`/conversation?scenarioId=${sub.taskId}&stage=exercise&mode=practice`);
+    } else if (sub.type === "grammar") {
+      router.push(`/grammar`);
     }
   };
 
@@ -537,7 +539,7 @@ export default function StudentPortalPage() {
             {/* Type Filter */}
             <select
               value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value as "all" | "writing" | "unseen" | "vocab" | "conversation")}
+              onChange={(e) => setTypeFilter(e.target.value as "all" | "writing" | "unseen" | "vocab" | "conversation" | "grammar")}
               className="h-9 rounded-md border border-input bg-background px-3 text-xs shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring cursor-pointer"
             >
               <option value="all">כל סוגי המשימות (הכל)</option>
@@ -545,6 +547,7 @@ export default function StudentPortalPage() {
               <option value="unseen">📖 מבחני אנסין (Unseen)</option>
               <option value="writing">✍️ מטלות כתיבה (Writing)</option>
               <option value="conversation">💬 שיחות מהחיים (Conversation)</option>
+              <option value="grammar">🧩 תרגול דקדוק (Grammar)</option>
             </select>
 
             {/* Status Filter */}
@@ -607,7 +610,9 @@ export default function StudentPortalPage() {
                   <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/40 pb-2.5">
                     <div className="flex items-center gap-2">
                       <Badge variant="secondary" className="text-[10px]">
-                        {sub.type === "vocab"
+                        {sub.type === "grammar"
+                          ? "📐 דקדוק"
+                          : sub.type === "vocab"
                           ? "🔤 אוצר מילים"
                           : sub.type === "writing"
                           ? "✍️ מטלת כתיבה"
@@ -816,8 +821,32 @@ export default function StudentPortalPage() {
               </div>
             )}
 
-            {/* Submission Content: Vocab vs Unseen vs Writing */}
-            {selectedItem.type === "vocab" ? (
+            {/* Submission Content: Grammar vs Vocab vs Unseen vs Writing */}
+            {selectedItem.type === "grammar" ? (
+              <div className="space-y-2">
+                {(selectedItem.grammarSummary?.entries ?? []).map((e, idx) => (
+                  <div
+                    key={`${e.itemId}-${idx}`}
+                    className={`p-3 rounded-xl border text-xs space-y-1 ${
+                      e.isCorrect ? "border-success/30 bg-success/5" : e.needsReview ? "border-warning/40 bg-warning/5" : "border-destructive/30 bg-destructive/5"
+                    }`}
+                  >
+                    <p className="font-medium text-foreground" dir="ltr">{idx + 1}. {e.prompt}</p>
+                    <p dir="ltr">
+                      <span className="text-muted-foreground">Your answer: </span>
+                      <span className="font-semibold">{e.studentAnswer || "—"}</span>
+                    </p>
+                    {!e.isCorrect && e.expected && (
+                      <p dir="ltr">
+                        <span className="text-muted-foreground">Correct: </span>
+                        <span className="font-semibold text-success">{e.expected}</span>
+                      </p>
+                    )}
+                    {!e.isCorrect && e.feedbackHebrew && <p className="text-muted-foreground">{e.feedbackHebrew}</p>}
+                  </div>
+                ))}
+              </div>
+            ) : selectedItem.type === "vocab" ? (
               <div className="space-y-4">
                 <div className="p-3.5 rounded-xl border border-emerald-500/30 bg-emerald-500/5 space-y-2">
                   <div className="flex items-center justify-between">

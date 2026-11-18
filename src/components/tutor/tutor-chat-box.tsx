@@ -1228,6 +1228,7 @@ export function TutorChatBox({
           messages: newHistory,
           profile,
           userMessage: text,
+          grade: user?.classGrade,
         }),
       });
 

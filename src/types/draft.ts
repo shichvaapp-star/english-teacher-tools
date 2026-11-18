@@ -42,6 +42,8 @@ export type VocabStudyMode = "match" | "flashcards" | "quiz" | "bank";
 
 export interface VocabDraftPayload {
   category: VocabCategory;
+  /** Textbook unit, for grade decks. */
+  unit?: number;
   studyMode: VocabStudyMode;
   cardIndex?: number;
   masteredIds?: string[];

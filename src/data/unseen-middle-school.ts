@@ -1,37 +1,10 @@
-import { LEVEL_1_UNSEENS } from "./unseen/level-1";
-import { LEVEL_2_UNSEENS } from "./unseen/level-2";
-import { LEVEL_3_UNSEENS } from "./unseen/level-3";
+import { LEVEL_1_UNSEENS } from "./unseen/legacy/level-1";
+import { LEVEL_2_UNSEENS } from "./unseen/legacy/level-2";
+import { LEVEL_3_UNSEENS } from "./unseen/legacy/level-3";
+import { UNSEEN_STORIES } from "./unseen";
 
-export interface MSUnseenQuestion {
-  id: string;
-  number: number;
-  paragraphIndex: number;
-  linesHint?: string;
-  type: "mcq" | "open" | "copy";
-  prompt: string;
-  options?: string[];
-  correctIndex?: number;
-  targetSentence?: string;
-  modelAnswer?: string;
-  keywords?: string[];
-  explanationHebrew: string;
-  points: number;
-}
-
-export interface MSUnseenStory {
-  id: string;
-  title: string;
-  hebrewTitle: string;
-  level: "Level 1" | "Level 2" | "Level 3";
-  levelLabel: string;
-  levelDescription: string;
-  paragraphs: string[];
-  vocabularyHints: { word: string; translation: string }[];
-  questions: MSUnseenQuestion[];
-  totalPoints: number;
-  generationPrompt?: string;
-  isAiGenerated?: boolean;
-}
+import type { MSUnseenQuestion, MSUnseenStory } from "@/types/unseen";
+export type { MSUnseenQuestion, MSUnseenStory };
 
 /**
  * Shuffles multiple-choice question options and balances correct answer positions across A (0), B (1), C (2), and D (3)
@@ -101,10 +74,14 @@ export function randomizeQuestionsOptions<T extends { type?: string; options?: s
   });
 }
 
-export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = [
-  ...LEVEL_1_UNSEENS,
-  ...LEVEL_2_UNSEENS,
-  ...LEVEL_3_UNSEENS,
-];
+/** The current library: grade × level stories in each grade's textbook vocabulary. */
+export const MIDDLE_SCHOOL_UNSEENS: MSUnseenStory[] = UNSEEN_STORIES;
 
-export { LEVEL_1_UNSEENS, LEVEL_2_UNSEENS, LEVEL_3_UNSEENS };
+/** Stories from before the grade rewrite – no longer listed, but old submissions and assignments still open them. */
+export const LEGACY_UNSEENS: MSUnseenStory[] = [...LEVEL_1_UNSEENS, ...LEVEL_2_UNSEENS, ...LEVEL_3_UNSEENS];
+
+/** Finds a story by id in the current library or the legacy one. */
+export function findUnseenStoryById(id: string | null | undefined): MSUnseenStory | undefined {
+  if (!id) return undefined;
+  return UNSEEN_STORIES.find((s) => s.id === id) ?? LEGACY_UNSEENS.find((s) => s.id === id);
+}

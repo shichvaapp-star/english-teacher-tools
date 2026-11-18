@@ -4,9 +4,8 @@ import React, { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import {
-  MIDDLE_SCHOOL_EASY,
-  MIDDLE_SCHOOL_MEDIUM,
-  MIDDLE_SCHOOL_HARD,
+  curriculumWords,
+  toDeckPartOfSpeech,
   loadSavedWords,
   syncSavedWordsFromFirestore,
   saveWordToBuilder,
@@ -30,6 +29,9 @@ import { SubmissionItem } from "@/types/submission";
 import { saveDraft, deleteDraft, getDraftById } from "@/lib/drafts-storage";
 import type { InProgressWorkItem, VocabDraftPayload } from "@/types/draft";
 import { deterministicShuffle } from "@/components/vocabulary/vocabulary-helpers";
+import { useClassGrade } from "@/components/shared/use-class-grade";
+import { gradeUnits } from "@/data/vocab/cards";
+import { parseClassGrade, type ClassGrade } from "@/lib/levels";
 
 export function useVocabularyPractice() {
   const router = useRouter();
@@ -50,9 +52,34 @@ export function useVocabularyPractice() {
     }
   }, [user?.id]);
 
-  const [activeCategory, setActiveCategory] = useState<
+  // Textbook words: grade (7/8/9, default = own class) → unit.
+  const { grade: preferredGrade, setGrade: setPreferredGrade, classGrade } = useClassGrade();
+  const [activeCategory, setActiveCategoryRaw] = useState<
     "saved" | "grade7" | "grade8" | "grade9" | "assignment"
-  >("saved");
+  >("grade7");
+  const [categoryTouched, setCategoryTouched] = useState(false);
+  const [unit, setUnitRaw] = useState<number>(1);
+  const setActiveCategory = React.useCallback(
+    (cat: "saved" | "grade7" | "grade8" | "grade9" | "assignment") => {
+      setCategoryTouched(true);
+      setActiveCategoryRaw(cat);
+      const g = parseClassGrade(cat.replace("grade", ""));
+      if (g) setPreferredGrade(g);
+    },
+    [setPreferredGrade]
+  );
+  // Until the student picks something, follow their grade.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (!categoryTouched) setActiveCategoryRaw(`grade${preferredGrade}`);
+  }, [preferredGrade, categoryTouched]);
+  const activeGrade: ClassGrade | null = parseClassGrade(activeCategory.replace("grade", ""));
+  const units = useMemo(() => (activeGrade ? gradeUnits(activeGrade) : []), [activeGrade]);
+  const setUnit = (u: number) => {
+    setUnitRaw(u);
+    setCardIndex(0);
+    setQuizIndex(0);
+  };
   const [isFromDavid, setIsFromDavid] = useState(false);
   const [isTurningInToDavid, setIsTurningInToDavid] = useState(false);
   const [returnToUnseen, setReturnToUnseen] = useState<{
@@ -77,6 +104,8 @@ export function useVocabularyPractice() {
       if (cat === "grade7" || cat === "grade8" || cat === "grade9") {
         setActiveCategory(cat);
       }
+      const unitParam = Number(params.get("unit"));
+      if (unitParam > 0) setUnitRaw(unitParam);
       if (params.get("from") === "david") {
         setIsFromDavid(true);
       }
@@ -117,8 +146,7 @@ export function useVocabularyPractice() {
               id: w.id || `assign-word-${idx}`,
               english: w.english,
               hebrew: w.hebrew,
-              // The practice deck has no "preposition" category; show those as phrases.
-              partOfSpeech: w.partOfSpeech === "preposition" ? "phrase" : w.partOfSpeech || "noun",
+              partOfSpeech: w.partOfSpeech ? toDeckPartOfSpeech(w.partOfSpeech) : "noun",
               example: w.example || "",
               level: "Personal Word",
               mastered: false,
@@ -142,7 +170,7 @@ export function useVocabularyPractice() {
         }
       }
     }
-  }, []);
+  }, [setActiveCategory]);
   const [studyMode, setStudyMode] = useState<"flashcards" | "match" | "quiz" | "bank">("flashcards");
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -224,7 +252,7 @@ export function useVocabularyPractice() {
     } else {
       const targetDraftId = activeAssignment
         ? `draft_vocab_assign_${activeAssignment.id}`
-        : `draft_vocab_${activeCategory}`;
+        : `draft_vocab_${activeCategory}${activeGrade ? `_u${unit}` : ""}`;
       matched = getDraftById(targetDraftId);
     }
 
@@ -239,6 +267,7 @@ export function useVocabularyPractice() {
         if (payload.category && !params.get("assignmentId")) {
           setActiveCategory(payload.category);
         }
+        if (payload.unit) setUnitRaw(payload.unit);
         if (payload.cardIndex !== undefined) setCardIndex(payload.cardIndex);
         if (payload.masteredIds && Array.isArray(payload.masteredIds)) {
           setMasteredIds(new Set(payload.masteredIds));
@@ -252,7 +281,7 @@ export function useVocabularyPractice() {
         setActiveDraftPrompt(matched);
       }
     }
-  }, [activeCategory, activeAssignment?.id]);
+  }, [activeCategory, activeAssignment?.id, unit]);
 
   // Discard draft and reset progress to start fresh
   const handleDiscardDraft = (draft: InProgressWorkItem) => {
@@ -273,10 +302,8 @@ export function useVocabularyPractice() {
     if (activeCategory === "saved") {
       return savedUnseenWords;
     }
-    if (activeCategory === "grade7") return MIDDLE_SCHOOL_EASY;
-    if (activeCategory === "grade8") return MIDDLE_SCHOOL_MEDIUM;
-    return MIDDLE_SCHOOL_HARD;
-  }, [activeCategory, savedUnseenWords, assignmentWords]);
+    return curriculumWords(activeGrade ?? 7, unit);
+  }, [activeCategory, savedUnseenWords, assignmentWords, activeGrade, unit]);
 
   // Debounced auto-save hook for vocabulary practice
   useEffect(() => {
@@ -287,7 +314,7 @@ export function useVocabularyPractice() {
     const timer = setTimeout(async () => {
       const draftId = activeAssignment
         ? `draft_vocab_assign_${activeAssignment.id}`
-        : `draft_vocab_${activeCategory}`;
+        : `draft_vocab_${activeCategory}${activeGrade ? `_u${unit}` : ""}`;
       const totalWords = activePool.length || 10;
       const progressCount = Math.max(cardIndex, masteredIds.size, quizIndex);
       const progressPercent = Math.min(100, Math.round((progressCount / totalWords) * 100));
@@ -301,12 +328,13 @@ export function useVocabularyPractice() {
         hebrewTitle: activeAssignment?.hebrewTitle || `אוצר מילים (${activeCategory === "saved" ? "מילון אישי" : activeCategory})`,
         progressPercent,
         summaryText: `${masteredIds.size} מילים נשלטו מתוך ${totalWords}`,
-        resumeUrl: `/vocabulary?category=${activeCategory}&studyMode=${studyMode}&draftId=${draftId}${
+        resumeUrl: `/vocabulary?category=${activeCategory}${activeGrade ? `&unit=${unit}` : ""}&studyMode=${studyMode}&draftId=${draftId}${
           activeAssignment ? `&assignmentId=${activeAssignment.id}` : ""
         }`,
         assignmentId: activeAssignment?.id || undefined,
         payload: {
           category: activeCategory,
+          unit: activeGrade ? unit : undefined,
           studyMode,
           cardIndex,
           masteredIds: Array.from(masteredIds),
@@ -320,7 +348,7 @@ export function useVocabularyPractice() {
     }, 1200);
 
     return () => clearTimeout(timer);
-  }, [cardIndex, masteredIds, quizIndex, quizScore, studyMode, activeCategory, activeAssignment?.id, activePool.length, completedModes, user?.id, user?.name]);
+  }, [cardIndex, masteredIds, quizIndex, quizScore, studyMode, activeCategory, activeAssignment?.id, activeGrade, unit, activePool.length, completedModes, user?.id, user?.name]);
 
   // Save and exit back to student portal
   const handleSaveAndExit = async () => {
@@ -328,7 +356,7 @@ export function useVocabularyPractice() {
     if (hasProgress) {
       const draftId = activeAssignment
         ? `draft_vocab_assign_${activeAssignment.id}`
-        : `draft_vocab_${activeCategory}`;
+        : `draft_vocab_${activeCategory}${activeGrade ? `_u${unit}` : ""}`;
       const totalWords = activePool.length || 10;
       const progressCount = Math.max(cardIndex, masteredIds.size, quizIndex);
       const progressPercent = Math.min(100, Math.round((progressCount / totalWords) * 100));
@@ -342,12 +370,13 @@ export function useVocabularyPractice() {
         hebrewTitle: activeAssignment?.hebrewTitle || `אוצר מילים (${activeCategory === "saved" ? "מילון אישי" : activeCategory})`,
         progressPercent,
         summaryText: `${masteredIds.size} מילים נשלטו מתוך ${totalWords}`,
-        resumeUrl: `/vocabulary?category=${activeCategory}&studyMode=${studyMode}&draftId=${draftId}${
+        resumeUrl: `/vocabulary?category=${activeCategory}${activeGrade ? `&unit=${unit}` : ""}&studyMode=${studyMode}&draftId=${draftId}${
           activeAssignment ? `&assignmentId=${activeAssignment.id}` : ""
         }`,
         assignmentId: activeAssignment?.id || undefined,
         payload: {
           category: activeCategory,
+          unit: activeGrade ? unit : undefined,
           studyMode,
           cardIndex,
           masteredIds: Array.from(masteredIds),
@@ -808,7 +837,7 @@ export function useVocabularyPractice() {
 
   const quizOptions = useMemo(() => {
     if (!currentQuizWord) return [];
-    const pool = activePool.length >= 4 ? activePool : MIDDLE_SCHOOL_EASY;
+    const pool = activePool.length >= 4 ? activePool : curriculumWords(7, 1);
     const others = pool.filter((w) => w.id !== currentQuizWord.id);
     const shuffledOthers = deterministicShuffle(others, (quizIndex + 1) * 7).slice(0, 3);
     const combined = [...shuffledOthers, currentQuizWord];
@@ -899,13 +928,13 @@ export function useVocabularyPractice() {
     // Clean up in-progress draft
     const draftId = activeAssignment
       ? `draft_vocab_assign_${activeAssignment.id}`
-      : `draft_vocab_${activeCategory}`;
+      : `draft_vocab_${activeCategory}${activeGrade ? `_u${unit}` : ""}`;
     deleteDraft(draftId, user?.id);
   };
 
   const handleTurnInToDavid = async () => {
     setIsTurningInToDavid(true);
-    const pool = activePool.length > 0 ? activePool : MIDDLE_SCHOOL_EASY;
+    const pool = activePool.length > 0 ? activePool : curriculumWords(7, 1);
     const vocabToReview = pool.slice(0, 8).map((w) => ({
       word: w.english,
       hebrew: w.hebrew,
@@ -949,6 +978,11 @@ export function useVocabularyPractice() {
     setSavedUnseenWords,
     activeCategory,
     setActiveCategory,
+    activeGrade,
+    classGrade,
+    unit,
+    setUnit,
+    units,
     isFromDavid,
     setIsFromDavid,
     isTurningInToDavid,

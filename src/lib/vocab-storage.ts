@@ -1,8 +1,13 @@
 import { db } from "@/lib/firebase";
 import { collection, doc, getDocs, setDoc, deleteDoc } from "firebase/firestore";
-import { MIDDLE_SCHOOL_UNSEENS } from "@/data/unseen-middle-school";
-import { ALL_WRITING_TASKS } from "@/data/writing-tasks";
-import { REAL_LIFE_CONVERSATIONS } from "@/data/conversations";
+import { MIDDLE_SCHOOL_UNSEENS, LEGACY_UNSEENS } from "@/data/unseen-middle-school";
+
+// Saved words may come from current or older stories.
+const ALL_KNOWN_UNSEENS = [...MIDDLE_SCHOOL_UNSEENS, ...LEGACY_UNSEENS];
+import { ALL_WRITING_TASKS, LEGACY_WRITING_TASKS } from "@/data/writing-tasks";
+import { REAL_LIFE_CONVERSATIONS, LEGACY_CONVERSATIONS } from "@/data/conversations";
+import { getVocabCards } from "@/data/vocab/cards";
+import { GRADE_HE, type ClassGrade } from "@/lib/levels";
 
 export type VocabSourceType = "unseen" | "writing" | "tutor" | "manual" | "curriculum" | "conversation";
 
@@ -67,7 +72,7 @@ function inferUnseenStoryForWord(englishWord: string): { title: string; category
   }
 
   // 2. Check vocabularyHints in built-in MIDDLE_SCHOOL_UNSEENS
-  for (const story of MIDDLE_SCHOOL_UNSEENS) {
+  for (const story of ALL_KNOWN_UNSEENS) {
     if (
       story.vocabularyHints?.some(
         (h) => normalizeVocabWord(h.word) === norm
@@ -83,7 +88,7 @@ function inferUnseenStoryForWord(englishWord: string): { title: string; category
   // 3. Check full text paragraphs in built-in MIDDLE_SCHOOL_UNSEENS
   const escaped = norm.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const wordRegex = new RegExp(`\\b${escaped}\\b`, "i");
-  for (const story of MIDDLE_SCHOOL_UNSEENS) {
+  for (const story of ALL_KNOWN_UNSEENS) {
     if (
       wordRegex.test(story.title) ||
       story.paragraphs.some((p) => wordRegex.test(p))
@@ -109,7 +114,7 @@ export function formatExerciseDisplayTitle(
   const clean = sourceTitle.trim();
 
   if (sourceType === "unseen") {
-    const matchedStory = MIDDLE_SCHOOL_UNSEENS.find(
+    const matchedStory = ALL_KNOWN_UNSEENS.find(
       (s) =>
         s.title.toLowerCase() === clean.toLowerCase() ||
         s.hebrewTitle === clean
@@ -120,7 +125,7 @@ export function formatExerciseDisplayTitle(
   }
 
   if (sourceType === "writing") {
-    const matchedTask = ALL_WRITING_TASKS.find(
+    const matchedTask = [...ALL_WRITING_TASKS, ...LEGACY_WRITING_TASKS].find(
       (t) =>
         t.title.toLowerCase() === clean.toLowerCase() ||
         t.hebrewTitle === clean
@@ -131,7 +136,7 @@ export function formatExerciseDisplayTitle(
   }
 
   if (sourceType === "conversation") {
-    const matchedScenario = REAL_LIFE_CONVERSATIONS.find(
+    const matchedScenario = [...REAL_LIFE_CONVERSATIONS, ...LEGACY_CONVERSATIONS].find(
       (c) =>
         c.title.toLowerCase() === clean.toLowerCase() ||
         c.hebrewTitle === clean
@@ -230,39 +235,29 @@ export function formatVocabSourceLabel(item: VocabItem): string {
   }
 }
 
-export const MIDDLE_SCHOOL_EASY: VocabItem[] = [
-  { id: "e-1", english: "choose", hebrew: "לבחור", partOfSpeech: "verb", example: "Please choose your favorite color.", level: "Easy", addedAt: "2026-01-01" },
-  { id: "e-2", english: "simple", hebrew: "פשוט", partOfSpeech: "adjective", example: "The English homework was very simple.", level: "Easy", addedAt: "2026-01-01" },
-  { id: "e-3", english: "understand", hebrew: "להבין", partOfSpeech: "verb", example: "Do you understand this question?", level: "Easy", addedAt: "2026-01-01" },
-  { id: "e-4", english: "always", hebrew: "תמיד", partOfSpeech: "adverb", example: "She always reads books before bed.", level: "Easy", addedAt: "2026-01-01" },
-  { id: "e-5", english: "garden", hebrew: "גינה", partOfSpeech: "noun", example: "There are beautiful flowers in the garden.", level: "Easy", addedAt: "2026-01-01" },
-  { id: "e-6", english: "friend", hebrew: "חבר", partOfSpeech: "noun", example: "A good friend is always helpful.", level: "Easy", addedAt: "2026-01-01" },
-  { id: "e-7", english: "learn", hebrew: "ללמוד", partOfSpeech: "verb", example: "It is fun to learn new words in English.", level: "Easy", addedAt: "2026-01-01" },
-  { id: "e-8", english: "travel", hebrew: "לנסוע, לטייל", partOfSpeech: "verb", example: "They like to travel to new places.", level: "Easy", addedAt: "2026-01-01" },
-  { id: "e-9", english: "practice", hebrew: "לתרגל, תרגול", partOfSpeech: "verb", example: "You must practice English every day to get better.", level: "Easy", addedAt: "2026-01-01" },
-  { id: "e-10", english: "happy", hebrew: "שמח", partOfSpeech: "adjective", example: "He was very happy to see his friends.", level: "Easy", addedAt: "2026-01-01" },
-];
+/** Textbook word cards as practice-deck items (grade's whole list, or one unit). */
+export function curriculumWords(grade: ClassGrade, unit?: number): VocabItem[] {
+  return getVocabCards(grade, unit).map((c) => ({
+    id: c.id,
+    english: c.word,
+    hebrew: c.hebrew,
+    partOfSpeech: toDeckPartOfSpeech(c.partOfSpeech),
+    example: c.example,
+    sourceType: "curriculum",
+    sourceCategory: `כיתה ${GRADE_HE[grade]}׳ · יחידה ${c.unit}`,
+    addedAt: "2026-11-18",
+  }));
+}
 
-export const MIDDLE_SCHOOL_MEDIUM: VocabItem[] = [
-  { id: "m-1", english: "challenge", hebrew: "אתגר, לאתגר", partOfSpeech: "noun", example: "Learning English is a fun challenge.", level: "Medium", addedAt: "2026-01-01" },
-  { id: "m-2", english: "opportunity", hebrew: "הזדמנות", partOfSpeech: "noun", example: "Every day is a new opportunity to learn.", level: "Medium", addedAt: "2026-01-01" },
-  { id: "m-3", english: "improve", hebrew: "לשפר, להשתפר", partOfSpeech: "verb", example: "Reading books is the best way to improve.", level: "Medium", addedAt: "2026-01-01" },
-  { id: "m-4", english: "discover", hebrew: "לגלות", partOfSpeech: "verb", example: "Scientists want to discover new planets.", level: "Medium", addedAt: "2026-01-01" },
-  { id: "m-5", english: "connection", hebrew: "חיבור, קשר", partOfSpeech: "noun", example: "There is a strong connection between health and exercise.", level: "Medium", addedAt: "2026-01-01" },
-  { id: "m-6", english: "describe", hebrew: "לתאר", partOfSpeech: "verb", example: "Can you describe the character in the story?", level: "Medium", addedAt: "2026-01-01" },
-  { id: "m-7", english: "behavior", hebrew: "התנהגות", partOfSpeech: "noun", example: "Polite behavior is appreciated everywhere.", level: "Medium", addedAt: "2026-01-01" },
-  { id: "m-8", english: "succeed", hebrew: "להצליח", partOfSpeech: "verb", example: "If you work hard, you will succeed.", level: "Medium", addedAt: "2026-01-01" },
-];
+/** The deck shows five word classes; small function words are grouped as phrases. */
+export function toDeckPartOfSpeech(pos: string | undefined): VocabItem["partOfSpeech"] {
+  return pos === "noun" || pos === "verb" || pos === "adjective" || pos === "adverb" ? pos : "phrase";
+}
 
-export const MIDDLE_SCHOOL_HARD: VocabItem[] = [
-  { id: "h-1", english: "accomplish", hebrew: "להשיג, להשלים בהצלחה", partOfSpeech: "verb", example: "You can accomplish great things with hard work.", level: "Hard", addedAt: "2026-01-01" },
-  { id: "h-2", english: "determine", hebrew: "לקבוע, להחליט", partOfSpeech: "verb", example: "Your attitude determines your direction.", level: "Hard", addedAt: "2026-01-01" },
-  { id: "h-3", english: "significant", hebrew: "משמעותי, בעל ערך", partOfSpeech: "adjective", example: "This is a significant discovery for the team.", level: "Hard", addedAt: "2026-01-01" },
-  { id: "h-4", english: "influence", hebrew: "להשפיע; השפעה", partOfSpeech: "verb", example: "Good books can influence your thoughts.", level: "Hard", addedAt: "2026-01-01" },
-  { id: "h-5", english: "essential", hebrew: "חיוני, הכרחי", partOfSpeech: "adjective", example: "Vocabulary is essential for communication.", level: "Hard", addedAt: "2026-01-01" },
-  { id: "h-6", english: "acquire", hebrew: "לרכוש (ידע או מיומנות)", partOfSpeech: "verb", example: "It takes time to acquire a second language.", level: "Hard", addedAt: "2026-01-01" },
-  { id: "h-7", english: "consequence", hebrew: "תוצאה, השלכה", partOfSpeech: "noun", example: "Every action has a natural consequence.", level: "Hard", addedAt: "2026-01-01" },
-];
+// Whole-grade pools (kept under their old names for the tutor and older callers).
+export const MIDDLE_SCHOOL_EASY: VocabItem[] = curriculumWords(7);
+export const MIDDLE_SCHOOL_MEDIUM: VocabItem[] = curriculumWords(8);
+export const MIDDLE_SCHOOL_HARD: VocabItem[] = curriculumWords(9);
 
 const STORAGE_KEY = "bg_saved_vocab_words";
 
