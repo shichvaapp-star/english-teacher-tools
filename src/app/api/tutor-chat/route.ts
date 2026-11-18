@@ -293,7 +293,7 @@ export async function POST(request: Request) {
     const writingSkill = profile?.skills?.writing || 60;
     const grammarSkill = profile?.skills?.grammar;
     const unseenTopics = getUnseenTopicsForLevel(currentLevel, grade ?? 7);
-    const writingTopics = getWritingTopicsForLevel(currentLevel);
+    const writingTopics = getWritingTopicsForLevel(currentLevel, grade ?? 7);
 
     const systemPrompt = `You are "David" (דוד), a warm, patient, and inspiring private English tutor for Israeli students, specially calibrated for struggling Middle School learners (Level 1 / Band I) as well as Level 2–3 students.
 Your mission is to build the student's confidence and guide them across the platform's 3 pillars:

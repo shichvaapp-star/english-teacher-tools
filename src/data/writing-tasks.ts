@@ -1,4 +1,5 @@
 import { WritingTask, WritingLevel, TaskCategory, WordBankItem } from "@/types/writing";
+import { WRITING_TASKS } from "@/data/writing";
 
 export { type TaskCategory, type WritingTask, type WritingLevel, type WordBankItem };
 
@@ -12,7 +13,8 @@ export { type TaskCategory, type WritingTask, type WritingLevel, type WordBankIt
 // Distributed thoughtfully across Level 1, Level 2, and Level 3.
 // ============================================================================
 
-export const ALL_WRITING_TASKS: WritingTask[] = [
+/** Tasks from before the grade rewrite – no longer listed, but old submissions and assignments still open them. */
+export const LEGACY_WRITING_TASKS: WritingTask[] = [
   // ==========================================================================
   // CATEGORY 1: LETTERS & EMAILS (מכתבים והודעות אישיות) - 11 Tasks
   // ==========================================================================
@@ -1276,7 +1278,15 @@ export const ALL_WRITING_TASKS: WritingTask[] = [
 ];
 
 // Backward-compatible alias
+/** The current library: grade × level tasks in each grade's textbook vocabulary. */
+export const ALL_WRITING_TASKS: WritingTask[] = WRITING_TASKS;
 export const MIDDLE_SCHOOL_TASKS: WritingTask[] = ALL_WRITING_TASKS;
+
+/** Finds a task by id in the current library or the legacy one. */
+export function findWritingTaskById(id: string | null | undefined): WritingTask | undefined {
+  if (!id) return undefined;
+  return WRITING_TASKS.find((t) => t.id === id) ?? LEGACY_WRITING_TASKS.find((t) => t.id === id);
+}
 
 // Connectors grouped by category
 export const MS_CONNECTORS = [
