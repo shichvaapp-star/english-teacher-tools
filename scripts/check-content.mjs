@@ -18,7 +18,7 @@ const { WRITING_TASKS } = await load("src/data/writing/index.ts");
 // warnings; once `strict` is on they fail the check.
 const TARGETS = {
   unseen: { min: 10, strict: true },
-  conversation: { min: 8, strict: false },
+  conversation: { min: 8, strict: true },
   writing: { min: 8, strict: false },
 };
 
