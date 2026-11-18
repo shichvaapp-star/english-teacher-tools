@@ -391,7 +391,7 @@ export function useVocabularyPractice() {
         },
       });
     }
-    router.push("/student");
+    router.replace("/student");
   };
 
   // Enrich words with persistent status overrides (starred & mastered)
@@ -971,7 +971,7 @@ export function useVocabularyPractice() {
     });
 
     if (typeof window !== "undefined") {
-      router.push("/tutor?turnIn=1");
+      router.replace("/tutor?turnIn=1");
     }
   };
 

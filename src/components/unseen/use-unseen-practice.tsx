@@ -3,6 +3,7 @@
 import { isHebrewOnly } from "@/lib/hebrew-text";
 import React, { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import { useHistoryStage } from "@/components/shared/use-history-stage";
 import { usePrintOptions } from "@/components/print/use-print-options";
 import { useAuth } from "@/lib/auth-context";
 import { db } from "@/lib/firebase";
@@ -37,7 +38,7 @@ export function useUnseenPractice() {
   const [stories, setStories] = useState<MSUnseenStory[]>(MIDDLE_SCHOOL_UNSEENS);
 
   // App Stage: "settings" (select level, mode, and story) vs. "exercise" (active reading & questions)
-  const [stage, setStage] = useState<"settings" | "exercise">("settings");
+  const [stage, setStage] = useHistoryStage<"settings" | "exercise">("stage", "settings", ["settings", "exercise"]);
   // Mobile active tab when in "exercise" stage: "text" (reading passage) vs. "questions"
   const [mobileTab, setMobileTab] = useState<"text" | "questions">("text");
 
@@ -109,7 +110,7 @@ export function useUnseenPractice() {
               if (snap.selectedLevel) setSelectedLevel(snap.selectedLevel);
               if (snap.selectedStoryId) setSelectedStoryId(snap.selectedStoryId);
             }
-            setStage(snap.stage || "exercise");
+            setStage(snap.stage === "settings" ? "settings" : "exercise", { replace: true });
             if (snap.mode) setMode(snap.mode);
             if (snap.userAnswers) setUserAnswers(snap.userAnswers);
             if (snap.checkedQuestions) setCheckedQuestions(snap.checkedQuestions);
@@ -146,7 +147,7 @@ export function useUnseenPractice() {
         setIsFromDavid(true);
       }
       if (params.get("stage") === "exercise") {
-        setStage("exercise");
+        setStage("exercise", { replace: true });
       }
       const gradeQueryParam = parseClassGrade(params.get("grade"));
       if (gradeQueryParam) setForcedGrade(gradeQueryParam);
@@ -162,7 +163,7 @@ export function useUnseenPractice() {
           setStories((prev) => (prev.some((s) => s.id === found.id) ? prev : [...prev, found]));
           setSelectedLevel(found.level);
           setSelectedStoryId(found.id);
-          setStage("exercise");
+          setStage("exercise", { replace: true });
           setMode(fromDavid ? "practice" : "graded");
         }
       }
@@ -489,7 +490,7 @@ export function useUnseenPractice() {
         if (payload.activeQuestionIndex !== undefined) setActiveQuestionIndex(payload.activeQuestionIndex);
         if (payload.mode) setMode(payload.mode);
         if (draftIdParam || params.get("passageId") || params.get("story") || params.get("assignmentId")) {
-          setStage("exercise");
+          setStage("exercise", { replace: true });
         }
         setActiveDraftPrompt(matched);
       } else {
@@ -624,7 +625,7 @@ export function useUnseenPractice() {
         },
       });
     }
-    router.push("/student");
+    router.replace("/student");
   };
 
   // Word Click & Translation Popup
@@ -1829,7 +1830,7 @@ export function useUnseenPractice() {
     });
 
     if (typeof window !== "undefined") {
-      router.push("/tutor?turnIn=1");
+      router.replace("/tutor?turnIn=1");
     }
   };
 
