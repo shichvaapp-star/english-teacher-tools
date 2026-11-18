@@ -6,6 +6,7 @@
 
 import type { ClassGrade, LevelNumber } from "@/lib/levels";
 import type { MSUnseenQuestion, MSUnseenStory } from "@/types/unseen";
+import type { TaskCategory, WritingTask } from "@/types/writing";
 import type {
   ConversationCategory,
   ConversationQuestion,
@@ -241,6 +242,69 @@ export function conversation(grade: ClassGrade, level: LevelNumber, n: number, s
     usefulPhrases,
     questions,
     totalPoints: points * questions.length,
+    allowWords: s.allow,
+  };
+}
+
+// ── Writing ────────────────────────────────────────────────────────────
+
+
+export interface WritingSpec {
+  category: TaskCategory;
+  emoji: string;
+  title: string;
+  he: string;
+  prompt: string;
+  /** Hebrew instructions shown under the prompt. */
+  heInstr: string;
+  /** Target length in words: [min, max]. */
+  words: [number, number];
+  /** Short Hebrew tips. */
+  tips: string[];
+  /** "word=תרגום=emoji; …" (emoji optional) – words from the grade's textbook list. */
+  bank: string;
+  starters: string[];
+  /** Level 1 guided steps: [titleHe, starter, placeholder, hintHe]. */
+  steps?: [string, string, string, string][];
+  allow?: string[];
+}
+
+export function writingTask(grade: ClassGrade, level: LevelNumber, n: number, s: WritingSpec): WritingTask {
+  const [min, max] = s.words;
+  return {
+    id: `writing-g${grade}-l${level}-${String(n).padStart(2, "0")}`,
+    grade,
+    level: label(level),
+    category: s.category,
+    emoji: s.emoji,
+    title: s.title,
+    hebrewTitle: s.he,
+    prompt: s.prompt,
+    hebrewInstructions: s.heInstr,
+    targetWords: `${min}–${max} מילים`,
+    minWords: min,
+    maxWords: max,
+    starterTips: s.tips,
+    wordBank: s.bank
+      .split(";")
+      .map((x) => x.trim())
+      .filter(Boolean)
+      .map((x) => {
+        const [word, hebrew, emoji] = x.split("=").map((p) => p.trim());
+        return { word, hebrew, ...(emoji ? { emoji } : {}) };
+      }),
+    sentenceStarters: s.starters,
+    ...(s.steps
+      ? {
+          guidedSteps: s.steps.map(([titleHebrew, starterPhrase, placeholder, helperHintHebrew], i) => ({
+            stepNumber: i + 1,
+            titleHebrew,
+            starterPhrase,
+            placeholder,
+            helperHintHebrew,
+          })),
+        }
+      : {}),
     allowWords: s.allow,
   };
 }

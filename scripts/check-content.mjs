@@ -212,7 +212,9 @@ for (const t of WRITING_TASKS) {
     ...t.sentenceStarters,
     ...(t.guidedSteps ?? []).flatMap((s) => [s.starterPhrase, s.placeholder]),
   ];
-  checkVocabulary("writing", w, t.grade, t.level, text, t.allowWords ?? []);
+  // Word-bank words come with a Hebrew translation, so they count as taught.
+  const glossed = vocab.vocabularyTokens(t.wordBank.map((b) => b.word)).flatMap(lemmaCandidates);
+  checkVocabulary("writing", w, t.grade, t.level, text, [...glossed, ...INSTRUCTION_WORDS, ...(t.allowWords ?? [])]);
 }
 
 // ── Report ──
