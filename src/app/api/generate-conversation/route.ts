@@ -1,3 +1,5 @@
+import { getConversationScenarios } from "@/data/conversations/scenarios";
+import { gradeFromBody, gradeVocabularyPrompt, wordsOutsideGrade } from "@/lib/grade-prompt";
 import { NextResponse } from "next/server";
 import {
   ConversationScenario,
@@ -313,6 +315,9 @@ function validateAndFormatScenario(
   };
 }
 
+/** More words outside the grade list than this → try the next model once. */
+const OUTSIDE_WORDS_LIMIT = 6;
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -322,6 +327,7 @@ export async function POST(request: Request) {
       category = "all",
       allowFallback = false,
     } = body;
+    const grade = gradeFromBody(body);
 
     const selectedLevel = (["Level 1", "Level 2", "Level 3"].includes(level)
       ? level
@@ -342,7 +348,8 @@ export async function POST(request: Request) {
 
     if (!groqApiKey && !geminiApiKey && !openaiApiKey) {
       if (allowFallback) {
-        const candidates = REAL_LIFE_CONVERSATIONS.filter((c) => c.level === selectedLevel);
+        const byGrade = grade ? getConversationScenarios(grade, selectedLevel) : [];
+        const candidates = byGrade.length ? byGrade : REAL_LIFE_CONVERSATIONS.filter((c) => c.level === selectedLevel);
         const chosen =
           candidates[Math.floor(Math.random() * candidates.length)] ||
           REAL_LIFE_CONVERSATIONS[0];
@@ -384,6 +391,7 @@ CRITICAL LANGUAGE RULES:
 Scenario Parameters:
 - Target Level: ${selectedLevel} (${levelPrompt})
 - Scenario Topic: "${resolvedTopic}"
+${gradeVocabularyPrompt(grade, selectedLevel)}
 
 Dialogue Requirements:
 - 2 distinct speakers ("speaker_a" and "speaker_b") with realistic names, roles, avatar emojis, and genderHint ("male" or "female").
@@ -565,6 +573,7 @@ Return ONLY a valid raw JSON object matching this exact structure:
     }
 
     let lastError: unknown = null;
+    let retried: { outsideGradeWords: string[] } | null = null;
     for (const step of cascadePlan) {
       try {
         const rawOutput = await step.execute();
@@ -574,18 +583,35 @@ Return ONLY a valid raw JSON object matching this exact structure:
         if (scenario) {
           scenario.generationPrompt = resolvedTopic;
           scenario.isAiGenerated = true;
-          return NextResponse.json({
+          if (grade) scenario.grade = grade;
+          const outside = wordsOutsideGrade(
+            [scenario.title, ...scenario.turns.map((t) => t.text), ...scenario.questions.flatMap((q) => [q.prompt, ...(q.options ?? [])])],
+            grade,
+            selectedLevel,
+            [...scenario.speakers.flatMap((sp) => sp.name.split(/[\s()]+/)), ...scenario.usefulPhrases.flatMap((p) => p.phrase.split(/\s+/))]
+          );
+          const result = {
             success: true,
             scenario,
             isAiGenerated: true,
             modelUsed: step.model,
             providerUsed: step.provider,
-          });
+            outsideGradeWords: outside,
+          };
+          // Too many words beyond the grade list → one retry with the next model.
+          if (outside.length > OUTSIDE_WORDS_LIMIT && !retried) {
+            retried = result;
+            continue;
+          }
+          if (retried && retried.outsideGradeWords.length < outside.length) return NextResponse.json(retried);
+          return NextResponse.json(result);
         }
       } catch (err) {
         lastError = err;
       }
     }
+
+    if (retried) return NextResponse.json(retried);
 
     return NextResponse.json(
       {

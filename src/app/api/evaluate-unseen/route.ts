@@ -1,3 +1,4 @@
+import { gradeExpectationsPrompt, gradeFromBody } from "@/lib/grade-prompt";
 import { NextResponse } from "next/server";
 import { gradeCopyAnswer } from "@/lib/copy-grading";
 import { MSUnseenQuestion } from "@/data/unseen-middle-school";
@@ -321,6 +322,7 @@ export async function POST(request: Request) {
       userAnswers = {},
       studentName,
     } = body;
+    const grade = gradeFromBody(body);
 
     if (!Array.isArray(questions) || questions.length === 0) {
       return NextResponse.json(
@@ -420,6 +422,7 @@ Evaluate the student's reading comprehension (Unseen) answers with pedagogical w
 STUDENT & TEST PROFILE:
 - Student Name: ${studentName || "Student"}
 - Level: "${storyLevel}"
+${gradeExpectationsPrompt(grade, storyLevel)}
 - Story Title: "${storyTitle}"
 - Multiple Choice Results: The student answered ${mcqCorrectCount} out of ${mcqTotalCount} Multiple Choice questions correctly.
 

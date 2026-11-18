@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { getUnseenStories } from "@/data/unseen";
+import { gradeFromBody, gradeVocabularyPrompt, wordsOutsideGrade } from "@/lib/grade-prompt";
 import { MIDDLE_SCHOOL_UNSEENS, MSUnseenStory, MSUnseenQuestion, randomizeQuestionsOptions } from "@/data/unseen-middle-school";
 import {
   errorMessage,
@@ -333,15 +335,26 @@ function validateAndFormatStory(
   };
 }
 
+/** More words outside the grade list than this → try the next model once. */
+const OUTSIDE_WORDS_LIMIT = 6;
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
     const { level = "Level 2", topic = "", allowFallback = false } = body;
+    const grade = gradeFromBody(body);
 
     const selectedLevel = (["Level 1", "Level 2", "Level 3"].includes(level) ? level : "Level 2") as
       | "Level 1"
       | "Level 2"
       | "Level 3";
+
+    // Library fallback: same grade and level when the grade has stories, else the level.
+    const pickFallback = (): MSUnseenStory => {
+      const byGrade = grade ? getUnseenStories(grade, selectedLevel) : [];
+      const candidates = byGrade.length ? byGrade : MIDDLE_SCHOOL_UNSEENS.filter((s) => s.level === selectedLevel);
+      return candidates[Math.floor(Math.random() * candidates.length)] || MIDDLE_SCHOOL_UNSEENS[0];
+    };
 
     const resolvedTopic = topic && topic.trim() ? topic.trim() : "an exciting and educational real-world adventure";
     const hasHebrewTopic = /[\u0590-\u05FF]/.test(resolvedTopic);
@@ -356,8 +369,7 @@ export async function POST(request: Request) {
 
     if (!groqApiKey && !geminiApiKey && !openaiApiKey) {
       if (allowFallback) {
-        const candidates = MIDDLE_SCHOOL_UNSEENS.filter((s) => s.level === selectedLevel);
-        const chosen = candidates[Math.floor(Math.random() * candidates.length)] || MIDDLE_SCHOOL_UNSEENS[0];
+        const chosen = pickFallback();
         const storyWithRandomizedMcqs: MSUnseenStory = {
           ...chosen,
           questions: randomizeQuestionsOptions(chosen.questions),
@@ -414,6 +426,7 @@ CRITICAL LANGUAGE MANDATE - ABSOLUTE REQUIREMENT (NEVER VIOLATE THIS):
 Pedagogical Parameters:
 - Target Level: ${selectedLevel} (${levelPrompt})
 - Theme / Subject: ${topicInstruction}
+${gradeVocabularyPrompt(grade, selectedLevel)}
 
 Output Requirements:
 - Paragraphs: EXACTLY 4 or 5 paragraphs (50 to 75 words each). ALL IN ENGLISH ONLY.
@@ -641,6 +654,7 @@ Return ONLY a valid, raw JSON object matching this schema (NO MARKDOWN FENCES, N
 
     // Run the cascade
     let lastError: unknown = null;
+    let retried: { outsideGradeWords: string[] } | null = null;
 
     for (const step of cascadePlan) {
       try {
@@ -652,13 +666,29 @@ Return ONLY a valid, raw JSON object matching this schema (NO MARKDOWN FENCES, N
         if (story) {
           story.generationPrompt = resolvedTopic;
           story.isAiGenerated = true;
-          return NextResponse.json({
+          if (grade) story.grade = grade;
+          // Levels 1–2 should stay inside the grade's words: one retry with the
+          // next model when too many slip through, then keep the better story.
+          const outside = wordsOutsideGrade(
+            [story.title, ...story.paragraphs, ...story.questions.flatMap((q) => [q.prompt, ...(q.options ?? [])])],
+            grade,
+            selectedLevel,
+            story.vocabularyHints.flatMap((h) => h.word.split(/\s+/))
+          );
+          const result = {
             success: true,
             story,
             isAiGenerated: true,
             modelUsed: step.model,
             providerUsed: step.provider,
-          });
+            outsideGradeWords: outside,
+          };
+          if (outside.length > OUTSIDE_WORDS_LIMIT && !retried) {
+            retried = result;
+            continue;
+          }
+          if (retried && retried.outsideGradeWords.length < outside.length) return NextResponse.json(retried);
+          return NextResponse.json(result);
         }
       } catch (err) {
         lastError = err;
@@ -666,10 +696,12 @@ Return ONLY a valid, raw JSON object matching this schema (NO MARKDOWN FENCES, N
       }
     }
 
+    // A story that was over the word limit is still better than nothing.
+    if (retried) return NextResponse.json(retried);
+
     // If all AI models failed
     if (allowFallback) {
-      const candidates = MIDDLE_SCHOOL_UNSEENS.filter((s) => s.level === selectedLevel);
-      const chosen = candidates[Math.floor(Math.random() * candidates.length)] || MIDDLE_SCHOOL_UNSEENS[0];
+      const chosen = pickFallback();
       const storyWithRandomizedMcqs: MSUnseenStory = {
         ...chosen,
         generationPrompt: resolvedTopic,

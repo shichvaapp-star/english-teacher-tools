@@ -1,3 +1,4 @@
+import { gradeFromBody, gradeVocabularyPrompt } from "@/lib/grade-prompt";
 import { NextResponse } from "next/server";
 import { errorMessage, extractJsonObject } from "@/lib/llm-json";
 
@@ -18,6 +19,7 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const { hebrewText, level, taskTitle } = body;
+    const grade = gradeFromBody(body);
 
     if (!hebrewText || typeof hebrewText !== "string" || !hebrewText.trim()) {
       return NextResponse.json(
@@ -35,7 +37,7 @@ export async function POST(request: Request) {
     if (currentLevel === "Level 1") {
       levelPrompt = `Target audience: Israeli Elementary / Early Beginner (Level 1). Keep vocabulary simple (Core Band I), short S-V-O sentences, emphasize capitalization ("I", first letter).`;
     } else if (currentLevel === "Level 3") {
-      levelPrompt = `Target audience: Israeli High School 5-points Bagrut (Level 3). Use rich Band II/III vocabulary and connectors.`;
+      levelPrompt = `Target audience: Israeli junior high, strong students (Level 3). Use rich, varied vocabulary and connectors.`;
     } else {
       levelPrompt = `Target audience: Israeli Middle School (Level 2). Use natural Band I/II vocabulary, clear connectors (because, so, but), correct S-V-O word order.`;
     }
@@ -46,6 +48,7 @@ STUDENT HEBREW THOUGHT: "${hebrewText.trim()}"
 WRITING TOPIC: "${taskTitle || "General"}"
 LEVEL: ${currentLevel}
 ${levelPrompt}
+${gradeVocabularyPrompt(grade, currentLevel)}
 
 PEDAGOGICAL TASK:
 1. Break the Hebrew thought into 2 to 4 consecutive chronological parts of the sentence.

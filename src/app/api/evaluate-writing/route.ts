@@ -1,3 +1,4 @@
+import { gradeExpectationsPrompt, gradeFromBody } from "@/lib/grade-prompt";
 import { NextResponse } from "next/server";
 import { errorMessage, extractJsonObject } from "@/lib/llm-json";
 
@@ -226,6 +227,7 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const { essayText, taskTitle, prompt, category, minWords, maxWords, level } = body;
+    const grade = gradeFromBody(body);
 
     if (!essayText || typeof essayText !== "string" || essayText.trim().length === 0) {
       return NextResponse.json(
@@ -272,9 +274,9 @@ STUDENT AUDIENCE PROFILE: LEVEL 1 (ELEMENTARY SCHOOL / BEGINNER / EARLY FOUNDATI
 - In Hebrew feedback, write warm, enthusiastic praise ("כל הכבוד!", "התחלה נהדרת!").`;
     } else if (currentLevel === "Level 3") {
       levelPedagogyGuidance = `
-STUDENT AUDIENCE PROFILE: LEVEL 3 (HIGH SCHOOL BAGRUT PREP / 4-5 POINTS / ADVANCED / CEFR B1-B2):
+STUDENT AUDIENCE PROFILE: LEVEL 3 (STRONG ISRAELI JUNIOR-HIGH STUDENTS / ADVANCED / CEFR B1-B2):
 - Target word count is ${targetMin} to ${targetMax} words.
-- Evaluate according to the official Israeli Ministry of Education (Mafmar) Bagrut Rubric.
+- Evaluate according to the official Israeli Ministry of Education writing rubric, with junior-high expectations.
 - Baseline 85-91 for well-structured, coherent essays that address the prompt with good paragraph flow.
 - EXCELLENT STUDENTS (0-2 minor slips, rich vocabulary, clear transitions): Award 92–98! Do NOT low-ball advanced Israeli students.
 - Provide constructive, insightful advice on style, register, and transitions.`;
@@ -298,6 +300,7 @@ STUDENT AUDIENCE PROFILE: LEVEL 2 (ISRAELI MIDDLE SCHOOL / חטיבת ביניי
 You evaluate student writing with pedagogical wisdom, warm encouragement, and exact adherence to the official Israeli English Curriculum Writing Rubric.
 
 ${levelPedagogyGuidance}
+${gradeExpectationsPrompt(grade, currentLevel)}
 
 TASK DETAILS:
 - Student Level: "${currentLevel}"

@@ -1,3 +1,4 @@
+import { gradeFromBody, gradeVocabularyPrompt, wordsOutsideGrade } from "@/lib/grade-prompt";
 import { NextResponse } from "next/server";
 import { extractJsonFromText, isJsonObject, type JsonValue } from "@/lib/llm-json";
 import { WritingTask, WritingLevel, TaskCategory } from "@/types/writing";
@@ -145,6 +146,17 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const { topic, level = "Level 2", category = "opinion" } = body;
+    const grade = gradeFromBody(body);
+    /** Marks the task with its grade and lists words beyond the grade's lists (Levels 1–2). */
+    const withGrade = (task: WritingTask) => {
+      if (grade) task.grade = grade;
+      const outsideGradeWords = wordsOutsideGrade(
+        [task.title, task.prompt, ...(task.sentenceStarters ?? []), ...(task.wordBank ?? []).map((b) => b.word)],
+        grade,
+        currentLevel
+      );
+      return { task, outsideGradeWords };
+    };
 
     const safeTopic = (topic || "").trim();
     if (!safeTopic) {
@@ -183,6 +195,7 @@ USER REQUEST:
 - Topic: "${safeTopic}"
 - Target Level: "${currentLevel}"
 - Category: "${currentCategory}"
+${gradeVocabularyPrompt(grade, currentLevel)}
 
 LEVEL GUIDELINES:
 - "Level 1" (Very basic / Pre-school / Early beginner): target 10-25 words. Very simple prompt, 4-6 simple words in wordBank with Hebrew translations and emojis, 4 easy sentence starters, and 3 simple guidedSteps.
@@ -235,7 +248,7 @@ Return ONLY a valid JSON object matching this schema (NO MARKDOWN CODEBLOCKS):
           if (content) {
             const parsed = extractJsonFromText(content);
             if (validateWritingTask(parsed)) {
-              return NextResponse.json({ success: true, task: parsed, source: "groq" });
+              return NextResponse.json({ success: true, ...withGrade(parsed as unknown as WritingTask), source: "groq" });
             }
           }
         }
@@ -262,7 +275,7 @@ Return ONLY a valid JSON object matching this schema (NO MARKDOWN CODEBLOCKS):
           if (text) {
             const parsed = extractJsonFromText(text);
             if (validateWritingTask(parsed)) {
-              return NextResponse.json({ success: true, task: parsed, source: "gemini" });
+              return NextResponse.json({ success: true, ...withGrade(parsed as unknown as WritingTask), source: "gemini" });
             }
           }
         }
