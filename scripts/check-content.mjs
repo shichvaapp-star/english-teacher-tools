@@ -147,7 +147,7 @@ for (const s of UNSEEN_STORIES) {
     ...s.paragraphs,
     ...s.questions.flatMap((q) => [q.prompt, ...(q.options ?? []), q.modelAnswer, q.targetSentence]),
   ];
-  const glossed = vocab.vocabularyTokens(s.vocabularyHints.map((h) => h.word));
+  const glossed = vocab.vocabularyTokens(s.vocabularyHints.map((h) => h.word)).flatMap(lemmaCandidates);
   checkVocabulary("unseen", w, s.grade, s.level, text, [...glossed, ...INSTRUCTION_WORDS, ...(s.allowWords ?? [])]);
 }
 
@@ -186,7 +186,9 @@ for (const s of CONVERSATION_SCENARIOS) {
     ...s.questions.flatMap((q) => [q.prompt, q.situationContext, ...(q.options ?? []), q.modelAnswer]),
   ];
   const names = s.speakers.flatMap((sp) => sp.name.split(/[\s()]+/));
-  checkVocabulary("conversation", w, s.grade, s.level, text, [...names, ...INSTRUCTION_WORDS, ...(s.allowWords ?? [])]);
+  // Useful phrases come with a Hebrew translation, so their words count as taught (like Unseen hints).
+  const glossed = vocab.vocabularyTokens(s.usefulPhrases.map((p) => p.phrase)).flatMap(lemmaCandidates);
+  checkVocabulary("conversation", w, s.grade, s.level, text, [...names, ...glossed, ...INSTRUCTION_WORDS, ...(s.allowWords ?? [])]);
 }
 
 // ── Writing ──
