@@ -57,8 +57,9 @@ function rateLimited(uid: string): boolean {
 export async function POST(request: Request) {
   const admin = getFirebaseAdmin();
   if (!admin) return reply(503, "server_not_configured");
-  const gmailUser = process.env.GMAIL_USER;
-  const gmailPass = process.env.GMAIL_APP_PASSWORD;
+  // Pasted values often carry stray spaces; Google shows app passwords as "abcd efgh ijkl mnop".
+  const gmailUser = process.env.GMAIL_USER?.trim();
+  const gmailPass = process.env.GMAIL_APP_PASSWORD?.replace(/\s+/g, "");
   if (!gmailUser || !gmailPass) return reply(503, "email_not_configured");
 
   // ── Who is sending ──
