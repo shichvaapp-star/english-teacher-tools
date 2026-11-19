@@ -13,6 +13,7 @@ rules_version = '2';
 // Collections:
 //   teachers/{teacherId}            owner teacher + admins (public directory is served by /api/public/teachers)
 //   teachers/{id}/vocabBanks/{id}   public read; owner teacher writes
+//   teachers/{id}/worksheets/{id}   owner teacher + admins only
 //   shared_vocab_banks/{id}         public read; teachers write
 //   students/{studentId}            owning teacher, admins, and the student themself (read)
 //   assignments/{id}                public read; owning teacher writes
@@ -75,6 +76,11 @@ service cloud.firestore {
       match /vocabBanks/{bankId} {
         allow read: if true;
         allow write: if isTeacher(teacherId) || isAdmin();
+      }
+
+      // Printable worksheets from the worksheet maker (answer keys inside, so private).
+      match /worksheets/{worksheetId} {
+        allow read, write: if isTeacher(teacherId) || isAdmin();
       }
     }
 

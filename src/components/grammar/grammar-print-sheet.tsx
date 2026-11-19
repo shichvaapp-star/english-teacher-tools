@@ -9,7 +9,7 @@ import type { GrammarItem, GrammarTopic } from "@/types/grammar";
 // Print-only worksheet + answer key. Paper is always white, so (like the other
 // printed booklets) it uses fixed print colours rather than theme tokens.
 
-const TASK_LINE: Record<GrammarItem["type"], string> = {
+export const TASK_LINE: Record<GrammarItem["type"], string> = {
   mcq: "Circle the correct answer.",
   gap_bank: "Complete with a word from the box.",
   gap_type: "Write the verb in the correct form.",
@@ -37,18 +37,20 @@ function PrintItem({ item, n }: { item: GrammarItem; n: number }) {
   );
 }
 
-function renderBody(item: GrammarItem) {
+/** The printed body of one grammar item. `salt` changes the option order (worksheet Version B). */
+export function renderBody(item: GrammarItem, salt = "") {
+  const seed = item.id + salt;
   switch (item.type) {
     case "mcq":
       return (
         <p>
-          {blank(item.sentence)} &nbsp; ( {seededShuffle(item.options, item.id).join("  /  ")} )
+          {blank(item.sentence)} &nbsp; ( {seededShuffle(item.options, seed).join("  /  ")} )
         </p>
       );
     case "gap_bank":
       return (
         <>
-          <p className="inline-block border border-slate-400 rounded px-2 my-1">{seededShuffle(item.wordBank, item.id).join("   ")}</p>
+          <p className="inline-block border border-slate-400 rounded px-2 my-1">{seededShuffle(item.wordBank, seed).join("  /  ")}</p>
           <p>{blank(item.sentence)}</p>
         </>
       );
@@ -57,7 +59,7 @@ function renderBody(item: GrammarItem) {
     case "unscramble":
       return (
         <>
-          <p>{seededShuffle(item.words, item.id).join("  /  ")}</p>
+          <p>{seededShuffle(item.words, seed).join("  /  ")}</p>
           <Line />
         </>
       );
@@ -82,7 +84,7 @@ function renderBody(item: GrammarItem) {
         <>
           <p className="my-1">Groups: {item.buckets.map((b) => `[ ${b} ]`).join("  ")}</p>
           <ul className="list-none pl-0">
-            {seededShuffle(item.entries, item.id).map((e) => (
+            {seededShuffle(item.entries, seed).map((e) => (
               <li key={e.text}>
                 {e.text} → ____________
               </li>
@@ -93,7 +95,7 @@ function renderBody(item: GrammarItem) {
     case "match_halves": {
       const rights = seededShuffle(
         item.pairs.map((p) => p.right),
-        item.id
+        seed
       );
       return (
         <div className="grid grid-cols-2 gap-x-6">
@@ -131,11 +133,12 @@ function renderBody(item: GrammarItem) {
   }
 }
 
-function keyText(item: GrammarItem): string {
+/** Answer-key line for one grammar item (same `salt` as renderBody). */
+export function keyText(item: GrammarItem, salt = ""): string {
   if (item.type === "match_halves") {
     const rights = seededShuffle(
       item.pairs.map((p) => p.right),
-      item.id
+      item.id + salt
     );
     return item.pairs.map((p, i) => `${i + 1}-${String.fromCharCode(65 + rights.indexOf(p.right))}`).join(", ");
   }

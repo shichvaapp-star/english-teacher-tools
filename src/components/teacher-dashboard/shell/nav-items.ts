@@ -2,6 +2,7 @@ import {
   BookA,
   BookOpenCheck,
   ClipboardList,
+  FileText,
   Home,
   Inbox,
   MessageSquarePlus,
@@ -20,6 +21,7 @@ export type NavKey =
   | "students"
   | "banks"
   | "grammar"
+  | "worksheets"
   | "shared"
   | "adminTeachers"
   | "suggestions";
@@ -39,6 +41,7 @@ export const NAV_ITEMS: NavItem[] = [
   { key: "students", href: `${DASHBOARD_BASE}/students`, label: "תלמידים", icon: Users },
   { key: "banks", href: `${DASHBOARD_BASE}/banks`, label: "מאגרי מילים", icon: BookA },
   { key: "grammar", href: `${DASHBOARD_BASE}/grammar`, label: "מאגר דקדוק", icon: BookOpenCheck },
+  { key: "worksheets", href: `${DASHBOARD_BASE}/worksheets`, label: "דפי עבודה", icon: FileText },
   { key: "shared", href: `${DASHBOARD_BASE}/shared`, label: "מאגר משותף", icon: Share2 },
   { key: "adminTeachers", href: `${DASHBOARD_BASE}/admin/teachers`, label: "ניהול מורים", icon: ShieldCheck, admin: true },
   { key: "suggestions", href: `${DASHBOARD_BASE}/admin/suggestions`, label: "הצעות ומשוב", icon: MessageSquarePlus, admin: true },

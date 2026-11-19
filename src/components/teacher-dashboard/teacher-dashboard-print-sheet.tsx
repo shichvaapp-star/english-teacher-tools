@@ -1,8 +1,8 @@
 "use client";
 
 import React from "react";
-
-
+import { usePathname } from "next/navigation";
+import { DASHBOARD_BASE } from "@/components/teacher-dashboard/shell/nav-items";
 import { type TeacherDashboardController } from "@/components/teacher-dashboard/use-teacher-dashboard";
 
 export function TeacherDashboardPrintSheet({ c }: { c: TeacherDashboardController }) {
@@ -10,8 +10,10 @@ export function TeacherDashboardPrintSheet({ c }: { c: TeacherDashboardControlle
     filteredStudents,
     user,
   } = c;
-  // Only rendered after the page's teacher sign-in guard.
-  if (!user) return null;
+  const pathname = usePathname();
+  // Only rendered after the page's teacher sign-in guard. The roster is printed
+  // from the Students page only – other pages (grammar, worksheets) print their own sheets.
+  if (!user || pathname !== `${DASHBOARD_BASE}/students`) return null;
   return (
     <>
       {/* -------------------------------------------------------------------

@@ -7,11 +7,12 @@
     "prebuild": "npm run -s lint && npm run -s typecheck",
     "build": "next build --webpack",
     "start": "next start",
-    "lint": "npm run -s check:admins && npm run -s check:grammar && npm run -s check:content && eslint",
+    "lint": "npm run -s check:admins && npm run -s check:grammar && npm run -s check:content && npm run -s check:worksheet && eslint",
     "typecheck": "tsc --noEmit",
     "check:admins": "node scripts/check-admin-sync.mjs",
     "check:grammar": "node --no-warnings scripts/check-grammar.mjs",
-    "check:content": "node --no-warnings scripts/check-content.mjs"
+    "check:content": "node --no-warnings scripts/check-content.mjs",
+    "check:worksheet": "node --no-warnings scripts/check-worksheet.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",
@@ -21,10 +22,13 @@
     "cn": "^0.3.0",
     "firebase": "^12.19.0",
     "firebase-admin": "^13.10.0",
+    "html-to-image": "^1.11.13",
+    "jspdf": "^4.2.1",
     "lucide-react": "^1.46.0",
     "mammoth": "^1.13.0",
     "next": "16.3.5",
     "next-themes": "^0.4.6",
+    "nodemailer": "^10.6.0",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "shadcn": "^4.21.0",
@@ -35,6 +39,7 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
+    "@types/nodemailer": "^8.0.2",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
