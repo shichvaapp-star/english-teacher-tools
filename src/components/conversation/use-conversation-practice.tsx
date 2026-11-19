@@ -22,6 +22,7 @@ import {
   loadSavedWords,
   isWordSaved,
   normalizeVocabWord,
+  removeWordByEnglish,
 } from "@/lib/vocab-storage";
 import { recordTaskCompletion, submitTaskToDavid, resolveFocusWordToReviewItem } from "@/lib/tutor-engine";
 import { TutorVocabReviewItem } from "@/types/tutor";
@@ -583,6 +584,14 @@ export function useConversationPractice() {
       user?.id
     );
     setClickedWord((prev) => (prev ? { ...prev, saved: true } : null));
+    setSavedWords(loadSavedWords(user?.id));
+  };
+
+  // Undo: remove the currently shown word from the Personal Dictionary
+  const handleRemoveClickedWord = () => {
+    if (!clickedWord) return;
+    removeWordByEnglish(clickedWord.word, user?.id);
+    setClickedWord((prev) => (prev ? { ...prev, saved: false } : null));
     setSavedWords(loadSavedWords(user?.id));
   };
 
@@ -1383,6 +1392,7 @@ export function useConversationPractice() {
     handleSpeakText,
     handleWordClick,
     handleSaveClickedWord,
+    handleRemoveClickedWord,
     handlePassageSelectionUp,
     handleTranslateSelection,
     handleToggleQuestionTranslation,

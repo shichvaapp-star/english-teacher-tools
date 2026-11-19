@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { type VocabItem } from "@/lib/vocab-storage";
 import { PrintedPassageText } from "@/components/unseen/unseen-helpers";
 import { type UnseenPracticeController } from "@/components/unseen/use-unseen-practice";
 import {
@@ -27,6 +28,9 @@ export function UnseenPrintSheets({ c }: { c: UnseenPracticeController }) {
     printSeparatePages,
   } = printOptions;
 
+  // Glossed (ruby) Hebrew only when the user chose to include their vocabulary.
+  const glossMap = printIncludeVocab ? savedVocabMap : new Map<string, VocabItem>();
+
   return (
     <PrintBooklet>
       {/* SHEET 1: Reading Passage Page */}
@@ -39,7 +43,7 @@ export function UnseenPrintSheets({ c }: { c: UnseenPracticeController }) {
           <section className="space-y-4">
             <div className="text-center pb-2.5 border-b border-slate-200 mb-3.5">
               <h1 className="text-xl font-extrabold tracking-tight text-slate-900 leading-tight">
-                <PrintedPassageText text={currentStory.title} savedVocabMap={savedVocabMap} />
+                <PrintedPassageText text={currentStory.title} savedVocabMap={glossMap} />
               </h1>
               {currentStory.hebrewTitle && (
                 <p className="text-xs font-medium text-slate-500 rtl mt-0.5">
@@ -56,7 +60,7 @@ export function UnseenPrintSheets({ c }: { c: UnseenPracticeController }) {
             <div
               className={`text-sm text-slate-800 text-justify ${printLineSpacingClass(
                 printLineSpacing,
-                passageSavedVocabWords.length > 0
+                printIncludeVocab && passageSavedVocabWords.length > 0
               )}`}
             >
               {currentStory.paragraphs.map((para, idx) => (
@@ -65,7 +69,7 @@ export function UnseenPrintSheets({ c }: { c: UnseenPracticeController }) {
                     {idx + 1}
                   </span>
                   <p className="m-0 flex-1">
-                    <PrintedPassageText text={para} savedVocabMap={savedVocabMap} />
+                    <PrintedPassageText text={para} savedVocabMap={glossMap} />
                   </p>
                 </div>
               ))}

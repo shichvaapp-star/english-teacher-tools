@@ -554,6 +554,15 @@ export function removeWordFromBuilder(wordId: string, userId?: string) {
   }
 }
 
+/** Remove a saved word by its English text (case/punctuation-insensitive). Returns true if one was removed. */
+export function removeWordByEnglish(english: string, userId?: string): boolean {
+  const cleanEng = normalizeVocabWord(english);
+  if (!cleanEng) return false;
+  const matches = loadSavedWords(userId).filter((w) => normalizeVocabWord(w.english) === cleanEng);
+  for (const w of matches) removeWordFromBuilder(w.id, userId);
+  return matches.length > 0;
+}
+
 const OVERRIDES_STORAGE_KEY = "bg_word_status_overrides";
 
 export function loadWordStatusOverrides(

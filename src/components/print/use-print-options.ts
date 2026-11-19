@@ -14,7 +14,7 @@ export function usePrintOptions() {
   const [printScope, setPrintScope] = useState<PrintScope>("full");
   const [printLineSpacing, setPrintLineSpacing] = useState<PrintLineSpacing>("normal");
   const [printIncludeHeader, setPrintIncludeHeader] = useState(true);
-  const [printIncludeVocab, setPrintIncludeVocab] = useState(true);
+  const [printIncludeVocab, setPrintIncludeVocab] = useState(false);
   const [printIncludeAnswers, setPrintIncludeAnswers] = useState(false);
   const [printSeparatePages, setPrintSeparatePages] = useState(true);
 

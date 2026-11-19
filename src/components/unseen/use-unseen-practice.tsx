@@ -22,6 +22,7 @@ import {
   syncSavedWordsFromFirestore,
   isWordSaved,
   normalizeVocabWord,
+  removeWordByEnglish,
 } from "@/lib/vocab-storage";
 import { recordTaskCompletion, submitTaskToDavid, resolveFocusWordToReviewItem } from "@/lib/tutor-engine";
 import { TutorVocabReviewItem } from "@/types/tutor";
@@ -1148,6 +1149,14 @@ export function useUnseenPractice() {
     setSavedWords(loadSavedWords(user?.id));
   };
 
+  // Undo: remove the currently shown word from the Personal Dictionary
+  const handleRemoveClickedWord = () => {
+    if (!clickedWord) return;
+    removeWordByEnglish(clickedWord.word, user?.id);
+    setClickedWord((prev) => (prev ? { ...prev, saved: false } : null));
+    setSavedWords(loadSavedWords(user?.id));
+  };
+
   // Dictate (read aloud) only the user-highlighted text selection
   const handleDictateSelection = (selectedText: string) => {
     const clean = selectedText.trim().replace(/\s+/g, " ");
@@ -2015,6 +2024,7 @@ export function useUnseenPractice() {
     handleGenerateAiStory,
     handleWordClick,
     handleSaveClickedWord,
+    handleRemoveClickedWord,
     handleDictateSelection,
     handleTranslateSelection,
     handleToggleQuestionTranslation,

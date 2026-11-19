@@ -20,6 +20,7 @@ export default function ConversationPracticePage() {
   const {
     clickedWord,
     handleSaveClickedWord,
+    handleRemoveClickedWord,
     handleSpeak,
     setClickedWord,
     setShowVocabDrawer,
@@ -59,6 +60,7 @@ export default function ConversationPracticePage() {
         isSpeechActive={stage === "exercise"}
         onSpeak={handleSpeak}
         onSaveWord={handleSaveClickedWord}
+        onRemoveWord={handleRemoveClickedWord}
         onClose={() => setClickedWord(null)}
         onOpenDrawer={() => setShowVocabDrawer(true)}
       />

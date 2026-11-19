@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { Volume2, X, CheckCircle2, GripHorizontal, RotateCcw, Plus, BookMarked } from "lucide-react";
+import { Volume2, X, CheckCircle2, GripHorizontal, RotateCcw, Plus, BookMarked, Trash2 } from "lucide-react";
 
 export interface ClickedWordData {
   word: string;
@@ -18,6 +18,7 @@ interface DraggableTranslationPopupProps {
   isSpeechActive: boolean;
   onSpeak: (word: string) => void;
   onSaveWord?: () => void;
+  onRemoveWord?: () => void;
   onClose: () => void;
   onOpenDrawer: () => void;
 }
@@ -29,6 +30,7 @@ export function DraggableTranslationPopup({
   isSpeechActive,
   onSpeak,
   onSaveWord,
+  onRemoveWord,
   onClose,
   onOpenDrawer,
 }: DraggableTranslationPopupProps) {
@@ -248,9 +250,22 @@ export function DraggableTranslationPopup({
             dir="rtl"
           >
             {clickedWord.saved ? (
-              <span className="text-emerald-600 dark:text-emerald-400 flex items-center gap-1 font-semibold">
-                <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
-                <span>נשמר בפנקס המילים שלך!</span>
+              <span className="flex items-center gap-2">
+                <span className="text-emerald-600 dark:text-emerald-400 flex items-center gap-1 font-semibold">
+                  <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                  <span>נשמר בפנקס!</span>
+                </span>
+                {onRemoveWord && (
+                  <button
+                    type="button"
+                    onClick={onRemoveWord}
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg border border-border text-muted-foreground hover:text-destructive hover:border-destructive/50 font-semibold text-[11px] transition-colors cursor-pointer"
+                    title="הסר מפנקס המילים"
+                  >
+                    <Trash2 className="h-3 w-3 shrink-0" />
+                    <span>הסר</span>
+                  </button>
+                )}
               </span>
             ) : clickedWord.word.trim().split(/\s+/).length <= 5 ? (
               <button

@@ -22,6 +22,7 @@ export default function UnseenPracticePage() {
   const {
     clickedWord,
     handleSaveClickedWord,
+    handleRemoveClickedWord,
     handleSpeak,
     setClickedWord,
     setDrawerOpen,
@@ -50,6 +51,7 @@ export default function UnseenPracticePage() {
         isSpeechActive={speech.isActive}
         onSpeak={handleSpeak}
         onSaveWord={handleSaveClickedWord}
+        onRemoveWord={handleRemoveClickedWord}
         onClose={() => setClickedWord(null)}
         onOpenDrawer={() => {
           setClickedWord(null);
