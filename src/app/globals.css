@@ -233,6 +233,15 @@
     break-before: page !important;
     page-break-before: always !important;
   }
+  /* Worksheet maker: keep each question whole and headings with what follows. */
+  [data-ws-block] {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  [data-ws-keep-next] {
+    break-after: avoid;
+    page-break-after: avoid;
+  }
 }
 
 .print-line-spacing-normal {
