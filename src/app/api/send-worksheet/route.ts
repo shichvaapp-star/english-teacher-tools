@@ -8,13 +8,27 @@ import type { SendWorksheetReason, SendWorksheetRequest, SendWorksheetResponse }
 // Only signed-in teachers can send, the recipient is fixed on the server, and
 // each teacher is rate-limited. Mail goes out through Gmail SMTP with an app
 // password (env: GMAIL_USER, GMAIL_APP_PASSWORD).
+//
+// Test mode: outside production (Vercel preview / local), PRINT_EMAIL_TEST_TO
+// redirects the email to a test address so trying the feature never reaches
+// the print technician. Production always sends to PRINT_EMAIL.
 
 const MAX_PDF_BYTES = 3_300_000;
 const MAX_PER_HOUR = 10;
 const sentAt = new Map<string, number[]>();
 
-function reply(status: number, reason?: SendWorksheetReason) {
-  return NextResponse.json<SendWorksheetResponse>(reason ? { success: false, reason } : { success: true }, { status });
+function reply(status: number, reason?: SendWorksheetReason, testMode = false) {
+  return NextResponse.json<SendWorksheetResponse>(
+    reason ? { success: false, reason } : { success: true, ...(testMode ? { testMode: true } : {}) },
+    { status }
+  );
+}
+
+/** The test address when not in production, else null. */
+function testRecipient(): string | null {
+  if (process.env.VERCEL_ENV === "production") return null;
+  const to = process.env.PRINT_EMAIL_TEST_TO?.trim();
+  return to && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to) ? to : null;
 }
 
 const oneLine = (s: string, max: number) => s.replace(/[\r\n\t]+/g, " ").trim().slice(0, max);
@@ -103,9 +117,12 @@ export async function POST(request: Request) {
     ...(gradeHe ? [["שכבה", `${gradeHe}${level ? ` · רמה ${level}` : ""}`] as [string, string]] : []),
     ...(note ? [["הערה מהמורה", note] as [string, string]] : []),
   ];
-  const subject = oneLine(`בקשת הדפסה: ${title} – ${copies}${versions ? "×2" : ""} עותקים${neededBy ? ` – עד ${neededBy}` : ""}`, 200);
-  const text = [`שלום,`, ``, `${teacherName} (${email}) מבקש/ת להדפיס את דף העבודה המצורף.`, ``, ...rows.map(([k, v]) => `${k}: ${v}`), ``, `תודה!`].join("\n");
+  const testTo = testRecipient();
+  const testLine = testTo ? `מייל בדיקה מאתר התצוגה המקדימה – באתר החי הוא נשלח אל ${PRINT_EMAIL}.` : "";
+  const subject = oneLine(`${testTo ? "[בדיקה] " : ""}בקשת הדפסה: ${title} – ${copies}${versions ? "×2" : ""} עותקים${neededBy ? ` – עד ${neededBy}` : ""}`, 200);
+  const text = [...(testLine ? [testLine, ``] : []), `שלום,`, ``, `${teacherName} (${email}) מבקש/ת להדפיס את דף העבודה המצורף.`, ``, ...rows.map(([k, v]) => `${k}: ${v}`), ``, `תודה!`].join("\n");
   const html = `<div dir="rtl" style="font-family:Arial,sans-serif;font-size:15px;line-height:1.6">
+${testLine ? `<p style="background:#fff3cd;padding:8px 12px;border-radius:6px"><b>${escapeHtml(testLine)}</b></p>` : ""}
 <p>שלום,</p>
 <p><b>${escapeHtml(teacherName)}</b> (${escapeHtml(email)}) מבקש/ת להדפיס את דף העבודה המצורף.</p>
 <table style="border-collapse:collapse">${rows
@@ -123,14 +140,14 @@ export async function POST(request: Request) {
     const transport = nodemailer.createTransport({ service: "gmail", auth: { user: gmailUser, pass: gmailPass } });
     await transport.sendMail({
       from: { name: "דפי עבודה – אנגלית", address: gmailUser },
-      to: PRINT_EMAIL,
+      to: testTo ?? PRINT_EMAIL,
       replyTo: email,
       subject,
       text,
       html,
       attachments: [{ filename: fileName, content: pdf, contentType: "application/pdf" }],
     });
-    return reply(200);
+    return reply(200, undefined, testTo !== null);
   } catch (err) {
     console.error("send-worksheet: mail failed", err);
     // Let the teacher try again.

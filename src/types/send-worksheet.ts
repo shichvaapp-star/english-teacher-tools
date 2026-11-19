@@ -25,4 +25,6 @@ export type SendWorksheetReason =
 export interface SendWorksheetResponse {
   success: boolean;
   reason?: SendWorksheetReason;
+  /** Sent to the preview test address instead of the print technician. */
+  testMode?: boolean;
 }

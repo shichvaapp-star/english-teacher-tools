@@ -61,6 +61,7 @@ export function SendToPrintDialog({
   const [status, setStatus] = useState<Status>("idle");
   const [error, setError] = useState<string | null>(null);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [testMode, setTestMode] = useState(false);
   const sheetRef = useRef<HTMLDivElement>(null);
   const versions = content.settings.layout.versions;
   const title = content.settings.layout.title || "English Worksheet";
@@ -126,6 +127,7 @@ export function SendToPrintDialog({
       });
       const data = (await res.json().catch(() => ({ success: false }))) as SendWorksheetResponse;
       if (res.ok && data.success) {
+        setTestMode(data.testMode === true);
         setStatus("done");
         return;
       }
@@ -157,6 +159,11 @@ export function SendToPrintDialog({
             <div className="space-y-4 py-2 text-center">
               <CheckCircle2 className="mx-auto size-14 text-success" />
               <p className="text-lg font-bold">הדף נשלח להדפסה!</p>
+              {testMode && (
+                <p className="rounded-lg bg-warning/15 px-3 py-2 text-sm font-semibold text-foreground">
+                  מצב בדיקה: המייל נשלח לכתובת הבדיקה, לא לטכנאי.
+                </p>
+              )}
               <p className="text-sm text-muted-foreground">
                 {copies}
                 {versions ? " עותקים מכל גרסה" : " עותקים"}
