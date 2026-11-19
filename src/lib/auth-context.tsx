@@ -45,7 +45,7 @@ interface AuthContextType {
   loginStudent: (data: { teacherId: string; studentName: string; pin: string }) => Promise<Result>;
   /** Names for the student sign-in picker (no PINs). Works without being signed in. */
   getRoster: (teacherId: string) => Promise<RosterEntry[]>;
-  /** Full student records. Only the owning teacher or an admin may read these. */
+  /** Full student records. Only the owning teacher or an admin may read these. Throws if the read fails. */
   getStudentsByTeacher: (teacherId: string) => Promise<StudentProfile[]>;
   addStudentByTeacher: (data: {
     studentName: string;
@@ -416,8 +416,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       students.sort((a, b) => a.name.localeCompare(b.name));
       return students;
     } catch (err) {
+      // Let callers show an error: an empty list here would look like "no students yet".
       console.warn("Firestore getStudentsByTeacher error:", err);
-      return [];
+      throw err;
     }
   }, []);
 

@@ -32,6 +32,7 @@ import {
 } from "@/lib/vocab-bank-storage";
 
 import { parseSubmissionTimestamp } from "@/lib/submission-time";
+import { describeLoadError } from "@/lib/load-error-message";
 import { useConfirm } from "@/components/teacher-dashboard/shared-ui/confirm-dialog";
 import {
   getAssignmentProgress,
@@ -82,6 +83,7 @@ export function useTeacherDashboard() {
   // Students Roster State
   const [students, setStudents] = useState<StudentProfile[]>([]);
   const [isLoadingStudents, setIsLoadingStudents] = useState(true);
+  const [studentsError, setStudentsError] = useState<string | null>(null);
   const [studentSearchQuery, setStudentSearchQuery] = useState("");
   const [studentClassFilter, setStudentClassFilter] = useState<string>("all");
   const [studentGroupFilter, setStudentGroupFilter] = useState<string>("all");
@@ -177,8 +179,10 @@ export function useTeacherDashboard() {
     try {
       const list = await getStudentsByTeacher(user.id);
       setStudents(list);
+      setStudentsError(null);
     } catch (err) {
       console.warn("Error fetching students:", err);
+      setStudentsError(describeLoadError(err));
     } finally {
       setIsLoadingStudents(false);
     }
@@ -969,6 +973,7 @@ export function useTeacherDashboard() {
     setStudents,
     isLoadingStudents,
     setIsLoadingStudents,
+    studentsError,
     studentSearchQuery,
     setStudentSearchQuery,
     studentClassFilter,

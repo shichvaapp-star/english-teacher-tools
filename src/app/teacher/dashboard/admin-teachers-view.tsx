@@ -21,7 +21,15 @@ import {
   CheckCircle2,
   AlertTriangle,
   GraduationCap,
+  Eye,
+  Copy,
+  Check,
 } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { describeLoadError } from "@/lib/load-error-message";
+
+/** A teacher's students, or why they couldn't be loaded. */
+type StudentListState = { students: StudentProfile[] } | { error: string };
 
 interface AdminTeachersViewProps {
   teachers: TeacherProfile[];
@@ -38,8 +46,14 @@ export function AdminTeachersView({ teachers }: AdminTeachersViewProps) {
   } = useAuth();
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [studentCounts, setStudentCounts] = useState<Record<string, number>>({});
+  // Full lists are kept (not just counts) so viewing a teacher's students needs no extra reads.
+  const [studentLists, setStudentLists] = useState<Record<string, StudentListState>>({});
   const [isLoadingCounts, setIsLoadingCounts] = useState(false);
+
+  // View Students Modal State
+  const [viewingTeacher, setViewingTeacher] = useState<TeacherProfile | null>(null);
+  const [studentFilter, setStudentFilter] = useState("");
+  const [copiedPinId, setCopiedPinId] = useState<string | null>(null);
 
   // Edit Teacher Modal State
   const [editingTeacher, setEditingTeacher] = useState<TeacherProfile | null>(null);
@@ -64,17 +78,16 @@ export function AdminTeachersView({ teachers }: AdminTeachersViewProps) {
     let isMounted = true;
     async function fetchCounts() {
       setIsLoadingCounts(true);
-      const counts: Record<string, number> = {};
+      const lists: Record<string, StudentListState> = {};
       for (const t of teachers) {
         try {
-          const list: StudentProfile[] = await getStudentsByTeacher(t.id);
-          counts[t.id] = list.length;
-        } catch {
-          counts[t.id] = 0;
+          lists[t.id] = { students: await getStudentsByTeacher(t.id) };
+        } catch (err) {
+          lists[t.id] = { error: describeLoadError(err) };
         }
       }
       if (isMounted) {
-        setStudentCounts(counts);
+        setStudentLists(lists);
         setIsLoadingCounts(false);
       }
     }
@@ -100,7 +113,34 @@ export function AdminTeachersView({ teachers }: AdminTeachersViewProps) {
   // Statistics
   const totalTeachers = teachers.length;
   const totalAdmins = teachers.filter((t) => t.isAdmin).length;
-  const totalStudents = Object.values(studentCounts).reduce((a, b) => a + b, 0);
+  const totalStudents = Object.values(studentLists).reduce((a, l) => a + ("students" in l ? l.students.length : 0), 0);
+  const countLabel = (teacherId: string): string => {
+    const l = studentLists[teacherId];
+    if (!l) return isLoadingCounts ? "..." : "0";
+    return "students" in l ? String(l.students.length) : "?";
+  };
+
+  // Students of the teacher open in the "view students" modal, filtered by the search box
+  const viewingList = viewingTeacher ? studentLists[viewingTeacher.id] : undefined;
+  const viewingStudents = useMemo(() => {
+    if (!viewingList || !("students" in viewingList)) return [];
+    const q = studentFilter.trim().toLowerCase();
+    if (!q) return viewingList.students;
+    return viewingList.students.filter(
+      (s) => s.name.toLowerCase().includes(q) || (s.fullClass || "").toLowerCase().includes(q)
+    );
+  }, [viewingList, studentFilter]);
+
+  const handleOpenStudents = (t: TeacherProfile) => {
+    setViewingTeacher(t);
+    setStudentFilter("");
+  };
+
+  const handleCopyPin = (s: StudentProfile) => {
+    navigator.clipboard.writeText(s.pin);
+    setCopiedPinId(s.id);
+    setTimeout(() => setCopiedPinId(null), 2000);
+  };
 
   // Open Edit Modal
   const handleOpenEdit = (t: TeacherProfile) => {
@@ -264,7 +304,7 @@ export function AdminTeachersView({ teachers }: AdminTeachersViewProps) {
       <div className="space-y-3">
         {filteredTeachers.map((t) => {
           const isMe = user?.id === t.id;
-          const count = studentCounts[t.id] ?? 0;
+          const count = countLabel(t.id);
 
           return (
             <Card
@@ -319,7 +359,19 @@ export function AdminTeachersView({ teachers }: AdminTeachersViewProps) {
                 </div>
 
                 {/* Right (RTL Left): Actions */}
-                <div className="flex items-center gap-2 shrink-0 self-end md:self-center">
+                <div className="flex flex-wrap items-center gap-2 shrink-0 self-end md:self-center">
+                  {/* View Students */}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleOpenStudents(t)}
+                    disabled={!studentLists[t.id]}
+                    className="h-8 text-xs font-semibold cursor-pointer"
+                  >
+                    <Eye className="h-3.5 w-3.5 ml-1 text-primary" />
+                    <span>הצג תלמידים</span>
+                  </Button>
+
                   {/* Admin Rights Toggle */}
                   <Button
                     variant="outline"
@@ -365,6 +417,91 @@ export function AdminTeachersView({ teachers }: AdminTeachersViewProps) {
           );
         })}
       </div>
+
+      {/* -------------------------------------------------------------------
+          MODAL: VIEW A TEACHER'S STUDENTS (names, classes, login PINs)
+          ------------------------------------------------------------------- */}
+      <Dialog open={!!viewingTeacher} onOpenChange={(open) => !open && setViewingTeacher(null)}>
+        <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base font-bold text-foreground">
+              <Users className="h-5 w-5 text-primary" />
+              <span>התלמידים של {viewingTeacher?.name}</span>
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              <span className="font-mono" dir="ltr">{viewingTeacher?.email || "ללא אימייל"}</span>
+              {viewingList && "students" in viewingList && <> · {viewingList.students.length} תלמידים רשומים</>}
+            </DialogDescription>
+          </DialogHeader>
+
+          {viewingList && "error" in viewingList ? (
+            <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-xs">
+              לא הצלחנו לטעון את רשימת התלמידים: {viewingList.error}
+            </div>
+          ) : viewingList && viewingList.students.length === 0 ? (
+            <p className="py-8 text-center text-xs text-muted-foreground">אין תלמידים רשומים תחת מורה זה.</p>
+          ) : (
+            <>
+              <div className="relative">
+                <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  value={studentFilter}
+                  onChange={(e) => setStudentFilter(e.target.value)}
+                  placeholder="חיפוש לפי שם או כיתה..."
+                  className="pr-9 text-xs"
+                />
+              </div>
+              <div className="min-h-0 flex-1 overflow-y-auto rounded-xl border border-border">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="hover:bg-transparent">
+                      <TableHead className="text-right">שם</TableHead>
+                      <TableHead className="text-right">כיתה</TableHead>
+                      <TableHead className="text-right">קוד כניסה (PIN)</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {viewingStudents.map((s) => (
+                      <TableRow key={s.id}>
+                        <TableCell className="font-medium text-foreground" dir="ltr">
+                          <span className="block text-right">{s.name}</span>
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {s.fullClass || "—"}
+                          {s.group && <span className="text-foreground/70"> · {s.group}</span>}
+                        </TableCell>
+                        <TableCell>
+                          <button
+                            type="button"
+                            onClick={() => handleCopyPin(s)}
+                            className="inline-flex cursor-pointer items-center gap-1.5 rounded-md px-1.5 py-0.5 font-mono text-xs text-foreground hover:bg-muted"
+                            aria-label={`העתק PIN של ${s.name}`}
+                            dir="ltr"
+                          >
+                            {s.pin}
+                            {copiedPinId === s.id ? (
+                              <Check className="size-3 text-success" />
+                            ) : (
+                              <Copy className="size-3 text-muted-foreground" />
+                            )}
+                          </button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {viewingStudents.length === 0 && (
+                      <TableRow className="hover:bg-transparent">
+                        <TableCell colSpan={3} className="py-6 text-center text-xs text-muted-foreground">
+                          לא נמצאו תלמידים תואמים.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* -------------------------------------------------------------------
           MODAL: EDIT TEACHER DETAILS
@@ -491,7 +628,7 @@ export function AdminTeachersView({ teachers }: AdminTeachersViewProps) {
               <p className="text-muted-foreground">אימייל: <span className="font-mono text-foreground">{deletingTeacher?.email}</span></p>
               <p className="text-muted-foreground">קוד מורה: <span className="font-mono text-foreground">{deletingTeacher?.teacherCode}</span></p>
               <p className="text-muted-foreground">
-                תלמידים משויכים: <span className="font-bold text-foreground">{deletingTeacher ? studentCounts[deletingTeacher.id] || 0 : 0}</span>
+                תלמידים משויכים: <span className="font-bold text-foreground">{deletingTeacher ? countLabel(deletingTeacher.id) : 0}</span>
               </p>
             </div>
 
