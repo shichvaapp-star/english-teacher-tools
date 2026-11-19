@@ -216,6 +216,50 @@ for (const t of GRAMMAR_TOPICS) {
   if (n3 < MIN_ITEMS_PER_LEVEL) err(t.id, `level 3 has ${n3} items (min ${MIN_ITEMS_PER_LEVEL})`);
 }
 
+// ── Generated items ──
+// Sample every topic generator for each grade × level that has items and hold
+// the output to the same rules: valid structure, the key grades as correct,
+// and levels 1–2 use only the grade's vocabulary.
+const gen = await import(pathToFileURL(path.join(root, "src/lib/grammar-gen/index.ts")).href);
+const { getGrammarItems } = await import(pathToFileURL(path.join(root, "src/data/grammar/index.ts")).href);
+const SAMPLES = 150;
+let generated = 0;
+const genVocab = new Map();
+for (const t of GRAMMAR_TOPICS) {
+  if (!gen.hasGenerator(t.id)) continue;
+  for (const g of Object.keys(t.grades).map(Number)) {
+    for (const lvl of [1, 2, 3]) {
+      if (!getGrammarItems(t.id, lvl, g).length) continue;
+      const types = gen.generatorTypes(t.id, lvl);
+      for (const type of types) {
+        const items = gen.generateItems(t.id, g, lvl, SAMPLES / types.length, { types: [type], rng: new gen.Rng(1000 * g + 10 * lvl + types.indexOf(type)) });
+        if (!items.length) err(`${t.id} g${g} L${lvl}`, `generator made no ${type} items`);
+        for (const i of items) {
+          generated++;
+          const w = `${t.id} g${g} L${lvl} ${i.type} "${gen.itemKey(i)}"`;
+          if (lvl === 1 && !LEVEL1_ALLOWED.has(i.type)) err(w, `type ${i.type} not allowed at level 1`);
+          if (!hasHebrew(i.explanationHe)) err(w, "explanationHe missing Hebrew");
+          if (i.type === "mcq" || i.type === "gap_bank") {
+            const opts = i.type === "mcq" ? i.options : i.wordBank;
+            if ((i.sentence.match(/___/g) ?? []).length !== 1) err(w, "sentence needs exactly one ___");
+            if (opts.filter((o) => o === i.answer).length !== 1) err(w, "answer must appear exactly once in options");
+            if (new Set(opts.map(normalizeAnswer)).size !== opts.length) err(w, `options not distinct: ${opts.join(" | ")}`);
+          }
+          if (i.type === "find_fix" && i.answers.some((a) => normalizeAnswer(a) === normalizeAnswer(i.tokens[i.wrongIndex]))) err(w, "find_fix wrong word equals the answer");
+          const r = correctResponse(i);
+          if (r && !gradeGrammarItem(i, r).isCorrect) err(w, "answer key does not grade as correct");
+          if (lvl <= 2 && vocab.hasGradeVocabulary(g)) {
+            for (const u of findUnknownWords(itemEnglishTextOf(i), allowedFor(g, i.allowWords))) {
+              genVocab.set(u, `${t.id} g${g}`);
+            }
+          }
+        }
+      }
+    }
+  }
+}
+for (const [u, where] of genVocab) err(where, `generated word not in grade vocabulary: ${u}`);
+
 if (missingGrade) {
   warn.push(`${missingGrade} level 1–2 item(s) are not written per grade yet (no "grade" field)`);
   if (ungradedUnknown.size) {
@@ -231,4 +275,4 @@ if (errors.length) {
   console.error(`\ncheck-grammar: ${errors.length} problem(s).`);
   process.exit(1);
 }
-console.log(`check-grammar: OK – ${GRAMMAR_TOPICS.length} topic(s), ${GRAMMAR_ITEMS.length} item(s).`);
+console.log(`check-grammar: OK – ${GRAMMAR_TOPICS.length} topic(s), ${GRAMMAR_ITEMS.length} item(s), ${generated} generated sample(s).`);

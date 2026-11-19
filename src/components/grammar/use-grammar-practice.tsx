@@ -12,6 +12,7 @@ import { gradeGrammarItem, isResponseComplete, matchesAny } from "@/lib/grammar-
 import { AI_GRADED_TYPES, type GrammarAiResponse } from "@/lib/grammar-ai";
 import { itemPromptText, responseText } from "@/lib/grammar-format";
 import { GRAMMAR_GROUPS, GRAMMAR_TOPICS, getGrammarItems, getGrammarTopic } from "@/data/grammar";
+import { generateItems, generatorTypes, itemKey } from "@/lib/grammar-gen";
 import type { TeacherAssignment } from "@/types/assignment";
 import type { GrammarSubmissionEntry, SubmissionItem } from "@/types/submission";
 import type {
@@ -111,6 +112,76 @@ function aiKeyHeaders(): Record<string, string> {
 
 const LATE_TYPES: GrammarExerciseType[] = ["cloze_text", "write_own"];
 
+/** Questions in a practice round (assignments use the teacher's count). */
+export const ROUND_SIZE = 20;
+/** Hand-written items per topic in a round; the rest are freshly generated. */
+const FIXED_PER_TOPIC = 5;
+const SEEN_KEY = "ett.grammarSeen";
+const SEEN_MAX = 400;
+
+function readSeen(): string[] {
+  try {
+    const raw = localStorage.getItem(SEEN_KEY);
+    const list = raw ? (JSON.parse(raw) as unknown) : [];
+    return Array.isArray(list) ? list.filter((x): x is string => typeof x === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+function rememberSeen(ids: string[]) {
+  try {
+    const next = [...readSeen().filter((x) => !ids.includes(x)), ...ids].slice(-SEEN_MAX);
+    localStorage.setItem(SEEN_KEY, JSON.stringify(next));
+  } catch {
+    /* storage unavailable */
+  }
+}
+
+/**
+ * A practice round: per topic, a few hand-written items (ones not seen
+ * recently first) and freshly generated items for the rest, so every round
+ * is different. Topics without a generator use their hand-written items only.
+ */
+function buildRound(
+  topicIds: string[],
+  lvl: LevelNumber,
+  grade: ClassGrade,
+  types: GrammarExerciseType[],
+  count: number
+): GrammarItem[] {
+  const seen = new Set(readSeen());
+  const perTopic = Math.max(1, Math.ceil(count / topicIds.length));
+  const out: GrammarItem[] = [];
+  for (const tid of topicIds) {
+    const all = getGrammarItems(tid, lvl, grade);
+    if (!all.length) continue; // topic not taught at this grade / level
+    const byType = types.length ? all.filter((i) => types.includes(i.type)) : all;
+    const genTypes = generatorTypes(tid, lvl).filter((t) => !types.length || types.includes(t));
+    const pool = byType.length || genTypes.length ? byType : all;
+    const fresh = shuffle(pool.filter((i) => !seen.has(i.id)));
+    const old = shuffle(pool.filter((i) => seen.has(i.id)));
+    const fixedTarget = genTypes.length ? Math.min(FIXED_PER_TOPIC, perTopic) : perTopic;
+    const fixed = [...fresh, ...old].slice(0, fixedTarget);
+    const avoid = new Set(fixed.map(itemKey));
+    const generated = genTypes.length
+      ? generateItems(tid, grade, lvl, perTopic - fixed.length, { types: genTypes, avoid })
+      : [];
+    out.push(...fixed, ...generated);
+  }
+  rememberSeen(out.filter((i) => !i.id.startsWith("gen-")).map((i) => i.id));
+  return orderItems(out).slice(0, count);
+}
+
+function shuffle<T>(list: T[]): T[] {
+  const a = [...list];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
 function orderItems(items: GrammarItem[]): GrammarItem[] {
   const early = items.filter((i) => !LATE_TYPES.includes(i.type));
   const late = items.filter((i) => LATE_TYPES.includes(i.type));
@@ -199,7 +270,11 @@ export function useGrammarPractice() {
 
   const availableTypes = useMemo(() => {
     const set = new Set<GrammarExerciseType>();
-    for (const t of GRAMMAR_TOPICS) for (const i of getGrammarItems(t.id, level, grade)) set.add(i.type);
+    for (const t of GRAMMAR_TOPICS) {
+      const items = getGrammarItems(t.id, level, grade);
+      for (const i of items) set.add(i.type);
+      if (items.length) for (const g of generatorTypes(t.id, level)) set.add(g);
+    }
     return [...set];
   }, [level, grade]);
 
@@ -229,10 +304,7 @@ export function useGrammarPractice() {
 
   const buildSet = useCallback(
     (topicIds: string[], lvl: LevelNumber, types: GrammarExerciseType[], count?: number) => {
-      const all = topicIds.flatMap((tid) => getGrammarItems(tid, lvl, grade));
-      const filtered = types.length ? all.filter((i) => types.includes(i.type)) : all;
-      const ordered = orderItems(filtered.length ? filtered : all);
-      return count && count > 0 ? ordered.slice(0, count) : ordered;
+      return buildRound(topicIds, lvl, grade, types, count && count > 0 ? count : ROUND_SIZE);
     },
     [grade]
   );
