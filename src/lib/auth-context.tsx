@@ -93,6 +93,32 @@ function teacherFromDoc(id: string, d: Record<string, unknown>, fallbackEmail = 
   };
 }
 
+/** Codes already used by other teachers, keyed by upper-case code → teacher id. */
+async function fetchTakenTeacherCodes(): Promise<Map<string, string>> {
+  const taken = new Map<string, string>();
+  const res = await fetch("/api/public/teachers", { cache: "no-store" });
+  if (!res.ok) throw new Error("Could not load the teacher list.");
+  const list = (await res.json()) as PublicTeacher[];
+  for (const t of list) {
+    if (t.teacherCode) taken.set(t.teacherCode.trim().toUpperCase(), t.id);
+  }
+  return taken;
+}
+
+/** Builds "FIRSTNAME-NN" with a number no other teacher is using. */
+function pickUniqueTeacherCode(name: string, taken: Map<string, string>): string {
+  const base = name.trim().split(" ")[0].toUpperCase().replace(/[^A-Z]/g, "") || "TEACHER";
+  const free: string[] = [];
+  for (let n = 10; n <= 99; n++) {
+    if (!taken.has(`${base}-${n}`)) free.push(`${base}-${n}`);
+  }
+  if (free.length > 0) return free[Math.floor(Math.random() * free.length)];
+  // All two-digit numbers are used for this name: fall back to three digits.
+  for (let n = 100; ; n++) {
+    if (!taken.has(`${base}-${n}`)) return `${base}-${n}`;
+  }
+}
+
 function teacherToActiveUser(t: TeacherProfile): ActiveUser {
   return {
     id: t.id,
@@ -321,13 +347,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { success: false, error: errorMessage(authErr, "Failed to create account.") };
       }
 
-      const codeBase = data.name.split(" ")[0].toUpperCase().replace(/[^A-Z]/g, "") || "TEACHER";
+      let takenCodes = new Map<string, string>();
+      try {
+        takenCodes = await fetchTakenTeacherCodes();
+      } catch (listErr) {
+        console.warn("Could not check existing teacher codes:", listErr);
+      }
+      const teacherCode = pickUniqueTeacherCode(data.name, takenCodes);
       const newTeacher: TeacherProfile = {
         id: uid,
         name: data.name.trim(),
         email: trimmedEmail,
         schoolName: data.schoolName.trim() || "Ben Gurion Middle School",
-        teacherCode: `${codeBase}-${Math.floor(10 + Math.random() * 90)}`,
+        teacherCode,
         createdAt: new Date().toISOString(),
         isAdmin: isBuiltInAdminEmail(trimmedEmail),
       };
@@ -491,6 +523,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const updateTeacherAccount = async (teacherId: string, updates: Partial<TeacherProfile>): Promise<Result> => {
     if (!teacherId) return { success: false, error: "Missing teacher ID." };
     if (!db) return { success: false, error: "Database unavailable." };
+
+    if (updates.teacherCode !== undefined) {
+      const code = updates.teacherCode.trim().toUpperCase();
+      if (!code) return { success: false, error: "Teacher code cannot be empty." };
+      let takenCodes: Map<string, string>;
+      try {
+        takenCodes = await fetchTakenTeacherCodes();
+      } catch {
+        return { success: false, error: "Could not verify that the teacher code is free. Please try again." };
+      }
+      const owner = takenCodes.get(code);
+      if (owner && owner !== teacherId) {
+        const ownerName = teachers.find((t) => t.id === owner)?.name;
+        return {
+          success: false,
+          error: `The code ${code} is already used by ${ownerName || "another teacher"}. Please choose a different code.`,
+        };
+      }
+      updates = { ...updates, teacherCode: code };
+    }
 
     try {
       await updateDoc(doc(db, "teachers", teacherId), updates);
