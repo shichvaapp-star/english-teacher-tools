@@ -23,6 +23,10 @@ import type {
   GrammarTopic,
 } from "@/types/grammar";
 import type { RuleLang } from "@/components/grammar/grammar-rule-sheet";
+import type { ClickedWordData } from "@/components/unseen/draggable-translation-popup";
+import { translateToHebrew, cleanSingleWord } from "@/lib/translate-to-hebrew";
+import { isWordSaved, removeWordByEnglish, saveWordToBuilder } from "@/lib/vocab-storage";
+import { toPartOfSpeech } from "@/types/vocabulary";
 
 const LEVEL_KEY = "ett_grammar_level";
 const PROGRESS_KEY = "ett_grammar_progress";
@@ -108,6 +112,14 @@ function aiKeyHeaders(): Record<string, string> {
     /* no personal keys */
   }
   return headers;
+}
+
+function cancelSpeech() {
+  try {
+    if (typeof window !== "undefined" && "speechSynthesis" in window) window.speechSynthesis.cancel();
+  } catch {
+    /* speech unavailable */
+  }
 }
 
 const LATE_TYPES: GrammarExerciseType[] = ["cloze_text", "write_own"];
@@ -242,6 +254,11 @@ export function useGrammarPractice() {
   const [ruleOpen, setRuleOpen] = useState(false);
   const [aiSettingsOpen, setAiSettingsOpen] = useState(false);
 
+  // Translation + read-aloud (same behaviour as Unseen / Conversation)
+  const [clickedWord, setClickedWord] = useState<ClickedWordData | null>(null);
+  const [selectedText, setSelectedText] = useState<string | null>(null);
+  const [speakingKey, setSpeakingKey] = useState<string | null>(null);
+
   // Turn-in
   const [submitting, setSubmitting] = useState(false);
   const [receiptCode, setReceiptCode] = useState<string | null>(null);
@@ -287,6 +304,10 @@ export function useGrammarPractice() {
     setGrade(null);
     setHintShown(false);
     setAiChecking(false);
+    setClickedWord(null);
+    setSelectedText(null);
+    setSpeakingKey(null);
+    cancelSpeech();
   };
 
   const startWithItems = useCallback((topicIds: string[], items: GrammarItem[], followUp = false) => {
@@ -498,6 +519,105 @@ export function useGrammarPractice() {
     resetItemState();
   }, []);
 
+  // ── Translation & read-aloud ──
+  /** Reads English text aloud; pressing again on the same key stops it. */
+  const handleSpeak = useCallback(
+    (text: string, key?: string) => {
+      if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+      const id = key ?? text;
+      try {
+        const synth = window.speechSynthesis;
+        if (synth.paused) synth.resume();
+        const wasThis = speakingKey === id && (synth.speaking || synth.pending);
+        synth.cancel();
+        if (wasThis) {
+          setSpeakingKey(null);
+          return;
+        }
+        const clean = text.replace(/_+/g, " blank ").replace(/\s+/g, " ").trim();
+        if (!clean) return;
+        const utterance = new SpeechSynthesisUtterance(clean);
+        utterance.lang = "en-US";
+        utterance.rate = 0.9;
+        const voice = synth.getVoices().find((v) => v.lang.startsWith("en"));
+        if (voice) utterance.voice = voice;
+        const done = () => setSpeakingKey((k) => (k === id ? null : k));
+        utterance.onend = done;
+        utterance.onerror = done;
+        setSpeakingKey(id);
+        synth.speak(utterance);
+      } catch {
+        setSpeakingKey(null);
+      }
+    },
+    [speakingKey]
+  );
+
+  const handleSelectionUp = useCallback((e?: { target: EventTarget | null }) => {
+    // Clicking a chip / typing in a box is answering, not highlighting.
+    if (e?.target instanceof Element && e.target.closest("button, input, textarea")) {
+      setSelectedText(null);
+      return;
+    }
+    const sel = window.getSelection();
+    if (!sel || sel.isCollapsed) {
+      setSelectedText(null);
+      return;
+    }
+    const text = sel.toString().trim().replace(/\s+/g, " ");
+    setSelectedText(text.length >= 2 && /[a-zA-Z]/.test(text) ? text : null);
+  }, []);
+
+  const handleTranslateSelection = useCallback(
+    async (raw: string) => {
+      const isPhrase = /\s/.test(raw.trim());
+      const word = isPhrase ? raw.trim().replace(/\s+/g, " ") : cleanSingleWord(raw);
+      setSelectedText(null);
+      if (!word || word.length < 2) return;
+      const saved = isWordSaved(word, user?.id);
+      setClickedWord({
+        word,
+        hebrew: isPhrase ? "מתרגם ביטוי/משפט..." : "מתרגם...",
+        loading: true,
+        saved,
+        isSelection: isPhrase,
+      });
+      const res = await translateToHebrew(word);
+      setClickedWord((prev) => {
+        if (!prev || prev.word !== word) return prev; // a newer request replaced it
+        return res
+          ? { ...prev, hebrew: res.hebrew, partOfSpeech: res.partOfSpeech, example: res.example, loading: false }
+          : { ...prev, hebrew: "לא נמצא תרגום", loading: false, saved: false };
+      });
+    },
+    [user?.id]
+  );
+
+  const handleSaveClickedWord = useCallback(() => {
+    if (!clickedWord || clickedWord.loading || clickedWord.hebrew === "לא נמצא תרגום") return;
+    const title = topic?.title ?? "Grammar";
+    saveWordToBuilder(
+      {
+        english: clickedWord.word,
+        hebrew: clickedWord.hebrew,
+        partOfSpeech: toPartOfSpeech(clickedWord.partOfSpeech) || "phrase",
+        example: clickedWord.example || `From "${title}"`,
+        level: "Personal Word",
+        sourceType: "grammar",
+        sourceTitle: title,
+        sourceCategory: `Grammar (Level ${level})`,
+      },
+      user?.id
+    );
+    setClickedWord((prev) => (prev ? { ...prev, saved: true } : null));
+  }, [clickedWord, topic?.title, level, user?.id]);
+
+  const handleRemoveClickedWord = useCallback(() => {
+    if (!clickedWord) return;
+    removeWordByEnglish(clickedWord.word, user?.id);
+    setClickedWord((prev) => (prev ? { ...prev, saved: false } : null));
+  }, [clickedWord, user?.id]);
+
   const scorePct = attempts.length
     ? Math.round((attempts.reduce((s, a) => s + a.points, 0) / attempts.length) * 100)
     : 0;
@@ -621,6 +741,17 @@ export function useGrammarPractice() {
     setRuleOpen,
     aiSettingsOpen,
     setAiSettingsOpen,
+    // translation + read-aloud
+    clickedWord,
+    setClickedWord,
+    selectedText,
+    setSelectedText,
+    speakingKey,
+    handleSpeak,
+    handleSelectionUp,
+    handleTranslateSelection,
+    handleSaveClickedWord,
+    handleRemoveClickedWord,
     // results
     attempts,
     isFollowUp,

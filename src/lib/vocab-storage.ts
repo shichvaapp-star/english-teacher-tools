@@ -9,7 +9,7 @@ import { REAL_LIFE_CONVERSATIONS, LEGACY_CONVERSATIONS } from "@/data/conversati
 import { getVocabCards } from "@/data/vocab/cards";
 import { GRADE_HE, type ClassGrade } from "@/lib/levels";
 
-export type VocabSourceType = "unseen" | "writing" | "tutor" | "manual" | "curriculum" | "conversation";
+export type VocabSourceType = "unseen" | "writing" | "tutor" | "manual" | "curriculum" | "conversation" | "grammar";
 
 export interface VocabItem {
   id: string;
@@ -225,6 +225,10 @@ export function formatVocabSourceLabel(item: VocabItem): string {
         : sourceCategory
         ? `✍️ כתיבה (${sourceCategory})`
         : "✍️ סדנת כתיבה";
+    case "conversation":
+      return displayTitle ? `💬 שיחה: ${displayTitle}` : "💬 שיחה מהחיים";
+    case "grammar":
+      return displayTitle ? `🧩 דקדוק: ${displayTitle}` : "🧩 דקדוק";
     case "tutor":
       return displayTitle ? `🤖 דוד: ${displayTitle}` : "🤖 אימון עם דוד";
     case "curriculum":

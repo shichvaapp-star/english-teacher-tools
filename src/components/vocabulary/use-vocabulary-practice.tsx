@@ -437,7 +437,7 @@ export function useVocabularyPractice() {
       const src = inferVocabSource(w);
       if (
         src.sourceTitle &&
-        (src.sourceType === "unseen" || src.sourceType === "writing" || src.sourceType === "tutor" || src.sourceType === "conversation")
+        (src.sourceType === "unseen" || src.sourceType === "writing" || src.sourceType === "tutor" || src.sourceType === "conversation" || src.sourceType === "grammar")
       ) {
         const cleanTitle = src.sourceTitle.trim();
         if (!cleanTitle) return;
@@ -454,6 +454,8 @@ export function useVocabularyPractice() {
               ? "✍️"
               : src.sourceType === "conversation"
               ? "💬"
+              : src.sourceType === "grammar"
+              ? "🧩"
               : "🤖";
           map.set(key, {
             key,
@@ -475,7 +477,9 @@ export function useVocabularyPractice() {
     if (
       sourceFilter === "unseen" ||
       sourceFilter === "writing" ||
-      sourceFilter === "tutor"
+      sourceFilter === "tutor" ||
+      sourceFilter === "conversation" ||
+      sourceFilter === "grammar"
     ) {
       return availableExercises.filter((ex) => ex.sourceType === sourceFilter);
     }
@@ -531,9 +535,10 @@ export function useVocabularyPractice() {
       unseen: 1,
       writing: 2,
       conversation: 3,
-      tutor: 4,
-      manual: 5,
-      curriculum: 6,
+      grammar: 4,
+      tutor: 5,
+      manual: 6,
+      curriculum: 7,
     };
 
     // Sorting

@@ -1,12 +1,13 @@
 "use client";
 
 import React, { useEffect } from "react";
-import { Lightbulb, Loader2, RotateCcw } from "lucide-react";
+import { Languages, Lightbulb, Loader2, Pause, RotateCcw, Volume2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { GrammarExercise } from "@/components/grammar/exercises";
 import { HeText } from "@/components/grammar/he-text";
 import type { GrammarPracticeController } from "@/components/grammar/use-grammar-practice";
+import { itemPromptText } from "@/lib/grammar-format";
 import type { GrammarItem, GrammarTopic } from "@/types/grammar";
 
 function hintFor(item: GrammarItem, topic: GrammarTopic): string | null {
@@ -42,6 +43,9 @@ export function GrammarPracticeScreen({ c }: { c: GrammarPracticeController }) {
   const { item, isRetry } = c.current;
   const checked = c.grade !== null;
   const hint = hintFor(item, c.topic);
+  const promptText = itemPromptText(item).replace(/_+/g, "___");
+  const speakKey = `item:${c.current.key}`;
+  const speaking = c.speakingKey === speakKey;
   const progressPct = Math.round((c.index / Math.max(1, c.queue.length)) * 100);
 
   const ai = c.grade?.aiGraded ? c.grade : null;
@@ -85,7 +89,37 @@ export function GrammarPracticeScreen({ c }: { c: GrammarPracticeController }) {
         </p>
       )}
 
-      <div key={c.current.key} className="rounded-2xl border border-border bg-card p-5 sm:p-7">
+      <div
+        key={c.current.key}
+        onMouseUp={c.handleSelectionUp}
+        onTouchEnd={c.handleSelectionUp}
+        className="relative rounded-2xl border border-border bg-card p-5 sm:p-7"
+      >
+        {/* Read aloud + translate the exercise sentence */}
+        <div className="flex justify-end gap-1.5 mb-3" dir="rtl">
+          <Button
+            type="button"
+            size="sm"
+            variant={speaking ? "default" : "outline"}
+            onClick={() => c.handleSpeak(promptText, speakKey)}
+            className="h-8 px-2.5 text-xs font-bold gap-1.5 cursor-pointer font-hebrew"
+            title="הקרא את המשפט בקול"
+          >
+            {speaking ? <Pause className="h-3.5 w-3.5" /> : <Volume2 className="h-3.5 w-3.5" />}
+            <span className="hidden sm:inline">{speaking ? "עצור" : "הקרא"}</span>
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => c.handleTranslateSelection(promptText)}
+            className="h-8 px-2.5 text-xs font-bold gap-1.5 cursor-pointer font-hebrew"
+            title="תרגם את המשפט לעברית"
+          >
+            <Languages className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">תרגם</span>
+          </Button>
+        </div>
         <GrammarExercise item={item} response={c.response} onChange={c.setResponse} grade={c.grade} />
       </div>
 

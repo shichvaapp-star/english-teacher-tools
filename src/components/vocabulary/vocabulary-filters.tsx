@@ -130,6 +130,8 @@ export function VocabularyFilters({ c }: { c: VocabularyPracticeController }) {
                   <option value="all">כל המקורות</option>
                   <option value="unseen">📖 כל קטעי הקריאה (אנסין)</option>
                   <option value="writing">✍️ כל סדנת הכתיבה</option>
+                  <option value="conversation">💬 כל השיחות מהחיים</option>
+                  <option value="grammar">🧩 כל תרגולי הדקדוק</option>
                   <option value="tutor">🤖 המורה דוד</option>
                   <option value="manual">✏️ הזנה ידנית</option>
                   {availableExercises.some((ex) => ex.sourceType === "unseen") && (
@@ -161,6 +163,17 @@ export function VocabularyFilters({ c }: { c: VocabularyPracticeController }) {
                         .map((ex) => (
                           <option key={ex.key} value={`exercise::${ex.key}`}>
                             💬 {ex.shortLabel} ({ex.count} מילים)
+                          </option>
+                        ))}
+                    </optgroup>
+                  )}
+                  {availableExercises.some((ex) => ex.sourceType === "grammar") && (
+                    <optgroup label="🧩 בחירת נושא דקדוק ספציפי">
+                      {availableExercises
+                        .filter((ex) => ex.sourceType === "grammar")
+                        .map((ex) => (
+                          <option key={ex.key} value={`exercise::${ex.key}`}>
+                            🧩 {ex.shortLabel} ({ex.count} מילים)
                           </option>
                         ))}
                     </optgroup>
