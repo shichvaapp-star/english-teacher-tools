@@ -2,7 +2,7 @@
 
 import React, { Suspense, useMemo } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Check, Copy, Edit2, Eye, EyeOff, MoreHorizontal, Printer, Search, Send, Trash2, UserPlus, Users } from "lucide-react";
+import { AlertTriangle, Check, Copy, Edit2, Eye, EyeOff, MoreHorizontal, Printer, RotateCw, Search, Send, Trash2, UserPlus, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -22,6 +22,7 @@ import { GradePill } from "@/components/teacher-dashboard/shared-ui/status-badge
 import { StudentSheet } from "@/components/teacher-dashboard/students/student-sheet";
 import { useDashboard } from "@/components/teacher-dashboard/teacher-dashboard-context";
 import { formatCompactTime } from "@/lib/submission-time";
+import { useAuth } from "@/lib/auth-context";
 
 const GROUP_OPTIONS: FilterOption[] = [
   { value: "all", label: "כל ההקבצות" },
@@ -32,6 +33,7 @@ const GROUP_OPTIONS: FilterOption[] = [
 
 function StudentsContent() {
   const c = useDashboard();
+  const { user } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -106,11 +108,39 @@ function StudentsContent() {
             <Skeleton key={i} className="h-12 rounded-lg" />
           ))}
         </div>
+      ) : c.studentsError && c.students.length === 0 ? (
+        <EmptyState
+          icon={AlertTriangle}
+          title="לא הצלחנו לטעון את רשימת התלמידים"
+          description={c.studentsError}
+          action={
+            <Button variant="outline" onClick={() => c.fetchStudents()} disabled={c.isLoadingStudents} className="gap-1.5">
+              <RotateCw className="size-4" />
+              נסו שוב
+            </Button>
+          }
+        />
       ) : rows.length === 0 ? (
         <EmptyState
           icon={Users}
           title={c.students.length === 0 ? "עדיין אין תלמידים" : "לא נמצאו תלמידים תואמים"}
-          description="הוסיפו תלמידים ידנית, או שהם יבחרו בך כמורה כשהם מתחברים."
+          description={
+            c.students.length === 0 ? (
+              <>
+                הוסיפו תלמידים ידנית, או שהם יבחרו בך כמורה כשהם מתחברים.
+                {user?.email && (
+                  <span className="mt-2 block">
+                    מחובר/ת כ-{" "}
+                    <span className="font-mono text-foreground" dir="ltr">
+                      {user.email}
+                    </span>
+                  </span>
+                )}
+              </>
+            ) : (
+              "נסו לשנות את החיפוש או את הסינון."
+            )
+          }
           action={
             c.students.length === 0 ? (
               <Button onClick={c.handleOpenAddStudent} className="gap-1.5">
