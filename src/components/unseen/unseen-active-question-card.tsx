@@ -196,31 +196,39 @@ export function UnseenActiveQuestionCard({ c }: { c: UnseenPracticeController })
                     optStyle = "border-primary bg-primary/10 text-foreground font-semibold shadow-xs";
                   }
 
+                  // The row is a plain container: the answer itself and the
+                  // translate / listen icons are sibling buttons (a button
+                  // inside a button is invalid HTML and breaks hydration).
                   return (
-                    <button
+                    <div
                       key={optIdx}
-                      type="button"
-                      onClick={() => {
-                        setUserAnswers((prev) => ({ ...prev, [activeQuestion.id]: optIdx }));
-                        if (mode === "practice") {
-                          setCheckedQuestions((prev) => ({ ...prev, [activeQuestion.id]: true }));
-                        } else {
-                          setCheckedQuestions((prev) => ({ ...prev, [activeQuestion.id]: false }));
-                        }
-                      }}
-                      className={`w-full p-3 rounded-lg border text-left text-xs transition cursor-pointer flex items-start gap-2.5 ${optStyle}`}
+                      className={`w-full rounded-lg border text-left text-xs transition flex items-start ${optStyle}`}
                     >
-                      <span className="h-5 w-5 rounded-full border border-current flex items-center justify-center shrink-0 text-[10px] font-bold mt-0.5">
-                        {String.fromCharCode(65 + optIdx)}
-                      </span>
-                      <span className="flex-1 leading-relaxed">
-                        <InteractiveEnglishText
-                          text={option}
-                          onWordClick={handleWordClick}
-                          stopEventPropagation
-                        />
-                      </span>
-                      <div className="flex items-center gap-0.5 shrink-0 mt-0.5">
+                      <button
+                        type="button"
+                        aria-pressed={isSelected}
+                        onClick={() => {
+                          setUserAnswers((prev) => ({ ...prev, [activeQuestion.id]: optIdx }));
+                          if (mode === "practice") {
+                            setCheckedQuestions((prev) => ({ ...prev, [activeQuestion.id]: true }));
+                          } else {
+                            setCheckedQuestions((prev) => ({ ...prev, [activeQuestion.id]: false }));
+                          }
+                        }}
+                        className="min-w-0 flex-1 p-3 pe-2.5 text-left cursor-pointer flex items-start gap-2.5 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                      >
+                        <span className="h-5 w-5 rounded-full border border-current flex items-center justify-center shrink-0 text-[10px] font-bold mt-0.5">
+                          {String.fromCharCode(65 + optIdx)}
+                        </span>
+                        <span className="flex-1 leading-relaxed">
+                          <InteractiveEnglishText
+                            text={option}
+                            onWordClick={handleWordClick}
+                            stopEventPropagation
+                          />
+                        </span>
+                      </button>
+                      <div className="flex items-center gap-0.5 shrink-0 py-3 pe-3 mt-0.5">
                         <button
                           type="button"
                           onClick={(e) => {
@@ -249,11 +257,11 @@ export function UnseenActiveQuestionCard({ c }: { c: UnseenPracticeController })
                         >
                           <Volume2 className="h-3.5 w-3.5" />
                         </button>
+                        {mode === "practice" && isChecked && isCorrectOption && (
+                          <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0 ms-1.5" />
+                        )}
                       </div>
-                      {mode === "practice" && isChecked && isCorrectOption && (
-                        <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
-                      )}
-                    </button>
+                    </div>
                   );
                 })}
               </div>
