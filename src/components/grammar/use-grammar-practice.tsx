@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { readRaw, useStoredRaw, writeRaw } from "@/lib/use-stored-value";
 import { doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
 import { useAuth } from "@/lib/auth-context";
 import { db } from "@/lib/firebase";
@@ -49,39 +50,6 @@ export interface AttemptRecord {
   usedHint: boolean;
   /** Score after the hint penalty (0..1). */
   points: number;
-}
-
-// ── localStorage-backed values (useSyncExternalStore keeps SSR + hydration in sync) ──
-const STORAGE_EVENT = "ett-grammar-storage";
-
-function subscribeStorage(cb: () => void) {
-  window.addEventListener("storage", cb);
-  window.addEventListener(STORAGE_EVENT, cb);
-  return () => {
-    window.removeEventListener("storage", cb);
-    window.removeEventListener(STORAGE_EVENT, cb);
-  };
-}
-
-function readRaw(key: string): string | null {
-  try {
-    return window.localStorage.getItem(key);
-  } catch {
-    return null;
-  }
-}
-
-function writeRaw(key: string, value: string) {
-  try {
-    window.localStorage.setItem(key, value);
-  } catch {
-    /* storage unavailable – value just won't persist */
-  }
-  window.dispatchEvent(new Event(STORAGE_EVENT));
-}
-
-function useStoredRaw(key: string): string | null {
-  return useSyncExternalStore(subscribeStorage, () => readRaw(key), () => null);
 }
 
 function parseLevel(raw: string | null): LevelNumber {

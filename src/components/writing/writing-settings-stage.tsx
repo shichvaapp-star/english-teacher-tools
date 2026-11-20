@@ -17,6 +17,8 @@ import {
   FileCheck,
 } from "lucide-react";
 import { GradePicker } from "@/components/shared/grade-picker";
+import { SetupViewModeBar, useSetupWizardMode } from "@/components/shared/wizard/setup-wizard";
+import { WritingSetupWizard } from "@/components/writing/writing-setup-wizard";
 import { type WritingPracticeController } from "@/components/writing/use-writing-practice";
 
 export function WritingSettingsStage({ c }: { c: WritingPracticeController }) {
@@ -48,6 +50,7 @@ export function WritingSettingsStage({ c }: { c: WritingPracticeController }) {
     stage,
     topicSourceTab,
   } = c;
+  const wizard = useSetupWizardMode();
   return (
     <>
       {/* =========================================================================
@@ -91,6 +94,12 @@ export function WritingSettingsStage({ c }: { c: WritingPracticeController }) {
             </div>
           )}
 
+          <SetupViewModeBar />
+
+          {wizard ? (
+            <WritingSetupWizard c={c} />
+          ) : (
+          <>
           {/* Settings Compact Header */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-1 border-b border-border/50" dir="rtl">
             <div>
@@ -422,6 +431,8 @@ export function WritingSettingsStage({ c }: { c: WritingPracticeController }) {
               <ArrowLeft className="h-4 w-4" />
             </Button>
           </div>
+          </>
+          )}
         </main>
       )}
     </>

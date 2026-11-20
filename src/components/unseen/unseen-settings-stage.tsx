@@ -17,6 +17,8 @@ import { type UnseenPracticeController } from "@/components/unseen/use-unseen-pr
 import { UnseenAiGenerator } from "@/components/unseen/unseen-ai-generator";
 import { UnseenLibraryGrid } from "@/components/unseen/unseen-library-grid";
 import { GradePicker } from "@/components/shared/grade-picker";
+import { SetupViewModeBar, useSetupWizardMode } from "@/components/shared/wizard/setup-wizard";
+import { UnseenSetupWizard } from "@/components/unseen/unseen-setup-wizard";
 
 export function UnseenSettingsStage({ c }: { c: UnseenPracticeController }) {
   const {
@@ -34,6 +36,7 @@ export function UnseenSettingsStage({ c }: { c: UnseenPracticeController }) {
     stage,
     storySourceTab,
   } = c;
+  const wizard = useSetupWizardMode();
   return (
     <>
       {/* =========================================================================
@@ -58,6 +61,12 @@ export function UnseenSettingsStage({ c }: { c: UnseenPracticeController }) {
             </div>
           )}
 
+          <SetupViewModeBar />
+
+          {wizard ? (
+            <UnseenSetupWizard c={c} />
+          ) : (
+          <>
           {/* Settings Compact Header */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-1 border-b border-border/50" dir="rtl">
             <div>
@@ -273,6 +282,8 @@ export function UnseenSettingsStage({ c }: { c: UnseenPracticeController }) {
               </Button>
             </div>
           </div>
+          </>
+          )}
         </main>
       )}
     </>

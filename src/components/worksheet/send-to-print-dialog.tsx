@@ -12,7 +12,7 @@ import { blobToBase64, PDF_SHEET_WIDTH_PX, sheetToPdf } from "@/lib/worksheet/pd
 import type { WorksheetContent } from "@/lib/worksheet/types";
 import type { SendWorksheetReason, SendWorksheetRequest, SendWorksheetResponse } from "@/types/send-worksheet";
 import { WorksheetAllVersions } from "@/components/worksheet/worksheet-document";
-import { BigCounter } from "@/components/worksheet/wizard/wizard-ui";
+import { BigCounter } from "@/components/shared/wizard/wizard-ui";
 import { BodyPortal } from "@/components/worksheet/print-portal";
 
 type Status = "idle" | "making" | "sending" | "done" | "error";

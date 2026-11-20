@@ -3,7 +3,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { ChevronLeft, ChevronRight, Eye, Mail, Pencil, Printer, RotateCcw, Save, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Eye, Mail, Printer, RotateCcw, Save, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/teacher-dashboard/shared-ui/confirm-dialog";
@@ -17,51 +17,18 @@ import { BodyPortal } from "@/components/worksheet/print-portal";
 import { DASHBOARD_BASE } from "@/components/teacher-dashboard/shell/nav-items";
 import { useWorksheetWizard, type WizardState, type WorksheetWizard } from "@/components/worksheet/wizard/use-worksheet-wizard";
 import { StepBody, stepText, summaryLines } from "@/components/worksheet/wizard/steps";
+import { WizardProgress, WizardSummary } from "@/components/shared/wizard/wizard-frame";
 
 export const WORKSHEETS_HREF = `${DASHBOARD_BASE}/worksheets`;
 
-function Progress({ index, total }: { index: number; total: number }) {
-  const pct = Math.round(((index + 1) / total) * 100);
-  return (
-    <div className="space-y-1.5">
-      <div className="flex justify-between text-sm text-muted-foreground">
-        <span className="font-semibold">
-          שלב {index + 1} מתוך {total}
-        </span>
-        <span>{pct}%</span>
-      </div>
-      <div className="h-2.5 overflow-hidden rounded-full bg-muted" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
-        <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${pct}%` }} />
-      </div>
-    </div>
-  );
-}
-
 function Summary({ w }: { w: WorksheetWizard }) {
   return (
-    <aside className="space-y-2 rounded-2xl border border-border bg-card p-4">
-      <h2 className="text-sm font-bold text-foreground">הדף שלכם עד עכשיו</h2>
-      <ul className="space-y-1.5">
-        {summaryLines(w.state.settings).map((line) => (
-          <li key={line.step + line.label} className="flex items-start gap-2 text-sm">
-            <span className="w-20 shrink-0 text-muted-foreground">{line.label}</span>
-            <span className="min-w-0 flex-1 font-medium text-foreground" dir="auto">
-              {line.value}
-            </span>
-            {w.state.step !== line.step && (
-              <button
-                type="button"
-                onClick={() => w.dispatch({ type: "goto", step: line.step })}
-                className="inline-flex shrink-0 cursor-pointer items-center gap-1 text-xs font-semibold text-primary hover:underline"
-              >
-                <Pencil className="size-3" />
-                שינוי
-              </button>
-            )}
-          </li>
-        ))}
-      </ul>
-    </aside>
+    <WizardSummary
+      title="הדף שלכם עד עכשיו"
+      lines={summaryLines(w.state.settings)}
+      current={w.state.step}
+      onGoto={(step) => w.dispatch({ type: "goto", step })}
+    />
   );
 }
 
@@ -230,7 +197,7 @@ export function WorksheetWizardView({ teacherId, initial, resumed }: { teacherId
         <p className="rounded-xl bg-info/10 px-3 py-2 text-sm text-foreground">ממשיכים מאיפה שעצרתם. הבחירות שלכם נשמרות אוטומטית.</p>
       )}
 
-      <Progress index={w.index} total={w.steps.length} />
+      <WizardProgress index={w.index} total={w.steps.length} />
 
       <div className={cn("grid gap-5", !isPreview && "lg:grid-cols-3")}>
         <section className={cn("min-w-0 space-y-5 rounded-2xl border border-border bg-card/50 p-4 sm:p-6", !isPreview && "lg:col-span-2")}>

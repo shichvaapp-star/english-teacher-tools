@@ -4,7 +4,7 @@ import React from "react";
 import { Check, Minus, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-// Big, friendly controls for the worksheet wizard: large tap targets, a clear
+// Big, friendly controls shared by every wizard: large tap targets, a clear
 // "selected" state with a check mark, and plain Hebrew text.
 
 export function ChoiceCard({
