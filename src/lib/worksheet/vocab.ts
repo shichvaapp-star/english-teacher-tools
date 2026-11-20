@@ -76,6 +76,8 @@ function makeItem(
   }
 }
 
+const hebrewKey = (he: string) => he.trim().replace(/\s+/g, " ");
+
 /** Splits `count` across the kinds as evenly as possible (earlier kinds get the extra). */
 export function splitCount(count: number, parts: number): number[] {
   const base = Math.floor(count / parts);
@@ -93,14 +95,17 @@ export function buildVocabItems(
   const quotas = splitCount(Math.min(cfg.count, pool.length), kinds.length);
   const used = new Set<string>();
   const out: VocabWorksheetItem[] = [];
+  // Two words with the same Hebrew (job / work → עבודה) would make the answers ambiguous.
+  const usedHebrew = new Set<string>();
   kinds.forEach((kind, k) => {
     let made = 0;
     for (const card of pool) {
       if (made >= quotas[k]) break;
-      if (used.has(card.id) || !canMake(kind, card)) continue;
+      if (used.has(card.id) || usedHebrew.has(hebrewKey(card.hebrew)) || !canMake(kind, card)) continue;
       const item = makeItem(kind, card, grade, level, rng);
       if (!item) continue;
       used.add(card.id);
+      usedHebrew.add(hebrewKey(card.hebrew));
       out.push(item);
       made++;
     }
@@ -118,8 +123,9 @@ export function replaceVocabItem(
   rng: Rng
 ): VocabWorksheetItem | null {
   const taken = new Set(current.map((i) => i.word.toLowerCase()));
+  const takenHebrew = new Set(current.filter((i) => i !== item).map((i) => hebrewKey(i.hebrew)));
   for (const card of rng.shuffle(vocabPool(grade, cfg.units))) {
-    if (taken.has(card.word.toLowerCase()) || !canMake(item.kind, card)) continue;
+    if (taken.has(card.word.toLowerCase()) || takenHebrew.has(hebrewKey(card.hebrew)) || !canMake(item.kind, card)) continue;
     const next = makeItem(item.kind, card, grade, level, rng);
     if (next) return next;
   }

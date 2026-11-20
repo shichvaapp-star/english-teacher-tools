@@ -32,9 +32,12 @@ function checkSection(where, section, settings) {
     const want = Math.min(settings.vocab.count, section.items.length + 1000);
     if (section.items.length > want) err(where, "too many vocab items");
     const words = new Set();
+    const hebrew = new Set();
     for (const it of section.items) {
       if (words.has(it.word.toLowerCase())) err(where, `duplicate word ${it.word}`);
       words.add(it.word.toLowerCase());
+      if (hebrew.has(it.hebrew.trim())) err(where, `two words share the meaning ${it.hebrew}`);
+      hebrew.add(it.hebrew.trim());
       if (!it.hebrew) err(where, `no Hebrew for ${it.word}`);
       if (it.kind === "gap_sentence") {
         const n = (it.sentence ?? "").split(BLANK).length - 1;

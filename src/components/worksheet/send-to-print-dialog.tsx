@@ -144,7 +144,12 @@ export function SendToPrintDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={close}>
-        <DialogContent dir="rtl" className="sm:max-w-lg" showCloseButton={!busy}>
+        <DialogContent
+          dir="rtl"
+          // The close button sits top-right by default, on top of the title icon in RTL.
+          className="sm:max-w-lg [&>[data-slot=dialog-close]]:right-auto [&>[data-slot=dialog-close]]:left-2"
+          showCloseButton={!busy}
+        >
           <DialogHeader className="text-start">
             <DialogTitle className="flex items-center gap-2 text-lg">
               <Mail className="size-5" />
