@@ -5,7 +5,8 @@
 
 const PAGE_W_MM = 210;
 const PAGE_H_MM = 297;
-const MARGIN_MM = 20;
+/** Standard Word / Google Docs margin: 1 inch. Matches `@page` in globals.css. */
+const MARGIN_MM = 25.4;
 const CONTENT_W_MM = PAGE_W_MM - 2 * MARGIN_MM;
 const CONTENT_H_MM = PAGE_H_MM - 2 * MARGIN_MM;
 

@@ -203,12 +203,18 @@
 }
 
 @page {
-  /* Standard Microsoft Word style margins (20mm / 0.8 in) applied to EVERY physical page by the print engine */
+  /* Standard Word / Google Docs margins (1 in / 2.54 cm) on EVERY physical page */
   size: A4 portrait;
-  margin: 20mm;
+  margin: 1in;
 }
 
 @media print {
+  /* Paper is always light. In dark mode next-themes sets `color-scheme: dark`,
+     and Chrome then paints the page margins black (even with background
+     graphics off), so force the light scheme while printing. */
+  :root, html, html.dark {
+    color-scheme: light !important;
+  }
   html, body {
     background: #ffffff !important;
     color: #1e293b !important;

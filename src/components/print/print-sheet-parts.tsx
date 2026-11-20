@@ -37,9 +37,12 @@ export function PrintBooklet({ children }: { children: React.ReactNode }) {
       <style dangerouslySetInnerHTML={{ __html: `
         @page {
           size: A4 portrait;
-          margin: 20mm 20mm 20mm 20mm !important;
+          margin: 1in !important;
         }
         @media print {
+          :root, html, html.dark {
+            color-scheme: light !important;
+          }
           html, body {
             background: #ffffff !important;
             color: #1e293b !important;
