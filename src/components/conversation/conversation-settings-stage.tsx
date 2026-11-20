@@ -20,6 +20,13 @@ import {
 } from "lucide-react";
 import { InteractiveEnglishText } from "@/components/conversation/conversation-helpers";
 import { type ConversationPracticeController } from "@/components/conversation/use-conversation-practice";
+import { SetupViewModeBar, useSetupWizardMode } from "@/components/shared/wizard/setup-wizard";
+import {
+  ConversationSetupWizard,
+  selectConversationCategory,
+  selectConversationLevel,
+  startConversation,
+} from "@/components/conversation/conversation-setup-wizard";
 
 export function ConversationSettingsStage({ c }: { c: ConversationPracticeController }) {
   const {
@@ -38,11 +45,9 @@ export function ConversationSettingsStage({ c }: { c: ConversationPracticeContro
     setAiTopicInput,
     setExpandedScenarioId,
     setMode,
-    setSelectedCategory,
-    setSelectedLevel,
     setSelectedScenarioId,
-    setStage,
   } = c;
+  const wizard = useSetupWizardMode();
   return (
     <>
       <div className="max-w-5xl mx-auto space-y-6" dir="rtl">
@@ -60,6 +65,12 @@ export function ConversationSettingsStage({ c }: { c: ConversationPracticeContro
           </p>
         </div>
 
+        <SetupViewModeBar />
+
+        {wizard ? (
+          <ConversationSetupWizard c={c} />
+        ) : (
+        <>
         {/* Grade: whose textbook vocabulary the conversations use */}
         <Card className="p-4 border-border/70 bg-card">
           <GradePicker
@@ -93,16 +104,7 @@ export function ConversationSettingsStage({ c }: { c: ConversationPracticeContro
                   <button
                     key={lvl}
                     type="button"
-                    onClick={() => {
-                      setSelectedLevel(lvl);
-                      setExpandedScenarioId(null);
-                      const firstInLevel = c.gradeScenarios.find(
-                        (s) =>
-                          s.level === lvl &&
-                          (selectedCategory === "all" || s.category === selectedCategory)
-                      );
-                      if (firstInLevel) setSelectedScenarioId(firstInLevel.id);
-                    }}
+                    onClick={() => selectConversationLevel(c, lvl)}
                     className={`p-2.5 rounded-xl border text-center transition cursor-pointer ${
                       isSelected
                         ? "border-primary bg-primary/10 text-foreground font-bold shadow-xs"
@@ -169,16 +171,7 @@ export function ConversationSettingsStage({ c }: { c: ConversationPracticeContro
                 <button
                   key={cat.id}
                   type="button"
-                  onClick={() => {
-                    setSelectedCategory(cat.id);
-                    setExpandedScenarioId(null);
-                    const match = c.gradeScenarios.find(
-                      (s) =>
-                        s.level === selectedLevel &&
-                        (cat.id === "all" || s.category === cat.id)
-                    );
-                    if (match) setSelectedScenarioId(match.id);
-                  }}
+                  onClick={() => selectConversationCategory(c, cat.id)}
                   className={`px-3 py-1.5 rounded-full border text-xs flex items-center gap-1.5 transition cursor-pointer ${
                     isActive
                       ? "border-primary bg-primary text-primary-foreground font-bold shadow-xs"
@@ -441,11 +434,7 @@ export function ConversationSettingsStage({ c }: { c: ConversationPracticeContro
                         <Button
                           type="button"
                           size="default"
-                          onClick={() => {
-                            setSelectedScenarioId(scen.id);
-                            setStage("exercise");
-                            window.scrollTo({ top: 0, behavior: "instant" });
-                          }}
+                          onClick={() => startConversation(c, scen.id)}
                           className="h-10 px-6 font-bold text-xs sm:text-sm gap-2 cursor-pointer shadow-md bg-primary hover:bg-primary/90 text-primary-foreground"
                         >
                           <span>התחל תרגול שיחה</span>
@@ -459,6 +448,8 @@ export function ConversationSettingsStage({ c }: { c: ConversationPracticeContro
             })}
           </div>
         </div>
+        </>
+        )}
       </div>
     </>
   );

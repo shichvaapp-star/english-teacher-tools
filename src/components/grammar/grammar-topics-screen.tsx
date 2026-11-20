@@ -7,18 +7,27 @@ import { LEVELS, LEVEL_DESCRIPTION_HE, LEVEL_NAME_HE } from "@/lib/levels";
 import { GradePicker } from "@/components/shared/grade-picker";
 import { EXERCISE_TYPE_LABEL, ExerciseTypeTip } from "@/components/grammar/exercises";
 import type { GrammarPracticeController } from "@/components/grammar/use-grammar-practice";
+import { SetupViewModeBar, useSetupWizardMode } from "@/components/shared/wizard/setup-wizard";
+import { GrammarSetupWizard } from "@/components/grammar/grammar-setup-wizard";
 
 export function GrammarTopicsScreen({ c }: { c: GrammarPracticeController }) {
+  const wizard = useSetupWizardMode();
   if (c.screen !== "topics") return null;
 
   return (
-    <div className="mx-auto w-full max-w-2xl space-y-8 font-hebrew" dir="rtl">
+    <div className={cn("mx-auto w-full space-y-8 font-hebrew", wizard ? "max-w-4xl" : "max-w-2xl")} dir="rtl">
       {c.assignmentError && (
         <p className="rounded-xl border border-warning/40 bg-warning/10 px-4 py-3 text-sm">
           לא הצלחנו לפתוח את המשימה מהמורה. אפשר לתרגל חופשי בינתיים.
         </p>
       )}
 
+      <SetupViewModeBar />
+
+      {wizard ? (
+        <GrammarSetupWizard c={c} />
+      ) : (
+      <>
       {/* Grade – everyone may switch; defaults to the student's class */}
       <GradePicker
         grade={c.classGrade}
@@ -118,6 +127,8 @@ export function GrammarTopicsScreen({ c }: { c: GrammarPracticeController }) {
           </div>
         </section>
       ))}
+      </>
+      )}
     </div>
   );
 }

@@ -20,7 +20,7 @@ import { CONVERSATION_KINDS, PART_ORDER, READING_KINDS, VOCAB_KINDS, type PartKi
 import type { GrammarExerciseType } from "@/types/grammar";
 import type { WritingTask } from "@/types/writing";
 import type { StepId, WorksheetWizard } from "@/components/worksheet/wizard/use-worksheet-wizard";
-import { BigCounter, ChoiceCard, SectionLabel, ToggleRow } from "@/components/worksheet/wizard/wizard-ui";
+import { BigCounter, ChoiceCard, SectionLabel, ToggleRow } from "@/components/shared/wizard/wizard-ui";
 
 export const PART_ICON: Record<PartKind, string> = {
   vocab: "🔤",
