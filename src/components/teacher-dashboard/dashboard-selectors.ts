@@ -2,9 +2,9 @@ import type { SubmissionItem } from "@/types/submission";
 import type { StudentProfile } from "@/types/auth";
 import type { TeacherAssignment } from "@/types/assignment";
 import { parseSubmissionTimestamp } from "@/lib/submission-time";
+import { sameClass } from "@/lib/class-names";
 
 const normalizeName = (name: string | undefined) => (name || "").trim().toLowerCase();
-const normalizeClass = (cls: string | undefined) => (cls || "").replace(/[׳']/g, "'");
 
 export const isPending = (sub: SubmissionItem) => sub.status === "submitted";
 export const isReviewed = (sub: SubmissionItem) => sub.status === "reviewed";
@@ -21,9 +21,8 @@ export function getEligibleStudents(assignment: TeacherAssignment, students: Stu
       const classMatch =
         !assignment.targetClass ||
         assignment.targetClass === "all" ||
-        s.fullClass === assignment.targetClass ||
-        s.classGrade === assignment.targetClass ||
-        (Boolean(s.fullClass) && normalizeClass(s.fullClass) === normalizeClass(assignment.targetClass));
+        sameClass(s.fullClass, assignment.targetClass) ||
+        s.classGrade === assignment.targetClass;
       const groupMatch = !assignment.targetGroup || assignment.targetGroup === s.group;
       return classMatch && groupMatch;
     });

@@ -32,6 +32,7 @@ import {
 } from "@/lib/vocab-bank-storage";
 
 import { parseSubmissionTimestamp } from "@/lib/submission-time";
+import { DEFAULT_CLASSES, canonicalClass, compareClasses, sameClass } from "@/lib/class-names";
 import { describeLoadError } from "@/lib/load-error-message";
 import { useConfirm } from "@/components/teacher-dashboard/shared-ui/confirm-dialog";
 import {
@@ -872,14 +873,18 @@ export function useTeacherDashboard() {
   // ---------------------------------------------------------------------------
   // Available classes for filters
   const availableClasses = useMemo(() => {
-    const classSet = new Set<string>(["ז'1", "ז'2", "ז'3", "ח'1", "ח'2", "ח'3", "ט'1", "ט'2", "ט'3"]);
+    // Canonical spellings only, so "ז'1", "ז׳1" and "1ז" collapse into one entry;
+    // free text that isn't a class (e.g. "חטיבת ביניים") is left out.
+    const classSet = new Set<string>(DEFAULT_CLASSES);
     students.forEach((s) => {
-      if (s.fullClass) classSet.add(s.fullClass);
+      const c = canonicalClass(s.fullClass);
+      if (c) classSet.add(c);
     });
     submissions.forEach((sub) => {
-      if (sub.studentClass) classSet.add(sub.studentClass);
+      const c = canonicalClass(sub.studentClass);
+      if (c) classSet.add(c);
     });
-    return Array.from(classSet).sort();
+    return Array.from(classSet).sort(compareClasses);
   }, [students, submissions]);
 
   // Filtered students
@@ -892,7 +897,7 @@ export function useTeacherDashboard() {
         if (!matchesName && !matchesClass) return false;
       }
       if (studentClassFilter !== "all") {
-        if (s.fullClass !== studentClassFilter && s.classGrade !== studentClassFilter) return false;
+        if (!sameClass(s.fullClass, studentClassFilter) && s.classGrade !== studentClassFilter) return false;
       }
       if (studentGroupFilter !== "all") {
         if (s.group !== studentGroupFilter) return false;

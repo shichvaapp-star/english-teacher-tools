@@ -32,6 +32,7 @@ import { saveDraft, deleteDraft, getDraftById } from "@/lib/drafts-storage";
 import { gradeCopyAnswer } from "@/lib/copy-grading";
 import type { InProgressWorkItem, UnseenDraftPayload } from "@/types/draft";
 import { LOCAL_SUBMISSIONS_KEY, lookupSavedVocabForWord, segmentTextWithSavedVocab } from "@/components/unseen/unseen-helpers";
+import { cleanClass } from "@/lib/class-names";
 
 export function useUnseenPractice() {
   const router = useRouter();
@@ -394,7 +395,7 @@ export function useUnseenPractice() {
     if (user) {
       if (user.name) setStudentNameInput(user.name);
       if (user.fullClass) {
-        setStudentClassInput(user.fullClass);
+        setStudentClassInput(cleanClass(user.fullClass));
       } else if (user.classGrade) {
         setStudentClassInput(`${user.classGrade}׳${user.classNumber || 1}`);
       }
@@ -1592,7 +1593,7 @@ export function useUnseenPractice() {
       studentName: (studentNameInput.trim() || user?.name || "תלמיד/ה").trim(),
       teacherId: teacherObj ? teacherObj.id : (teachers[0]?.id || ""),
       teacherName: teacherObj ? teacherObj.name : (teachers[0]?.name || "מורה לאנגלית"),
-      studentClass: studentClassInput || user?.fullClass || "חטיבת ביניים",
+      studentClass: cleanClass(studentClassInput || user?.fullClass || "חטיבת ביניים"),
       studentGroup: user?.group || undefined,
       studentNote: studentNoteInput.trim(),
       assignmentId: currentAssignmentId || undefined,
@@ -1782,7 +1783,7 @@ export function useUnseenPractice() {
         studentName: (studentNameInput.trim() || user?.name || "תלמיד/ה").trim(),
         teacherId: activeAssignment?.teacherId || (teacherObj ? teacherObj.id : teachers[0]?.id || ""),
         teacherName: activeAssignment?.teacherName || (teacherObj ? teacherObj.name : teachers[0]?.name || "מורה לאנגלית"),
-        studentClass: studentClassInput || user?.fullClass || "חטיבת ביניים",
+        studentClass: cleanClass(studentClassInput || user?.fullClass || "חטיבת ביניים"),
         studentGroup: user?.group || undefined,
         studentNote: isGradedAssignment ? "הוגש באופן עצמאי" : "תרגול אנסין עצמאי שהושלם",
         assignmentId: currentAssignmentId || undefined,

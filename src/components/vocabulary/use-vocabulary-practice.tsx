@@ -32,6 +32,7 @@ import { deterministicShuffle } from "@/components/vocabulary/vocabulary-helpers
 import { useClassGrade } from "@/components/shared/use-class-grade";
 import { gradeUnits } from "@/data/vocab/cards";
 import { parseClassGrade, type ClassGrade } from "@/lib/levels";
+import { cleanClass } from "@/lib/class-names";
 
 export function useVocabularyPractice() {
   const router = useRouter();
@@ -880,7 +881,7 @@ export function useVocabularyPractice() {
       type: "vocab",
       studentId: user?.id || "guest-student",
       studentName: user?.name || "תלמיד/ה",
-      studentClass: user?.fullClass || user?.classGrade || activeAssignment.targetClass || "חטיבת ביניים",
+      studentClass: cleanClass(user?.fullClass || user?.classGrade || activeAssignment.targetClass || "חטיבת ביניים"),
       studentGroup: user?.group || activeAssignment.targetGroup || undefined,
       teacherId: activeAssignment.teacherId,
       teacherName: activeAssignment.teacherName,

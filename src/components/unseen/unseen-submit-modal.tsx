@@ -12,6 +12,7 @@ import {
   Edit3,
 } from "lucide-react";
 import { type UnseenPracticeController } from "@/components/unseen/use-unseen-practice";
+import { ClassPicker } from "@/components/shared/class-picker";
 
 export function UnseenSubmitModal({ c }: { c: UnseenPracticeController }) {
   const {
@@ -94,13 +95,7 @@ export function UnseenSubmitModal({ c }: { c: UnseenPracticeController }) {
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
                   <label className="text-xs font-semibold text-foreground">כיתה:</label>
-                  <Input
-                    type="text"
-                    placeholder="למשל: ז׳2"
-                    value={studentClassInput}
-                    onChange={(e) => setStudentClassInput(e.target.value)}
-                    className="h-9 text-xs"
-                  />
+                  <ClassPicker value={studentClassInput} onChange={setStudentClassInput} />
                 </div>
 
                 <div className="space-y-1">

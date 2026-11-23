@@ -26,6 +26,7 @@ import type { ScaffoldingResult } from "@/app/api/scaffold-writing/route";
 import { saveDraft, deleteDraft, getDraftById } from "@/lib/drafts-storage";
 import type { InProgressWorkItem, WritingDraftPayload } from "@/types/draft";
 import { SubmissionRecord, LOCAL_SUBMISSIONS_KEY } from "@/components/writing/writing-helpers";
+import { DEFAULT_CLASSES, cleanClass, makeClass } from "@/lib/class-names";
 
 export function useWritingPractice() {
   const router = useRouter();
@@ -364,9 +365,9 @@ export function useWritingPractice() {
     return user?.teacherId || "";
   });
   const [studentClass, setStudentClass] = useState(() => {
-    if (user?.fullClass) return user.fullClass;
-    if (user?.classGrade) return `${user.classGrade}׳${user.classNumber || 1}`;
-    return "ז'1";
+    if (user?.fullClass) return cleanClass(user.fullClass);
+    if (user?.classGrade) return makeClass(user.classGrade, user.classNumber || 1);
+    return DEFAULT_CLASSES[0];
   });
   const [studentNote, setStudentNote] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -700,7 +701,7 @@ export function useWritingPractice() {
             studentName: user?.name || "תלמיד/ה",
             teacherId: teachers[0]?.id || "",
             teacherName: teachers[0]?.name || "מורה לאנגלית",
-            studentClass: user?.fullClass || user?.classGrade || "חטיבת ביניים",
+            studentClass: cleanClass(user?.fullClass || user?.classGrade || "חטיבת ביניים"),
             studentGroup: user?.group || undefined,
             assignmentId: currentAssignmentId || undefined,
             taskId: currentTask.id,
@@ -834,7 +835,7 @@ export function useWritingPractice() {
           studentName: (studentName.trim() || user?.name || "תלמיד/ה").trim(),
           teacherId: activeAssignment?.teacherId || (teacherObj ? teacherObj.id : teachers[0]?.id || ""),
           teacherName: activeAssignment?.teacherName || (teacherObj ? teacherObj.name : teachers[0]?.name || "מורה לאנגלית"),
-          studentClass: studentClass || user?.fullClass || "חטיבת ביניים",
+          studentClass: cleanClass(studentClass || user?.fullClass || "חטיבת ביניים"),
           studentGroup: user?.group || undefined,
           studentNote: "הוגש באופן עצמאי 🎓",
           assignmentId: currentAssignmentId,
@@ -978,7 +979,7 @@ export function useWritingPractice() {
       studentName: trimmedName,
       teacherId: teacherObj ? teacherObj.id : (teachers[0]?.id || ""),
       teacherName: teacherObj ? teacherObj.name : (teachers[0]?.name || "מורה לאנגלית"),
-      studentClass: studentClass,
+      studentClass: cleanClass(studentClass),
       studentGroup: user?.group || undefined,
       studentNote: studentNote.trim(),
       assignmentId: currentAssignmentId || undefined,

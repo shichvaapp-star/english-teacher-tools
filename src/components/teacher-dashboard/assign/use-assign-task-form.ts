@@ -18,6 +18,7 @@ import { REAL_LIFE_CONVERSATIONS } from "@/data/conversations";
 import { curriculumWords } from "@/lib/vocab-storage";
 import type { TeacherVocabBank } from "@/types/vocab-bank";
 import { getLocalVocabBanks } from "@/lib/vocab-bank-storage";
+import { DEFAULT_CLASSES, cleanClass, sameClass } from "@/lib/class-names";
 
 // All the state and rules of the "assign task" dialog. Both layouts (the
 // classic one-screen form and the step-by-step wizard) render from this one
@@ -218,7 +219,7 @@ export function useAssignTaskForm({
 
   const classList = useMemo(() => {
     if (availableClasses && availableClasses.length > 0) return availableClasses;
-    return ["ז׳1", "ז׳2", "ח׳1", "ח׳2", "ט׳1", "ט׳2"];
+    return DEFAULT_CLASSES;
   }, [availableClasses]);
 
   // Tasks filtered by level
@@ -408,10 +409,8 @@ export function useAssignTaskForm({
     if (!selectedClass) return [];
     return students.filter((s) => {
       const classMatch =
-        s.fullClass === selectedClass ||
-        s.classGrade === selectedClass ||
-        (s.fullClass && selectedClass &&
-          s.fullClass.replace(/[׳']/g, "'") === selectedClass.replace(/[׳']/g, "'"));
+        sameClass(s.fullClass, selectedClass) ||
+        s.classGrade === selectedClass;
 
       const groupMatch = !selectedGroup || selectedGroup === "all" || s.group === selectedGroup;
       return classMatch && groupMatch;
@@ -423,10 +422,8 @@ export function useAssignTaskForm({
     return students.filter((s) => {
       const matchesClass =
         studentFilterClass === "all" ||
-        s.fullClass === studentFilterClass ||
-        s.classGrade === studentFilterClass ||
-        (s.fullClass && studentFilterClass &&
-          s.fullClass.replace(/[׳']/g, "'") === studentFilterClass.replace(/[׳']/g, "'"));
+        sameClass(s.fullClass, studentFilterClass) ||
+        s.classGrade === studentFilterClass;
 
       const q = studentSearchQuery.trim().toLowerCase();
       const matchesSearch =
@@ -621,7 +618,7 @@ export function useAssignTaskForm({
       focusWords: parsedFocusWords.length > 0 ? parsedFocusWords : undefined,
       coachWithDavid,
       targetType: finalTargetType,
-      targetClass: targetType === "class" ? selectedClass : undefined,
+      targetClass: targetType === "class" ? cleanClass(selectedClass) : undefined,
       targetGroup: targetType === "class" && selectedGroup !== "all" ? (selectedGroup as StudentGroup) : undefined,
       targetStudentIds: finalTargetType === "students" ? selectedStudentIds : undefined,
       instructions: instructions.trim(),

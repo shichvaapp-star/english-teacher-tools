@@ -22,6 +22,7 @@ import { GradePill } from "@/components/teacher-dashboard/shared-ui/status-badge
 import { StudentSheet } from "@/components/teacher-dashboard/students/student-sheet";
 import { useDashboard } from "@/components/teacher-dashboard/teacher-dashboard-context";
 import { formatCompactTime } from "@/lib/submission-time";
+import { sameClass } from "@/lib/class-names";
 import { useAuth } from "@/lib/auth-context";
 
 const GROUP_OPTIONS: FilterOption[] = [
@@ -48,7 +49,7 @@ function StudentsContent() {
       { value: "all", label: `כל הכיתות (${c.students.length})` },
       ...c.availableClasses.map((cls) => ({
         value: cls,
-        label: `כיתה ${cls} (${c.students.filter((s) => s.fullClass === cls || s.classGrade === cls).length})`,
+        label: `כיתה ${cls} (${c.students.filter((s) => sameClass(s.fullClass, cls) || s.classGrade === cls).length})`,
       })),
     ],
     [c.availableClasses, c.students]

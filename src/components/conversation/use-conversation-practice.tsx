@@ -33,6 +33,7 @@ import { saveDraft, deleteDraft, getDraftById } from "@/lib/drafts-storage";
 import { LOCAL_SUBMISSIONS_KEY } from "@/components/conversation/conversation-helpers";
 import { usePrintOptions } from "@/components/print/use-print-options";
 import { segmentTextWithSavedVocab } from "@/components/unseen/unseen-helpers";
+import { DEFAULT_CLASSES, cleanClass } from "@/lib/class-names";
 
 export function useConversationPractice() {
   const router = useRouter();
@@ -87,7 +88,7 @@ export function useConversationPractice() {
   // Submission & Grading State
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [studentNameInput, setStudentNameInput] = useState("");
-  const [studentClassInput, setStudentClassInput] = useState("");
+  const [studentClassInput, setStudentClassInput] = useState(DEFAULT_CLASSES[0]);
   const [studentNoteInput, setStudentNoteInput] = useState("");
   const [selectedTeacherId, setSelectedTeacherId] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -240,7 +241,7 @@ export function useConversationPractice() {
   useEffect(() => {
     if (user) {
       if (user.name) setStudentNameInput(user.name);
-      if (user.fullClass) setStudentClassInput(user.fullClass);
+      if (user.fullClass) setStudentClassInput(cleanClass(user.fullClass));
       if (user.teacherId) setSelectedTeacherId(user.teacherId);
     }
   }, [user]);
@@ -1131,7 +1132,7 @@ export function useConversationPractice() {
       studentName: (studentNameInput.trim() || user?.name || "תלמיד/ה").trim(),
       teacherId: teacherObj ? teacherObj.id : teachers[0]?.id || "",
       teacherName: teacherObj ? teacherObj.name : teachers[0]?.name || "מורה לאנגלית",
-      studentClass: studentClassInput || user?.fullClass || "חטיבת ביניים",
+      studentClass: cleanClass(studentClassInput || user?.fullClass || "חטיבת ביניים"),
       studentGroup: user?.group || undefined,
       studentNote: studentNoteInput.trim(),
       assignmentId: currentAssignmentId || undefined,

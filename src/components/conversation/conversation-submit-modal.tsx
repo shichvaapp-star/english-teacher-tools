@@ -11,6 +11,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { type ConversationPracticeController } from "@/components/conversation/use-conversation-practice";
+import { ClassPicker } from "@/components/shared/class-picker";
 
 export function ConversationSubmitModal({ c }: { c: ConversationPracticeController }) {
   const {
@@ -60,12 +61,7 @@ export function ConversationSubmitModal({ c }: { c: ConversationPracticeControll
               </div>
               <div>
                 <label className="font-bold block mb-1">כיתה:</label>
-                <Input
-                  value={studentClassInput}
-                  onChange={(e) => setStudentClassInput(e.target.value)}
-                  placeholder="לדוגמה: ח׳2"
-                  className="text-xs"
-                />
+                <ClassPicker value={studentClassInput} onChange={setStudentClassInput} />
               </div>
               <div>
                 <label className="font-bold block mb-1">הערה למורה (רשות):</label>

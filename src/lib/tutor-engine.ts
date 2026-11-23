@@ -26,6 +26,7 @@ import {
   MIDDLE_SCHOOL_HARD,
 } from "@/lib/vocab-storage";
 import { SubmissionItem } from "@/types/submission";
+import { sameClass } from "@/lib/class-names";
 
 export const TUTOR_NAME = "David";
 export const TUTOR_TITLE_HE = "דוד - המורה הפרטי שלך לאנגלית";
@@ -2260,11 +2261,8 @@ export async function getPendingTeacherAssignmentsForStudent(
       const classMatch =
         !a.targetClass ||
         a.targetClass === "all" ||
-        a.targetClass === studentUser.fullClass ||
-        a.targetClass === studentUser.classGrade ||
-        (studentUser.fullClass &&
-          a.targetClass &&
-          studentUser.fullClass.replace(/[׳']/g, "'") === a.targetClass.replace(/[׳']/g, "'"));
+        sameClass(a.targetClass, studentUser.fullClass) ||
+        a.targetClass === studentUser.classGrade;
       const groupMatch = !a.targetGroup || a.targetGroup === studentUser.group;
       return Boolean(classMatch && groupMatch);
     }

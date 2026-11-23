@@ -31,6 +31,7 @@ import { TypeBadge } from "../shared-ui/type-badge";
 import { StatusBadge } from "../shared-ui/status-badge";
 import { AiEvaluationPanel, SubmissionContent } from "../submission-content/submission-content";
 import { assignmentHref } from "../shell/nav-items";
+import { cleanClass } from "@/lib/class-names";
 
 export interface SubmissionDetailProps {
   sub: SubmissionItem;
@@ -100,7 +101,7 @@ export function SubmissionDetail({
             <StatusBadge status={isReviewed ? "reviewed" : "pending"} />
           </div>
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
-            {sub.studentClass && <span>כיתה {sub.studentClass}</span>}
+            {sub.studentClass && <span>כיתה {cleanClass(sub.studentClass)}</span>}
             {sub.studentGroup && <span>· הקבצה {sub.studentGroup}</span>}
             <span>· {formatCompactTime(sub.submittedAt, now)}</span>
             {sub.receiptCode && (

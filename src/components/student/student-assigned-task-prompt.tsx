@@ -9,6 +9,7 @@ import { TeacherAssignment } from "@/types/assignment";
 import { SubmissionItem } from "@/types/submission";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { cleanClass, sameClass } from "@/lib/class-names";
 import {
   Bell,
   PenTool,
@@ -117,10 +118,8 @@ export function StudentAssignedTaskPrompt() {
           const classMatch =
             !assign.targetClass ||
             assign.targetClass === "all" ||
-            assign.targetClass === stUser.fullClass ||
-            assign.targetClass === stUser.classGrade ||
-            (stUser.fullClass && assign.targetClass &&
-              stUser.fullClass.replace(/[׳']/g, "'") === assign.targetClass.replace(/[׳']/g, "'"));
+            sameClass(assign.targetClass, stUser.fullClass) ||
+            assign.targetClass === stUser.classGrade;
 
           const groupMatch =
             !assign.targetGroup ||
@@ -259,7 +258,7 @@ export function StudentAssignedTaskPrompt() {
 
               {assignment.targetClass && (
                 <Badge variant="outline" className="text-3xs font-bold border-purple-500/40 text-purple-700 dark:text-purple-300">
-                  כיתה {assignment.targetClass}
+                  כיתה {cleanClass(assignment.targetClass)}
                   {assignment.targetGroup ? ` • הקבצה ${assignment.targetGroup}` : ""}
                 </Badge>
               )}

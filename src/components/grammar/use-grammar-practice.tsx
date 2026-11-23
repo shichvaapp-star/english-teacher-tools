@@ -28,6 +28,7 @@ import type { ClickedWordData } from "@/components/unseen/draggable-translation-
 import { translateToHebrew, cleanSingleWord } from "@/lib/translate-to-hebrew";
 import { isWordSaved, removeWordByEnglish, saveWordToBuilder } from "@/lib/vocab-storage";
 import { toPartOfSpeech } from "@/types/vocabulary";
+import { optionalClass } from "@/lib/class-names";
 
 const LEVEL_KEY = "ett_grammar_level";
 const PROGRESS_KEY = "ett_grammar_progress";
@@ -617,7 +618,7 @@ export function useGrammarPractice() {
       type: "grammar",
       studentId: user.id,
       studentName: user.name,
-      studentClass: user.fullClass || user.classGrade || assignment.targetClass,
+      studentClass: optionalClass(user.fullClass || user.classGrade || assignment.targetClass),
       studentGroup: user.group || assignment.targetGroup,
       teacherId: assignment.teacherId,
       teacherName: assignment.teacherName,

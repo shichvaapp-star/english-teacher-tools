@@ -16,6 +16,7 @@ import {
   BookOpen,
 } from "lucide-react";
 import { type WritingPracticeController } from "@/components/writing/use-writing-practice";
+import { ClassPicker } from "@/components/shared/class-picker";
 
 export function WritingAssignmentSubmit({ c }: { c: WritingPracticeController }) {
   const {
@@ -79,13 +80,7 @@ export function WritingAssignmentSubmit({ c }: { c: WritingPracticeController })
 
                 <div className="space-y-1">
                   <label className="font-semibold text-foreground">כיתה:</label>
-                  <Input
-                    type="text"
-                    value={studentClass}
-                    onChange={(e) => setStudentClass(e.target.value)}
-                    placeholder="למשל: ז'1"
-                    className="h-9 text-xs"
-                  />
+                  <ClassPicker value={studentClass} onChange={setStudentClass} />
                 </div>
               </div>
 

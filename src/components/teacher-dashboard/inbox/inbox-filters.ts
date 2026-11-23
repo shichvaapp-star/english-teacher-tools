@@ -1,6 +1,7 @@
 import type { SubmissionItem } from "@/types/submission";
 import type { TeacherAssignment } from "@/types/assignment";
 import { submissionMatchesAssignment } from "../dashboard-selectors";
+import { sameClass } from "@/lib/class-names";
 
 export type InboxStatus = "pending" | "reviewed" | "all";
 
@@ -49,7 +50,7 @@ export function applyFilters(
       if (f.status === "reviewed" && item.status !== "reviewed") return false;
     }
     if (f.type !== "all" && item.type !== f.type) return false;
-    if (f.cls !== "all" && item.studentClass !== f.cls) return false;
+    if (f.cls !== "all" && !sameClass(item.studentClass, f.cls)) return false;
     if (f.group !== "all" && item.studentGroup !== f.group) return false;
     if (f.assignment === "free" && assignments.some((a) => submissionMatchesAssignment(item, a))) return false;
     if (assignment && !submissionMatchesAssignment(item, assignment)) return false;

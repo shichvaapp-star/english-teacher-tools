@@ -16,6 +16,7 @@ import { GradePill } from "../shared-ui/status-badge";
 import { EmptyState } from "../shared-ui/empty-state";
 import { findAssignmentForSubmission, getSubmissionGrade } from "../dashboard-selectors";
 import type { InboxFilters, InboxStatus } from "./inbox-filters";
+import { cleanClass } from "@/lib/class-names";
 
 interface SubmissionQueueProps {
   items: SubmissionItem[];
@@ -186,7 +187,7 @@ export function SubmissionQueue({
                       <span className={cn("truncate text-sm", pending ? "font-semibold text-foreground" : "text-foreground/90")} dir="ltr">
                         {sub.studentName}
                       </span>
-                      {sub.studentClass && <span className="shrink-0 text-2xs text-muted-foreground">{sub.studentClass}</span>}
+                      {sub.studentClass && <span className="shrink-0 text-2xs text-muted-foreground">{cleanClass(sub.studentClass)}</span>}
                     </div>
                     <div className="mt-0.5 flex items-center gap-1.5 text-2xs text-muted-foreground">
                       <span className="truncate">{assignment?.hebrewTitle ?? sub.hebrewTitle}</span>
