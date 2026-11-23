@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { Copy, FileText, Mail, Pencil, Plus, Printer, Trash2 } from "lucide-react";
+import { Copy, FileText, Mail, Pencil, PencilLine, Plus, Printer, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/components/teacher-dashboard/shared-ui/page-header";
@@ -12,12 +12,13 @@ import { useConfirm } from "@/components/teacher-dashboard/shared-ui/confirm-dia
 import { useTeacherSession } from "@/components/teacher-dashboard/teacher-dashboard-context";
 import { PrintBooklet } from "@/components/print/print-sheet-parts";
 import { GRADE_LABELS, LEVEL_NAME_HE } from "@/lib/levels";
-import { deleteWorksheet, loadWorksheets } from "@/lib/worksheet-storage";
+import { deleteWorksheet, loadWorksheets, saveWorksheet } from "@/lib/worksheet-storage";
 import { PART_LABEL } from "@/lib/worksheet/labels";
 import { sectionSize } from "@/lib/worksheet/build";
 import type { Worksheet } from "@/lib/worksheet/types";
 import { WorksheetAllVersions } from "@/components/worksheet/worksheet-document";
 import { SendToPrintDialog } from "@/components/worksheet/send-to-print-dialog";
+import { RenameWorksheetDialog } from "@/components/worksheet/rename-worksheet-dialog";
 import { BodyPortal } from "@/components/worksheet/print-portal";
 import { WORKSHEETS_HREF } from "@/components/worksheet/wizard/worksheet-wizard";
 import { readDraft, stepsFor } from "@/components/worksheet/wizard/use-worksheet-wizard";
@@ -35,11 +36,13 @@ function WorksheetCard({
   w,
   onPrint,
   onSend,
+  onRename,
   onDelete,
 }: {
   w: Worksheet;
   onPrint: () => void;
   onSend: () => void;
+  onRename: () => void;
   onDelete: () => void;
 }) {
   const questions = w.sections.reduce((n, s) => n + sectionSize(s), 0);
@@ -84,14 +87,24 @@ function WorksheetCard({
           שכפול ושינוי
         </Link>
       </div>
-      <button
-        type="button"
-        onClick={onDelete}
-        className="inline-flex cursor-pointer items-center gap-1 self-start text-xs font-semibold text-muted-foreground hover:text-destructive"
-      >
-        <Trash2 className="size-3.5" />
-        מחיקת הדף
-      </button>
+      <div className="flex flex-wrap items-center gap-4">
+        <button
+          type="button"
+          onClick={onRename}
+          className="inline-flex cursor-pointer items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground"
+        >
+          <PencilLine className="size-3.5" />
+          שינוי שם
+        </button>
+        <button
+          type="button"
+          onClick={onDelete}
+          className="inline-flex cursor-pointer items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-destructive"
+        >
+          <Trash2 className="size-3.5" />
+          מחיקת הדף
+        </button>
+      </div>
     </div>
   );
 }
@@ -102,6 +115,7 @@ export default function WorksheetsPage() {
   const [list, setList] = useState<Worksheet[] | null>(null);
   const [printing, setPrinting] = useState<Worksheet | null>(null);
   const [sending, setSending] = useState<Worksheet | null>(null);
+  const [renaming, setRenaming] = useState<Worksheet | null>(null);
   // Dashboard pages only render in the browser (after the sign-in gate), so localStorage is available.
   const [hasDraft] = useState(() => {
     const draft = readDraft(user.id);
@@ -137,6 +151,20 @@ export default function WorksheetsPage() {
     if (!ok) return;
     await deleteWorksheet(user.id, w.id);
     toast.success("הדף נמחק");
+    void refresh();
+  };
+
+  // The list name and the heading printed on the sheet are the same title.
+  const rename = async (w: Worksheet, title: string) => {
+    const renamed: Worksheet = {
+      ...w,
+      title,
+      settings: { ...w.settings, layout: { ...w.settings.layout, title } },
+      updatedAt: new Date().toISOString(),
+    };
+    const { cloud } = await saveWorksheet(renamed);
+    if (cloud) toast.success("השם עודכן");
+    else toast.warning("השם עודכן במחשב הזה בלבד – לא הצלחנו לשמור בענן");
     void refresh();
   };
 
@@ -180,12 +208,28 @@ export default function WorksheetsPage() {
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {list.map((w) => (
-                <WorksheetCard key={w.id} w={w} onPrint={() => setPrinting(w)} onSend={() => setSending(w)} onDelete={() => remove(w)} />
+                <WorksheetCard
+                  key={w.id}
+                  w={w}
+                  onPrint={() => setPrinting(w)}
+                  onSend={() => setSending(w)}
+                  onRename={() => setRenaming(w)}
+                  onDelete={() => remove(w)}
+                />
               ))}
             </div>
           )}
         </section>
       </div>
+
+      {renaming && (
+        <RenameWorksheetDialog
+          key={renaming.id}
+          currentTitle={renaming.title}
+          onRename={(title) => rename(renaming, title)}
+          onClose={() => setRenaming(null)}
+        />
+      )}
 
       {sending && <SendToPrintDialog open onOpenChange={(o) => !o && setSending(null)} content={sending} />}
 
