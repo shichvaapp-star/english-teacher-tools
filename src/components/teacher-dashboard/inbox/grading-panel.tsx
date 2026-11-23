@@ -10,6 +10,7 @@ import type { SubmissionItem } from "@/types/submission";
 import type { WritingEvaluationResult } from "@/app/api/evaluate-writing/route";
 import { AiEvaluationPanel } from "../submission-content/submission-content";
 import { gradeTone } from "../shared-ui/status-badge";
+import { GenderToggle, type GenderChoice } from "../shared-ui/gender-toggle";
 import { BUILT_IN_QUICK_COMMENTS } from "./quick-comments";
 
 const QUICK_GRADES = [100, 90, 80, 70, 60];
@@ -23,6 +24,11 @@ export interface GradingPanelProps {
   aiResult: WritingEvaluationResult | null;
   isEvaluatingAi: boolean;
   onRunAi: () => void;
+  /** How the AI's Hebrew addresses the student; changes are saved to the student profile. */
+  gender: GenderChoice;
+  onChangeGender: (gender: GenderChoice) => void;
+  /** False for turn-ins with no student record: the choice then applies to this check only. */
+  genderSaves: boolean;
   /** grade undefined = mark as checked without a grade. */
   onSave: (grade: number | undefined, feedback: string, advance: boolean) => Promise<void>;
   hasNext: boolean;
@@ -38,6 +44,9 @@ export function GradingPanel({
   aiResult,
   isEvaluatingAi,
   onRunAi,
+  gender,
+  onChangeGender,
+  genderSaves,
   onSave,
   hasNext,
   quickComments,
@@ -52,6 +61,18 @@ export function GradingPanel({
   const [feedback, setFeedback] = useState(sub.teacherFeedback || sub.teacherNote || "");
   const [saving, setSaving] = useState<"save" | "next" | "accept" | "seen" | null>(null);
   const [showAllComments, setShowAllComments] = useState(false);
+  // The AI note was written for a different form of address
+  const [genderChangedSinceAi, setGenderChangedSinceAi] = useState(false);
+
+  const changeGender = (next: GenderChoice) => {
+    if (next === gender) return;
+    onChangeGender(next);
+    if (aiResult) setGenderChangedSinceAi(true);
+  };
+  const runAi = () => {
+    setGenderChangedSinceAi(false);
+    onRunAi();
+  };
 
   const isReviewed = sub.status === "reviewed";
   const autoScore = sub.type === "writing" ? aiResult?.score ?? sub.score : sub.score;
@@ -140,8 +161,14 @@ export function GradingPanel({
       {/* Writing AI check */}
       {sub.type === "writing" && (
         <div className="space-y-2">
+          <div className="space-y-1">
+            <span className="text-2xs text-muted-foreground">
+              פנייה במשוב ה-AI{genderSaves ? "" : " (לבדיקה זו בלבד)"}
+            </span>
+            <GenderToggle value={gender} onChange={changeGender} disabled={isEvaluatingAi} />
+          </div>
           {!aiResult && !isEvaluatingAi && (
-            <Button type="button" size="sm" variant="outline" onClick={onRunAi} className="w-full gap-1.5">
+            <Button type="button" size="sm" variant="outline" onClick={runAi} className="w-full gap-1.5">
               <Sparkles className="text-admin" />
               בדיקת AI לפי המחוון
               <Kbd>A</Kbd>
@@ -156,8 +183,14 @@ export function GradingPanel({
               gradeInputRef.current?.focus();
             }}
           />
-          {aiResult && !isEvaluatingAi && (
-            <Button type="button" variant="link" size="xs" onClick={onRunAi} className="px-0 text-2xs">
+          {aiResult && !isEvaluatingAi && genderChangedSinceAi && (
+            <Button type="button" size="sm" variant="secondary" onClick={runAi} className="w-full gap-1.5">
+              <Sparkles className="text-admin" />
+              הפנייה שונתה — הרץ בדיקת AI מחדש
+            </Button>
+          )}
+          {aiResult && !isEvaluatingAi && !genderChangedSinceAi && (
+            <Button type="button" variant="link" size="xs" onClick={runAi} className="px-0 text-2xs">
               הרץ בדיקת AI מחדש
             </Button>
           )}

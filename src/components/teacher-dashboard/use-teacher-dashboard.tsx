@@ -22,7 +22,7 @@ import {
 import { cleanForFirestore } from "@/lib/utils";
 
 import { SubmissionItem } from "@/types/submission";
-import { StudentProfile, StudentGroup } from "@/types/auth";
+import { StudentProfile, StudentGroup, StudentGender } from "@/types/auth";
 import { TeacherAssignment } from "@/types/assignment";
 import { SiteSuggestion } from "@/types/suggestion";
 import { TeacherVocabBank } from "@/types/vocab-bank";
@@ -102,6 +102,7 @@ export function useTeacherDashboard() {
   const [studentGradeInput, setStudentGradeInput] = useState("ז");
   const [studentNumberInput, setStudentNumberInput] = useState<number>(1);
   const [studentGroupInput, setStudentGroupInput] = useState<StudentGroup | "none">("א1");
+  const [studentGenderInput, setStudentGenderInput] = useState<StudentGender | "none">("none");
   const [studentPinInput, setStudentPinInput] = useState("");
   const [studentFormError, setStudentFormError] = useState<string | null>(null);
   const [isSavingStudent, setIsSavingStudent] = useState(false);
@@ -767,7 +768,25 @@ export function useTeacherDashboard() {
 
   // AI Review Action
   // Run the AI evaluation without opening the review dialog (used by the inbox)
-  const runAiReview = async (sub: SubmissionItem) => {
+  const getStudentGender = (studentId: string): StudentGender | undefined =>
+    students.find((s) => s.id === studentId)?.gender;
+
+  /** Saves how AI feedback addresses this student (undefined = plural form). */
+  const setStudentGender = async (studentId: string, gender: StudentGender | undefined) => {
+    const previous = students.find((s) => s.id === studentId);
+    if (!previous) return;
+    setStudents((prev) => prev.map((s) => (s.id === studentId ? { ...s, gender } : s)));
+    const res = await updateStudent(studentId, { gender });
+    if (res.success) {
+      toast.success("נשמר בפרופיל התלמיד/ה");
+    } else {
+      setStudents((prev) => prev.map((s) => (s.id === studentId ? { ...s, gender: previous.gender } : s)));
+      toast.error(res.error || "לא ניתן היה לשמור את הפנייה");
+    }
+  };
+
+  /** `gender` overrides the student profile (used for turn-ins with no student record). */
+  const runAiReview = async (sub: SubmissionItem, gender: StudentGender | undefined = getStudentGender(sub.studentId)) => {
     setLoadingAiSubId(sub.id);
     setAiResultSubId(sub.id);
 
@@ -801,6 +820,7 @@ export function useTeacherDashboard() {
             level: matchedTask?.level || WRITING_LEVELS.find((l) => l === sub.storyLevel) || "Level 2",
             minWords: matchedTask?.minWords || 15,
             maxWords: matchedTask?.maxWords || 120,
+            gender,
           }),
         });
 
@@ -865,6 +885,7 @@ export function useTeacherDashboard() {
     setStudentGradeInput("ז");
     setStudentNumberInput(1);
     setStudentGroupInput("א1");
+    setStudentGenderInput("none");
     setStudentPinInput(String(Math.floor(1000 + Math.random() * 9000)));
     setStudentFormError(null);
     setStudentModalOpen(true);
@@ -876,6 +897,7 @@ export function useTeacherDashboard() {
     setStudentGradeInput(student.classGrade || "ז");
     setStudentNumberInput(student.classNumber || 1);
     setStudentGroupInput(student.group || "א1");
+    setStudentGenderInput(student.gender || "none");
     setStudentPinInput(student.pin || "");
     setStudentFormError(null);
     setStudentModalOpen(true);
@@ -906,6 +928,7 @@ export function useTeacherDashboard() {
     setIsSavingStudent(true);
     const chosenGroup: StudentGroup | undefined =
       studentGroupInput === "none" ? undefined : (studentGroupInput as StudentGroup);
+    const chosenGender: StudentGender | undefined = studentGenderInput === "none" ? undefined : studentGenderInput;
 
     if (editingStudent) {
       const fullClass = `${studentGradeInput}׳${studentNumberInput}`;
@@ -915,6 +938,7 @@ export function useTeacherDashboard() {
         classNumber: studentNumberInput,
         fullClass,
         group: chosenGroup,
+        gender: chosenGender,
         pin: cleanPin,
       });
       setIsSavingStudent(false);
@@ -930,6 +954,7 @@ export function useTeacherDashboard() {
                   classNumber: studentNumberInput,
                   fullClass,
                   group: chosenGroup,
+                  gender: chosenGender,
                   pin: cleanPin,
                 }
               : s
@@ -946,6 +971,7 @@ export function useTeacherDashboard() {
         classGrade: studentGradeInput,
         classNumber: studentNumberInput,
         group: chosenGroup,
+        gender: chosenGender,
         pin: cleanPin,
       });
       setIsSavingStudent(false);
@@ -1111,6 +1137,8 @@ export function useTeacherDashboard() {
     setStudentNumberInput,
     studentGroupInput,
     setStudentGroupInput,
+    studentGenderInput,
+    setStudentGenderInput,
     studentPinInput,
     setStudentPinInput,
     studentFormError,
@@ -1126,6 +1154,8 @@ export function useTeacherDashboard() {
     aiResultSubId,
     loadSavedAiResult,
     runAiReview,
+    getStudentGender,
+    setStudentGender,
     handleSaveGrade,
     handleBulkAccept,
     quickComments,

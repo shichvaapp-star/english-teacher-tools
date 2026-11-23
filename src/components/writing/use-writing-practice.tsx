@@ -681,6 +681,7 @@ export function useWritingPractice() {
           grade: currentTask.grade ?? grade,
           minWords: currentTask.minWords,
           maxWords: currentTask.maxWords,
+          gender: user?.gender,
         }),
       });
 
@@ -780,6 +781,7 @@ export function useWritingPractice() {
             grade: currentTask.grade ?? grade,
             minWords: currentTask.minWords,
             maxWords: currentTask.maxWords,
+            gender: user?.gender,
           }),
         });
         const data = await res.json();

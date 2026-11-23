@@ -5,6 +5,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Inbox, MousePointerClick } from "lucide-react";
 import { cn } from "cn";
 import type { SubmissionItem } from "@/types/submission";
+import type { StudentGender } from "@/types/auth";
 import { useDashboard } from "../teacher-dashboard-context";
 import { findAssignmentForSubmission, isLateSubmission } from "../dashboard-selectors";
 import { EmptyState } from "../shared-ui/empty-state";
@@ -12,6 +13,7 @@ import { usePersistedFlag } from "../shared-ui/use-persisted-flag";
 import { SubmissionQueue, type AssignmentFocus } from "./submission-queue";
 import { ReviewWorkBody, ReviewWorkHeader } from "./review-work-pane";
 import { GradingPanel } from "./grading-panel";
+import type { GenderChoice } from "../shared-ui/gender-toggle";
 import { applyFilters, readFilters, type InboxFilters } from "./inbox-filters";
 
 const PARAM_KEYS: Record<keyof InboxFilters, string> = {
@@ -99,6 +101,17 @@ export function TurnInsInbox() {
   const prevItem = index > 0 ? items[index - 1] : undefined;
   const nextItem = index >= 0 ? items[index + 1] : items[0];
 
+  // How the AI addresses the student: from the student profile, or chosen per turn-in when there is no record
+  const [turnInGender, setTurnInGender] = useState<Record<string, StudentGender | undefined>>({});
+  const selectedStudent = selected ? c.students.find((s) => s.id === selected.studentId) : undefined;
+  const selectedGender = selected ? (selectedStudent ? selectedStudent.gender : turnInGender[selected.id]) : undefined;
+  const changeGender = (choice: GenderChoice) => {
+    if (!selected) return;
+    const gender = choice === "none" ? undefined : choice;
+    if (selectedStudent) c.setStudentGender(selectedStudent.id, gender);
+    else setTurnInGender((prev) => ({ ...prev, [selected.id]: gender }));
+  };
+
   // On wide screens, open the first item automatically
   useEffect(() => {
     if (!selectedId && items.length > 0 && window.matchMedia("(min-width: 1024px)").matches) {
@@ -142,7 +155,7 @@ export function TurnInsInbox() {
         gradeInputRef.current?.select();
       } else if (key === "a" && selected?.type === "writing" && !c.isEvaluatingAi) {
         e.preventDefault();
-        c.runAiReview(selected);
+        c.runAiReview(selected, selectedGender);
       } else if (key === "x" && selected) {
         e.preventDefault();
         setSelectionMode(true);
@@ -153,7 +166,7 @@ export function TurnInsInbox() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [nextItem, prevItem, selected, select, toggleChecked, c]);
+  }, [nextItem, prevItem, selected, selectedGender, select, toggleChecked, c]);
 
   const handleSave = async (grade: number | undefined, feedback: string, advance: boolean) => {
     if (!selected) return;
@@ -250,7 +263,10 @@ export function TurnInsInbox() {
                 sub={selected}
                 aiResult={aiResult}
                 isEvaluatingAi={c.isEvaluatingAi && c.loadingAiSubId === selected.id}
-                onRunAi={() => c.runAiReview(selected)}
+                onRunAi={() => c.runAiReview(selected, selectedGender)}
+                gender={selectedGender ?? "none"}
+                onChangeGender={changeGender}
+                genderSaves={Boolean(selectedStudent)}
                 onSave={handleSave}
                 hasNext={Boolean(items.find((s) => s.id !== selected.id))}
                 quickComments={c.quickComments}

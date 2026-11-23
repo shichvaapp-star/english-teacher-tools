@@ -1,4 +1,5 @@
 import { gradeExpectationsPrompt, gradeFromBody } from "@/lib/grade-prompt";
+import { genderFromBody, hebrewAddressPrompt } from "@/lib/gender-prompt";
 import { NextResponse } from "next/server";
 import {
   ConversationQuestion,
@@ -289,8 +290,9 @@ export async function POST(request: Request) {
     }
 
     const grade = gradeFromBody(body);
+    const gender = genderFromBody(body);
     const level: string = typeof body.level === "string" ? body.level : "Level 2";
-    const cacheKey = JSON.stringify({ scenarioId, userAnswers });
+    const cacheKey = JSON.stringify({ scenarioId, gender, userAnswers });
     const cached = evaluationCache.get(cacheKey);
     if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
       return NextResponse.json({
@@ -358,7 +360,7 @@ export async function POST(request: Request) {
       const prompt = `You are a warm, encouraging English teacher evaluating an Israeli student's ("${studentName}") Real-Life Conversation Practice on "${scenarioTitle}".
 
 ${gradeExpectationsPrompt(grade, level)}
-
+${hebrewAddressPrompt(gender)}
 Dialogue Transcript:
 ${dialogueText}
 

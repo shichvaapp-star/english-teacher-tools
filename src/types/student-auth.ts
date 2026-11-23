@@ -1,4 +1,4 @@
-import type { StudentGroup } from "@/types/auth";
+import type { StudentGender, StudentGroup } from "@/types/auth";
 
 /** Teacher fields that anyone may see (used by the student sign-in picker). No email. */
 export interface PublicTeacher {
@@ -26,6 +26,7 @@ export interface PublicStudent {
   classNumber?: number;
   fullClass?: string;
   group?: StudentGroup;
+  gender?: StudentGender;
 }
 
 /** Custom claims placed on a student's Firebase token; Firestore rules read `role`. */

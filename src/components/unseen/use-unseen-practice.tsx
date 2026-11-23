@@ -1498,6 +1498,7 @@ export function useUnseenPractice() {
           questions: currentStory.questions,
           userAnswers,
           studentName: (studentNameInput.trim() || user?.name || "תלמיד/ה").trim(),
+          gender: user?.gender,
         }),
       });
 

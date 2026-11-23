@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { StudentGroup } from "@/types/auth";
 import { FilterSelect } from "./shared-ui/filter-select";
+import { GenderToggle } from "./shared-ui/gender-toggle";
 import { type TeacherDashboardController } from "./use-teacher-dashboard";
 
 const GRADE_OPTIONS = [
@@ -32,6 +33,7 @@ export function TeacherDashboardStudentModal({ c }: { c: TeacherDashboardControl
     handleGenerateRandomPin,
     handleSaveStudent,
     isSavingStudent,
+    setStudentGenderInput,
     setStudentGradeInput,
     setStudentGroupInput,
     setStudentModalOpen,
@@ -39,6 +41,7 @@ export function TeacherDashboardStudentModal({ c }: { c: TeacherDashboardControl
     setStudentNumberInput,
     setStudentPinInput,
     studentFormError,
+    studentGenderInput,
     studentGradeInput,
     studentGroupInput,
     studentModalOpen,
@@ -107,6 +110,11 @@ export function TeacherDashboardStudentModal({ c }: { c: TeacherDashboardControl
                 </button>
               ))}
             </div>
+          </Field>
+
+          <Field label="פנייה במשוב (לשון זכר / נקבה)">
+            <GenderToggle value={studentGenderInput} onChange={setStudentGenderInput} />
+            <p className="text-2xs text-muted-foreground">משוב ה-AI בעברית ייכתב בהתאם. כשלא צוין — בלשון רבים.</p>
           </Field>
 
           <Field

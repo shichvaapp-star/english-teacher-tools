@@ -958,6 +958,7 @@ export function useConversationPractice() {
             grade: currentScenario.grade ?? grade,
             level: currentScenario.level,
             studentName: user?.name || "תלמיד/ה",
+            gender: user?.gender,
           }),
         });
 
@@ -1047,6 +1048,7 @@ export function useConversationPractice() {
           grade: currentScenario.grade ?? grade,
           level: currentScenario.level,
           studentName: (studentNameInput.trim() || user?.name || "תלמיד/ה").trim(),
+          gender: user?.gender,
         }),
       });
 

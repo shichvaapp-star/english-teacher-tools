@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { ActiveUser, StudentProfile, TeacherProfile, StudentGroup } from "@/types/auth";
+import { ActiveUser, StudentProfile, TeacherProfile, StudentGroup, StudentGender, isStudentGender } from "@/types/auth";
 import type { PublicStudent, PublicTeacher, RosterEntry, StudentAuthResponse } from "@/types/student-auth";
 import { isBuiltInAdminEmail } from "@/config/admins";
 import {
@@ -22,6 +22,7 @@ import {
   query,
   where,
   deleteDoc,
+  deleteField,
   updateDoc,
 } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
@@ -52,6 +53,7 @@ interface AuthContextType {
     classGrade: string;
     classNumber: number;
     group?: StudentGroup;
+    gender?: StudentGender;
     pin: string;
   }) => Promise<{ success: boolean; student?: StudentProfile; error?: string }>;
   updateStudent: (studentId: string, updates: Partial<StudentProfile>) => Promise<Result>;
@@ -143,6 +145,7 @@ function studentToActiveUser(s: PublicStudent): ActiveUser {
     classNumber: s.classNumber,
     fullClass: s.fullClass,
     group: s.group,
+    gender: s.gender,
   };
 }
 
@@ -175,6 +178,7 @@ async function resolveUser(fbUser: FirebaseUser): Promise<ActiveUser | null> {
       classNumber: d.classNumber,
       fullClass: d.fullClass,
       group: d.group,
+      gender: isStudentGender(d.gender) ? d.gender : undefined,
     });
   }
 
@@ -459,6 +463,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     classGrade: string;
     classNumber: number;
     group?: StudentGroup;
+    gender?: StudentGender;
     pin: string;
   }): Promise<{ success: boolean; student?: StudentProfile; error?: string }> => {
     if (!user || user.role !== "teacher") {
@@ -484,6 +489,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       classNumber: data.classNumber,
       fullClass: `${data.classGrade}׳${data.classNumber}`,
       ...(data.group ? { group: data.group } : {}),
+      ...(data.gender ? { gender: data.gender } : {}),
       createdAt: new Date().toISOString(),
     };
 
@@ -500,7 +506,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!studentId) return { success: false, error: "Missing student ID." };
     if (!db) return { success: false, error: "Database unavailable." };
     try {
-      await updateDoc(doc(db, "students", studentId), updates);
+      // Firestore rejects undefined values: an undefined field means "clear it".
+      const payload = Object.fromEntries(
+        Object.entries(updates).map(([key, value]) => [key, value === undefined ? deleteField() : value])
+      );
+      await updateDoc(doc(db, "students", studentId), payload);
       return { success: true };
     } catch (dbErr) {
       console.warn("Firestore update student error:", dbErr);

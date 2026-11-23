@@ -1,5 +1,11 @@
 export type UserRole = "teacher" | "student" | null;
 export type StudentGroup = "א1" | "א2" | "ב";
+/** How Hebrew feedback addresses the student. Unset = plural/neutral form. */
+export type StudentGender = "male" | "female";
+
+export function isStudentGender(value: unknown): value is StudentGender {
+  return value === "male" || value === "female";
+}
 
 export interface TeacherProfile {
   id: string;
@@ -21,6 +27,7 @@ export interface StudentProfile {
   classNumber?: number; // 1-6
   fullClass?: string; // e.g. "ז׳2"
   group?: StudentGroup; // e.g. "א1" | "א2" | "ב"
+  gender?: StudentGender;
   createdAt: string;
 }
 
@@ -37,6 +44,7 @@ export interface ActiveUser {
   classNumber?: number;
   fullClass?: string;
   group?: StudentGroup;
+  gender?: StudentGender;
   isAdmin?: boolean;
 }
 

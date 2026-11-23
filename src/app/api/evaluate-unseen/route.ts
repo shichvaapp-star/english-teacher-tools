@@ -1,4 +1,5 @@
 import { gradeExpectationsPrompt, gradeFromBody } from "@/lib/grade-prompt";
+import { genderFromBody, hebrewAddressPrompt } from "@/lib/gender-prompt";
 import { NextResponse } from "next/server";
 import { gradeCopyAnswer } from "@/lib/copy-grading";
 import { MSUnseenQuestion } from "@/data/unseen-middle-school";
@@ -323,6 +324,7 @@ export async function POST(request: Request) {
       studentName,
     } = body;
     const grade = gradeFromBody(body);
+    const gender = genderFromBody(body);
 
     if (!Array.isArray(questions) || questions.length === 0) {
       return NextResponse.json(
@@ -332,7 +334,7 @@ export async function POST(request: Request) {
     }
 
     // 1. Check in-memory Cache for identical submissions
-    const cacheKey = `${storyId || storyTitle}_${JSON.stringify(userAnswers)}`;
+    const cacheKey = `${storyId || storyTitle}_${gender ?? "neutral"}_${JSON.stringify(userAnswers)}`;
     const cached = evaluationCache.get(cacheKey);
     if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
       return NextResponse.json({
@@ -423,6 +425,7 @@ STUDENT & TEST PROFILE:
 - Student Name: ${studentName || "Student"}
 - Level: "${storyLevel}"
 ${gradeExpectationsPrompt(grade, storyLevel)}
+${hebrewAddressPrompt(gender)}
 - Story Title: "${storyTitle}"
 - Multiple Choice Results: The student answered ${mcqCorrectCount} out of ${mcqTotalCount} Multiple Choice questions correctly.
 

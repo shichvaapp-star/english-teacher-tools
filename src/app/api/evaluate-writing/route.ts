@@ -1,4 +1,5 @@
 import { gradeExpectationsPrompt, gradeFromBody } from "@/lib/grade-prompt";
+import { genderFromBody, hebrewAddressPrompt } from "@/lib/gender-prompt";
 import { NextResponse } from "next/server";
 import { errorMessage, extractJsonObject } from "@/lib/llm-json";
 
@@ -228,6 +229,7 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { essayText, taskTitle, prompt, category, minWords, maxWords, level } = body;
     const grade = gradeFromBody(body);
+    const gender = genderFromBody(body);
 
     if (!essayText || typeof essayText !== "string" || essayText.trim().length === 0) {
       return NextResponse.json(
@@ -301,6 +303,7 @@ You evaluate student writing with pedagogical wisdom, warm encouragement, and ex
 
 ${levelPedagogyGuidance}
 ${gradeExpectationsPrompt(grade, currentLevel)}
+${hebrewAddressPrompt(gender)}
 
 TASK DETAILS:
 - Student Level: "${currentLevel}"

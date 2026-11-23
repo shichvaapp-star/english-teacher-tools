@@ -3,7 +3,7 @@
 // so Firestore rules can tell which student is asking.
 import type { Firestore } from "firebase-admin/firestore";
 import type { Auth } from "firebase-admin/auth";
-import type { StudentGroup } from "@/types/auth";
+import { isStudentGender, type StudentGroup } from "@/types/auth";
 import type { PublicStudent, PublicTeacher, StudentTokenClaims } from "@/types/student-auth";
 
 const MAX_FAILURES = 8;
@@ -21,6 +21,7 @@ interface StudentDoc {
   classNumber?: number;
   fullClass?: string;
   group?: StudentGroup;
+  gender?: string;
   createdAt?: string;
 }
 
@@ -87,6 +88,7 @@ function toPublicStudent(id: string, d: StudentDoc, teacher: PublicTeacher): Pub
     classNumber: d.classNumber,
     fullClass: d.fullClass,
     group: d.group,
+    gender: isStudentGender(d.gender) ? d.gender : undefined,
   };
 }
 
