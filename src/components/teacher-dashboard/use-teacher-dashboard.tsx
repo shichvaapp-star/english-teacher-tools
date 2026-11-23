@@ -14,6 +14,10 @@ import {
   deleteDoc,
   onSnapshot,
   setDoc,
+  getDoc,
+  writeBatch,
+  arrayUnion,
+  arrayRemove,
 } from "firebase/firestore";
 import { cleanForFirestore } from "@/lib/utils";
 
@@ -648,11 +652,117 @@ export function useTeacherDashboard() {
       grade,
       teacherFeedback: feedback,
       status: "reviewed",
-      reviewedAt: new Date().toLocaleString("he-IL"),
+      reviewedAt: new Date().toISOString(),
     };
     const stored = await persistGradeWithAi(updatedItem);
-    toast.success(`הציון של ${sub.studentName} נשמר`);
+    toast.success(grade === undefined ? `ההגשה של ${sub.studentName} סומנה כנבדקה` : `הציון של ${sub.studentName} נשמר`);
     return stored;
+  };
+
+  // Bulk: accept the computer score as the grade and mark as reviewed
+  const handleBulkAccept = async (subs: SubmissionItem[]): Promise<number> => {
+    const eligible = subs.filter((s) => s.status === "submitted" && typeof s.score === "number");
+    const skipped = subs.length - eligible.length;
+    if (eligible.length === 0) {
+      toast.error("אין הגשות עם ציון אוטומטי לאישור");
+      return 0;
+    }
+    const reviewedAt = new Date().toISOString();
+    const firestore = db;
+    if (firestore) {
+      try {
+        for (let i = 0; i < eligible.length; i += 450) {
+          const batch = writeBatch(firestore);
+          eligible.slice(i, i + 450).forEach((s) => {
+            batch.update(doc(firestore, "submissions", s.id), { grade: s.score, status: "reviewed", reviewedAt });
+          });
+          await batch.commit();
+        }
+      } catch (err) {
+        console.error("Bulk accept error:", err);
+        toast.error("לא ניתן היה לשמור את הציונים. נסו שוב.");
+        return 0;
+      }
+    }
+    const byId = new Map(eligible.map((s) => [s.id, { ...s, grade: s.score, status: "reviewed" as const, reviewedAt }]));
+    try {
+      const existingRaw = localStorage.getItem(LOCAL_SUBMISSIONS_KEY);
+      if (existingRaw) {
+        const list: SubmissionItem[] = JSON.parse(existingRaw);
+        localStorage.setItem(LOCAL_SUBMISSIONS_KEY, JSON.stringify(list.map((it) => byId.get(it.id) ?? it)));
+      }
+    } catch {
+      // Ignore
+    }
+    setSubmissions((prev) => prev.map((it) => byId.get(it.id) ?? it));
+    toast.success(
+      `${eligible.length} הגשות סומנו כנבדקו${skipped > 0 ? ` · ${skipped} דולגו (אין ציון אוטומטי)` : ""}`
+    );
+    return eligible.length;
+  };
+
+  // ---------------------------------------------------------------------------
+  // QUICK COMMENTS (teacher's own saved feedback phrases, on teachers/{uid})
+  // ---------------------------------------------------------------------------
+  const [quickComments, setQuickComments] = useState<string[]>([]);
+  const teacherUid = user?.role === "teacher" ? user.id : null;
+  useEffect(() => {
+    if (!teacherUid) return;
+    let cancelled = false;
+    (async () => {
+      let list: string[] | null = null;
+      if (db) {
+        try {
+          const snap = await getDoc(doc(db, "teachers", teacherUid));
+          const raw: unknown = snap.data()?.quickComments;
+          if (Array.isArray(raw)) list = raw.filter((x): x is string => typeof x === "string");
+        } catch (err) {
+          console.warn("Quick comments load notice:", err);
+        }
+      }
+      if (list === null) {
+        try {
+          const raw = localStorage.getItem(`ett_quick_comments_${teacherUid}`);
+          list = raw ? (JSON.parse(raw) as string[]) : [];
+        } catch {
+          list = [];
+        }
+      }
+      if (!cancelled) setQuickComments(list);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [teacherUid]);
+
+  const persistQuickComments = async (next: string[], change: { add?: string; remove?: string }) => {
+    setQuickComments(next);
+    try {
+      if (teacherUid) localStorage.setItem(`ett_quick_comments_${teacherUid}`, JSON.stringify(next));
+    } catch {
+      // Ignore
+    }
+    if (db && teacherUid) {
+      try {
+        await updateDoc(doc(db, "teachers", teacherUid), {
+          quickComments: change.add ? arrayUnion(change.add) : arrayRemove(change.remove),
+        });
+      } catch (err) {
+        console.warn("Quick comments save notice:", err);
+        toast.error("לא ניתן היה לשמור את התגובה המהירה");
+      }
+    }
+  };
+
+  const addQuickComment = async (text: string) => {
+    const value = text.trim();
+    if (!value || quickComments.includes(value)) return;
+    await persistQuickComments([...quickComments, value], { add: value });
+    toast.success("התגובה נשמרה לשימוש חוזר");
+  };
+
+  const removeQuickComment = async (text: string) => {
+    await persistQuickComments(quickComments.filter((c) => c !== text), { remove: text });
   };
 
   // AI Review Action
@@ -1017,6 +1127,10 @@ export function useTeacherDashboard() {
     loadSavedAiResult,
     runAiReview,
     handleSaveGrade,
+    handleBulkAccept,
+    quickComments,
+    addQuickComment,
+    removeQuickComment,
     authModalOpen,
     setAuthModalOpen,
     fetchSubmissions,

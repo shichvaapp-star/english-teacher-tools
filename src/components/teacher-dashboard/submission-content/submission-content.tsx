@@ -1,30 +1,62 @@
 "use client";
 
-import React from "react";
-import { AlertCircle, BookOpen, Check, CheckCircle2, Lightbulb, Loader2, MessageSquareQuote, Sparkles } from "lucide-react";
+import React, { useMemo, useState } from "react";
+import {
+  BookOpen,
+  Check,
+  CheckCircle2,
+  ChevronDown,
+  CircleAlert,
+  Lightbulb,
+  Loader2,
+  MessageSquareQuote,
+  Sparkles,
+  X,
+} from "lucide-react";
 import { cn } from "cn";
 import { Button } from "@/components/ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { SubmissionItem, SubmissionQuestionBreakdown } from "@/types/submission";
-import type { WritingEvaluationResult } from "@/app/api/evaluate-writing/route";
+import type { WritingCorrection, WritingEvaluationResult } from "@/app/api/evaluate-writing/route";
+import { findWritingTaskById } from "@/data/writing-tasks";
+import { SegmentedControl } from "../shared-ui/segmented-control";
 
 function Section({ title, aside, children }: { title: React.ReactNode; aside?: React.ReactNode; children: React.ReactNode }) {
   return (
-    <section className="space-y-2">
-      <div className="flex items-center justify-between gap-2">
-        <h3 className="text-xs font-semibold text-muted-foreground">{title}</h3>
-        {aside && <div className="text-2xs text-muted-foreground">{aside}</div>}
+    <section className="space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+        {aside && <div className="text-xs text-muted-foreground">{aside}</div>}
       </div>
       {children}
     </section>
   );
 }
 
-const pointsTone = (pts: number) =>
-  pts >= 8
-    ? { border: "border-success/30", bg: "bg-success/5", text: "text-success" }
-    : pts >= 5
-    ? { border: "border-warning/40", bg: "bg-warning/5", text: "text-warning-foreground dark:text-warning" }
-    : { border: "border-destructive/30", bg: "bg-destructive/5", text: "text-destructive" };
+type AnswerFilter = "all" | "wrong";
+
+function AnswerFilterToggle({ value, onChange, total, wrong }: { value: AnswerFilter; onChange: (v: AnswerFilter) => void; total: number; wrong: number }) {
+  if (wrong === 0 || wrong === total) return null;
+  return (
+    <SegmentedControl<AnswerFilter>
+      aria-label="סינון תשובות"
+      value={value}
+      onChange={onChange}
+      options={[
+        { value: "all", label: "הכל", count: total },
+        { value: "wrong", label: "לטיפול", count: wrong },
+      ]}
+    />
+  );
+}
+
+const ratioTone = (ratio: number) =>
+  ratio >= 0.8
+    ? { text: "text-success", icon: "bg-success/15 text-success" }
+    : ratio >= 0.5
+    ? { text: "text-warning-foreground dark:text-warning", icon: "bg-warning/15 text-warning-foreground dark:text-warning" }
+    : { text: "text-destructive", icon: "bg-destructive/10 text-destructive" };
 
 function formatAnswer(q: SubmissionQuestionBreakdown, which: "user" | "correct"): string {
   const val = which === "user" ? q.userAnswer : q.correctAnswer;
@@ -33,41 +65,92 @@ function formatAnswer(q: SubmissionQuestionBreakdown, which: "user" | "correct")
   return String(val ?? q.targetSentence ?? q.modelAnswer ?? "");
 }
 
-function QuestionsBreakdown({ questions }: { questions: SubmissionQuestionBreakdown[] }) {
+/** One answer row: status mark, prompt, student answer, expected answer when wrong. */
+function AnswerRow({
+  index,
+  label,
+  prompt,
+  studentAnswer,
+  expected,
+  scoreLabel,
+  ratio,
+  flagged,
+  note,
+}: {
+  index: number;
+  label?: string;
+  prompt: string;
+  studentAnswer: string;
+  expected?: string;
+  scoreLabel: string;
+  ratio: number;
+  flagged?: boolean;
+  note?: string;
+}) {
+  const tone = flagged
+    ? { text: "text-warning-foreground dark:text-warning", icon: "bg-warning/15 text-warning-foreground dark:text-warning" }
+    : ratioTone(ratio);
+  const Icon = flagged ? CircleAlert : ratio >= 1 ? Check : ratio > 0 ? CircleAlert : X;
   return (
-    <Section title={`תשובות התלמיד/ה (${questions.length} שאלות)`}>
-      <div className="space-y-2">
-        {questions.map((q) => {
-          const pts = typeof q.points === "number" ? q.points : q.isCorrect ? 10 : 0;
-          const max = q.maxPoints ?? 10;
-          const tone = pointsTone((pts / max) * 10);
+    <li className="flex gap-3 border-b border-border/60 py-3 last:border-b-0">
+      <span className={cn("mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full", tone.icon)}>
+        <Icon className="size-3.5" />
+      </span>
+      <div className="min-w-0 flex-1 space-y-1">
+        <div className="flex items-start justify-between gap-3">
+          <p className="text-sm font-medium text-foreground" dir="auto">
+            <span className="text-muted-foreground">{index}. </span>
+            {prompt}
+          </p>
+          <span className={cn("shrink-0 text-xs font-semibold tabular-nums", tone.text)}>{scoreLabel}</span>
+        </div>
+        {label && <p className="text-2xs text-muted-foreground">{label}</p>}
+        <div className="space-y-0.5 text-sm" dir="ltr">
+          <p className={cn("font-medium", ratio >= 1 && !flagged ? "text-foreground" : tone.text)}>{studentAnswer || "—"}</p>
+          {expected && (
+            <p className="text-xs text-muted-foreground">
+              <span className="text-2xs">Expected: </span>
+              <span className="text-foreground">{expected}</span>
+            </p>
+          )}
+        </div>
+        {note && <p className="text-xs text-muted-foreground">{note}</p>}
+      </div>
+    </li>
+  );
+}
+
+function QuestionsBreakdown({ questions }: { questions: SubmissionQuestionBreakdown[] }) {
+  const [filter, setFilter] = useState<AnswerFilter>("all");
+  const rows = questions.map((q) => {
+    const pts = typeof q.points === "number" ? q.points : q.isCorrect ? 10 : 0;
+    const max = q.maxPoints ?? 10;
+    return { q, pts, max, ratio: max > 0 ? pts / max : 0 };
+  });
+  const wrong = rows.filter((r) => r.ratio < 1).length;
+  const shown = filter === "wrong" ? rows.filter((r) => r.ratio < 1) : rows;
+  return (
+    <Section
+      title={`תשובות (${questions.length - wrong}/${questions.length} מלאות)`}
+      aside={<AnswerFilterToggle value={filter} onChange={setFilter} total={rows.length} wrong={wrong} />}
+    >
+      <ul className="rounded-xl border border-border bg-card px-4">
+        {shown.map(({ q, pts, max, ratio }) => {
+          const expected = ratio < 1 ? formatAnswer(q, "correct") : "";
           return (
-            <div key={q.id} className={cn("space-y-1.5 rounded-lg border p-3 text-xs", tone.border, tone.bg)}>
-              <div className="flex items-start justify-between gap-3">
-                <span className="font-medium text-foreground" dir="auto">
-                  {q.number}. {q.prompt}
-                </span>
-                <span className={cn("shrink-0 font-semibold tabular-nums", tone.text)}>
-                  {pts}/{max}
-                </span>
-              </div>
-              <div className="space-y-0.5 text-muted-foreground" dir="ltr">
-                <div>
-                  <span className="text-2xs">Student: </span>
-                  <span className={cn("font-medium", tone.text)}>{formatAnswer(q, "user")}</span>
-                </div>
-                {pts < max && formatAnswer(q, "correct") && (
-                  <div>
-                    <span className="text-2xs">Expected: </span>
-                    <span className="font-medium text-foreground">{formatAnswer(q, "correct")}</span>
-                  </div>
-                )}
-              </div>
-              {q.feedbackHebrew && <p className="text-2xs text-muted-foreground">{q.feedbackHebrew}</p>}
-            </div>
+            <AnswerRow
+              key={q.id}
+              index={q.number}
+              prompt={q.prompt}
+              studentAnswer={formatAnswer(q, "user")}
+              expected={expected || undefined}
+              scoreLabel={`${pts}/${max}`}
+              ratio={ratio}
+              note={q.feedbackHebrew}
+            />
           );
         })}
-      </div>
+      </ul>
     </Section>
   );
 }
@@ -75,37 +158,46 @@ function QuestionsBreakdown({ questions }: { questions: SubmissionQuestionBreakd
 function VocabContent({ sub }: { sub: SubmissionItem }) {
   const summary = sub.vocabSummary;
   const words = summary?.wordsPracticed ?? [];
+  const notMastered = words.filter((w) => !w.mastered);
+  const mastered = words.filter((w) => w.mastered);
   const pct = summary ? Math.round((summary.masteredCount / Math.max(summary.totalWords, 1)) * 100) : null;
+  const chip = (w: (typeof words)[number], idx: number) => (
+    <span
+      key={`${w.english}-${idx}`}
+      className={cn(
+        "inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-sm",
+        w.mastered ? "border-success/30 bg-success/10 text-foreground" : "border-warning/40 bg-warning/5 text-foreground"
+      )}
+    >
+      <span dir="ltr" className="font-medium">
+        {w.english}
+      </span>
+      <span className="text-xs text-muted-foreground">{w.hebrew}</span>
+    </span>
+  );
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <div className="grid grid-cols-3 gap-2">
         <Metric label="מילים בתרגול" value={summary?.totalWords ?? "—"} />
         <Metric label="בשליטה מלאה" value={summary ? `${summary.masteredCount} (${pct}%)` : "—"} />
         <Metric label="ציון תרגול" value={summary?.quizScore ?? sub.score ?? "—"} />
       </div>
-      <Section title={`פירוט מילים (${words.length})`}>
-        {words.length > 0 ? (
-          <div className="flex flex-wrap gap-1.5">
-            {words.map((w, idx) => (
-              <span
-                key={`${w.english}-${idx}`}
-                className={cn(
-                  "inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs",
-                  w.mastered ? "border-success/30 bg-success/10 text-foreground" : "border-border bg-card text-foreground"
-                )}
-              >
-                <span dir="ltr" className="font-medium">
-                  {w.english}
-                </span>
-                <span className="text-muted-foreground">{w.hebrew}</span>
-                {w.mastered && <Check className="size-3 text-success" />}
-              </span>
-            ))}
-          </div>
-        ) : (
-          <p className="text-xs text-muted-foreground">התרגול הושלם במערכת.</p>
-        )}
-      </Section>
+      {words.length > 0 ? (
+        <>
+          {notMastered.length > 0 && (
+            <Section title={`עדיין לא בשליטה (${notMastered.length})`}>
+              <div className="flex flex-wrap gap-1.5">{notMastered.map(chip)}</div>
+            </Section>
+          )}
+          {mastered.length > 0 && (
+            <Section title={`בשליטה (${mastered.length})`}>
+              <div className="flex flex-wrap gap-1.5">{mastered.map(chip)}</div>
+            </Section>
+          )}
+        </>
+      ) : (
+        <p className="text-sm text-muted-foreground">התרגול הושלם במערכת.</p>
+      )}
     </div>
   );
 }
@@ -124,59 +216,53 @@ const GRAMMAR_TYPE_HE: Record<string, string> = {
 };
 
 function GrammarContent({ sub }: { sub: SubmissionItem }) {
+  const [filter, setFilter] = useState<AnswerFilter>("all");
   const summary = sub.grammarSummary;
-  const entries = summary?.entries ?? [];
-  const review = entries.filter((e) => e.needsReview).length;
-  const hints = entries.filter((e) => e.usedHint).length;
+  // Items waiting for the teacher come first, then the original order
+  const entries = useMemo(
+    () =>
+      (summary?.entries ?? [])
+        .map((e, idx) => ({ e, idx }))
+        .sort((a, b) => Number(b.e.needsReview) - Number(a.e.needsReview) || a.idx - b.idx),
+    [summary]
+  );
+  const review = entries.filter(({ e }) => e.needsReview).length;
+  const hints = entries.filter(({ e }) => e.usedHint).length;
+  const toHandle = entries.filter(({ e }) => e.needsReview || !e.isCorrect).length;
+  const shown = filter === "wrong" ? entries.filter(({ e }) => e.needsReview || !e.isCorrect) : entries;
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <div className="grid grid-cols-3 gap-2">
         <Metric label="נכונים" value={summary ? `${summary.correctItems}/${summary.totalItems}` : "—"} />
         <Metric label="ציון" value={sub.score ?? "—"} />
         <Metric label="רמה" value={summary ? `${summary.level}${summary.grade ? ` · כיתה ${summary.grade}` : ""}` : "—"} />
       </div>
       {(review > 0 || hints > 0) && (
-        <p className="text-2xs text-muted-foreground">
-          {review > 0 && <span className="font-semibold text-warning-foreground dark:text-warning">{review} תשובות ממתינות לבדיקה שלך. </span>}
+        <p className="text-xs text-muted-foreground">
+          {review > 0 && <span className="font-semibold text-warning-foreground dark:text-warning">{review} תשובות ממתינות לבדיקה שלך (מופיעות ראשונות). </span>}
           {hints > 0 && <span>{hints} תרגילים נפתרו בעזרת רמז.</span>}
         </p>
       )}
-      <Section title={`תשובות התלמיד/ה (${entries.length} תרגילים)`}>
-        <div className="space-y-2">
-          {entries.map((e, idx) => {
-            const tone = e.needsReview
-              ? { border: "border-warning/40", bg: "bg-warning/5", text: "text-warning-foreground dark:text-warning" }
-              : pointsTone(e.points * 10);
-            return (
-              <div key={`${e.itemId}-${idx}`} className={cn("space-y-1.5 rounded-lg border p-3 text-xs", tone.border, tone.bg)}>
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-2xs text-muted-foreground">
-                    {idx + 1}. {GRAMMAR_TYPE_HE[e.exerciseType] ?? e.exerciseType}
-                    {e.usedHint && " · רמז"}
-                    {e.aiGraded && " · נבדק ב-AI"}
-                  </span>
-                  <span className={cn("shrink-0 font-semibold tabular-nums", tone.text)}>
-                    {e.needsReview ? "לבדיקה" : `${Math.round(e.points * 10)}/10`}
-                  </span>
-                </div>
-                <div className="space-y-0.5" dir="ltr">
-                  <p className="font-medium text-foreground">{e.prompt}</p>
-                  <p className="text-muted-foreground">
-                    <span className="text-2xs">Student: </span>
-                    <span className={cn("font-medium", tone.text)}>{e.studentAnswer || "—"}</span>
-                  </p>
-                  {!e.isCorrect && e.expected && (
-                    <p className="text-muted-foreground">
-                      <span className="text-2xs">Expected: </span>
-                      <span className="font-medium text-foreground">{e.expected}</span>
-                    </p>
-                  )}
-                </div>
-                {e.feedbackHebrew && !e.isCorrect && <p className="text-2xs text-muted-foreground">{e.feedbackHebrew}</p>}
-              </div>
-            );
-          })}
-        </div>
+      <Section
+        title={`תשובות (${entries.length} תרגילים)`}
+        aside={<AnswerFilterToggle value={filter} onChange={setFilter} total={entries.length} wrong={toHandle} />}
+      >
+        <ul className="rounded-xl border border-border bg-card px-4">
+          {shown.map(({ e, idx }) => (
+            <AnswerRow
+              key={`${e.itemId}-${idx}`}
+              index={idx + 1}
+              prompt={e.prompt}
+              label={[GRAMMAR_TYPE_HE[e.exerciseType] ?? e.exerciseType, e.usedHint && "רמז", e.aiGraded && "נבדק ב-AI"].filter(Boolean).join(" · ")}
+              studentAnswer={e.studentAnswer}
+              expected={!e.isCorrect && e.expected ? e.expected : undefined}
+              scoreLabel={e.needsReview ? "לבדיקה" : `${Math.round(e.points * 10)}/10`}
+              ratio={e.points}
+              flagged={e.needsReview}
+              note={!e.isCorrect ? e.feedbackHebrew : undefined}
+            />
+          ))}
+        </ul>
       </Section>
     </div>
   );
@@ -193,13 +279,9 @@ function Metric({ label, value }: { label: string; value: React.ReactNode }) {
 
 function PassageContent({ sub }: { sub: SubmissionItem }) {
   const isConversation = sub.type === "conversation";
+  const hasQuestions = Boolean(sub.questionsBreakdown && sub.questionsBreakdown.length > 0);
   return (
-    <div className="space-y-5">
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-        <Metric label="ציון ממוחשב" value={sub.score !== undefined ? `${sub.score}/100` : "—"} />
-        <Metric label="רמה" value={isConversation ? "Conversation" : sub.storyLevel || "—"} />
-        <Metric label="מקור" value={sub.generationPrompt ? "נוצר ב-AI" : "מאגר"} />
-      </div>
+    <div className="space-y-6">
       {sub.generationPrompt && (
         <div className="space-y-1 rounded-lg border border-admin/30 bg-admin/5 p-3 text-xs">
           <div className="flex items-center gap-1.5 font-medium text-admin">
@@ -212,34 +294,41 @@ function PassageContent({ sub }: { sub: SubmissionItem }) {
         </div>
       )}
       {sub.passageText && (
-        <Section title={isConversation ? "תמליל השיחה" : "קטע הקריאה"}>
-          {isConversation ? (
-            <div className="max-h-64 space-y-1.5 overflow-y-auto rounded-lg border border-border bg-muted/20 p-3" dir="ltr">
-              {sub.passageText.split("\n").filter(Boolean).map((line, idx) => (
-                <div
-                  key={idx}
-                  className={cn(
-                    "max-w-[85%] rounded-lg px-3 py-1.5 text-sm leading-relaxed",
-                    idx % 2 === 0 ? "bg-info/10 text-foreground" : "ml-auto bg-success/10 text-foreground"
-                  )}
-                >
-                  {line}
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div
-              className="max-h-64 overflow-y-auto rounded-lg border border-border bg-muted/20 p-4 text-sm leading-relaxed whitespace-pre-wrap text-foreground"
-              dir="ltr"
-            >
-              {sub.passageText}
-            </div>
-          )}
-        </Section>
+        <Collapsible defaultOpen={!hasQuestions} className="rounded-xl border border-border bg-muted/20">
+          <CollapsibleTrigger className="group flex w-full cursor-pointer items-center justify-between gap-2 p-3 text-sm font-medium text-foreground">
+            <span className="flex items-center gap-2">
+              <BookOpen className="size-4 text-muted-foreground" />
+              {isConversation ? "תמליל השיחה" : "קטע הקריאה"}
+              {sub.storyLevel && !isConversation && <span className="text-xs font-normal text-muted-foreground">· {sub.storyLevel}</span>}
+            </span>
+            <ChevronDown className="size-4 text-muted-foreground transition-transform group-data-[panel-open]:rotate-180" />
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            {isConversation ? (
+              <div className="max-h-96 space-y-1.5 overflow-y-auto border-t border-border p-3" dir="ltr">
+                {sub.passageText.split("\n").filter(Boolean).map((line, idx) => (
+                  <div
+                    key={idx}
+                    className={cn(
+                      "max-w-[85%] rounded-lg px-3 py-1.5 text-sm leading-relaxed",
+                      idx % 2 === 0 ? "bg-info/10 text-foreground" : "ml-auto bg-success/10 text-foreground"
+                    )}
+                  >
+                    {line}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="max-h-96 overflow-y-auto border-t border-border p-4 text-base leading-relaxed whitespace-pre-wrap text-foreground" dir="ltr">
+                {sub.passageText}
+              </div>
+            )}
+          </CollapsibleContent>
+        </Collapsible>
       )}
-      {sub.questionsBreakdown && sub.questionsBreakdown.length > 0 && <QuestionsBreakdown questions={sub.questionsBreakdown} />}
-      {!sub.passageText && !sub.questionsBreakdown?.length && (
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+      {hasQuestions && <QuestionsBreakdown questions={sub.questionsBreakdown ?? []} />}
+      {!sub.passageText && !hasQuestions && (
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <BookOpen className="size-4" />
           אין פרטים נוספים להגשה זו.
         </div>
@@ -248,16 +337,105 @@ function PassageContent({ sub }: { sub: SubmissionItem }) {
   );
 }
 
-function WritingContent({ sub }: { sub: SubmissionItem }) {
+type Segment = { text: string; correction?: WritingCorrection };
+
+/** Splits the essay into plain text and the first match of each correction (non-overlapping). */
+function segmentEssay(text: string, corrections: WritingCorrection[]): Segment[] {
+  const ranges: { start: number; end: number; correction: WritingCorrection }[] = [];
+  for (const correction of corrections) {
+    const needle = correction.original?.trim();
+    if (!needle) continue;
+    let from = 0;
+    while (from <= text.length) {
+      const start = text.indexOf(needle, from);
+      if (start < 0) break;
+      const end = start + needle.length;
+      if (!ranges.some((r) => start < r.end && end > r.start)) {
+        ranges.push({ start, end, correction });
+        break;
+      }
+      from = start + 1;
+    }
+  }
+  ranges.sort((a, b) => a.start - b.start);
+  const out: Segment[] = [];
+  let pos = 0;
+  for (const r of ranges) {
+    if (r.start > pos) out.push({ text: text.slice(pos, r.start) });
+    out.push({ text: text.slice(r.start, r.end), correction: r.correction });
+    pos = r.end;
+  }
+  if (pos < text.length) out.push({ text: text.slice(pos) });
+  return out;
+}
+
+function WritingContent({ sub, corrections }: { sub: SubmissionItem; corrections?: WritingCorrection[] }) {
+  const [showCorrections, setShowCorrections] = useState(true);
+  const task = findWritingTaskById(sub.taskId);
+  const text = sub.essayText || "";
+  const words = sub.wordCount ?? (text.trim() ? text.trim().split(/\s+/).length : 0);
+  const outOfRange = task ? words < task.minWords || words > task.maxWords : false;
+  const segments = useMemo(
+    () => (showCorrections && corrections?.length ? segmentEssay(text, corrections) : [{ text }]),
+    [text, corrections, showCorrections]
+  );
+  const marked = segments.filter((s) => s.correction).length;
+
   return (
-    <Section title="החיבור שהוגש" aside={sub.wordCount !== undefined ? `${sub.wordCount} מילים` : undefined}>
-      <div
-        className="rounded-lg border border-border bg-card p-5 font-sans text-[0.95rem] leading-7 whitespace-pre-wrap text-foreground"
-        dir="ltr"
+    <div className="space-y-4">
+      {task && (
+        <div className="rounded-lg border border-border bg-muted/30 p-3 text-sm" dir="ltr">
+          <div className="text-2xs text-muted-foreground" dir="rtl">
+            המשימה
+          </div>
+          <p className="text-foreground">{task.prompt}</p>
+        </div>
+      )}
+      <Section
+        title="החיבור"
+        aside={
+          <span className="flex items-center gap-3">
+            <span className={cn("tabular-nums", outOfRange && "font-medium text-warning-foreground dark:text-warning")}>
+              {words} מילים{task ? ` (נדרש ${task.minWords}–${task.maxWords})` : ""}
+            </span>
+            {corrections && corrections.length > 0 && (
+              <Button variant="ghost" size="xs" onClick={() => setShowCorrections((v) => !v)} className="gap-1 text-xs">
+                <span className={cn("size-2 rounded-full", showCorrections ? "bg-destructive" : "bg-muted-foreground")} />
+                {showCorrections ? `הסתר תיקונים (${marked})` : `הצג תיקונים (${corrections.length})`}
+              </Button>
+            )}
+          </span>
+        }
       >
-        {sub.essayText || "אין טקסט זמין"}
-      </div>
-    </Section>
+        <div className="rounded-xl border border-border bg-card px-6 py-5 text-lg leading-9 whitespace-pre-wrap text-foreground" dir="ltr">
+          {text
+            ? segments.map((s, i) =>
+                s.correction ? (
+                  <Tooltip key={i}>
+                    <TooltipTrigger
+                      render={
+                        <mark className="cursor-help rounded-sm bg-destructive/15 text-foreground underline decoration-destructive decoration-wavy underline-offset-4" />
+                      }
+                    >
+                      {s.text}
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs">
+                      <div className="space-y-0.5">
+                        <div dir="ltr" className="font-medium">
+                          → {s.correction.suggestion}
+                        </div>
+                        {s.correction.explanationHebrew && <div dir="rtl">{s.correction.explanationHebrew}</div>}
+                      </div>
+                    </TooltipContent>
+                  </Tooltip>
+                ) : (
+                  <React.Fragment key={i}>{s.text}</React.Fragment>
+                )
+              )
+            : <span className="text-base text-muted-foreground">אין טקסט זמין</span>}
+        </div>
+      </Section>
+    </div>
   );
 }
 
@@ -268,6 +446,7 @@ const RUBRIC_ROWS = [
   { key: "mechanicsAndSpelling", label: "איות ופיסוק", max: 15 },
 ] as const;
 
+/** Compact AI evaluation for the grading panel: score + apply, with the rubric details collapsible. */
 export function AiEvaluationPanel({
   result,
   isEvaluating,
@@ -279,65 +458,62 @@ export function AiEvaluationPanel({
 }) {
   if (isEvaluating) {
     return (
-      <div className="flex items-center justify-center gap-2 rounded-lg border border-admin/30 bg-admin/5 p-5 text-sm text-admin">
-        <Loader2 className="size-4 animate-spin" />
-        בודק לפי מחוון משרד החינוך: תוכן, אוצר מילים, דקדוק ואיות…
+      <div className="flex items-center gap-2 rounded-lg border border-admin/30 bg-admin/5 p-3 text-xs text-admin">
+        <Loader2 className="size-4 shrink-0 animate-spin" />
+        בודק לפי מחוון משרד החינוך…
       </div>
     );
   }
   if (!result) return null;
 
   return (
-    <section className="space-y-4 rounded-xl border border-admin/30 bg-admin/5 p-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0 space-y-1">
-          <div className="flex items-center gap-1.5 text-xs font-medium text-admin">
-            <Sparkles className="size-3.5" />
-            הערכת AI (מחוון משרד החינוך)
-          </div>
-          {result.encouragement && <p className="text-sm text-foreground">“{result.encouragement}”</p>}
+    <section className="space-y-3 rounded-lg border border-admin/30 bg-admin/5 p-3">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5 text-xs font-medium text-admin">
+          <Sparkles className="size-3.5" />
+          הצעת AI
         </div>
-        <div className="flex items-center gap-2">
-          <span className="rounded-md bg-background px-2.5 py-1 text-lg font-semibold tabular-nums text-foreground">
-            {result.score}
-            <span className="text-xs text-muted-foreground">/100</span>
-          </span>
-          {onApply && (
-            <Button size="sm" variant="outline" onClick={() => onApply(result.score, result.teacherNote)} className="gap-1">
-              <Check />
-              החל ציון ומשוב
-            </Button>
-          )}
-        </div>
+        <span className="text-lg font-semibold tabular-nums text-foreground">
+          {result.score}
+          <span className="text-xs text-muted-foreground">/100</span>
+        </span>
       </div>
-
-      {result.rubric && (
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-          {RUBRIC_ROWS.map((row) => {
-            const r = result.rubric[row.key];
-            if (!r) return null;
-            return (
-              <div key={row.key} className="space-y-1.5 rounded-lg border border-border bg-card p-2.5">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="font-medium text-foreground">{row.label}</span>
-                  <span className="tabular-nums text-muted-foreground">
-                    {r.score}/{row.max}
-                  </span>
-                </div>
-                <div className="h-1 overflow-hidden rounded-full bg-muted">
-                  <div className="h-full rounded-full bg-admin" style={{ width: `${Math.min(100, (r.score / row.max) * 100)}%` }} />
-                </div>
-                {r.commentHebrew && <p className="text-2xs text-muted-foreground">{r.commentHebrew}</p>}
-              </div>
-            );
-          })}
-        </div>
+      {onApply && (
+        <Button size="sm" variant="outline" onClick={() => onApply(result.score, result.teacherNote)} className="w-full gap-1">
+          <Check />
+          החל ציון ומשוב
+        </Button>
       )}
-
-      {(result.strengths?.length > 0 || result.tips?.length > 0) && (
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+      <Collapsible>
+        <CollapsibleTrigger className="group flex w-full cursor-pointer items-center justify-between text-xs text-muted-foreground hover:text-foreground">
+          פירוט לפי המחוון
+          <ChevronDown className="size-3.5 transition-transform group-data-[panel-open]:rotate-180" />
+        </CollapsibleTrigger>
+        <CollapsibleContent className="space-y-3 pt-3">
+          {result.rubric && (
+            <div className="space-y-2">
+              {RUBRIC_ROWS.map((row) => {
+                const r = result.rubric[row.key];
+                if (!r) return null;
+                return (
+                  <div key={row.key} className="space-y-1">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-medium text-foreground">{row.label}</span>
+                      <span className="tabular-nums text-muted-foreground">
+                        {r.score}/{row.max}
+                      </span>
+                    </div>
+                    <div className="h-1 overflow-hidden rounded-full bg-muted">
+                      <div className="h-full rounded-full bg-admin" style={{ width: `${Math.min(100, (r.score / row.max) * 100)}%` }} />
+                    </div>
+                    {r.commentHebrew && <p className="text-2xs text-muted-foreground">{r.commentHebrew}</p>}
+                  </div>
+                );
+              })}
+            </div>
+          )}
           {result.strengths?.length > 0 && (
-            <div className="space-y-1 rounded-lg border border-border bg-card p-2.5 text-xs">
+            <div className="space-y-1 text-xs">
               <div className="flex items-center gap-1.5 font-medium text-success">
                 <CheckCircle2 className="size-3.5" />
                 נקודות חוזק
@@ -350,7 +526,7 @@ export function AiEvaluationPanel({
             </div>
           )}
           {result.tips?.length > 0 && (
-            <div className="space-y-1 rounded-lg border border-border bg-card p-2.5 text-xs">
+            <div className="space-y-1 text-xs">
               <div className="flex items-center gap-1.5 font-medium text-warning-foreground dark:text-warning">
                 <Lightbulb className="size-3.5" />
                 דגשים לשיפור
@@ -362,54 +538,33 @@ export function AiEvaluationPanel({
               </ul>
             </div>
           )}
-        </div>
-      )}
-
-      {result.corrections && result.corrections.length > 0 && (
-        <div className="space-y-1.5 rounded-lg border border-border bg-card p-2.5 text-xs">
-          <div className="flex items-center gap-1.5 font-medium text-foreground">
-            <AlertCircle className="size-3.5 text-destructive" />
-            תיקוני לשון ואיות ({result.corrections.length})
-          </div>
-          <div className="space-y-1.5">
-            {result.corrections.map((corr, i) => (
-              <div key={i} className="rounded-md bg-muted/40 p-2">
-                <div className="flex flex-wrap items-center gap-2" dir="ltr">
-                  <span className="font-mono text-destructive line-through">{corr.original}</span>
-                  <span className="text-muted-foreground">→</span>
-                  <span className="font-mono font-medium text-success">{corr.suggestion}</span>
-                </div>
-                {corr.explanationHebrew && <p className="mt-0.5 text-2xs text-muted-foreground">{corr.explanationHebrew}</p>}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+        </CollapsibleContent>
+      </Collapsible>
     </section>
   );
 }
 
 /** Type-specific body of a submission (essay, passage + answers, vocab words) plus the student's note. */
-export function SubmissionContent({ sub }: { sub: SubmissionItem }) {
+export function SubmissionContent({ sub, corrections }: { sub: SubmissionItem; corrections?: WritingCorrection[] }) {
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
+      {sub.studentNote && (
+        <div className="flex gap-2 rounded-lg border border-border bg-muted/30 p-3 text-sm">
+          <MessageSquareQuote className="size-4 shrink-0 text-muted-foreground" />
+          <div>
+            <div className="text-xs font-medium text-foreground">הערת התלמיד/ה</div>
+            <p className="text-muted-foreground">{sub.studentNote}</p>
+          </div>
+        </div>
+      )}
       {sub.type === "grammar" ? (
         <GrammarContent sub={sub} />
       ) : sub.type === "vocab" ? (
         <VocabContent sub={sub} />
       ) : sub.type === "writing" ? (
-        <WritingContent sub={sub} />
+        <WritingContent sub={sub} corrections={corrections} />
       ) : (
         <PassageContent sub={sub} />
-      )}
-      {sub.studentNote && (
-        <div className="flex gap-2 rounded-lg border border-border bg-muted/30 p-3 text-xs">
-          <MessageSquareQuote className="size-4 shrink-0 text-muted-foreground" />
-          <div>
-            <div className="font-medium text-foreground">הערת התלמיד/ה</div>
-            <p className="text-muted-foreground">{sub.studentNote}</p>
-          </div>
-        </div>
       )}
     </div>
   );

@@ -1,14 +1,17 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useRef } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Inbox } from "lucide-react";
+import { Inbox, MousePointerClick } from "lucide-react";
 import { cn } from "cn";
+import type { SubmissionItem } from "@/types/submission";
 import { useDashboard } from "../teacher-dashboard-context";
-import { findAssignmentForSubmission } from "../dashboard-selectors";
+import { findAssignmentForSubmission, isLateSubmission } from "../dashboard-selectors";
 import { EmptyState } from "../shared-ui/empty-state";
-import { SubmissionQueue } from "./submission-queue";
-import { SubmissionDetail } from "./submission-detail";
+import { usePersistedFlag } from "../shared-ui/use-persisted-flag";
+import { SubmissionQueue, type AssignmentFocus } from "./submission-queue";
+import { ReviewWorkBody, ReviewWorkHeader } from "./review-work-pane";
+import { GradingPanel } from "./grading-panel";
 import { applyFilters, readFilters, type InboxFilters } from "./inbox-filters";
 
 const PARAM_KEYS: Record<keyof InboxFilters, string> = {
@@ -29,6 +32,9 @@ export function TurnInsInbox() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const gradeInputRef = useRef<HTMLInputElement | null>(null);
+  const [railCollapsed, setRailCollapsed] = usePersistedFlag("ett_review_rail_collapsed");
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [checked, setChecked] = useState<Set<string>>(() => new Set());
 
   const filters = useMemo(() => readFilters(new URLSearchParams(searchParams.toString())), [searchParams]);
   const selectedId = searchParams.get("id");
@@ -73,6 +79,20 @@ export function TurnInsInbox() {
     all: baseFiltered.length,
   };
 
+  const isLate = useCallback(
+    (sub: SubmissionItem) => {
+      const assignment = findAssignmentForSubmission(sub, c.assignments);
+      const dueTs = assignment ? c.assignmentProgress.get(assignment.id)?.dueTs ?? 0 : 0;
+      return isLateSubmission(sub, dueTs);
+    },
+    [c.assignments, c.assignmentProgress]
+  );
+
+  const focusProgress = filters.assignment !== "all" && filters.assignment !== "free" ? c.assignmentProgress.get(filters.assignment) : undefined;
+  const assignmentFocus: AssignmentFocus | undefined = focusProgress
+    ? { pending: focusProgress.pending, turnedIn: focusProgress.turnedIn, total: focusProgress.totalEligible }
+    : undefined;
+
   // The selected submission may sit outside the current filter (e.g. just graded, or deep-linked)
   const selected = selectedId ? c.submissions.find((s) => s.id === selectedId) ?? null : null;
   const index = selected ? items.findIndex((s) => s.id === selected.id) : -1;
@@ -91,6 +111,18 @@ export function TurnInsInbox() {
   useEffect(() => {
     if (selected && aiResultSubId !== selected.id && !isEvaluatingAi) loadSavedAiResult(selected);
   }, [selected, aiResultSubId, isEvaluatingAi, loadSavedAiResult]);
+
+  // Only count checked ids that are still in the list (graded or filtered-out ones drop away)
+  const visibleChecked = useMemo(() => new Set(items.filter((s) => checked.has(s.id)).map((s) => s.id)), [items, checked]);
+
+  const toggleChecked = useCallback((id: string) => {
+    setChecked((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -111,13 +143,17 @@ export function TurnInsInbox() {
       } else if (key === "a" && selected?.type === "writing" && !c.isEvaluatingAi) {
         e.preventDefault();
         c.runAiReview(selected);
+      } else if (key === "x" && selected) {
+        e.preventDefault();
+        setSelectionMode(true);
+        toggleChecked(selected.id);
       } else if (e.key === "Escape" && selected) {
         select(null);
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [nextItem, prevItem, selected, select, c]);
+  }, [nextItem, prevItem, selected, select, toggleChecked, c]);
 
   const handleSave = async (grade: number | undefined, feedback: string, advance: boolean) => {
     if (!selected) return;
@@ -134,6 +170,15 @@ export function TurnInsInbox() {
     if (deleted) select(following?.id ?? null);
   };
 
+  const handleBulkAccept = async () => {
+    const subs = items.filter((s) => visibleChecked.has(s.id));
+    const done = await c.handleBulkAccept(subs);
+    if (done > 0) {
+      setChecked(new Set());
+      setSelectionMode(false);
+    }
+  };
+
   if (c.submissions.length === 0 && !c.isLoadingSubmissions) {
     return (
       <EmptyState
@@ -144,8 +189,17 @@ export function TurnInsInbox() {
     );
   }
 
+  const selectedAssignment = selected ? findAssignmentForSubmission(selected, c.assignments) : undefined;
+  const aiResult = selected && c.aiResultSubId === selected.id ? c.writingAiResult : null;
+  const corrections = aiResult?.corrections ?? selected?.corrections;
+
   return (
-    <div className="grid gap-4 lg:h-[calc(100dvh-11rem)] lg:min-h-[32rem] lg:grid-cols-[22rem_1fr]">
+    <div
+      className={cn(
+        "grid gap-3 lg:h-[calc(100dvh-11rem)] lg:min-h-[32rem]",
+        railCollapsed ? "lg:grid-cols-[4rem_1fr]" : "lg:grid-cols-[18rem_1fr]"
+      )}
+    >
       <SubmissionQueue
         className={cn("h-[calc(100dvh-11rem)] lg:h-auto", selected && "hidden lg:flex")}
         items={items}
@@ -156,28 +210,61 @@ export function TurnInsInbox() {
         statusCounts={statusCounts}
         classes={c.availableClasses}
         assignments={c.assignments}
+        isLate={isLate}
+        assignmentFocus={assignmentFocus}
+        collapsed={railCollapsed}
+        onCollapsedChange={setRailCollapsed}
+        checked={visibleChecked}
+        selectionMode={selectionMode}
+        onSelectionModeChange={(next) => {
+          setSelectionMode(next);
+          if (!next) setChecked(new Set());
+        }}
+        onToggleChecked={toggleChecked}
+        onSetChecked={(ids) => setChecked(new Set(ids))}
+        onBulkAccept={handleBulkAccept}
         now={c.now}
       />
       {selected ? (
-        <SubmissionDetail
-          key={selected.id}
-          sub={selected}
-          assignment={findAssignmentForSubmission(selected, c.assignments)}
-          position={{ index: Math.max(index, 0), total: items.length }}
-          now={c.now}
-          aiResult={c.aiResultSubId === selected.id ? c.writingAiResult : null}
-          isEvaluatingAi={c.isEvaluatingAi && c.loadingAiSubId === selected.id}
-          onRunAi={() => c.runAiReview(selected)}
-          onSave={handleSave}
-          onDelete={handleDelete}
-          onPrev={prevItem ? () => select(prevItem.id) : undefined}
-          onNext={nextItem && nextItem.id !== selected.id ? () => select(nextItem.id) : undefined}
-          onBack={() => select(null)}
-          gradeInputRef={gradeInputRef}
-        />
+        <div className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-border bg-card">
+          <ReviewWorkHeader
+            sub={selected}
+            assignment={selectedAssignment}
+            late={isLate(selected)}
+            position={{ index: Math.max(index, 0), total: items.length }}
+            now={c.now}
+            onPrev={prevItem ? () => select(prevItem.id) : undefined}
+            onNext={nextItem && nextItem.id !== selected.id ? () => select(nextItem.id) : undefined}
+            onBack={() => select(null)}
+            onDelete={handleDelete}
+          />
+          {/* Work and grading side by side on wide screens; stacked (work first) below xl */}
+          <div className="flex min-h-0 flex-1 flex-col overflow-y-auto xl:flex-row xl:overflow-hidden">
+            <div className="p-4 sm:p-6 xl:min-h-0 xl:flex-1 xl:overflow-y-auto">
+              <ReviewWorkBody key={selected.id} sub={selected} corrections={corrections} />
+            </div>
+            <aside className="border-t border-border bg-muted/20 p-4 xl:w-80 xl:shrink-0 xl:overflow-y-auto xl:border-t-0 xl:border-r">
+              <GradingPanel
+                key={selected.id}
+                className="xl:min-h-full"
+                sub={selected}
+                aiResult={aiResult}
+                isEvaluatingAi={c.isEvaluatingAi && c.loadingAiSubId === selected.id}
+                onRunAi={() => c.runAiReview(selected)}
+                onSave={handleSave}
+                hasNext={Boolean(items.find((s) => s.id !== selected.id))}
+                quickComments={c.quickComments}
+                onAddQuickComment={c.addQuickComment}
+                onRemoveQuickComment={c.removeQuickComment}
+                gradeInputRef={gradeInputRef}
+              />
+            </aside>
+          </div>
+        </div>
       ) : (
-        <div className="hidden items-center justify-center rounded-xl border border-dashed border-border lg:flex">
-          <p className="text-sm text-muted-foreground">בחרו הגשה מהרשימה</p>
+        <div className="hidden flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border text-muted-foreground lg:flex">
+          <MousePointerClick className="size-6" />
+          <p className="text-sm">בחרו הגשה מהרשימה</p>
         </div>
       )}
     </div>

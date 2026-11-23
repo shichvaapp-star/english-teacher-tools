@@ -149,3 +149,105 @@ export function getStudentStats(student: StudentProfile, submissions: Submission
     lastActivityTs: studentSubs.reduce((max, s) => Math.max(max, parseSubmissionTimestamp(s.submittedAt)), 0),
   };
 }
+
+// ---------------------------------------------------------------------------
+// Review helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Has a computer score the teacher can accept as the grade as-is.
+ * Not writing (needs a real read) and not grammar with answers flagged for the teacher.
+ */
+export const isAutoScored = (sub: SubmissionItem): boolean =>
+  sub.type !== "writing" &&
+  typeof sub.score === "number" &&
+  !sub.grammarSummary?.entries.some((e) => e.needsReview);
+
+/** Can be accepted in bulk: still pending and has any score (AI-checked writing included). */
+export const canBulkAccept = (sub: SubmissionItem): boolean => isPending(sub) && typeof sub.score === "number";
+
+const DAY_MS = 24 * 3600 * 1000;
+
+/** Due date is end-of-day, same rule as getAssignmentProgress. */
+export function isPastDue(dueTs: number, ts: number): boolean {
+  return dueTs > 0 && ts > dueTs + DAY_MS - 1;
+}
+
+export function isLateSubmission(sub: SubmissionItem, dueTs: number): boolean {
+  return isPastDue(dueTs, parseSubmissionTimestamp(sub.submittedAt));
+}
+
+// ---------------------------------------------------------------------------
+// Class tracker (students × assignments)
+// ---------------------------------------------------------------------------
+
+export type TrackerCellStatus = "graded" | "pending" | "missing" | "missing-overdue" | "not-assigned";
+
+export interface TrackerCell {
+  status: TrackerCellStatus;
+  submission?: SubmissionItem;
+  grade?: number;
+  late?: boolean;
+}
+
+export interface TrackerColumn {
+  assignment: TeacherAssignment;
+  progress: AssignmentProgress;
+  /** Of the students shown in the grid. */
+  done: number;
+  eligible: number;
+}
+
+export interface TrackerRow {
+  student: StudentProfile;
+  cells: TrackerCell[];
+  done: number;
+  eligible: number;
+}
+
+export function buildClassTracker(
+  classStudents: StudentProfile[],
+  assignments: TeacherAssignment[],
+  progressMap: Map<string, AssignmentProgress>,
+  now: number
+): { columns: TrackerColumn[]; rows: TrackerRow[] } {
+  const ids = new Set(classStudents.map((s) => s.id));
+  const columns: TrackerColumn[] = [];
+  for (const assignment of assignments) {
+    const progress = progressMap.get(assignment.id);
+    if (!progress) continue;
+    const rosterHere = progress.roster.filter((r) => ids.has(r.student.id));
+    if (rosterHere.length === 0) continue;
+    columns.push({
+      assignment,
+      progress,
+      done: rosterHere.filter((r) => r.status !== "missing").length,
+      eligible: rosterHere.length,
+    });
+  }
+  columns.sort((a, b) => parseSubmissionTimestamp(b.assignment.createdAt) - parseSubmissionTimestamp(a.assignment.createdAt));
+
+  const rows: TrackerRow[] = [...classStudents]
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map((student) => {
+      let done = 0;
+      let eligible = 0;
+      const cells = columns.map<TrackerCell>(({ progress }) => {
+        const row = progress.roster.find((r) => r.student.id === student.id);
+        if (!row) return { status: "not-assigned" };
+        eligible++;
+        if (!row.submission) {
+          return { status: isPastDue(progress.dueTs, now) ? "missing-overdue" : "missing" };
+        }
+        done++;
+        const late = isLateSubmission(row.submission, progress.dueTs);
+        if (row.status === "reviewed") {
+          return { status: "graded", submission: row.submission, grade: getSubmissionGrade(row.submission), late };
+        }
+        return { status: "pending", submission: row.submission, grade: row.submission.score, late };
+      });
+      return { student, cells, done, eligible };
+    });
+
+  return { columns, rows };
+}

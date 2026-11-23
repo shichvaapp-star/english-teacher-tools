@@ -5,6 +5,7 @@ import {
   FileText,
   Home,
   Inbox,
+  LayoutGrid,
   MessageSquarePlus,
   Share2,
   ShieldCheck,
@@ -18,6 +19,7 @@ export type NavKey =
   | "home"
   | "turnIns"
   | "assignments"
+  | "tracker"
   | "students"
   | "banks"
   | "grammar"
@@ -38,6 +40,7 @@ export const NAV_ITEMS: NavItem[] = [
   { key: "home", href: DASHBOARD_BASE, label: "סקירה", icon: Home },
   { key: "turnIns", href: `${DASHBOARD_BASE}/turn-ins`, label: "הגשות", icon: Inbox },
   { key: "assignments", href: `${DASHBOARD_BASE}/assignments`, label: "משימות", icon: ClipboardList },
+  { key: "tracker", href: `${DASHBOARD_BASE}/tracker`, label: "מעקב כיתתי", icon: LayoutGrid },
   { key: "students", href: `${DASHBOARD_BASE}/students`, label: "תלמידים", icon: Users },
   { key: "banks", href: `${DASHBOARD_BASE}/banks`, label: "מאגרי מילים", icon: BookA },
   { key: "grammar", href: `${DASHBOARD_BASE}/grammar`, label: "מאגר דקדוק", icon: BookOpenCheck },

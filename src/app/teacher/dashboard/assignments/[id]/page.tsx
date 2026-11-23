@@ -3,7 +3,7 @@
 import React, { use, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { CalendarClock, ChevronLeft, ClipboardCopy, ClipboardList, Copy, Inbox, Trash2 } from "lucide-react";
+import { CalendarClock, CheckCheck, ChevronLeft, ClipboardCopy, ClipboardList, Copy, Inbox, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "cn";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -15,19 +15,32 @@ import { StudentAvatar } from "@/components/teacher-dashboard/shared-ui/student-
 import { StatusBadge, GradePill } from "@/components/teacher-dashboard/shared-ui/status-badge";
 import { TypeBadge } from "@/components/teacher-dashboard/shared-ui/type-badge";
 import { useDashboard } from "@/components/teacher-dashboard/teacher-dashboard-context";
-import { getSubmissionGrade, type RosterStatus } from "@/components/teacher-dashboard/dashboard-selectors";
+import {
+  canBulkAccept,
+  isAutoScored,
+  getSubmissionGrade,
+  isLateSubmission,
+  type AssignmentRosterRow,
+  type RosterStatus,
+} from "@/components/teacher-dashboard/dashboard-selectors";
+import { LateBadge } from "@/components/teacher-dashboard/shared-ui/late-badge";
+import { useConfirm } from "@/components/teacher-dashboard/shared-ui/confirm-dialog";
 import { DASHBOARD_BASE, turnInHref } from "@/components/teacher-dashboard/shell/nav-items";
 import { describeAssignmentTarget, formatDueDate } from "@/components/teacher-dashboard/assignments/assignment-meta";
 import { ProgressLegend, StackedProgress } from "@/components/teacher-dashboard/assignments/progress-bar";
 import { formatCompactTime } from "@/lib/submission-time";
 
 type Filter = "all" | RosterStatus;
+type Tab = "checklist" | "grades";
 
 export default function AssignmentDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const c = useDashboard();
   const router = useRouter();
   const [filter, setFilter] = useState<Filter>("all");
+  const [tab, setTab] = useState<Tab>("checklist");
+  const [accepting, setAccepting] = useState(false);
+  const confirm = useConfirm();
 
   const assignment = c.assignments.find((a) => a.id === decodeURIComponent(id));
   const progress = assignment ? c.assignmentProgress.get(assignment.id) : undefined;
@@ -50,11 +63,34 @@ export default function AssignmentDetailPage({ params }: { params: Promise<{ id:
   const rows = progress.roster
     .filter((r) => filter === "all" || r.status === filter)
     .sort((a, b) => {
-      const order: Record<RosterStatus, number> = { pending: 0, missing: 1, reviewed: 2 };
+      const order: Record<RosterStatus, number> = {
+        pending: 0,
+        missing: 1,
+        reviewed: 2,
+      };
       return order[a.status] - order[b.status] || a.student.name.localeCompare(b.student.name);
     });
   const missingNames = progress.roster.filter((r) => r.status === "missing").map((r) => r.student.name);
   const due = formatDueDate(progress.dueTs, c.now);
+  const byName = (a: AssignmentRosterRow, b: AssignmentRosterRow) => a.student.name.localeCompare(b.student.name);
+  const turnedInRows = progress.roster.filter((r) => r.submission).sort(byName);
+  const missingRows = progress.roster.filter((r) => !r.submission).sort(byName);
+  const acceptable = turnedInRows.flatMap((r) => (r.submission && canBulkAccept(r.submission) && isAutoScored(r.submission) ? [r.submission] : []));
+
+  const acceptAll = async () => {
+    const ok = await confirm({
+      title: `לאשר ${acceptable.length} ציונים אוטומטיים?`,
+      description: "הציון שהמערכת חישבה יישמר כציון הסופי וההגשות יסומנו כנבדקו. אפשר לשנות כל ציון בהמשך.",
+      confirmLabel: "אשר ציונים",
+    });
+    if (!ok) return;
+    setAccepting(true);
+    try {
+      await c.handleBulkAccept(acceptable);
+    } finally {
+      setAccepting(false);
+    }
+  };
 
   const copyMissing = async () => {
     try {
@@ -95,8 +131,14 @@ export default function AssignmentDetailPage({ params }: { params: Promise<{ id:
                 className={buttonVariants({ className: "gap-1.5" })}
               >
                 <Inbox className="size-4" />
-                בדיקת {progress.pending} הגשות
+                התחל בדיקה ({progress.pending})
               </Link>
+            )}
+            {acceptable.length > 0 && (
+              <Button variant="outline" onClick={acceptAll} disabled={accepting} className="gap-1.5">
+                <CheckCheck className="size-4" />
+                אשר ציונים אוטומטיים ({acceptable.length})
+              </Button>
             )}
             <Button variant="outline" onClick={() => c.openAssignModal({ template: assignment })} className="gap-1.5">
               <Copy className="size-4" />
@@ -120,15 +162,13 @@ export default function AssignmentDetailPage({ params }: { params: Promise<{ id:
       <div className="grid gap-4 lg:grid-cols-[1fr_18rem]">
         <div className="space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <SegmentedControl<Filter>
-              aria-label="סינון לפי סטטוס"
-              value={filter}
-              onChange={setFilter}
+            <SegmentedControl<Tab>
+              aria-label="תצוגה"
+              value={tab}
+              onChange={setTab}
               options={[
-                { value: "all", label: "הכל", count: progress.totalEligible },
-                { value: "pending", label: "לבדיקה", count: progress.pending },
-                { value: "missing", label: "לא הגישו", count: progress.missing },
-                { value: "reviewed", label: "נבדקו", count: progress.reviewed },
+                { value: "checklist", label: "מי הגיש" },
+                { value: "grades", label: "ציונים" },
               ]}
             />
             {missingNames.length > 0 && (
@@ -139,57 +179,146 @@ export default function AssignmentDetailPage({ params }: { params: Promise<{ id:
             )}
           </div>
 
-          <div className="overflow-hidden rounded-xl border border-border bg-card">
-            {rows.length === 0 ? (
-              <p className="p-8 text-center text-sm text-muted-foreground">
-                {progress.totalEligible === 0 ? "אין תלמידים רשומים שמשויכים למשימה זו." : "אין תלמידים בסטטוס הזה."}
+          {tab === "checklist" ? (
+            progress.totalEligible === 0 ? (
+              <p className="rounded-xl border border-border bg-card p-8 text-center text-sm text-muted-foreground">
+                אין תלמידים רשומים שמשויכים למשימה זו.
               </p>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow className="hover:bg-transparent">
-                    <TableHead className="text-right">תלמיד/ה</TableHead>
-                    <TableHead className="text-right">סטטוס</TableHead>
-                    <TableHead className="hidden text-right sm:table-cell">הוגש</TableHead>
-                    <TableHead className="text-right">ציון</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {rows.map(({ student, submission, status }) => (
-                    <TableRow
+              <div className="space-y-4">
+                <ChecklistBlock title="הגישו" count={turnedInRows.length} tone="done">
+                  {turnedInRows.map(({ student, submission, status }) =>
+                    submission ? (
+                      <Link
+                        key={student.id}
+                        href={turnInHref(submission.id)}
+                        className="flex items-center gap-2 rounded-lg border border-border bg-card px-2.5 py-2 transition-colors hover:border-foreground/20 hover:bg-muted/40"
+                      >
+                        <StudentAvatar name={student.name} className="size-7" />
+                        <span className="min-w-0 flex-1 truncate text-sm text-foreground" dir="ltr">
+                          {student.name}
+                        </span>
+                        {isLateSubmission(submission, progress.dueTs) && <LateBadge compact />}
+                        {status === "reviewed" ? (
+                          <GradePill grade={getSubmissionGrade(submission)} />
+                        ) : (
+                          <StatusBadge status="pending" label="לבדיקה" />
+                        )}
+                      </Link>
+                    ) : null,
+                  )}
+                </ChecklistBlock>
+                <ChecklistBlock title="לא הגישו" count={missingRows.length} tone={progress.isOverdue ? "overdue" : "missing"}>
+                  {missingRows.map(({ student }) => (
+                    <div
                       key={student.id}
-                      className={cn(submission && "cursor-pointer")}
-                      onClick={submission ? () => router.push(turnInHref(submission.id)) : undefined}
+                      className={cn(
+                        "flex items-center gap-2 rounded-lg border px-2.5 py-2",
+                        progress.isOverdue ? "border-destructive/30 bg-destructive/5" : "border-dashed border-border bg-card",
+                      )}
                     >
-                      <TableCell>
-                        <div className="flex items-center gap-2.5">
-                          <StudentAvatar name={student.name} className="size-7" />
-                          <div className="min-w-0">
-                            <div className="truncate text-sm font-medium text-foreground" dir="ltr">
-                              {student.name}
-                            </div>
-                            <div className="text-2xs text-muted-foreground">
-                              {student.fullClass}
-                              {student.group && ` · ${student.group}`}
-                            </div>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <StatusBadge status={status} />
-                      </TableCell>
-                      <TableCell className="hidden text-xs text-muted-foreground sm:table-cell">
-                        {submission ? formatCompactTime(submission.submittedAt, c.now) : "—"}
-                      </TableCell>
-                      <TableCell>
-                        {status === "reviewed" && submission ? <GradePill grade={getSubmissionGrade(submission)} /> : <span className="text-muted-foreground">—</span>}
-                      </TableCell>
-                    </TableRow>
+                      <StudentAvatar name={student.name} className="size-7 opacity-70" />
+                      <span className="min-w-0 flex-1 truncate text-sm text-muted-foreground" dir="ltr">
+                        {student.name}
+                      </span>
+                      <span className="text-2xs text-muted-foreground">
+                        {student.fullClass}
+                        {student.group && ` · ${student.group}`}
+                      </span>
+                    </div>
                   ))}
-                </TableBody>
-              </Table>
-            )}
-          </div>
+                </ChecklistBlock>
+              </div>
+            )
+          ) : (
+            <>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <SegmentedControl<Filter>
+                  aria-label="סינון לפי סטטוס"
+                  value={filter}
+                  onChange={setFilter}
+                  options={[
+                    {
+                      value: "all",
+                      label: "הכל",
+                      count: progress.totalEligible,
+                    },
+                    {
+                      value: "pending",
+                      label: "לבדיקה",
+                      count: progress.pending,
+                    },
+                    {
+                      value: "missing",
+                      label: "לא הגישו",
+                      count: progress.missing,
+                    },
+                    {
+                      value: "reviewed",
+                      label: "נבדקו",
+                      count: progress.reviewed,
+                    },
+                  ]}
+                />
+              </div>
+
+              <div className="overflow-hidden rounded-xl border border-border bg-card">
+                {rows.length === 0 ? (
+                  <p className="p-8 text-center text-sm text-muted-foreground">
+                    {progress.totalEligible === 0 ? "אין תלמידים רשומים שמשויכים למשימה זו." : "אין תלמידים בסטטוס הזה."}
+                  </p>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="hover:bg-transparent">
+                        <TableHead className="text-right">תלמיד/ה</TableHead>
+                        <TableHead className="text-right">סטטוס</TableHead>
+                        <TableHead className="hidden text-right sm:table-cell">הוגש</TableHead>
+                        <TableHead className="text-right">ציון</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {rows.map(({ student, submission, status }) => (
+                        <TableRow
+                          key={student.id}
+                          className={cn(submission && "cursor-pointer")}
+                          onClick={submission ? () => router.push(turnInHref(submission.id)) : undefined}
+                        >
+                          <TableCell>
+                            <div className="flex items-center gap-2.5">
+                              <StudentAvatar name={student.name} className="size-7" />
+                              <div className="min-w-0">
+                                <div className="truncate text-sm font-medium text-foreground" dir="ltr">
+                                  {student.name}
+                                </div>
+                                <div className="text-2xs text-muted-foreground">
+                                  {student.fullClass}
+                                  {student.group && ` · ${student.group}`}
+                                </div>
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <StatusBadge status={status} />
+                          </TableCell>
+                          <TableCell className="hidden text-xs text-muted-foreground sm:table-cell">
+                            {submission ? formatCompactTime(submission.submittedAt, c.now) : "—"}
+                          </TableCell>
+                          <TableCell>
+                            {status === "reviewed" && submission ? (
+                              <GradePill grade={getSubmissionGrade(submission)} />
+                            ) : (
+                              <span className="text-muted-foreground">—</span>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </div>
+            </>
+          )}
         </div>
 
         <aside className="space-y-4">
@@ -233,5 +362,34 @@ export default function AssignmentDetailPage({ params }: { params: Promise<{ id:
         </aside>
       </div>
     </div>
+  );
+}
+
+function ChecklistBlock({
+  title,
+  count,
+  tone,
+  children,
+}: {
+  title: string;
+  count: number;
+  tone: "done" | "missing" | "overdue";
+  children: React.ReactNode;
+}) {
+  if (count === 0) return null;
+  return (
+    <section className="space-y-2 rounded-xl border border-border bg-card p-3">
+      <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+        <span
+          className={cn(
+            "size-2 rounded-full",
+            tone === "done" ? "bg-success" : tone === "overdue" ? "bg-destructive" : "bg-muted-foreground/50",
+          )}
+        />
+        {title}
+        <span className="text-xs font-normal tabular-nums text-muted-foreground">{count}</span>
+      </h3>
+      <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2 xl:grid-cols-3">{children}</div>
+    </section>
   );
 }
