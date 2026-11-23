@@ -7,6 +7,7 @@ import {
   VocabGrade,
   VocabStandardLevel,
   GRADE_LABELS,
+  VOCAB_GRADES,
   STANDARD_LEVEL_LABELS,
   COMMON_CUSTOM_LEVEL_PRESETS,
 } from "@/types/vocab-bank";
@@ -236,7 +237,7 @@ export function VocabBankModal({
             </div>
             <div>
               <DialogTitle className="text-lg font-bold">
-                {bankToEdit ? "עריכת מאגר מילים מותאם אישית" : "יצירת מאגר מילים חדש וייבוא מקובץ"}
+                {bankToEdit?.id ? "עריכת מאגר מילים מותאם אישית" : "יצירת מאגר מילים חדש וייבוא מקובץ"}
               </DialogTitle>
               <DialogDescription className="text-xs text-muted-foreground mt-0.5">
                 העלו קבצי Word, Excel או CSV, מיין לפי שכבת גיל ורמה/הקבצה, והקצה בקלות לתלמידים.
@@ -299,11 +300,15 @@ export function VocabBankModal({
                   onChange={(e) => setGrade(e.target.value as VocabGrade)}
                   className="w-full h-8.5 px-2.5 rounded-lg border border-border bg-background text-xs font-medium text-foreground cursor-pointer"
                 >
-                  {Object.entries(GRADE_LABELS).map(([val, label]) => (
+                  {VOCAB_GRADES.map((val) => (
                     <option key={val} value={val}>
-                      {label}
+                      {GRADE_LABELS[val]}
                     </option>
                   ))}
+                  {/* Older banks saved with grade י–יב keep showing their grade. */}
+                  {!(VOCAB_GRADES as readonly string[]).includes(grade) && (
+                    <option value={grade}>{GRADE_LABELS[grade] || grade}</option>
+                  )}
                 </select>
               </div>
 
@@ -646,7 +651,7 @@ book: ספר`}
             className="text-xs font-bold cursor-pointer bg-primary text-primary-foreground gap-1.5"
           >
             <CheckCircle2 className="h-4 w-4" />
-            <span>{bankToEdit ? "עדכן מאגר מילים" : `שמור מאגר (${words.length} מילים)`}</span>
+            <span>{bankToEdit?.id ? "עדכן מאגר מילים" : `שמור מאגר (${words.length} מילים)`}</span>
           </Button>
         </div>
       </DialogContent>

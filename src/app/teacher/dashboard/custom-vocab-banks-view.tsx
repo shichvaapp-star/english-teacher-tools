@@ -5,14 +5,15 @@ import {
   TeacherVocabBank,
   GRADE_LABELS,
   STANDARD_LEVEL_LABELS,
+  VOCAB_GRADES,
 } from "@/types/vocab-bank";
+import { VocabBankWordsDialog } from "./vocab-bank-words-dialog";
 import { exportBankToCSV } from "@/lib/vocab-bank-storage";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { FilterSelect } from "@/components/teacher-dashboard/shared-ui/filter-select";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import {
   BookA,
   Plus,
@@ -120,12 +121,7 @@ export function CustomVocabBanksView({
           onChange={setGradeFilter}
           options={[
             { value: "all", label: "כל השכבות" },
-            { value: "ז", label: "כיתה ז׳" },
-            { value: "ח", label: "כיתה ח׳" },
-            { value: "ט", label: "כיתה ט׳" },
-            { value: "י", label: "כיתה י׳" },
-            { value: "יא", label: "כיתה י״א" },
-            { value: "יב", label: "כיתה י״ב" },
+            ...VOCAB_GRADES.map((g) => ({ value: g, label: GRADE_LABELS[g] })),
           ]}
         />
         <FilterSelect
@@ -327,66 +323,11 @@ export function CustomVocabBanksView({
         })}
       </div>
 
-      {/* View All Words Dialog */}
-      {viewingBank && (
-        <Dialog open={!!viewingBank} onOpenChange={() => setViewingBank(null)}>
-          <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto" dir="rtl">
-            <DialogHeader className="text-right">
-              <div className="flex items-center justify-between">
-                <div>
-                  <DialogTitle className="text-base font-bold text-foreground">
-                    {viewingBank.name}
-                  </DialogTitle>
-                  <DialogDescription className="text-xs text-muted-foreground mt-0.5">
-                    {GRADE_LABELS[viewingBank.grade] || viewingBank.grade} •{" "}
-                    {viewingBank.levelType === "custom"
-                      ? viewingBank.customLevelName
-                      : STANDARD_LEVEL_LABELS[viewingBank.standardLevel || ""]} •{" "}
-                    {viewingBank.words.length} מילים
-                  </DialogDescription>
-                </div>
-                <Button
-                  size="sm"
-                  onClick={() => {
-                    const b = viewingBank;
-                    setViewingBank(null);
-                    onAssignFromBank(b);
-                  }}
-                  className="text-xs font-bold gap-1 cursor-pointer bg-success hover:bg-success text-white"
-                >
-                  <Send className="h-3 w-3" />
-                  <span>הקצה משימה ממאגר זה</span>
-                </Button>
-              </div>
-            </DialogHeader>
-
-            <div className="rounded-xl border border-border overflow-hidden bg-card mt-3">
-              <table className="w-full text-xs text-right border-collapse">
-                <thead>
-                  <tr className="border-b border-border bg-muted/40 text-muted-foreground font-semibold">
-                    <th className="p-2.5 w-1/4">באנגלית</th>
-                    <th className="p-2.5 w-1/4">בעברית</th>
-                    <th className="p-2.5 w-1/6">חלק דיבר</th>
-                    <th className="p-2.5 w-1/3">משפט לדוגמה</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border/60">
-                  {viewingBank.words.map((w) => (
-                    <tr key={w.id} className="hover:bg-muted/20">
-                      <td className="p-2.5 font-bold text-foreground capitalize">{w.english}</td>
-                      <td className="p-2.5 font-bold text-primary">{w.hebrew}</td>
-                      <td className="p-2.5 text-muted-foreground text-2xs">{w.partOfSpeech || "noun"}</td>
-                      <td className="p-2.5 text-muted-foreground italic text-2xs font-sans" dir="ltr">
-                        {w.example ? `"${w.example}"` : "—"}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
+      <VocabBankWordsDialog
+        bank={viewingBank}
+        onClose={() => setViewingBank(null)}
+        onAssign={onAssignFromBank}
+      />
     </div>
   );
 }

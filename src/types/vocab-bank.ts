@@ -28,6 +28,10 @@ export interface TeacherVocabBank {
   sharedAt?: string;
 }
 
+/** Grades the site teaches (middle school) – the only ones offered in pickers. */
+export const VOCAB_GRADES = ["ז", "ח", "ט"] as const;
+
+/** Labels for every stored grade value (older banks may still say י–יב). */
 export const GRADE_LABELS: Record<string, string> = {
   all: "כללי / כל השכבות",
   ז: "כיתה ז׳",

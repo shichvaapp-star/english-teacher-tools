@@ -4,7 +4,7 @@ import React from "react";
 import { gradeUnits } from "@/data/vocab/cards";
 import { curriculumWords } from "@/lib/vocab-storage";
 import { GRADE_LABELS as CLASS_GRADE_LABELS } from "@/lib/levels";
-import { GRADE_LABELS, STANDARD_LEVEL_LABELS } from "@/types/vocab-bank";
+import { GRADE_LABELS, STANDARD_LEVEL_LABELS, VOCAB_GRADES } from "@/types/vocab-bank";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -106,12 +106,11 @@ export function VocabWordBuilder({ f, showSource = true }: { f: AssignTaskForm; 
                     className="h-6 px-1.5 rounded border border-border bg-background text-3xs cursor-pointer font-medium"
                   >
                     <option value="all">כל השכבות</option>
-                    <option value="ז">כיתה ז׳</option>
-                    <option value="ח">כיתה ח׳</option>
-                    <option value="ט">כיתה ט׳</option>
-                    <option value="י">כיתה י׳</option>
-                    <option value="יא">כיתה י״א</option>
-                    <option value="יב">כיתה י״ב</option>
+                    {VOCAB_GRADES.map((g) => (
+                      <option key={g} value={g}>
+                        {GRADE_LABELS[g]}
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>
