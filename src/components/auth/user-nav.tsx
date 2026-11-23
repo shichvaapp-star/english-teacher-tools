@@ -16,6 +16,9 @@ export function UserNav() {
   const [teacherModalOpen, setTeacherModalOpen] = useState(false);
   const [studentModalOpen, setStudentModalOpen] = useState(false);
   const [suggestModalOpen, setSuggestModalOpen] = useState(false);
+  // Open the menu toward the side of the screen with room: when the trigger
+  // sits in the left half (e.g. RTL dashboard header), anchor the menu's left edge.
+  const [alignLeft, setAlignLeft] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   // Close dropdown on click outside or escape key
@@ -82,7 +85,11 @@ export function UserNav() {
       <HeaderTooltip align="end" label={`${user.name} • ${isTeacher ? "לוח מורה" : "פרופיל תלמיד/ה"}`}>
         <button
           type="button"
-          onClick={() => setDropdownOpen((prev) => !prev)}
+          onClick={(e) => {
+            const rect = e.currentTarget.getBoundingClientRect();
+            setAlignLeft(rect.left + rect.width / 2 < window.innerWidth / 2);
+            setDropdownOpen((prev) => !prev);
+          }}
           aria-expanded={dropdownOpen}
           aria-haspopup="true"
           className="flex items-center justify-center h-9 w-9 rounded-lg border border-border bg-card hover:bg-accent/50 text-foreground transition shadow-xs cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/20 shrink-0"
@@ -97,7 +104,7 @@ export function UserNav() {
       </HeaderTooltip>
 
       {dropdownOpen && (
-        <div className="absolute right-0 mt-2 w-64 origin-top-right rounded-xl bg-card border border-border/80 shadow-xl p-2 z-50 animate-in fade-in-0 zoom-in-95">
+        <div className={`absolute ${alignLeft ? "left-0 origin-top-left" : "right-0 origin-top-right"} mt-2 w-64 max-w-[calc(100vw-1rem)] rounded-xl bg-card border border-border/80 shadow-xl p-2 z-50 animate-in fade-in-0 zoom-in-95`}>
           <div className="px-3 py-2 border-b border-border/50">
             <div className="flex items-center justify-between gap-1">
               <p className="text-sm font-semibold text-foreground truncate">{user.name}</p>
