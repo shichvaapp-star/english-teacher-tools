@@ -10,6 +10,7 @@ import { useConfirm } from "@/components/teacher-dashboard/shared-ui/confirm-dia
 import { PrintBooklet } from "@/components/print/print-sheet-parts";
 import { deleteItem, replaceItem, reshuffleSection } from "@/lib/worksheet/build";
 import { newWorksheetId, saveWorksheet } from "@/lib/worksheet-storage";
+import { refreshSharedCopy } from "@/lib/worksheet-sharing";
 import type { Worksheet } from "@/lib/worksheet/types";
 import { WorksheetAllVersions, WorksheetSheet, type SheetEditHandlers, type SheetVersion } from "@/components/worksheet/worksheet-document";
 import { SendToPrintDialog } from "@/components/worksheet/send-to-print-dialog";
@@ -50,6 +51,8 @@ function Preview({ w, teacherId }: { w: WorksheetWizard; teacherId: string }) {
     const sheet: Worksheet = { id, teacherId, title: layout.title || "English Worksheet", createdAt, updatedAt: now, ...content };
     w.dispatch({ type: "saved", id, createdAt });
     const { cloud } = await saveWorksheet(sheet);
+    // If this sheet is in the teachers' library, colleagues get the edited version too.
+    void refreshSharedCopy(sheet);
     setSaving(false);
     if (!quiet) {
       if (cloud) toast.success("הדף נשמר ב\"דפי העבודה שלי\"");
