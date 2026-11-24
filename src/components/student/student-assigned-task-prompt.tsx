@@ -10,6 +10,7 @@ import { SubmissionItem } from "@/types/submission";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cleanClass, sameClass } from "@/lib/class-names";
+import { isFreeChoiceAssignment, submissionMatchesAssignment } from "@/components/teacher-dashboard/dashboard-selectors";
 import {
   Bell,
   PenTool,
@@ -134,19 +135,20 @@ export function StudentAssignedTaskPrompt() {
 
         if (!isTargeted) return false;
 
-        // Check if student has ALREADY submitted this assignment
-        const isFreeChoice = assign.isFreeChoice || assign.isAdaptiveDavid || assign.taskId === "free_choice" || assign.taskId === "adaptive_david";
+        // Already turned in? Same rule as the teacher dashboard: a submission tied to an
+        // assignment counts only for that assignment (several assignments can share a taskId).
         const alreadySubmitted = studentSubmissions.some((sub) => {
           if (sub.studentId !== stUser.id && sub.studentName.toLowerCase() !== stUser.name.toLowerCase()) {
             return false;
           }
-          if (sub.assignmentId && sub.assignmentId === assign.id) return true;
-          if (!isFreeChoice && assign.taskId && sub.taskId === assign.taskId) return true;
-          return false;
+          return submissionMatchesAssignment(sub, assign);
         });
 
         return !alreadySubmitted;
       });
+
+      // Newest first, so a fresh task is never hidden behind an old one.
+      eligible.sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
 
       if (isMounted) {
         setPendingAssignments(eligible);
@@ -165,47 +167,77 @@ export function StudentAssignedTaskPrompt() {
     return null;
   }
 
-  // Focus on first pending assignment
-  const assignment = pendingAssignments[0];
-  const levelParam =
-    (assignment.level ? `&level=${encodeURIComponent(assignment.level)}` : "") +
-    (assignment.grade ? `&grade=${assignment.grade}` : "");
-  const isFreeChoice = assignment.isFreeChoice || assignment.isAdaptiveDavid || assignment.taskId === "free_choice" || assignment.taskId === "adaptive_david";
-  const targetUrl =
-    assignment.type === "grammar"
-      ? `/grammar?assignmentId=${assignment.id}`
-      : assignment.type === "vocab"
-      ? `/vocabulary?assignmentId=${assignment.id}`
-      : assignment.type === "writing"
-      ? (isFreeChoice
-          ? `/writing?assignmentId=${assignment.id}${levelParam}`
-          : `/writing?task=${assignment.taskId || ""}&assignmentId=${assignment.id}${levelParam}`)
-      : assignment.type === "conversation"
-      ? (isFreeChoice
-          ? `/conversation?assignmentId=${assignment.id}${levelParam}`
-          : `/conversation?scenarioId=${assignment.taskId || ""}&assignmentId=${assignment.id}${levelParam}`)
-      : (isFreeChoice
-          ? `/unseen?assignmentId=${assignment.id}${levelParam}`
-          : `/unseen?passageId=${assignment.taskId || ""}&assignmentId=${assignment.id}${levelParam}`);
+  const count = pendingAssignments.length;
 
   return (
     <div
-      className="p-4 sm:p-5 rounded-2xl border-2 border-purple-500/30 bg-purple-500/10 text-foreground shadow-md animate-in slide-in-from-top duration-300"
+      className="p-4 sm:p-5 rounded-2xl border-2 border-purple-500/30 bg-purple-500/10 text-foreground shadow-md animate-in slide-in-from-top duration-300 space-y-3"
       dir="rtl"
     >
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        {/* Left / Content */}
-        <div className="flex items-start gap-3 min-w-0">
-          <div className="p-2.5 rounded-xl bg-purple-500/20 text-purple-700 dark:text-purple-300 shrink-0 mt-0.5 animate-bounce">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="p-2.5 rounded-xl bg-purple-500/20 text-purple-700 dark:text-purple-300 shrink-0 animate-bounce">
             <Bell className="h-5 w-5" />
           </div>
+          <span className="text-xs font-black text-purple-700 dark:text-purple-300">
+            {count === 1
+              ? `🔔 משימה חדשה להגשה מהמורה ${pendingAssignments[0].teacherName || "לאנגלית"}!`
+              : `🔔 יש לך ${count} משימות פתוחות להגשה!`}
+          </span>
+        </div>
+        <button
+          type="button"
+          onClick={() => setIsDismissed(true)}
+          className="text-xs text-muted-foreground hover:text-foreground px-2 py-1 cursor-pointer transition-colors shrink-0"
+        >
+          הזכר לי אחר כך
+        </button>
+      </div>
 
+      <ul className="space-y-2">
+        {pendingAssignments.map((assignment) => (
+          <AssignedTaskRow key={assignment.id} assignment={assignment} />
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function assignmentUrl(assignment: TeacherAssignment): string {
+  const levelParam =
+    (assignment.level ? `&level=${encodeURIComponent(assignment.level)}` : "") +
+    (assignment.grade ? `&grade=${assignment.grade}` : "");
+  const isFreeChoice = isFreeChoiceAssignment(assignment);
+  switch (assignment.type) {
+    case "grammar":
+      return `/grammar?assignmentId=${assignment.id}`;
+    case "vocab":
+      return `/vocabulary?assignmentId=${assignment.id}`;
+    case "writing":
+      return isFreeChoice
+        ? `/writing?assignmentId=${assignment.id}${levelParam}`
+        : `/writing?task=${assignment.taskId || ""}&assignmentId=${assignment.id}${levelParam}`;
+    case "conversation":
+      return isFreeChoice
+        ? `/conversation?assignmentId=${assignment.id}${levelParam}`
+        : `/conversation?scenarioId=${assignment.taskId || ""}&assignmentId=${assignment.id}${levelParam}`;
+    default:
+      return isFreeChoice
+        ? `/unseen?assignmentId=${assignment.id}${levelParam}`
+        : `/unseen?passageId=${assignment.taskId || ""}&assignmentId=${assignment.id}${levelParam}`;
+  }
+}
+
+function AssignedTaskRow({ assignment }: { assignment: TeacherAssignment }) {
+  const isFreeChoice = isFreeChoiceAssignment(assignment);
+  const targetUrl = assignmentUrl(assignment);
+
+  return (
+    <li className="p-3 rounded-xl bg-background/60 border border-border/50">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+        <div className="flex items-start gap-3 min-w-0">
           <div className="space-y-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-xs font-black text-purple-700 dark:text-purple-300">
-                🔔 משימה חדשה להגשה מהמורה {assignment.teacherName || "לאנגלית"}!
-              </span>
-
               <Badge variant="secondary" className="text-3xs gap-1 font-semibold">
                 {assignment.type === "grammar" ? (
                   <>
@@ -295,16 +327,7 @@ export function StudentAssignedTaskPrompt() {
           </div>
         </div>
 
-        {/* Right / CTA Actions */}
-        <div className="flex flex-wrap items-center gap-2 shrink-0 self-end md:self-center">
-          <button
-            type="button"
-            onClick={() => setIsDismissed(true)}
-            className="text-xs text-muted-foreground hover:text-foreground px-2 py-1 cursor-pointer transition-colors"
-          >
-            הזכר לי אחר כך
-          </button>
-
+        <div className="flex items-center shrink-0 self-end md:self-center">
           <Link href={targetUrl}>
             <Button
               size="sm"
@@ -316,6 +339,6 @@ export function StudentAssignedTaskPrompt() {
           </Link>
         </div>
       </div>
-    </div>
+    </li>
   );
 }
