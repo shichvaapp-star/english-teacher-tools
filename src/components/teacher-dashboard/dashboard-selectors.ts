@@ -203,14 +203,21 @@ export interface TrackerRow {
   cells: TrackerCell[];
   done: number;
   eligible: number;
+  /** Turn-ins the student chose to send on their own (not part of any assignment), newest first. */
+  selfSubmitted: SubmissionItem[];
 }
 
 export function buildClassTracker(
   classStudents: StudentProfile[],
   assignments: TeacherAssignment[],
   progressMap: Map<string, AssignmentProgress>,
+  submissions: SubmissionItem[],
   now: number
 ): { columns: TrackerColumn[]; rows: TrackerRow[] } {
+  const selfSubmittedAll = submissions
+    .filter((sub) => !findAssignmentForSubmission(sub, assignments))
+    .sort((a, b) => parseSubmissionTimestamp(b.submittedAt) - parseSubmissionTimestamp(a.submittedAt));
+
   const ids = new Set(classStudents.map((s) => s.id));
   const columns: TrackerColumn[] = [];
   for (const assignment of assignments) {
@@ -246,7 +253,8 @@ export function buildClassTracker(
         }
         return { status: "pending", submission: row.submission, grade: row.submission.score, late };
       });
-      return { student, cells, done, eligible };
+      const selfSubmitted = selfSubmittedAll.filter((sub) => submissionBelongsToStudent(sub, student));
+      return { student, cells, done, eligible, selfSubmitted };
     });
 
   return { columns, rows };

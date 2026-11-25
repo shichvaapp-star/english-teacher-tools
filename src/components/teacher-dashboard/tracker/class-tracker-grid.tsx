@@ -3,19 +3,21 @@
 import React, { useMemo } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Check, Clock, Download, LayoutGrid, X } from "lucide-react";
+import { Check, Clock, Download, LayoutGrid, Sparkles, X } from "lucide-react";
 import { cn } from "cn";
 import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { sameClass } from "@/lib/class-names";
-import { formatShortDate } from "@/lib/submission-time";
+import { formatShortDate, parseSubmissionTimestamp } from "@/lib/submission-time";
+import type { SubmissionItem } from "@/types/submission";
 import { useDashboard } from "../teacher-dashboard-context";
-import { buildClassTracker, type TrackerCell, type TrackerColumn, type TrackerRow } from "../dashboard-selectors";
+import { buildClassTracker, getSubmissionGrade, isReviewed, type TrackerCell, type TrackerColumn, type TrackerRow } from "../dashboard-selectors";
 import { FilterSelect, type FilterOption } from "../shared-ui/filter-select";
 import { SegmentedControl } from "../shared-ui/segmented-control";
 import { EmptyState } from "../shared-ui/empty-state";
 import { TypeIcon } from "../shared-ui/type-badge";
-import { gradeTone } from "../shared-ui/status-badge";
+import { GradePill, gradeTone } from "../shared-ui/status-badge";
 import { assignmentHref, turnInHref } from "../shell/nav-items";
 
 const GROUP_OPTIONS: FilterOption[] = [
@@ -58,8 +60,8 @@ export function ClassTrackerGrid() {
     [c.students, cls, group]
   );
   const tracker = useMemo(
-    () => buildClassTracker(classStudents, c.assignments, c.assignmentProgress, c.now),
-    [classStudents, c.assignments, c.assignmentProgress, c.now]
+    () => buildClassTracker(classStudents, c.assignments, c.assignmentProgress, c.submissions, c.now),
+    [classStudents, c.assignments, c.assignmentProgress, c.submissions, c.now]
   );
   const visibleCount = range === "all" ? tracker.columns.length : Math.min(RECENT_COUNT, tracker.columns.length);
   const columns = tracker.columns.slice(0, visibleCount);
@@ -68,6 +70,8 @@ export function ClassTrackerGrid() {
     const assigned = cells.filter((cell) => cell.status !== "not-assigned");
     return { ...r, cells, done: assigned.filter((cell) => cell.submission).length, eligible: assigned.length };
   });
+
+  const hasSelfSubmitted = rows.some((r) => r.selfSubmitted.length > 0);
 
   const classOptions: FilterOption[] = classes.map((value) => ({ value, label: `כיתה ${value}` }));
 
@@ -97,7 +101,7 @@ export function ClassTrackerGrid() {
           variant="outline"
           size="sm"
           className="gap-1.5"
-          disabled={columns.length === 0}
+          disabled={columns.length === 0 && !hasSelfSubmitted}
           onClick={() => downloadCsv(`${cls}${group !== "all" ? `-${group}` : ""}`, columns, rows)}
         >
           <Download />
@@ -105,7 +109,7 @@ export function ClassTrackerGrid() {
         </Button>
       </div>
 
-      {columns.length === 0 ? (
+      {columns.length === 0 && !hasSelfSubmitted ? (
         <EmptyState icon={LayoutGrid} title="אין משימות לכיתה הזו" description="משימות שתקצו לכיתה, להקבצה או לתלמידים ממנה יופיעו כאן." />
       ) : rows.length === 0 ? (
         <EmptyState icon={LayoutGrid} title="אין תלמידים בסינון הזה" description="נסו הקבצה אחרת." />
@@ -118,6 +122,15 @@ export function ClassTrackerGrid() {
                   תלמיד/ה
                 </th>
                 <th className="border-b border-l border-border bg-card px-2 py-2 text-center text-xs font-medium text-muted-foreground">הגיש/ה</th>
+                <th
+                  className="w-20 border-b border-l border-border bg-card px-2 py-2 text-center text-xs font-medium text-muted-foreground"
+                  title="הגשות שהתלמידים שלחו מיוזמתם, בלי שקיבלו אותן כמשימה"
+                >
+                  <span className="flex flex-col items-center gap-1">
+                    <Sparkles className="size-4 text-primary" />
+                    ביוזמה אישית
+                  </span>
+                </th>
                 {columns.map((col) => (
                   <ColumnHeader key={col.assignment.id} col={col} now={c.now} />
                 ))}
@@ -138,6 +151,9 @@ export function ClassTrackerGrid() {
                     <span className={cn(row.eligible > 0 && row.done === row.eligible && "font-semibold text-success")}>
                       {row.done}/{row.eligible}
                     </span>
+                  </td>
+                  <td className="border-b border-l border-border p-1 text-center group-hover:bg-muted/50">
+                    <SelfSubmittedCell name={row.student.name} subs={row.selfSubmitted} />
                   </td>
                   {row.cells.map((cell, i) => (
                     <td key={columns[i].assignment.id} className="border-b border-l border-border p-1 text-center group-hover:bg-muted/50">
@@ -219,6 +235,57 @@ function Cell({ cell }: { cell: TrackerCell }) {
   );
 }
 
+function SelfSubmittedCell({ name, subs }: { name: string; subs: SubmissionItem[] }) {
+  if (subs.length === 0) {
+    return <span className="text-muted-foreground/30">·</span>;
+  }
+  const pending = subs.filter((s) => !isReviewed(s)).length;
+  return (
+    <Popover>
+      <PopoverTrigger
+        render={
+          <button
+            type="button"
+            className="relative mx-auto flex h-8 min-w-10 items-center justify-center gap-1 rounded-md bg-primary/10 px-2 text-xs font-semibold tabular-nums text-primary transition-opacity hover:opacity-80"
+            aria-label={`${subs.length} הגשות ביוזמה אישית`}
+          />
+        }
+      >
+        {subs.length}
+        {pending > 0 && <Clock className="size-3 text-muted-foreground" />}
+      </PopoverTrigger>
+      <PopoverContent align="center" className="w-72 gap-1 p-2">
+        <div className="px-1 pb-1 text-xs font-medium text-muted-foreground">
+          הגשות ביוזמה אישית · <span dir="ltr">{name}</span>
+        </div>
+        <ul className="max-h-72 space-y-0.5 overflow-y-auto">
+          {subs.map((sub) => {
+            const reviewed = isReviewed(sub);
+            return (
+              <li key={sub.id}>
+                <Link
+                  href={turnInHref(sub.id)}
+                  className="flex items-center gap-2 rounded-md p-1.5 text-right transition-colors hover:bg-muted"
+                >
+                  <TypeIcon type={sub.type} className="size-6" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-xs font-medium text-foreground">{sub.hebrewTitle || sub.taskTitle}</span>
+                    <span className="block text-3xs text-muted-foreground">
+                      {formatShortDate(parseSubmissionTimestamp(sub.submittedAt))}
+                      {!reviewed && " · ממתין לבדיקה"}
+                    </span>
+                  </span>
+                  {reviewed && <GradePill grade={getSubmissionGrade(sub)} />}
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 function Legend() {
   return (
     <div className="hidden items-center gap-3 text-2xs text-muted-foreground md:flex">
@@ -233,6 +300,10 @@ function Legend() {
       <span className="flex items-center gap-1">
         <X className="size-3.5 text-destructive" />
         חסר
+      </span>
+      <span className="flex items-center gap-1">
+        <Sparkles className="size-3 text-primary" />
+        ביוזמה אישית
       </span>
       <span className="flex items-center gap-1">
         <span className="size-2 rounded-full bg-destructive" />
@@ -261,10 +332,10 @@ function cellText(cell: TrackerCell): string {
 }
 
 function downloadCsv(name: string, columns: TrackerColumn[], rows: TrackerRow[]) {
-  const header = ["תלמיד/ה", "הגיש/ה", ...columns.map((c) => c.assignment.hebrewTitle)];
+  const header = ["תלמיד/ה", "הגיש/ה", "ביוזמה אישית", ...columns.map((c) => c.assignment.hebrewTitle)];
   const lines = [
     header,
-    ...rows.map((r) => [r.student.name, `${r.done}/${r.eligible}`, ...r.cells.map(cellText)]),
+    ...rows.map((r) => [r.student.name, `${r.done}/${r.eligible}`, String(r.selfSubmitted.length), ...r.cells.map(cellText)]),
   ].map((cols) => cols.map((v) => csvEscape(v)).join(","));
   // BOM so Excel opens Hebrew correctly
   const blob = new Blob(["﻿" + lines.join("\r\n")], { type: "text/csv;charset=utf-8" });
