@@ -6,6 +6,7 @@ import { englishFeedbackPrompt, feedbackLanguageFromBody, type FeedbackLanguage 
 const inLang = (lang: FeedbackLanguage, he: string, en: string) => (lang === "en" ? en : he);
 import { NextResponse } from "next/server";
 import { errorMessage, extractJsonObject } from "@/lib/llm-json";
+import { analyzeConnectors, formatConnectorList, mentionsConnectors } from "@/lib/connectors";
 
 export interface RubricCategoryScore {
   score: number; // 0 to max
@@ -312,6 +313,40 @@ export async function POST(request: Request) {
     const geminiApiKey = request.headers.get("x-gemini-api-key") || process.env.GEMINI_API_KEY;
     const openaiApiKey = request.headers.get("x-openai-api-key") || process.env.OPENAI_API_KEY;
 
+    // Connectors (linking words) are a key thing we check. Count them in code so the
+    // AI gets a reliable starting point and the score guardrails can use them.
+    const connectors = analyzeConnectors(essayText);
+    const connectorList = formatConnectorList(connectors);
+    const connectorExpectation =
+      currentLevel === "Level 1"
+        ? `Beginners: "and", "but", "because", "also", "then" are a welcome BONUS. Praise any connector the student used. If none were used, give ONE gentle tip with an example sentence using "and" or "because". Do NOT lower the score for missing connectors at this level.`
+        : currentLevel === "Level 3"
+          ? `Strong students are expected to use VARIED connectors from at least 3 functions (sequence, adding, contrast, cause/effect, example), including some beyond the basics (e.g. However, In addition, Therefore, On the other hand, As a result, For example, In conclusion). Relying only on "and / but / because / then" keeps Content and Organization at 28–32 at most. No connectors at all keeps it at 27 or below.`
+          : `Middle-school students are expected to use at least 3–4 connectors from at least 2 functions (e.g. First, Then, Also, In addition, But, However, Because, So, For example, Finally). A text with good connectors can reach 33–35 in Content and Organization. Only 1–2 connectors, or the same one over and over, keeps it at 28–32. No connectors at all keeps it at 27 or below.`;
+
+    // Whether the text meets the level's connector expectation (Level 1: always, it's a bonus there).
+    const connectorsMeetExpectation =
+      currentLevel === "Level 1" ||
+      (currentLevel === "Level 3"
+        ? connectors.total >= 4 && connectors.functionsCovered >= 3
+        : connectors.total >= 3 && connectors.functionsCovered >= 2);
+    const hasNoConnectors = currentLevel !== "Level 1" && connectors.total === 0;
+    const connectorTip = (current: string[]): string[] => {
+      if (connectorsMeetExpectation || current.some(mentionsConnectors)) return current;
+      return [
+        ...current,
+        connectors.total === 0
+          ? t(
+              "חסרות מילות קישור בחיבור. חברו בין הרעיונות בעזרת מילים כמו: First, Also, Because, But, Finally.",
+              "Your text has no linking words. Connect your ideas with words like First, Also, Because, But, Finally."
+            )
+          : t(
+              `השתמשת במילות קישור (${connectorList}) – כל הכבוד! נסו לגוון ולהוסיף עוד, למשל: In addition, However, For example, In conclusion.`,
+              `You used linking words (${connectorList}) – well done! Try to add more different ones, like In addition, However, For example, In conclusion.`
+            ),
+      ];
+    };
+
     // Calibrated pedagogical system prompt by student level
     let levelPedagogyGuidance = "";
     if (currentLevel === "Level 1") {
@@ -369,6 +404,11 @@ STUDENT ESSAY TO EVALUATE:
 ${essayText}
 """
 
+CONNECTOR PRE-SCAN (done by code, not including "and"; verify it against the text):
+- Connectors found: ${connectors.total > 0 ? connectorList : "NONE"}
+- Total uses: ${connectors.total}; functions covered: ${connectors.functionsCovered} of 5 (sequence, adding, contrast, cause/effect, example)
+- Uses of plain "and": ${connectors.andCount}
+
 CORE ISRAELI PEDAGOGICAL EVALUATION PRINCIPLES:
 1. PEDAGOGICAL VOICE ("משוב סנדוויץ'"):
    - Speak in the voice of a devoted, supportive Israeli English teacher.
@@ -395,17 +435,25 @@ CORE ISRAELI PEDAGOGICAL EVALUATION PRINCIPLES:
    - In "corrections", specify the category: "capitalization", "grammar", "vocabulary", "spelling", "punctuation", or "hebrew_interference".
    - Provide a concise Hebrew explanation that teaches the rule, not just the correction.
 
-4. VOCABULARY BAND ELEVATION (שדרוג אוצר מילים):
+4. CONNECTORS / LINKING WORDS (מילות קישור) - A KEY CRITERION THE TEACHER CHECKS IN EVERY TEXT:
+   - Check how the student links ideas: which connectors they used, whether they are varied, and whether each one is used correctly and in the right place (e.g. "Because" starting a sentence with no main clause, "However" without a comma, "but" used where there is no contrast).
+   - Level expectation: ${connectorExpectation}
+   - Score connectors inside "contentAndOrganization" (organization and flow). Its "commentHebrew" MUST say how well the student used connectors and name the ones they used.
+   - If the student used connectors well, add a strength that names them (e.g. "שימוש יפה במילות קישור: First, Also, Because").
+   - If connectors are missing, too few, repetitive, or misused, add a tip that suggests 2–3 SPECIFIC connectors that fit THIS text, and show where (quote a short part of the student's sentence and how it would look with the connector).
+   - A connector used incorrectly goes in "corrections" with "category": "grammar" and a short explanation of what the connector means and how to use it.
+
+5. VOCABULARY BAND ELEVATION (שדרוג אוצר מילים):
    - Identify 2-3 words the student used and suggest enriched, higher-register Band synonyms suitable for their level (e.g. "good" -> "wonderful / enjoyable", "food" -> "delicious meals / dishes", "big" -> "huge / vast").
    - Provide clear Hebrew explanations for each upgrade in "vocabularyUpgrades".
 
-5. OFFICIAL MOE 4-PILLAR RUBRIC SCORING & CALIBRATED SCORE BANDS (Sum to 100):
+6. OFFICIAL MOE 4-PILLAR RUBRIC SCORING & CALIBRATED SCORE BANDS (Sum to 100):
    Evaluate strictly using these pedagogical score bands. DO NOT judge against adult native English; judge against Israeli EFL grade-level expectations!
 
    A. Content and Organization (תוכן ומבנה - max 35):
-      - 33–35 (Very Good / Excellent - מעולה): Task is fully addressed; all parts of the prompt are answered; ideas are clear, relevant, and well organized; text is within or close to target word count (${targetMin}–${targetMax} words).
-      - 28–32 (Good / Proficient - טוב מאוד): Task is mostly addressed; main ideas are clear; minor organizational gaps or slight length shortfall.
-      - 20–27 (Adequate - בינוני): Task is only partially addressed; ideas are limited or repetitive; lacks organizational structure.
+      - 33–35 (Very Good / Excellent - מעולה): Task is fully addressed; all parts of the prompt are answered; ideas are clear, relevant, and well organized and linked with varied, correct connectors; text is within or close to target word count (${targetMin}–${targetMax} words).
+      - 28–32 (Good / Proficient - טוב מאוד): Task is mostly addressed; main ideas are clear; few or repetitive connectors, minor organizational gaps, or slight length shortfall.
+      - 20–27 (Adequate - בינוני): Task is only partially addressed; ideas are limited or repetitive; lacks organizational structure; ideas are listed with no connectors.
       - 10–19 (Limited - טעון שיפור): Barely addresses the prompt; off-topic; severe length shortfall.
       - 0–9 (Inadequate - לא מספק): Irrelevant or empty text.
 
@@ -430,7 +478,7 @@ CORE ISRAELI PEDAGOGICAL EVALUATION PRINCIPLES:
       - 4–6 (Limited - טעון שיפור): Pervasive spelling and punctuation errors making reading difficult.
       - 0–3 (Inadequate - לא מספק): Complete absence of mechanics.
 
-6. SPAM / GIBBERISH / CHEATING FILTER:
+7. SPAM / GIBBERISH / CHEATING FILTER:
    - If the text is pure spam, repeated words ("because because because"), or random characters, set "isSpamOrGibberish": true, assign total score 10-20, and explain gently in Hebrew.
 
 Return ONLY a valid, raw JSON object matching this exact schema (NO MARKDOWN CODE FENCES, NO TICKS):
@@ -655,7 +703,8 @@ Return ONLY a valid, raw JSON object matching this exact schema (NO MARKDOWN COD
               } else {
                 const isHighAchiever =
                   (currentLevel === "Level 3" ? richWordsCount >= 8 : richWordsCount >= 6 && numWords >= targetMin * 1.3) &&
-                  correctionCount <= 1;
+                  correctionCount <= 1 &&
+                  connectorsMeetExpectation;
 
                 if (isHighAchiever) {
                   // Profile A: High Achiever (94-98)
@@ -669,7 +718,7 @@ Return ONLY a valid, raw JSON object matching this exact schema (NO MARKDOWN COD
                   }
                 } else if (correctionCount <= 3 && numWords >= targetMin * 0.8) {
                   // Profile B: Solid Student / Good Effort (84-90)
-                  if (r.contentAndOrganization) {
+                  if (r.contentAndOrganization && !hasNoConnectors) {
                     r.contentAndOrganization.score = Math.max(r.contentAndOrganization.score, 30);
                   }
                   if (r.vocabulary) r.vocabulary.score = Math.max(r.vocabulary.score, 21);
@@ -680,6 +729,21 @@ Return ONLY a valid, raw JSON object matching this exact schema (NO MARKDOWN COD
                 }
               }
             }
+
+            // Connectors are a key criterion: no linking words at all caps organization
+            // at the "Adequate" band, and the student always gets a tip about them.
+            const co = parsed.rubric?.contentAndOrganization;
+            if (co && !parsed.isSpamOrGibberish) {
+              if (hasNoConnectors) co.score = Math.min(co.score, 27);
+              if (currentLevel !== "Level 1" && !mentionsConnectors(co.commentHebrew || "")) {
+                co.commentHebrew =
+                  (co.commentHebrew || "") +
+                  (connectors.total === 0
+                    ? t(" (לא נמצאו מילות קישור בין הרעיונות.)", " (No linking words between the ideas.)")
+                    : t(` (מילות קישור: ${connectorList}.)`, ` (Linking words: ${connectorList}.)`));
+              }
+            }
+            if (!parsed.isSpamOrGibberish) parsed.tips = connectorTip(parsed.tips || []);
 
             // Ensure rubric sum matches total score if needed
             const r = parsed.rubric;
@@ -728,7 +792,8 @@ Return ONLY a valid, raw JSON object matching this exact schema (NO MARKDOWN COD
     } else {
       const isHighAchiever =
         (currentLevel === "Level 3" ? richWordsCount >= 8 : richWordsCount >= 6 && wordCount >= targetMin * 1.3) &&
-        correctionCount <= 1;
+        correctionCount <= 1 &&
+        connectorsMeetExpectation;
 
       if (isHighAchiever) {
         // Profile A: Rich development, Band II/III vocabulary, near flawless (95-98)
@@ -738,7 +803,7 @@ Return ONLY a valid, raw JSON object matching this exact schema (NO MARKDOWN COD
         mechanicsScore = correctionCount === 0 ? 15 : 14;
       } else {
         // Profile B: Solid student meeting prompt, everyday words (Band I), basic structures (84-90)
-        contentScore = wordCount >= targetMin ? 31 : 28;
+        contentScore = hasNoConnectors ? 27 : wordCount >= targetMin ? 31 : 28;
         vocabScore = 21;
         grammarScore = 21;
         mechanicsScore = correctionCount <= 1 ? 13 : 11;
@@ -774,19 +839,22 @@ Return ONLY a valid, raw JSON object matching this exact schema (NO MARKDOWN COD
         vocabDiversity > 0.55
           ? t("שימוש באוצר מילים מגוון ומתאים לרמת הכיתה ללא חזרות מיותרות.", "Varied vocabulary that fits your level, without needless repetition.")
           : t("העברת רעיון ברור בשפה מובנת ורציפה.", "A clear idea in language that is easy to follow."),
+        ...(connectors.total > 0
+          ? [t(`שימוש במילות קישור לחיבור בין הרעיונות: ${connectorList}.`, `You used linking words to connect your ideas: ${connectorList}.`)]
+          : []),
       ],
-      tips: [
+      tips: connectorTip([
         t("הקפידו לפתוח כל משפט באות גדולה (Capital letter) ולסיים בנקודה.", "Start every sentence with a capital letter and end it with a full stop."),
-        t(
-          "שלבו מילות קישור כגון: Also, Because, In addition, For example כדי לחבר בין הרעיונות.",
-          "Use linking words like Also, Because, In addition, For example to connect your ideas."
-        ),
-      ],
+      ]),
       rubric: {
         contentAndOrganization: {
           score: contentScore,
           max: 35,
-          commentHebrew: t(`התאמה למטלה ומבנה: ${contentScore}/35`, `Task and organization: ${contentScore}/35`),
+          commentHebrew:
+            t(`התאמה למטלה ומבנה: ${contentScore}/35`, `Task and organization: ${contentScore}/35`) +
+            (connectors.total === 0
+              ? t(" (לא נמצאו מילות קישור.)", " (No linking words found.)")
+              : t(` (מילות קישור: ${connectorList}.)`, ` (Linking words: ${connectorList}.)`)),
         },
         vocabulary: {
           score: vocabScore,
