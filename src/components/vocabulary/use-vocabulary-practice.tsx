@@ -28,7 +28,7 @@ import { TeacherAssignment } from "@/types/assignment";
 import { SubmissionItem } from "@/types/submission";
 import { saveDraft, deleteDraft, getDraftById } from "@/lib/drafts-storage";
 import type { InProgressWorkItem, VocabDraftPayload } from "@/types/draft";
-import { deterministicShuffle } from "@/components/vocabulary/vocabulary-helpers";
+import { deterministicShuffle, randomShuffleSeed } from "@/components/vocabulary/vocabulary-helpers";
 import { useClassGrade } from "@/components/shared/use-class-grade";
 import { gradeUnits } from "@/data/vocab/cards";
 import { parseClassGrade, type ClassGrade } from "@/lib/levels";
@@ -230,6 +230,8 @@ export function useVocabularyPractice() {
   const [matchedPairs, setMatchedPairs] = useState<Set<string>>(new Set());
   const [matchError, setMatchError] = useState(false);
   const [matchRound, setMatchRound] = useState(1);
+  // Random word order for flashcards / match / quiz – new every session, saved with the draft.
+  const [shuffleSeed, setShuffleSeed] = useState(randomShuffleSeed);
 
   // Quiz state
   const [quizIndex, setQuizIndex] = useState(0);
@@ -269,6 +271,7 @@ export function useVocabularyPractice() {
           setActiveCategory(payload.category);
         }
         if (payload.unit) setUnitRaw(payload.unit);
+        if (payload.shuffleSeed !== undefined) setShuffleSeed(payload.shuffleSeed);
         if (payload.cardIndex !== undefined) setCardIndex(payload.cardIndex);
         if (payload.masteredIds && Array.isArray(payload.masteredIds)) {
           setMasteredIds(new Set(payload.masteredIds));
@@ -292,6 +295,7 @@ export function useVocabularyPractice() {
     setQuizIndex(0);
     setQuizScore(0);
     setCompletedModes(new Set());
+    setShuffleSeed(randomShuffleSeed());
     setActiveDraftPrompt(null);
   };
 
@@ -338,6 +342,7 @@ export function useVocabularyPractice() {
           unit: activeGrade ? unit : undefined,
           studyMode,
           cardIndex,
+          shuffleSeed,
           masteredIds: Array.from(masteredIds),
           quizIndex,
           quizScore,
@@ -349,7 +354,7 @@ export function useVocabularyPractice() {
     }, 1200);
 
     return () => clearTimeout(timer);
-  }, [cardIndex, masteredIds, quizIndex, quizScore, studyMode, activeCategory, activeAssignment?.id, activeGrade, unit, activePool.length, completedModes, user?.id, user?.name]);
+  }, [cardIndex, masteredIds, quizIndex, quizScore, studyMode, activeCategory, activeAssignment?.id, activeGrade, unit, activePool.length, completedModes, shuffleSeed, user?.id, user?.name]);
 
   // Save and exit back to student portal
   // Draft id of the exercise on screen (used by the "discard draft" button).
@@ -385,6 +390,7 @@ export function useVocabularyPractice() {
           unit: activeGrade ? unit : undefined,
           studyMode,
           cardIndex,
+          shuffleSeed,
           masteredIds: Array.from(masteredIds),
           quizIndex,
           quizScore,
@@ -648,7 +654,14 @@ export function useVocabularyPractice() {
     handleNextCard();
   };
 
-  const currentCard = filteredWords[cardIndex % (filteredWords.length || 1)] || null;
+  // Practice modes (flashcards / quiz) walk the words in a random order, not the
+  // word-bank sort (which is A–Z by default). The word bank keeps its sort.
+  const practiceWords = useMemo(
+    () => deterministicShuffle(filteredWords, shuffleSeed),
+    [filteredWords, shuffleSeed]
+  );
+
+  const currentCard = practiceWords[cardIndex % (practiceWords.length || 1)] || null;
 
   // Real-time check if English word appears in the example sentence
   const isWordInSentence = useMemo(() => {
@@ -793,25 +806,31 @@ export function useVocabularyPractice() {
 
   // Flashcard controls
   const handleNextCard = () => {
-    if (filteredWords.length === 0) return;
+    if (practiceWords.length === 0) return;
     setIsFlipped(false);
-    setCardIndex((prev) => (prev + 1) % filteredWords.length);
+    setCardIndex((prev) => (prev + 1) % practiceWords.length);
   };
 
   const handlePrevCard = () => {
-    if (filteredWords.length === 0) return;
+    if (practiceWords.length === 0) return;
     setIsFlipped(false);
-    setCardIndex((prev) => (prev - 1 + filteredWords.length) % filteredWords.length);
+    setCardIndex((prev) => (prev - 1 + practiceWords.length) % practiceWords.length);
   };
 
   // Speed Match Pool
+  // Six random words per round; "another round" draws a new six.
   const matchPool = useMemo(() => {
-    return filteredWords.slice(0, 6);
-  }, [filteredWords]);
+    return deterministicShuffle(filteredWords, shuffleSeed + matchRound * 7919).slice(0, 6);
+  }, [filteredWords, shuffleSeed, matchRound]);
 
+  // Hebrew column in its own order – never lined up with the English column.
   const shuffledHebrew = useMemo(() => {
-    return deterministicShuffle(matchPool, matchRound * 13);
-  }, [matchPool, matchRound]);
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const out = deterministicShuffle(matchPool, shuffleSeed + matchRound * 104729 + attempt);
+      if (matchPool.length < 2 || out.some((w, i) => w.id !== matchPool[i].id)) return out;
+    }
+    return [...matchPool.slice(1), matchPool[0]];
+  }, [matchPool, shuffleSeed, matchRound]);
 
   const handleMatchClickEng = (id: string) => {
     if (matchedPairs.has(id)) return;
@@ -844,16 +863,16 @@ export function useVocabularyPractice() {
   };
 
   // Quiz Pool & Options
-  const currentQuizWord = filteredWords[quizIndex % (filteredWords.length || 1)] || null;
+  const currentQuizWord = practiceWords[quizIndex % (practiceWords.length || 1)] || null;
 
   const quizOptions = useMemo(() => {
     if (!currentQuizWord) return [];
     const pool = activePool.length >= 4 ? activePool : curriculumWords(7, 1);
     const others = pool.filter((w) => w.id !== currentQuizWord.id);
-    const shuffledOthers = deterministicShuffle(others, (quizIndex + 1) * 7).slice(0, 3);
+    const shuffledOthers = deterministicShuffle(others, shuffleSeed + (quizIndex + 1) * 7).slice(0, 3);
     const combined = [...shuffledOthers, currentQuizWord];
-    return deterministicShuffle(combined, (quizIndex + 1) * 11);
-  }, [activePool, currentQuizWord, quizIndex]);
+    return deterministicShuffle(combined, shuffleSeed + (quizIndex + 1) * 11);
+  }, [activePool, currentQuizWord, quizIndex, shuffleSeed]);
 
   const handleQuizAnswer = (hebrewChoice: string) => {
     if (!currentQuizWord) return;

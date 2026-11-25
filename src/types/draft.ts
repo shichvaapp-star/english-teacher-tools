@@ -46,6 +46,8 @@ export interface VocabDraftPayload {
   unit?: number;
   studyMode: VocabStudyMode;
   cardIndex?: number;
+  /** Seed of the random word order, so a resumed draft shows the same order. */
+  shuffleSeed?: number;
   masteredIds?: string[];
   quizIndex?: number;
   quizScore?: number;
