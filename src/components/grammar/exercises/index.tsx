@@ -18,7 +18,7 @@ export const EXERCISE_TYPE_LABEL: Record<GrammarExerciseType, { he: string; en: 
   mcq: { he: "בחירה", en: "Choose", descHe: "משפט עם מקום ריק – בוחרים את התשובה הנכונה מתוך כמה אפשרויות." },
   gap_bank: { he: "בנק מילים", en: "Word bank", descHe: "משלימים את המשפט במילה מתוך בנק מילים." },
   gap_type: { he: "הקלדת הצורה", en: "Type the form", descHe: "מקלידים את הפועל שבסוגריים בצורה הנכונה." },
-  unscramble: { he: "בניית משפט", en: "Build the sentence", descHe: "לוחצים על המילים לפי הסדר הנכון כדי לבנות משפט." },
+  unscramble: { he: "בניית משפט", en: "Build the sentence", descHe: "לוחצים על המילים לפי הסדר הנכון כדי לבנות משפט. אפשר לשנות סדר בלי למחוק הכול. סימן הפיסוק בסוף מראה אם זו שאלה." },
   find_fix: { he: "מצאו ותקנו", en: "Find & fix", descHe: "יש במשפט מילה אחת שגויה – לוחצים עליה וכותבים את התיקון." },
   transform: { he: "שינוי משפט", en: "Transform", descHe: "כותבים את המשפט מחדש לפי ההוראה – למשל שלילה או שאלה." },
   sort: { he: "מיון", en: "Sort", descHe: "משייכים כל מילה או משפט לקבוצה הנכונה." },

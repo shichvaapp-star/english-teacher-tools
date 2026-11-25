@@ -60,7 +60,12 @@ export function renderBody(item: GrammarItem, salt = "") {
       return (
         <>
           <p>{seededShuffle(item.words, seed).join("  /  ")}</p>
-          <Line />
+          <div className="flex items-end gap-1">
+            <div className="flex-1">
+              <Line />
+            </div>
+            <span className="font-bold">{item.ending}</span>
+          </div>
         </>
       );
     case "find_fix":

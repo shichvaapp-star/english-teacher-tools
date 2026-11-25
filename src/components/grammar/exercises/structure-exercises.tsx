@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import type {
   ClozeTextItem,
@@ -17,7 +17,13 @@ import {
   type ExerciseProps,
 } from "@/components/grammar/exercises/shared";
 
-/** "Build the sentence": tap words in order; tap a placed word to send it back. */
+/**
+ * "Build the sentence": tap words in order. Placed words can be reordered
+ * without clearing the line – tap one to pick it up, then tap another placed
+ * word to move it there (or the empty end of the line to move it last). Tap a
+ * picked-up word again to send it back. On desktop, placed words can also be
+ * dragged into place.
+ */
 export function UnscrambleExercise({ item, response, onChange, grade }: ExerciseProps<UnscrambleItem>) {
   // Use indexes so repeated words stay distinct.
   const pool = useMemo(
@@ -32,15 +38,57 @@ export function UnscrambleExercise({ item, response, onChange, grade }: Exercise
     if (hit) usedIdx.push(hit.i);
   }
   const checked = grade !== null;
+  const complete = order.length === item.words.length;
+
+  // Index of the placed word that is "picked up" (tap-to-move).
+  const [picked, setPicked] = useState<number | null>(null);
+  const dragFrom = useRef<number | null>(null);
+  const activePick = picked !== null && picked < order.length && !checked ? picked : null;
+
+  const set = (next: string[]) => onChange({ type: "unscramble", order: next });
+
+  /** Move the word at `from` so it sits at `to` (to === order.length → last). */
+  const move = (from: number, to: number) => {
+    if (from === to) return;
+    const next = [...order];
+    const [w] = next.splice(from, 1);
+    next.splice(from < to ? to - 1 : to, 0, w);
+    set(next);
+  };
+
+  const tapPlaced = (k: number) => {
+    if (activePick === null) {
+      setPicked(k);
+    } else if (activePick === k) {
+      // Second tap on the same word → back to the pool.
+      set(order.filter((_, j) => j !== k));
+      setPicked(null);
+    } else {
+      move(activePick, activePick < k ? k + 1 : k);
+      setPicked(null);
+    }
+  };
 
   return (
-    <div className="space-y-6" dir="ltr">
+    <div className="space-y-3" dir="ltr">
       <div
+        onClick={() => {
+          if (activePick === null) return;
+          move(activePick, order.length);
+          setPicked(null);
+        }}
+        onDragOver={(e) => e.preventDefault()}
+        onDrop={(e) => {
+          e.preventDefault();
+          if (dragFrom.current !== null) move(dragFrom.current, order.length);
+          dragFrom.current = null;
+        }}
         className={cn(
           "min-h-14 flex flex-wrap items-center gap-2 rounded-xl border-2 border-dashed px-3 py-2",
           checked && grade?.isCorrect && "border-success bg-success/5",
           checked && !grade?.isCorrect && "border-destructive bg-destructive/5",
-          !checked && "border-border"
+          !checked && "border-border",
+          activePick !== null && "cursor-pointer"
         )}
       >
         {order.map((w, k) => (
@@ -48,17 +96,50 @@ export function UnscrambleExercise({ item, response, onChange, grade }: Exercise
             key={`${w}-${k}`}
             type="button"
             disabled={checked}
-            onClick={() => onChange({ type: "unscramble", order: order.filter((_, j) => j !== k) })}
-            className={cn(chipBase, "bg-card", markClass("idle"))}
+            draggable={!checked}
+            onDragStart={(e) => {
+              dragFrom.current = k;
+              setPicked(null);
+              e.dataTransfer.effectAllowed = "move";
+            }}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              const from = dragFrom.current;
+              dragFrom.current = null;
+              if (from === null) return;
+              // Dropping on a word to its right lands after it, to its left – before it.
+              move(from, from < k ? k + 1 : k);
+            }}
+            onClick={(e) => {
+              e.stopPropagation();
+              tapPlaced(k);
+            }}
+            className={cn(chipBase, "bg-card", markClass(activePick === k ? "selected" : "idle"))}
           >
             {w}
           </button>
         ))}
-        {order.length === item.words.length && (
-          <span className="text-lg font-semibold">{item.ending}</span>
-        )}
+        {/* Always show the end mark so students know if it's a question. */}
+        <span
+          className={cn(
+            "ml-auto text-2xl font-bold leading-none",
+            complete ? "text-foreground" : "text-muted-foreground/60"
+          )}
+          aria-label={item.ending === "?" ? "question" : undefined}
+        >
+          {item.ending}
+        </span>
       </div>
-      <div className="flex flex-wrap gap-2">
+      {!checked && order.length > 1 && (
+        <p className="font-hebrew text-right text-sm text-muted-foreground" dir="rtl">
+          {activePick === null
+            ? "רוצים לשנות סדר? לחצו על מילה במשפט ואז על המקום החדש שלה."
+            : "עכשיו לחצו על מילה אחרת כדי להעביר לשם, או שוב על אותה מילה כדי להחזיר אותה."}
+        </p>
+      )}
+      <div className="flex flex-wrap gap-2 pt-3">
         {pool.map((p) => {
           const used = usedIdx.includes(p.i);
           return (
@@ -66,7 +147,10 @@ export function UnscrambleExercise({ item, response, onChange, grade }: Exercise
               key={p.i}
               type="button"
               disabled={checked || used}
-              onClick={() => onChange({ type: "unscramble", order: [...order, p.w] })}
+              onClick={() => {
+                setPicked(null);
+                set([...order, p.w]);
+              }}
               className={cn(chipBase, used ? "invisible" : markClass("idle"))}
             >
               {p.w}
