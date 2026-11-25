@@ -28,6 +28,7 @@ import { SiteSuggestion } from "@/types/suggestion";
 import { TeacherVocabBank } from "@/types/vocab-bank";
 import { ALL_WRITING_TASKS, LEGACY_WRITING_TASKS } from "@/data/writing-tasks";
 import type { WritingEvaluationResult } from "@/app/api/evaluate-writing/route";
+import type { FeedbackLanguage } from "@/lib/feedback-language";
 import {
   loadTeacherVocabBanks,
   saveTeacherVocabBank,
@@ -785,8 +786,15 @@ export function useTeacherDashboard() {
     }
   };
 
-  /** `gender` overrides the student profile (used for turn-ins with no student record). */
-  const runAiReview = async (sub: SubmissionItem, gender: StudentGender | undefined = getStudentGender(sub.studentId)) => {
+  /**
+   * `gender` overrides the student profile (used for turn-ins with no student record);
+   * `language` picks Hebrew (default) or English feedback.
+   */
+  const runAiReview = async (
+    sub: SubmissionItem,
+    options: { gender?: StudentGender; language?: FeedbackLanguage } = { gender: getStudentGender(sub.studentId) }
+  ) => {
+    const { gender, language = "he" } = options;
     setLoadingAiSubId(sub.id);
     setAiResultSubId(sub.id);
 
@@ -821,6 +829,7 @@ export function useTeacherDashboard() {
             minWords: matchedTask?.minWords || 15,
             maxWords: matchedTask?.maxWords || 120,
             gender,
+            language,
           }),
         });
 

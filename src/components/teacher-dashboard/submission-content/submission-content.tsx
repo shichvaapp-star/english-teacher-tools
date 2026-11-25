@@ -424,7 +424,7 @@ function WritingContent({ sub, corrections }: { sub: SubmissionItem; corrections
                         <div dir="ltr" className="font-medium">
                           → {s.correction.suggestion}
                         </div>
-                        {s.correction.explanationHebrew && <div dir="rtl">{s.correction.explanationHebrew}</div>}
+                        {s.correction.explanationHebrew && <div dir="auto">{s.correction.explanationHebrew}</div>}
                       </div>
                     </TooltipContent>
                   </Tooltip>
@@ -506,7 +506,7 @@ export function AiEvaluationPanel({
                     <div className="h-1 overflow-hidden rounded-full bg-muted">
                       <div className="h-full rounded-full bg-admin" style={{ width: `${Math.min(100, (r.score / row.max) * 100)}%` }} />
                     </div>
-                    {r.commentHebrew && <p className="text-2xs text-muted-foreground">{r.commentHebrew}</p>}
+                    {r.commentHebrew && <p dir="auto" className="text-2xs text-muted-foreground">{r.commentHebrew}</p>}
                   </div>
                 );
               })}
@@ -520,7 +520,7 @@ export function AiEvaluationPanel({
               </div>
               <ul className="list-inside list-disc space-y-0.5 text-foreground/90">
                 {result.strengths.map((s, i) => (
-                  <li key={i}>{s}</li>
+                  <li key={i} dir="auto">{s}</li>
                 ))}
               </ul>
             </div>
@@ -533,7 +533,7 @@ export function AiEvaluationPanel({
               </div>
               <ul className="list-inside list-disc space-y-0.5 text-foreground/90">
                 {result.tips.map((t, i) => (
-                  <li key={i}>{t}</li>
+                  <li key={i} dir="auto">{t}</li>
                 ))}
               </ul>
             </div>

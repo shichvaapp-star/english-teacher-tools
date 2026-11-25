@@ -739,7 +739,7 @@ export default function StudentPortalPage() {
                         <MessageSquare className="h-3.5 w-3.5 text-emerald-600" />
                         <span>משוב והערות המורה:</span>
                       </div>
-                      <p className="leading-relaxed pr-5">{sub.teacherFeedback}</p>
+                      <p dir="auto" className="leading-relaxed pr-5">{sub.teacherFeedback}</p>
                     </div>
                   )}
                 </div>
@@ -817,7 +817,7 @@ export default function StudentPortalPage() {
                 <span className="font-bold text-emerald-800 dark:text-emerald-200 block">
                   💬 משוב אישי מהמורה:
                 </span>
-                <p className="leading-relaxed text-foreground">{selectedItem.teacherFeedback}</p>
+                <p dir="auto" className="leading-relaxed text-foreground">{selectedItem.teacherFeedback}</p>
               </div>
             )}
 

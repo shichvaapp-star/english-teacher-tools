@@ -10,7 +10,8 @@ import type { SubmissionItem } from "@/types/submission";
 import type { WritingEvaluationResult } from "@/app/api/evaluate-writing/route";
 import { AiEvaluationPanel } from "../submission-content/submission-content";
 import { gradeTone } from "../shared-ui/status-badge";
-import { GenderToggle, type GenderChoice } from "../shared-ui/gender-toggle";
+import { FeedbackLanguageToggle, GenderToggle, type GenderChoice } from "../shared-ui/gender-toggle";
+import type { FeedbackLanguage } from "@/lib/feedback-language";
 import { BUILT_IN_QUICK_COMMENTS } from "./quick-comments";
 
 const QUICK_GRADES = [100, 90, 80, 70, 60];
@@ -29,6 +30,9 @@ export interface GradingPanelProps {
   onChangeGender: (gender: GenderChoice) => void;
   /** False for turn-ins with no student record: the choice then applies to this check only. */
   genderSaves: boolean;
+  /** Language of the AI feedback (kept per browser). */
+  language: FeedbackLanguage;
+  onChangeLanguage: (language: FeedbackLanguage) => void;
   /** grade undefined = mark as checked without a grade. */
   onSave: (grade: number | undefined, feedback: string, advance: boolean) => Promise<void>;
   hasNext: boolean;
@@ -47,6 +51,8 @@ export function GradingPanel({
   gender,
   onChangeGender,
   genderSaves,
+  language,
+  onChangeLanguage,
   onSave,
   hasNext,
   quickComments,
@@ -61,16 +67,21 @@ export function GradingPanel({
   const [feedback, setFeedback] = useState(sub.teacherFeedback || sub.teacherNote || "");
   const [saving, setSaving] = useState<"save" | "next" | "accept" | "seen" | null>(null);
   const [showAllComments, setShowAllComments] = useState(false);
-  // The AI note was written for a different form of address
-  const [genderChangedSinceAi, setGenderChangedSinceAi] = useState(false);
+  // The AI note was written for a different language or form of address
+  const [settingsChangedSinceAi, setSettingsChangedSinceAi] = useState(false);
 
   const changeGender = (next: GenderChoice) => {
     if (next === gender) return;
     onChangeGender(next);
-    if (aiResult) setGenderChangedSinceAi(true);
+    if (aiResult) setSettingsChangedSinceAi(true);
+  };
+  const changeLanguage = (next: FeedbackLanguage) => {
+    if (next === language) return;
+    onChangeLanguage(next);
+    if (aiResult) setSettingsChangedSinceAi(true);
   };
   const runAi = () => {
-    setGenderChangedSinceAi(false);
+    setSettingsChangedSinceAi(false);
     onRunAi();
   };
 
@@ -162,11 +173,18 @@ export function GradingPanel({
       {sub.type === "writing" && (
         <div className="space-y-2">
           <div className="space-y-1">
-            <span className="text-2xs text-muted-foreground">
-              פנייה במשוב ה-AI{genderSaves ? "" : " (לבדיקה זו בלבד)"}
-            </span>
-            <GenderToggle value={gender} onChange={changeGender} disabled={isEvaluatingAi} />
+            <span className="text-2xs text-muted-foreground">שפת משוב ה-AI</span>
+            <FeedbackLanguageToggle value={language} onChange={changeLanguage} disabled={isEvaluatingAi} />
           </div>
+          {/* English addresses the student as "you", so gender only matters in Hebrew */}
+          {language === "he" && (
+            <div className="space-y-1">
+              <span className="text-2xs text-muted-foreground">
+                פנייה במשוב ה-AI{genderSaves ? "" : " (לבדיקה זו בלבד)"}
+              </span>
+              <GenderToggle value={gender} onChange={changeGender} disabled={isEvaluatingAi} />
+            </div>
+          )}
           {!aiResult && !isEvaluatingAi && (
             <Button type="button" size="sm" variant="outline" onClick={runAi} className="w-full gap-1.5">
               <Sparkles className="text-admin" />
@@ -183,13 +201,13 @@ export function GradingPanel({
               gradeInputRef.current?.focus();
             }}
           />
-          {aiResult && !isEvaluatingAi && genderChangedSinceAi && (
+          {aiResult && !isEvaluatingAi && settingsChangedSinceAi && (
             <Button type="button" size="sm" variant="secondary" onClick={runAi} className="w-full gap-1.5">
               <Sparkles className="text-admin" />
-              הפנייה שונתה — הרץ בדיקת AI מחדש
+              ההגדרות שונו — הרץ בדיקת AI מחדש
             </Button>
           )}
-          {aiResult && !isEvaluatingAi && !genderChangedSinceAi && (
+          {aiResult && !isEvaluatingAi && !settingsChangedSinceAi && (
             <Button type="button" variant="link" size="xs" onClick={runAi} className="px-0 text-2xs">
               הרץ בדיקת AI מחדש
             </Button>
@@ -244,6 +262,7 @@ export function GradingPanel({
           id="review-feedback"
           value={feedback}
           onChange={(e) => setFeedback(e.target.value)}
+          dir="auto"
           placeholder="כתבו משוב אישי או בחרו תגובה מהירה…"
           rows={3}
           className="resize-y text-sm"

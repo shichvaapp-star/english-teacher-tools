@@ -14,6 +14,7 @@ import { SubmissionQueue, type AssignmentFocus } from "./submission-queue";
 import { ReviewWorkBody, ReviewWorkHeader } from "./review-work-pane";
 import { GradingPanel } from "./grading-panel";
 import type { GenderChoice } from "../shared-ui/gender-toggle";
+import type { FeedbackLanguage } from "@/lib/feedback-language";
 import { applyFilters, readFilters, type InboxFilters } from "./inbox-filters";
 
 const PARAM_KEYS: Record<keyof InboxFilters, string> = {
@@ -105,6 +106,9 @@ export function TurnInsInbox() {
   const [turnInGender, setTurnInGender] = useState<Record<string, StudentGender | undefined>>({});
   const selectedStudent = selected ? c.students.find((s) => s.id === selected.studentId) : undefined;
   const selectedGender = selected ? (selectedStudent ? selectedStudent.gender : turnInGender[selected.id]) : undefined;
+  // AI feedback language: a per-browser preference (Hebrew unless the teacher picked English)
+  const [englishFeedback, setEnglishFeedback] = usePersistedFlag("ett_ai_feedback_english");
+  const feedbackLanguage: FeedbackLanguage = englishFeedback ? "en" : "he";
   const changeGender = (choice: GenderChoice) => {
     if (!selected) return;
     const gender = choice === "none" ? undefined : choice;
@@ -155,7 +159,7 @@ export function TurnInsInbox() {
         gradeInputRef.current?.select();
       } else if (key === "a" && selected?.type === "writing" && !c.isEvaluatingAi) {
         e.preventDefault();
-        c.runAiReview(selected, selectedGender);
+        c.runAiReview(selected, { gender: selectedGender, language: feedbackLanguage });
       } else if (key === "x" && selected) {
         e.preventDefault();
         setSelectionMode(true);
@@ -166,7 +170,7 @@ export function TurnInsInbox() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [nextItem, prevItem, selected, selectedGender, select, toggleChecked, c]);
+  }, [nextItem, prevItem, selected, selectedGender, feedbackLanguage, select, toggleChecked, c]);
 
   const handleSave = async (grade: number | undefined, feedback: string, advance: boolean) => {
     if (!selected) return;
@@ -263,10 +267,12 @@ export function TurnInsInbox() {
                 sub={selected}
                 aiResult={aiResult}
                 isEvaluatingAi={c.isEvaluatingAi && c.loadingAiSubId === selected.id}
-                onRunAi={() => c.runAiReview(selected, selectedGender)}
+                onRunAi={() => c.runAiReview(selected, { gender: selectedGender, language: feedbackLanguage })}
                 gender={selectedGender ?? "none"}
                 onChangeGender={changeGender}
                 genderSaves={Boolean(selectedStudent)}
+                language={feedbackLanguage}
+                onChangeLanguage={(lang) => setEnglishFeedback(lang === "en")}
                 onSave={handleSave}
                 hasNext={Boolean(items.find((s) => s.id !== selected.id))}
                 quickComments={c.quickComments}

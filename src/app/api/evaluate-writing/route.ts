@@ -1,5 +1,9 @@
 import { gradeExpectationsPrompt, gradeFromBody } from "@/lib/grade-prompt";
 import { genderFromBody, hebrewAddressPrompt } from "@/lib/gender-prompt";
+import { englishFeedbackPrompt, feedbackLanguageFromBody, type FeedbackLanguage } from "@/lib/feedback-language";
+
+/** Picks the Hebrew or English version of a fixed feedback string. */
+const inLang = (lang: FeedbackLanguage, he: string, en: string) => (lang === "en" ? en : he);
 import { NextResponse } from "next/server";
 import { errorMessage, extractJsonObject } from "@/lib/llm-json";
 
@@ -45,9 +49,11 @@ export interface WritingEvaluationResult {
 function ensureCapitalizationChecks(
   essayText: string,
   existingCorrections: WritingCorrection[] = [],
-  _level: string = "Level 2"
+  _level: string = "Level 2",
+  lang: FeedbackLanguage = "he"
 ): WritingCorrection[] {
   const corrections = [...existingCorrections];
+  const t = (he: string, en: string) => inLang(lang, he, en);
 
   const hasCorrectionFor = (target: string) => {
     const clean = target.trim().toLowerCase();
@@ -59,7 +65,10 @@ function ensureCapitalizationChecks(
     corrections.unshift({
       original: "i",
       suggestion: "I",
-      explanationHebrew: "באנגלית, כינוי הגוף 'I' (אני) נכתב תמיד באות גדולה (Capital letter), בכל מקום במשפט.",
+      explanationHebrew: t(
+        "באנגלית, כינוי הגוף 'I' (אני) נכתב תמיד באות גדולה (Capital letter), בכל מקום במשפט.",
+        "The word 'I' is always a capital letter, everywhere in the sentence."
+      ),
       category: "capitalization",
     });
   }
@@ -75,7 +84,10 @@ function ensureCapitalizationChecks(
           corrections.unshift({
             original: firstWord,
             suggestion: "Bye,",
-            explanationHebrew: "בסיום מכתב, ברכת הפרידה נכתבת באות גדולה (Capital letter) ועם פסיק: 'Bye,' או 'From,'.",
+            explanationHebrew: t(
+              "בסיום מכתב, ברכת הפרידה נכתבת באות גדולה (Capital letter) ועם פסיק: 'Bye,' או 'From,'.",
+              "At the end of a letter, the closing starts with a capital letter and has a comma: 'Bye,' or 'From,'."
+            ),
             category: "capitalization",
           });
         }
@@ -91,7 +103,10 @@ function ensureCapitalizationChecks(
         corrections.unshift({
           original: lowerWord,
           suggestion: capitalized,
-          explanationHebrew: "באנגלית, כל שורה, משפט או ברכה חייבים להתחיל באות גדולה (Capital letter).",
+          explanationHebrew: t(
+            "באנגלית, כל שורה, משפט או ברכה חייבים להתחיל באות גדולה (Capital letter).",
+            "Every line, sentence and greeting starts with a capital letter."
+          ),
           category: "capitalization",
         });
       }
@@ -108,7 +123,10 @@ function ensureCapitalizationChecks(
         corrections.unshift({
           original: lowerWord,
           suggestion: capitalized,
-          explanationHebrew: "משפט חדש לאחר נקודה חייב להתחיל באות גדולה (Capital letter).",
+          explanationHebrew: t(
+            "משפט חדש לאחר נקודה חייב להתחיל באות גדולה (Capital letter).",
+            "A new sentence after a full stop starts with a capital letter."
+          ),
           category: "capitalization",
         });
       }
@@ -119,7 +137,13 @@ function ensureCapitalizationChecks(
 }
 
 // Quick deterministic anti-spam & gibberish detector
-function detectObviousSpam(text: string, minWords: number, level: string = "Level 2"): WritingEvaluationResult | null {
+function detectObviousSpam(
+  text: string,
+  minWords: number,
+  level: string = "Level 2",
+  lang: FeedbackLanguage = "he"
+): WritingEvaluationResult | null {
+  const t = (he: string, en: string) => inLang(lang, he, en);
   const trimmed = text.trim();
   const words = trimmed.split(/\s+/).filter(Boolean);
   if (words.length === 0) return null;
@@ -131,19 +155,27 @@ function detectObviousSpam(text: string, minWords: number, level: string = "Leve
   if (cleanWords.length < minWordThreshold) {
     return {
       score: level === "Level 1" ? 30 : 10,
-      encouragement: level === "Level 1" ? "כתבת מעט מאוד. נסו לכתוב עוד 1-2 מילים כדי לקבל משוב!" : "החיבור קצרצר ביותר (פחות מ-5 מילים). יש לכתוב פסקה שלמה באנגלית.",
-      teacherNote: "החיבור שהוגש קצר מכדי שנוכל להעריך אותו לפי מחוון משרד החינוך. נסו להשתמש במשפטי הפתיחה ובבנק המילים כדי לכתוב לפחות מספר משפטים שלמים.",
+      encouragement:
+        level === "Level 1"
+          ? t("כתבת מעט מאוד. נסו לכתוב עוד 1-2 מילים כדי לקבל משוב!", "You wrote very little. Try to add 1-2 more words to get feedback!")
+          : t("החיבור קצרצר ביותר (פחות מ-5 מילים). יש לכתוב פסקה שלמה באנגלית.", "Your text is very short (under 5 words). Please write a full paragraph in English."),
+      teacherNote: t(
+        "החיבור שהוגש קצר מכדי שנוכל להעריך אותו לפי מחוון משרד החינוך. נסו להשתמש במשפטי הפתיחה ובבנק המילים כדי לכתוב לפחות מספר משפטים שלמים.",
+        "Your text is too short to grade with the rubric. Use the sentence starters and the word bank to write at least a few full sentences."
+      ),
       isSpamOrGibberish: true,
       strengths: [],
       tips: [
-        level === "Level 1" ? "לחצו על משפטי הפתיחה או על בנק המילים כדי להוסיף מילים." : "אנא כתבו לפחות פסקה אחת בת מספר משפטים באנגלית מלאה.",
-        `יעד המילים למשימה זו הוא לפחות ${minWords} מילים.`,
+        level === "Level 1"
+          ? t("לחצו על משפטי הפתיחה או על בנק המילים כדי להוסיף מילים.", "Click the sentence starters or the word bank to add words.")
+          : t("אנא כתבו לפחות פסקה אחת בת מספר משפטים באנגלית מלאה.", "Please write at least one paragraph of full English sentences."),
+        t(`יעד המילים למשימה זו הוא לפחות ${minWords} מילים.`, `The goal for this task is at least ${minWords} words.`),
       ],
       rubric: {
-        contentAndOrganization: { score: 2, max: 35, commentHebrew: "החיבור קצר מדי ולא מפתח רעיון." },
-        vocabulary: { score: 3, max: 25, commentHebrew: "אוצר מילים לא מספק." },
-        languageAndGrammar: { score: 3, max: 25, commentHebrew: "אין משפטים שלמים לבדיקה." },
-        mechanicsAndSpelling: { score: 2, max: 15, commentHebrew: "קצר מדי להערכה." },
+        contentAndOrganization: { score: 2, max: 35, commentHebrew: t("החיבור קצר מדי ולא מפתח רעיון.", "Too short to develop an idea.") },
+        vocabulary: { score: 3, max: 25, commentHebrew: t("אוצר מילים לא מספק.", "Not enough vocabulary.") },
+        languageAndGrammar: { score: 3, max: 25, commentHebrew: t("אין משפטים שלמים לבדיקה.", "No full sentences to check.") },
+        mechanicsAndSpelling: { score: 2, max: 15, commentHebrew: t("קצר מדי להערכה.", "Too short to grade.") },
       },
     };
   }
@@ -162,38 +194,53 @@ function detectObviousSpam(text: string, minWords: number, level: string = "Leve
 
   // If a single word makes up > 45% of all words, or unique ratio is under 30% for a text with > 15 words
   if (cleanWords.length >= 15 && (maxFreqRatio > 0.45 || (level !== "Level 1" && uniqueRatio < 0.3))) {
-    const mostRepeatedWord = Object.entries(frequencies).find(([, count]) => count === maxFreq)?.[0] || "מילה";
+    const mostRepeatedWord = Object.entries(frequencies).find(([, count]) => count === maxFreq)?.[0] || t("מילה", "word");
     return {
       score: 15,
-      encouragement: "זוהתה חזרתיות קיצונית על אותן מילים ללא משפטים בעלי משמעות.",
-      teacherNote: `שלום! שמנו לב שהמילה "${mostRepeatedWord}" חוזרת שוב ושוב. כתיבה באנגלית דורשת פיתוח רעיונות מגוונים בעזרת מילות קישור ופעלים שונים. נסו שוב ונשמח לבדוק!`,
+      encouragement: t(
+        "זוהתה חזרתיות קיצונית על אותן מילים ללא משפטים בעלי משמעות.",
+        "The same words repeat again and again, without meaningful sentences."
+      ),
+      teacherNote: t(
+        `שלום! שמנו לב שהמילה "${mostRepeatedWord}" חוזרת שוב ושוב. כתיבה באנגלית דורשת פיתוח רעיונות מגוונים בעזרת מילות קישור ופעלים שונים. נסו שוב ונשמח לבדוק!`,
+        `Hi! The word "${mostRepeatedWord}" repeats again and again. Good English writing develops different ideas with linking words and different verbs. Try again and we will check it!`
+      ),
       isSpamOrGibberish: true,
       strengths: [],
       tips: [
-        `המילה "${mostRepeatedWord}" מופיעה ${maxFreq} פעמים מתוך ${cleanWords.length} מילים.`,
-        "חיבור באנגלית דורש משפטים שלמים עם נושא, פועל, ותוכן אמיתי הקשור למשימה.",
-        "הימנעו מהעתקה או שכפול של מילות קישור ללא משפטים מחברים ביניהן.",
+        t(
+          `המילה "${mostRepeatedWord}" מופיעה ${maxFreq} פעמים מתוך ${cleanWords.length} מילים.`,
+          `The word "${mostRepeatedWord}" appears ${maxFreq} times out of ${cleanWords.length} words.`
+        ),
+        t(
+          "חיבור באנגלית דורש משפטים שלמים עם נושא, פועל, ותוכן אמיתי הקשור למשימה.",
+          "An English text needs full sentences with a subject, a verb and real content about the task."
+        ),
+        t(
+          "הימנעו מהעתקה או שכפול של מילות קישור ללא משפטים מחברים ביניהן.",
+          "Don't copy or repeat linking words without sentences between them."
+        ),
       ],
       rubric: {
         contentAndOrganization: {
           score: 3,
           max: 35,
-          commentHebrew: "הטקסט מכיל רצף מילים חוזרות ללא תוכן או מבנה הגיוני.",
+          commentHebrew: t("הטקסט מכיל רצף מילים חוזרות ללא תוכן או מבנה הגיוני.", "Repeated words with no real content or structure."),
         },
         vocabulary: {
           score: 4,
           max: 25,
-          commentHebrew: "אוצר מילים מוגבל ביותר המורכב מחזרות על אותן מילים.",
+          commentHebrew: t("אוצר מילים מוגבל ביותר המורכב מחזרות על אותן מילים.", "Very limited vocabulary: the same words again and again."),
         },
         languageAndGrammar: {
           score: 4,
           max: 25,
-          commentHebrew: "אין תחביר תקין של משפטים באנגלית (חסרים נושאים ופעלים).",
+          commentHebrew: t("אין תחביר תקין של משפטים באנגלית (חסרים נושאים ופעלים).", "No correct English sentences (subjects and verbs are missing)."),
         },
         mechanicsAndSpelling: {
           score: 4,
           max: 15,
-          commentHebrew: "סימני פיסוק או מילים משוכפלות ללא פיסוק משפטים תקין.",
+          commentHebrew: t("סימני פיסוק או מילים משוכפלות ללא פיסוק משפטים תקין.", "Repeated words or marks with no correct sentence punctuation."),
         },
       },
     };
@@ -204,19 +251,22 @@ function detectObviousSpam(text: string, minWords: number, level: string = "Leve
   if (englishWordLike.length / cleanWords.length < 0.6) {
     return {
       score: 10,
-      encouragement: "הטקסט שהוזן אינו מכיל מילים תקינות באנגלית.",
-      teacherNote: "לא הצלחנו לזהות מילים באנגלית בחיבור שלך. הקפידו להקליד מילים אמיתיות באנגלית ובמידת הצורך היעזרו במילון המובנה ובבנק המילים.",
+      encouragement: t("הטקסט שהוזן אינו מכיל מילים תקינות באנגלית.", "The text does not contain real English words."),
+      teacherNote: t(
+        "לא הצלחנו לזהות מילים באנגלית בחיבור שלך. הקפידו להקליד מילים אמיתיות באנגלית ובמידת הצורך היעזרו במילון המובנה ובבנק המילים.",
+        "We could not find English words in your text. Type real English words, and use the built-in dictionary and the word bank if you need help."
+      ),
       isSpamOrGibberish: true,
       strengths: [],
       tips: [
-        "אנא כתבו מילים אמיתיות באנגלית.",
-        "השתמשו במילון המובנה במידת הצורך למציאת מילים מתאימות.",
+        t("אנא כתבו מילים אמיתיות באנגלית.", "Please write real English words."),
+        t("השתמשו במילון המובנה במידת הצורך למציאת מילים מתאימות.", "Use the built-in dictionary to find the words you need."),
       ],
       rubric: {
-        contentAndOrganization: { score: 2, max: 35, commentHebrew: "אין תוכן בעל משמעות." },
-        vocabulary: { score: 2, max: 25, commentHebrew: "מילים בלתי מזוהות או סימנים." },
-        languageAndGrammar: { score: 3, max: 25, commentHebrew: "אין משפטים תקינים." },
-        mechanicsAndSpelling: { score: 3, max: 15, commentHebrew: "רצפי תווים ללא משמעות." },
+        contentAndOrganization: { score: 2, max: 35, commentHebrew: t("אין תוכן בעל משמעות.", "No meaningful content.") },
+        vocabulary: { score: 2, max: 25, commentHebrew: t("מילים בלתי מזוהות או סימנים.", "Unrecognized words or symbols.") },
+        languageAndGrammar: { score: 3, max: 25, commentHebrew: t("אין משפטים תקינים.", "No correct sentences.") },
+        mechanicsAndSpelling: { score: 3, max: 15, commentHebrew: t("רצפי תווים ללא משמעות.", "Strings of characters with no meaning.") },
       },
     };
   }
@@ -230,6 +280,8 @@ export async function POST(request: Request) {
     const { essayText, taskTitle, prompt, category, minWords, maxWords, level } = body;
     const grade = gradeFromBody(body);
     const gender = genderFromBody(body);
+    const lang = feedbackLanguageFromBody(body);
+    const t = (he: string, en: string) => inLang(lang, he, en);
 
     if (!essayText || typeof essayText !== "string" || essayText.trim().length === 0) {
       return NextResponse.json(
@@ -246,7 +298,7 @@ export async function POST(request: Request) {
     const targetMax = typeof maxWords === "number" ? maxWords : defaultMax;
 
     // Fast deterministic spam filter
-    const spamCheck = detectObviousSpam(essayText, targetMin, currentLevel);
+    const spamCheck = detectObviousSpam(essayText, targetMin, currentLevel, lang);
     if (spamCheck) {
       return NextResponse.json({
         success: true,
@@ -303,7 +355,7 @@ You evaluate student writing with pedagogical wisdom, warm encouragement, and ex
 
 ${levelPedagogyGuidance}
 ${gradeExpectationsPrompt(grade, currentLevel)}
-${hebrewAddressPrompt(gender)}
+${lang === "en" ? "" : hebrewAddressPrompt(gender)}
 
 TASK DETAILS:
 - Student Level: "${currentLevel}"
@@ -413,7 +465,7 @@ Return ONLY a valid, raw JSON object matching this exact schema (NO MARKDOWN COD
   "hebrewInterferenceNotes": [
     "הערה ממוקדת בעברית על דפוס תרגום שכיח מעברית (במידה וזוהה)"
   ]
-}`;
+}${lang === "en" ? englishFeedbackPrompt(currentLevel) : ""}`;
 
     // Cascade Priority Execution Steps
     const cascadePlan: Array<{
@@ -563,15 +615,19 @@ Return ONLY a valid, raw JSON object matching this exact schema (NO MARKDOWN COD
           const parsed = json && typeof json.score === "number" ? (json as unknown as WritingEvaluationResult) : null;
           if (parsed) {
             // Rigorously enforce capitalization checks across all levels
-            parsed.corrections = ensureCapitalizationChecks(essayText, parsed.corrections || [], currentLevel);
+            parsed.corrections = ensureCapitalizationChecks(essayText, parsed.corrections || [], currentLevel, lang);
 
             const hasCapitalIssue = (parsed.corrections || []).some((c) => c.category === "capitalization");
             if (hasCapitalIssue && parsed.rubric?.mechanicsAndSpelling) {
               if (parsed.rubric.mechanicsAndSpelling.score >= parsed.rubric.mechanicsAndSpelling.max) {
                 parsed.rubric.mechanicsAndSpelling.score = Math.max(1, parsed.rubric.mechanicsAndSpelling.score - 2);
               }
-              if (!parsed.rubric.mechanicsAndSpelling.commentHebrew.includes("אותיות גדולות")) {
-                parsed.rubric.mechanicsAndSpelling.commentHebrew += " (שימו לב לשימוש באותיות גדולות בתחילת משפט ובסיום).";
+              const mechanics = parsed.rubric.mechanicsAndSpelling;
+              const mentionsCapitals = lang === "en" ? /capital/i.test(mechanics.commentHebrew || "") : (mechanics.commentHebrew || "").includes("אותיות גדולות");
+              if (!mentionsCapitals) {
+                mechanics.commentHebrew =
+                  (mechanics.commentHebrew || "") +
+                  t(" (שימו לב לשימוש באותיות גדולות בתחילת משפט ובסיום).", " (Remember capital letters at the start of sentences and in closings.)");
               }
             }
 
@@ -654,7 +710,7 @@ Return ONLY a valid, raw JSON object matching this exact schema (NO MARKDOWN COD
     const cleanWords = words.map((w) => w.toLowerCase().replace(/[^a-z0-9]/g, "")).filter((w) => w.length > 0);
     const uniqueWords = new Set(words.map((w) => w.toLowerCase()));
     const vocabDiversity = uniqueWords.size / Math.max(1, wordCount);
-    const corrections = ensureCapitalizationChecks(essayText, [], currentLevel);
+    const corrections = ensureCapitalizationChecks(essayText, [], currentLevel, lang);
     const correctionCount = corrections.length;
     const richWordsCount = cleanWords.filter((w) => w.length >= 7).length;
 
@@ -696,45 +752,57 @@ Return ONLY a valid, raw JSON object matching this exact schema (NO MARKDOWN COD
       isSpamOrGibberish: false,
       encouragement:
         totalScore >= 92
-          ? "עבודה מצוינת! כתיבה רהוטה ומאורגנת היטב לפי מחוון משרד החינוך 🌟"
+          ? t("עבודה מצוינת! כתיבה רהוטה ומאורגנת היטב לפי מחוון משרד החינוך 🌟", "Excellent work! Fluent, well-organized writing 🌟")
           : totalScore >= 84
-          ? "עבודה טובה מאוד! רעיון ברור ומענה יפה למטלה 👍"
-          : "החיבור נבדק לפי עקרונות מחוון משרד החינוך (בדיקה פדגוגית בסיסית).",
+          ? t("עבודה טובה מאוד! רעיון ברור ומענה יפה למטלה 👍", "Very good work! A clear idea and a good answer to the task 👍")
+          : t("החיבור נבדק לפי עקרונות מחוון משרד החינוך (בדיקה פדגוגית בסיסית).", "Your text was checked with the Ministry rubric (basic check)."),
       teacherNote:
         totalScore >= 92
-          ? `כל הכבוד! כתבת ${wordCount} מילים בצורה בהירה ומשכנעת, תוך עמידה מושלמת ביעד המטלה (${targetMin}–${targetMax} מילים). המשך כך!`
-          : `כל הכבוד על ההשקעה בכתיבת החיבור! כתבת ${wordCount} מילים מתוך יעד של ${targetMin}–${targetMax} מילים. החיבור מעביר את המסר בצורה טובה וברורה.`,
+          ? t(
+              `כל הכבוד! כתבת ${wordCount} מילים בצורה בהירה ומשכנעת, תוך עמידה מושלמת ביעד המטלה (${targetMin}–${targetMax} מילים). המשך כך!`,
+              `Well done! You wrote ${wordCount} clear words and met the task goal (${targetMin}–${targetMax} words). Keep it up!`
+            )
+          : t(
+              `כל הכבוד על ההשקעה בכתיבת החיבור! כתבת ${wordCount} מילים מתוך יעד של ${targetMin}–${targetMax} מילים. החיבור מעביר את המסר בצורה טובה וברורה.`,
+              `Well done for your effort! You wrote ${wordCount} words (goal: ${targetMin}–${targetMax} words). Your message is clear.`
+            ),
       strengths: [
-        `אורך החיבור: ${wordCount} מילים (יעד המטלה: ${targetMin}–${targetMax} מילים).`,
+        t(
+          `אורך החיבור: ${wordCount} מילים (יעד המטלה: ${targetMin}–${targetMax} מילים).`,
+          `Length: ${wordCount} words (task goal: ${targetMin}–${targetMax} words).`
+        ),
         vocabDiversity > 0.55
-          ? "שימוש באוצר מילים מגוון ומתאים לרמת הכיתה ללא חזרות מיותרות."
-          : "העברת רעיון ברור בשפה מובנת ורציפה.",
+          ? t("שימוש באוצר מילים מגוון ומתאים לרמת הכיתה ללא חזרות מיותרות.", "Varied vocabulary that fits your level, without needless repetition.")
+          : t("העברת רעיון ברור בשפה מובנת ורציפה.", "A clear idea in language that is easy to follow."),
       ],
       tips: [
-        "הקפידו לפתוח כל משפט באות גדולה (Capital letter) ולסיים בנקודה.",
-        "שלבו מילות קישור כגון: Also, Because, In addition, For example כדי לחבר בין הרעיונות.",
+        t("הקפידו לפתוח כל משפט באות גדולה (Capital letter) ולסיים בנקודה.", "Start every sentence with a capital letter and end it with a full stop."),
+        t(
+          "שלבו מילות קישור כגון: Also, Because, In addition, For example כדי לחבר בין הרעיונות.",
+          "Use linking words like Also, Because, In addition, For example to connect your ideas."
+        ),
       ],
       rubric: {
         contentAndOrganization: {
           score: contentScore,
           max: 35,
-          commentHebrew: `התאמה למטלה ומבנה: ${contentScore}/35`,
+          commentHebrew: t(`התאמה למטלה ומבנה: ${contentScore}/35`, `Task and organization: ${contentScore}/35`),
         },
         vocabulary: {
           score: vocabScore,
           max: 25,
-          commentHebrew: `עושר וגיוון באוצר המילים: ${vocabScore}/25`,
+          commentHebrew: t(`עושר וגיוון באוצר המילים: ${vocabScore}/25`, `Vocabulary range: ${vocabScore}/25`),
           bandLevelObserved: currentLevel === "Level 1" ? "Band I" : currentLevel === "Level 3" ? "Band III" : "Band II",
         },
         languageAndGrammar: {
           score: grammarScore,
           max: 25,
-          commentHebrew: `תחביר ומבנה משפטים: ${grammarScore}/25`,
+          commentHebrew: t(`תחביר ומבנה משפטים: ${grammarScore}/25`, `Grammar and sentences: ${grammarScore}/25`),
         },
         mechanicsAndSpelling: {
           score: mechanicsScore,
           max: 15,
-          commentHebrew: `פיסוק, אותיות גדולות ואיות: ${mechanicsScore}/15`,
+          commentHebrew: t(`פיסוק, אותיות גדולות ואיות: ${mechanicsScore}/15`, `Punctuation, capitals and spelling: ${mechanicsScore}/15`),
         },
       },
       corrections,
@@ -742,7 +810,10 @@ Return ONLY a valid, raw JSON object matching this exact schema (NO MARKDOWN COD
         {
           original: "good",
           enriched: "wonderful / great",
-          explanationHebrew: "שימוש במילים מגוונות ועשירות יותר מעלה את רמת הכתיבה שלך במחוון.",
+          explanationHebrew: t(
+            "שימוש במילים מגוונות ועשירות יותר מעלה את רמת הכתיבה שלך במחוון.",
+            "Using richer, more varied words raises the level of your writing."
+          ),
         },
       ],
     };

@@ -460,7 +460,7 @@ export default function Home() {
                         {sub.teacherFeedback && (
                           <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-950 dark:text-emerald-100">
                             <span className="font-normal block text-2xs">משוב המורה:</span>
-                            <p className="line-clamp-2 mt-0.5">{sub.teacherFeedback}</p>
+                            <p dir="auto" className="line-clamp-2 mt-0.5">{sub.teacherFeedback}</p>
                           </div>
                         )}
                       </div>
