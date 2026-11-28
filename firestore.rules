@@ -202,7 +202,15 @@ service cloud.firestore {
     }
 
     match /exam_sessions/{sessionId} {
-      allow read: if signedIn() && (
+      // A student may look up their own session id even before it exists
+      // (the exam page checks for one when it opens).
+      allow get: if signedIn() && (
+          sessionId.split('__')[1] == uid() ||
+          resource.data.studentId == uid() ||
+          resource.data.teacherId == uid() ||
+          isAdmin()
+        );
+      allow list: if signedIn() && (
           resource.data.studentId == uid() ||
           resource.data.teacherId == uid() ||
           isAdmin()
