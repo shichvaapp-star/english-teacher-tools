@@ -113,3 +113,57 @@ export function sharedWordMask(text: string, other: string, ignore: Set<string> 
   }
   return mask;
 }
+
+// ---------------------------------------------------------------------------
+// Auto-graded parts: identical WRONG answers between two students.
+// Right answers are expected to match; the same mistakes are the sign.
+// ---------------------------------------------------------------------------
+
+export interface AnswerSheet {
+  studentId: string;
+  /** base item key ("partId|itemId" without the version suffix) → answer text + whether it was right */
+  answers: Record<string, { text: string; correct: boolean }>;
+}
+
+export interface AnswerPatternPair {
+  a: string;
+  b: string;
+  /** Items both got wrong with the same answer. */
+  sameWrong: number;
+  /** sameWrong ÷ wrong answers of the student with fewer mistakes, 0..1 */
+  share: number;
+  sameWrongKeys: string[];
+}
+
+const normAnswer = (s: string) => s.trim().toLowerCase().replace(/\s+/g, " ");
+
+export function answerPatternPairs(sheets: AnswerSheet[]): AnswerPatternPair[] {
+  const out: AnswerPatternPair[] = [];
+  for (let i = 0; i < sheets.length; i++) {
+    for (let j = i + 1; j < sheets.length; j++) {
+      const A = sheets[i].answers;
+      const B = sheets[j].answers;
+      const wrongA = Object.values(A).filter((x) => x.text && !x.correct).length;
+      const wrongB = Object.values(B).filter((x) => x.text && !x.correct).length;
+      const keys = Object.keys(A).filter((k) => {
+        const x = A[k];
+        const y = B[k];
+        return y && x.text && !x.correct && !y.correct && normAnswer(x.text) === normAnswer(y.text);
+      });
+      out.push({
+        a: sheets[i].studentId,
+        b: sheets[j].studentId,
+        sameWrong: keys.length,
+        share: keys.length / Math.max(1, Math.min(wrongA, wrongB)),
+        sameWrongKeys: keys,
+      });
+    }
+  }
+  return out.filter((p) => p.sameWrong > 0).sort((x, y) => y.sameWrong - x.sameWrong || y.share - x.share);
+}
+
+export function answerPatternLevel(p: Pick<AnswerPatternPair, "sameWrong" | "share">): "high" | "medium" | "low" {
+  if (p.sameWrong >= 4 && p.share >= 0.5) return "high";
+  if (p.sameWrong >= 2 && p.share >= 0.3) return "medium";
+  return "low";
+}

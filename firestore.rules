@@ -22,7 +22,8 @@ rules_version = '2';
 //   drafts/{id}                     the student only
 //   exams/{id}                      signed-in read (Hebrew words + hashes only); owning teacher writes
 //   exams/{id}/variants/{key}       the topic – owning teacher; students only while the exam is open
-//   exams/{id}/private/{doc}        owning teacher only (English answers)
+//   exams/{id}/private/{doc}        owning teacher only (answer keys)
+//   exams/{id}/results/{studentId}  owning teacher only (grading before release)
 //   exam_sessions/{examId}__{uid}   the student (can't unlock or edit after submit) + their teacher
 //   exam_sessions/{id}/keylog/{id}  student appends; teacher reads (replay)
 //   site_suggestions/{id}           teachers create/read; admins manage
@@ -195,8 +196,13 @@ service cloud.firestore {
         allow write: if isExamOwner(examId);
       }
 
-      // English of the vocabulary list.
+      // Answer keys and builder settings.
       match /private/{docId} {
+        allow read, write: if isExamOwner(examId);
+      }
+
+      // The teacher's grading (overrides, writing score, feedback) – hidden until released.
+      match /results/{studentId} {
         allow read, write: if isExamOwner(examId);
       }
     }
@@ -233,7 +239,7 @@ service cloud.firestore {
           request.resource.data.state in ['active', 'locked', 'submitted'] &&
           (resource.data.state != 'locked' ||
             (request.resource.data.state == 'locked' &&
-              !changes().hasAny(['text', 'wordCount', 'vocabUsedIds']))) &&
+              !changes().hasAny(['text', 'wordCount', 'vocabUsedIds', 'answers']))) &&
           request.time < examData(resource.data.examId).closesAt + duration.value(2, 'm')) ||
         (isTeacherAccount() &&
           resource.data.teacherId == uid() &&

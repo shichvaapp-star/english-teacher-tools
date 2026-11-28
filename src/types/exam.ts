@@ -1,12 +1,15 @@
 import type { Timestamp } from "firebase/firestore";
 import type { StudentGroup } from "./auth";
 import type { AssignmentTargetType } from "./assignment";
+import type { GrammarItem, GrammarResponse } from "./grammar";
+import type { MSUnseenQuestion } from "./unseen";
 
 // ===============================================================
 // Lab exams (writing). Firestore layout:
 //   exams/{examId}                       teacher-owned exam (students read it)
 //   exams/{examId}/variants/{key}        the topic – students read it only while open
-//   exams/{examId}/private/answers       English of the vocab list – teacher only
+//   exams/{examId}/private/answers       answer keys + builder settings – teacher only
+//   exams/{examId}/results/{studentId}   teacher's grading (overrides, writing points) – teacher only
 //   exam_sessions/{examId}__{studentId}  one per student (text, state, events)
 //   exam_sessions/{id}/keylog/{chunkId}  keystroke batches for the replay
 // ===============================================================
@@ -31,10 +34,167 @@ export interface ExamVocabAnswer {
   hebrew: string;
 }
 
+/** Test (מבחן) or quiz (בוחן): same lockdown, different label and defaults. */
+export type ExamKind = "test" | "quiz";
+
+export const EXAM_KIND_HE: Record<ExamKind, string> = { test: "מבחן", quiz: "בוחן" };
+
+export type ExamPartType = "writing" | "unseen" | "vocab" | "grammar";
+
+export const EXAM_PART_LABEL_HE: Record<ExamPartType, string> = {
+  writing: "כתיבה",
+  unseen: "הבנת הנקרא (Unseen)",
+  vocab: "אוצר מילים",
+  grammar: "דקדוק",
+};
+
+/** What everyone (students too) may know about a part. */
+export interface ExamPartMeta {
+  id: string;
+  type: ExamPartType;
+  title: string;
+  /** Share of the final grade (all parts add up to 100). */
+  points: number;
+  /** Number of questions / items (writing: 1). */
+  itemCount: number;
+}
+
+export type VocabQuestionFormat = "he_to_en_type" | "en_to_he_choice" | "he_to_en_choice";
+
+export const VOCAB_FORMAT_HE: Record<VocabQuestionFormat, string> = {
+  he_to_en_type: "עברית ← כתיבת המילה באנגלית",
+  en_to_he_choice: "אנגלית ← בחירת הפירוש בעברית",
+  he_to_en_choice: "עברית ← בחירת המילה באנגלית",
+};
+
+// ---- Full parts (teacher only, with answers) ----------------------------------
+
+export interface WritingPartFull {
+  id: string;
+  type: "writing";
+}
+
+export interface UnseenPartFull {
+  id: string;
+  type: "unseen";
+  title: string;
+  paragraphs: string[];
+  questions: MSUnseenQuestion[];
+}
+
+export interface VocabQuestionFull {
+  id: string;
+  format: VocabQuestionFormat;
+  /** The word shown (Hebrew or English, by format). */
+  prompt: string;
+  /** Choice formats only. */
+  options?: string[];
+  /** The correct answer (English or Hebrew, by format). */
+  answer: string;
+}
+
+export interface VocabPartFull {
+  id: string;
+  type: "vocab";
+  questions: VocabQuestionFull[];
+}
+
+export interface GrammarPartFull {
+  id: string;
+  type: "grammar";
+  items: GrammarItem[];
+}
+
+export type ExamPartFull = WritingPartFull | UnseenPartFull | VocabPartFull | GrammarPartFull;
+
+// ---- Student parts (no answers) -------------------------------------------------
+
+export type StudentUnseenQuestion = Pick<
+  MSUnseenQuestion,
+  "id" | "number" | "paragraphIndex" | "linesHint" | "type" | "prompt" | "options" | "points"
+>;
+
+export interface UnseenPartStudent extends Omit<UnseenPartFull, "questions"> {
+  questions: StudentUnseenQuestion[];
+}
+
+export type StudentVocabQuestion = Omit<VocabQuestionFull, "answer">;
+
+export interface VocabPartStudent extends Omit<VocabPartFull, "questions"> {
+  questions: StudentVocabQuestion[];
+}
+
+/** Grammar items keep their shape (the exercise components need it) but every answer field is emptied. */
+export type GrammarPartStudent = GrammarPartFull;
+
+export type ExamPartStudent = WritingPartFull | UnseenPartStudent | VocabPartStudent | GrammarPartStudent;
+
+/** A student's answer to one item: choice index / text / grammar response. */
+export type ExamAnswer = number | string | GrammarResponse;
+
 export interface ExamVariant {
   key: string; // "A" | "B" | "C"
+  /** Writing topic for this version ("" when the exam has no writing part). */
   title: string;
   prompt: string;
+  /** Missing on exams made before parts existed (= writing only). */
+  parts?: ExamPartStudent[];
+}
+
+/** Builder settings, kept so the teacher can edit the exam (teacher only). */
+export type ExamPartDraft =
+  | { id: string; type: "writing"; title: string; points: number }
+  | {
+      id: string;
+      type: "unseen";
+      title: string;
+      points: number;
+      grade: 7 | 8 | 9;
+      level: 1 | 2 | 3;
+      storyId: string;
+      questionIds: string[];
+    }
+  | {
+      id: string;
+      type: "vocab";
+      title: string;
+      points: number;
+      words: ExamVocabAnswer[];
+      formats: VocabQuestionFormat[];
+      count: number;
+      seed: number;
+    }
+  | {
+      id: string;
+      type: "grammar";
+      title: string;
+      points: number;
+      grade: 7 | 8 | 9;
+      level: 1 | 2 | 3;
+      topicIds: string[];
+      types: GrammarItem["type"][];
+      count: number;
+      items: GrammarItem[];
+    };
+
+/** exams/{id}/private/answers */
+export interface ExamPrivateAnswers {
+  /** Writing word list (English + Hebrew). */
+  words: ExamVocabAnswer[];
+  /** Full parts per version key, used for grading. */
+  variants?: Record<string, ExamPartFull[]>;
+  drafts?: ExamPartDraft[];
+}
+
+/** exams/{id}/results/{studentId} – the teacher's grading. */
+export interface ExamResultDoc {
+  studentId: string;
+  /** "partId|itemId" → fraction 0..1 set by the teacher (overrides the automatic score). */
+  overrides: Record<string, number>;
+  /** Writing part score 0..1 (teacher / AI check). */
+  writingScore?: number;
+  feedback?: string;
+  updatedAt: string;
 }
 
 export interface ExamSeat {
@@ -60,6 +220,10 @@ export interface ExamDoc {
   targetGroup?: StudentGroup;
   targetStudentIds?: string[];
   status: ExamStatus;
+  /** Missing on older exams (= test). */
+  kind?: ExamKind;
+  /** Missing on older exams (= one writing part). */
+  parts?: ExamPartMeta[];
   durationMin: number;
   minWords: number;
   maxWords: number;
@@ -77,6 +241,8 @@ export interface ExamDoc {
   closedAt?: Timestamp | null;
   /** Set once the essays were copied into the grading inbox. */
   sentToGradingAt?: string;
+  /** Results released to students (exam submissions written). */
+  resultsReleasedAt?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -126,6 +292,8 @@ export interface ExamSessionDoc {
   text: string;
   wordCount: number;
   vocabUsedIds: string[];
+  /** "partId|itemId" → answer (non-writing parts). */
+  answers?: Record<string, ExamAnswer>;
   events: ExamEvent[];
   startedAt?: Timestamp | null;
   lastSeenAt?: Timestamp | null;

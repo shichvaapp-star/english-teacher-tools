@@ -32,8 +32,11 @@ import {
 } from "@/lib/exam/exam-storage";
 import { assignVariants } from "@/lib/exam/seat-plan";
 import { isStudentTargeted } from "@/lib/exam/exam-targeting";
-import { EXAM_EVENT_LABEL_HE, type ExamDoc, type ExamSessionDoc } from "@/types/exam";
+import { EXAM_EVENT_LABEL_HE, EXAM_KIND_HE, type ExamDoc, type ExamSessionDoc } from "@/types/exam";
+import { examKind, examParts, hasWritingPart, isAnswered } from "@/lib/exam/exam-parts";
 import {
+  ClipboardList,
+  Eye,
   Clock,
   Inbox,
   Loader2,
@@ -146,6 +149,9 @@ export function ExamLive({ examId }: { examId: string }) {
   if (bundle === undefined) return <Skeleton className="h-96 w-full rounded-xl" />;
   if (bundle === null || !live) return <p className="text-sm text-muted-foreground">המבחן לא נמצא.</p>;
 
+  const metas = examParts(live);
+  const writingPart = hasWritingPart(live);
+  const itemTotal = metas.filter((m) => m.type !== "writing").reduce((t, m) => t + m.itemCount, 0);
   const closesAt = tsMillis(live.closesAt);
   const remaining = closesAt !== null ? closesAt - now : null;
   const counts = roster.reduce<Record<CardState, number>>(
@@ -238,7 +244,9 @@ export function ExamLive({ examId }: { examId: string }) {
         </div>
         {s && (
           <div className="font-mono tabular-nums text-muted-foreground">
-            {s.wordCount} מילים · {s.vocabUsedIds?.length ?? 0}/{live.minVocabUsed}
+            {itemTotal > 0 && `${Object.values(s.answers ?? {}).filter(isAnswered).length}/${itemTotal} שאלות`}
+            {itemTotal > 0 && writingPart && " · "}
+            {writingPart && `${s.wordCount} מילים · ${s.vocabUsedIds?.length ?? 0}/${live.minVocabUsed}`}
           </div>
         )}
         {s && st !== "submitted" && <div className="text-3xs text-muted-foreground">{timeAgo(tsMillis(s.lastSeenAt), now)}</div>}
@@ -252,6 +260,7 @@ export function ExamLive({ examId }: { examId: string }) {
   };
 
   const plan = live.seatPlan;
+  const kindHe = EXAM_KIND_HE[examKind(live)];
   // Empty back rows of the lab aren't worth the screen space.
   const usedRows = plan ? Math.max(0, ...plan.seats.map((s) => s.row + 1)) : 0;
   const seatedIds = new Set(plan?.seats.map((s) => s.studentId) ?? []);
@@ -264,10 +273,10 @@ export function ExamLive({ examId }: { examId: string }) {
         breadcrumb={<Link href={`${DASHBOARD_BASE}/exams`}>מבחנים</Link>}
         title={
           <span className="flex flex-wrap items-center gap-2">
-            {live.title} <ExamStatusBadge status={live.status} />
+            {kindHe}: {live.title} <ExamStatusBadge status={live.status} />
           </span>
         }
-        description={`${live.durationMin} דקות · ${live.vocabHebrew.length} מילים · לפחות ${live.minVocabUsed} בשימוש · ${live.minWords}–${live.maxWords} מילים`}
+        description={`${live.durationMin} דקות · ${metas.map((m) => `${m.title} (${m.points} נק׳)`).join(" · ")}`}
         actions={
           <>
             {live.status === "draft" && (
@@ -276,9 +285,13 @@ export function ExamLive({ examId }: { examId: string }) {
                   <Pencil />
                   עריכה
                 </Link>
+                <a href={`/exam/${encodeURIComponent(live.id)}?preview=1`} target="_blank" rel="noreferrer" className={buttonVariants({ variant: "outline" })}>
+                  <Eye />
+                  תצוגת תלמיד
+                </a>
                 <Button onClick={() => void handleOpen()} disabled={busy}>
                   <Play />
-                  פתיחת המבחן
+                  פתיחת ה{kindHe}
                 </Button>
               </>
             )}
@@ -289,7 +302,7 @@ export function ExamLive({ examId }: { examId: string }) {
                 </Button>
                 <Button variant="destructive" onClick={() => void handleClose()} disabled={busy}>
                   <Square />
-                  סיום המבחן
+                  סיום ה{kindHe}
                 </Button>
               </>
             )}
@@ -299,10 +312,16 @@ export function ExamLive({ examId }: { examId: string }) {
                   <SearchCheck />
                   בדיקת העתקות והקלדה
                 </Link>
-                <Button onClick={() => void handleSendToGrading()} disabled={busy}>
-                  {busy ? <Loader2 className="animate-spin" /> : live.sentToGradingAt ? <Inbox /> : <Send />}
-                  {live.sentToGradingAt ? "שליחה מחדש לבדיקה" : "שליחה לתיבת ההגשות"}
-                </Button>
+                {!live.parts?.length && (
+                  <Button variant="outline" onClick={() => void handleSendToGrading()} disabled={busy}>
+                    {busy ? <Loader2 className="animate-spin" /> : live.sentToGradingAt ? <Inbox /> : <Send />}
+                    {live.sentToGradingAt ? "שליחה מחדש לתיבת ההגשות" : "שליחה לתיבת ההגשות"}
+                  </Button>
+                )}
+                <Link href={`${examHref(live.id)}/results`} className={buttonVariants()}>
+                  <ClipboardList />
+                  ציונים ושחרור
+                </Link>
               </>
             )}
           </>

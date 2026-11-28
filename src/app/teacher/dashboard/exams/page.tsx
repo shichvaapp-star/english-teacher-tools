@@ -12,12 +12,12 @@ export default function ExamsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="מבחנים"
-        description="מבחני כתיבה במעבדת המחשבים – מסך מלא, נעילה ביציאה מהמסך, נושאים שונים לשכנים ובדיקת העתקות."
+        title="מבחנים ובחנים"
+        description="מבחנים ובחנים במעבדת המחשבים: הבנת הנקרא, אוצר מילים, דקדוק וכתיבה – בלי שום עזרה, עם נעילה ביציאה מהמסך, גרסאות שונות לשכנים ובדיקת העתקות."
         actions={
           <Link href={`${DASHBOARD_BASE}/exams/new`} className={buttonVariants()}>
             <Plus />
-            מבחן חדש
+            חדש
           </Link>
         }
       />

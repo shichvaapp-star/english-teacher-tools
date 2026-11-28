@@ -43,6 +43,7 @@ import {
 } from "lucide-react";
 import { StudentAssignedTaskPrompt } from "@/components/student/student-assigned-task-prompt";
 import { StudentExamPrompt } from "@/components/student/student-exam-prompt";
+import { ExamResultSummaryView } from "@/components/exam/exam-result-summary";
 
 const LOCAL_SUBMISSIONS_KEY = "ett_writing_submissions";
 
@@ -612,7 +613,9 @@ export default function StudentPortalPage() {
                   <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/40 pb-2.5">
                     <div className="flex items-center gap-2">
                       <Badge variant="secondary" className="text-[10px]">
-                        {sub.type === "grammar"
+                        {sub.type === "exam"
+                          ? `📝 ${sub.examSummary?.kind === "quiz" ? "בוחן" : "מבחן"}`
+                          : sub.type === "grammar"
                           ? "📐 דקדוק"
                           : sub.type === "vocab"
                           ? "🔤 אוצר מילים"
@@ -668,6 +671,7 @@ export default function StudentPortalPage() {
 
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <span>{sub.submittedAt}</span>
+                      {sub.type !== "exam" && (
                       <Button
                         size="sm"
                         variant="outline"
@@ -678,6 +682,7 @@ export default function StudentPortalPage() {
                         <RotateCcw className="h-3 w-3 text-primary" />
                         <span className="hidden sm:inline">תרגל שוב</span>
                       </Button>
+                      )}
                       <Button
                         size="sm"
                         onClick={() => setSelectedItem(sub)}
@@ -824,7 +829,9 @@ export default function StudentPortalPage() {
             )}
 
             {/* Submission Content: Grammar vs Vocab vs Unseen vs Writing */}
-            {selectedItem.type === "grammar" ? (
+            {selectedItem.type === "exam" ? (
+              <ExamResultSummaryView sub={selectedItem} />
+            ) : selectedItem.type === "grammar" ? (
               <div className="space-y-2">
                 {(selectedItem.grammarSummary?.entries ?? []).map((e, idx) => (
                   <div
@@ -1207,6 +1214,7 @@ export default function StudentPortalPage() {
             )}
 
             <div className="border-t border-border pt-3 flex items-center justify-between">
+              {selectedItem.type !== "exam" ? (
               <Button
                 variant="outline"
                 size="sm"
@@ -1216,6 +1224,9 @@ export default function StudentPortalPage() {
                 <RotateCcw className="h-3.5 w-3.5 text-primary" />
                 <span>תרגל משימה זו שוב</span>
               </Button>
+              ) : (
+                <span />
+              )}
 
               <Button
                 variant="outline"

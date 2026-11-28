@@ -1,25 +1,15 @@
 "use client";
 
 // The exam's writing box: a plain textarea with every browser helper turned
-// off. Pasting, spell-check replacements and large insertions (dictation,
-// text expanders, keyboard suggestions) are stopped and reported; non-English
-// characters are refused. Every change is handed to `onEdit` for the keystroke log.
+// off. The page-wide guard (use-exam-lockdown) stops pasting, spell-check
+// replacements, large insertions and non-English characters; this adds a
+// safety net for browsers that skip `beforeinput`. Every change is handed to `onEdit` for the keystroke log.
 
 import React, { useEffect, useRef } from "react";
-import type { ViolationHandler } from "@/lib/exam/use-exam-lockdown";
+import { ALLOWED_TEXT, MAX_INSERT, type ViolationHandler } from "@/lib/exam/use-exam-lockdown";
 
-/** Characters a student may type: printable ASCII, new lines and typographic quotes/dashes. */
-const ALLOWED = /^[\x20-\x7E\n\r\t’‘“”–—…]*$/;
-/** More than this many characters in one input event is not normal typing. */
-const MAX_INSERT = 3;
-
-const LOCK_INPUT_TYPES: Record<string, "paste" | "drop" | "replacement"> = {
-  insertFromPaste: "paste",
-  insertFromPasteAsQuotation: "paste",
-  insertFromYank: "paste",
-  insertFromDrop: "drop",
-  insertReplacementText: "replacement",
-};
+/** Allowed characters in the safety net below (same rule as the page-wide guard). */
+const ALLOWED = ALLOWED_TEXT;
 
 interface ExamEditorProps {
   value: string;
@@ -31,47 +21,10 @@ interface ExamEditorProps {
 export function ExamEditor({ value, onChange, onViolation, disabled }: ExamEditorProps) {
   const ref = useRef<HTMLTextAreaElement>(null);
   const valueRef = useRef(value);
-  const violationRef = useRef(onViolation);
-  const lastNonEnglish = useRef(0);
 
   useEffect(() => {
     valueRef.current = value;
-    violationRef.current = onViolation;
-  }, [value, onViolation]);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const onBeforeInput = (ev: Event) => {
-      const e = ev as InputEvent;
-      const lockType = LOCK_INPUT_TYPES[e.inputType];
-      if (lockType) {
-        e.preventDefault();
-        violationRef.current(lockType, "lock", e.inputType);
-        return;
-      }
-      // Undo/redo could bring back a whole deleted paragraph at once.
-      if (e.inputType === "historyUndo" || e.inputType === "historyRedo") {
-        e.preventDefault();
-        return;
-      }
-      const data = e.data ?? "";
-      if (data && !ALLOWED.test(data)) {
-        e.preventDefault();
-        if (Date.now() - lastNonEnglish.current > 15_000) {
-          lastNonEnglish.current = Date.now();
-          violationRef.current("non_english", "flag", data.slice(0, 20));
-        }
-        return;
-      }
-      if (e.inputType === "insertText" && data.length > MAX_INSERT) {
-        e.preventDefault();
-        violationRef.current("bulk_insert", "lock", `${data.length} תווים`);
-      }
-    };
-    el.addEventListener("beforeinput", onBeforeInput);
-    return () => el.removeEventListener("beforeinput", onBeforeInput);
-  }, []);
+  }, [value]);
 
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const next = e.target.value;

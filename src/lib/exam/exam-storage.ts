@@ -21,9 +21,12 @@ import {
 import { db } from "@/lib/firebase";
 import { cleanForFirestore } from "@/lib/utils";
 import type {
+  ExamAnswer,
   ExamDoc,
   ExamEvent,
   ExamKeylogChunk,
+  ExamPrivateAnswers,
+  ExamResultDoc,
   ExamSessionDoc,
   ExamVariant,
   ExamVocabAnswer,
@@ -69,7 +72,10 @@ export async function listTeacherExams(teacherId: string): Promise<ExamDoc[]> {
 export interface TeacherExamBundle {
   exam: ExamDoc;
   variants: ExamVariant[];
+  /** Writing word list (English + Hebrew). */
   answers: ExamVocabAnswer[];
+  /** Answer keys per version + builder settings (missing on writing-only exams). */
+  priv?: ExamPrivateAnswers;
 }
 
 export async function loadTeacherExam(examId: string): Promise<TeacherExamBundle | null> {
@@ -84,8 +90,8 @@ export async function loadTeacherExam(examId: string): Promise<TeacherExamBundle
   const variants = variantSnap.docs
     .map((d) => ({ ...(d.data() as ExamVariant), key: d.id }))
     .sort((a, b) => a.key.localeCompare(b.key));
-  const answers = (answersSnap.data()?.words as ExamVocabAnswer[] | undefined) ?? [];
-  return { exam, variants, answers };
+  const priv = (answersSnap.data() as ExamPrivateAnswers | undefined) ?? { words: [] };
+  return { exam, variants, answers: priv.words ?? [], priv };
 }
 
 export function subscribeExam(examId: string, cb: (exam: ExamDoc | null) => void): Unsubscribe {
@@ -110,7 +116,10 @@ export async function saveExam(bundle: TeacherExamBundle, removedVariantKeys: st
   await Promise.all([
     ...variants.map((v) => setDoc(doc(fdb, EXAMS, exam.id, "variants", v.key), cleanForFirestore(v))),
     ...removedVariantKeys.map((k) => deleteDoc(doc(fdb, EXAMS, exam.id, "variants", k))),
-    setDoc(doc(fdb, EXAMS, exam.id, "private", "answers"), { words: answers }),
+    setDoc(
+      doc(fdb, EXAMS, exam.id, "private", "answers"),
+      cleanForFirestore({ ...(bundle.priv ?? {}), words: answers } satisfies ExamPrivateAnswers)
+    ),
   ]);
 }
 
@@ -311,6 +320,7 @@ export interface SessionPatch {
   text?: string;
   wordCount?: number;
   vocabUsedIds?: string[];
+  answers?: Record<string, ExamAnswer>;
   state?: "locked" | "submitted";
   lockReason?: string;
   receiptCode?: string;
@@ -339,4 +349,35 @@ export async function appendKeylog(
     doc(requireDb(), SESSIONS, sessionId, "keylog", `${createdAt}-${Math.random().toString(36).slice(2, 6)}`),
     chunk
   );
+}
+
+// ---------------------------------------------------------------------------
+// Results (teacher grading) and release
+// ---------------------------------------------------------------------------
+
+export function subscribeExamResults(examId: string, cb: (results: ExamResultDoc[]) => void): Unsubscribe {
+  return onSnapshot(
+    collection(requireDb(), EXAMS, examId, "results"),
+    (snap) => cb(snap.docs.map((d) => ({ ...(d.data() as ExamResultDoc), studentId: d.id }))),
+    () => cb([])
+  );
+}
+
+export async function saveExamResult(examId: string, result: ExamResultDoc): Promise<void> {
+  await setDoc(
+    doc(requireDb(), EXAMS, examId, "results", result.studentId),
+    cleanForFirestore({ ...result, updatedAt: new Date().toISOString() })
+  );
+}
+
+/** Writes the students' result submissions (no answer key inside) and marks the exam released. */
+export async function releaseExamResults(examId: string, items: SubmissionItem[]): Promise<void> {
+  const fdb = requireDb();
+  // Firestore batches hold up to 500 writes.
+  for (let i = 0; i < items.length; i += 400) {
+    const batch = writeBatch(fdb);
+    items.slice(i, i + 400).forEach((it) => batch.set(doc(fdb, "submissions", it.id), cleanForFirestore(it)));
+    await batch.commit();
+  }
+  await updateDoc(doc(fdb, EXAMS, examId), { resultsReleasedAt: new Date().toISOString() });
 }

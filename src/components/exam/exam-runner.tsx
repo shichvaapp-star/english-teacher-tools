@@ -18,6 +18,10 @@ import {
 } from "@/components/ui/alert-dialog";
 import { ExamEditor } from "@/components/exam/exam-editor";
 import { ExamWordList } from "@/components/exam/exam-word-list";
+import { ExamUnseenPart } from "@/components/exam/parts/exam-unseen-part";
+import { ExamVocabPart } from "@/components/exam/parts/exam-vocab-part";
+import { ExamGrammarPart } from "@/components/exam/parts/exam-grammar-part";
+import { answeredCount, examKind, examParts, partItemIds } from "@/lib/exam/exam-parts";
 import { useExamLockdown, detectWritingExtension } from "@/lib/exam/use-exam-lockdown";
 import { countWords, matchVocab } from "@/lib/exam/vocab-match";
 import { diffOp } from "@/lib/exam/keylog";
@@ -35,8 +39,11 @@ import {
   type SessionPatch,
 } from "@/lib/exam/exam-storage";
 import { isStudentTargeted } from "@/lib/exam/exam-targeting";
+import { EXAM_KIND_HE, EXAM_PART_LABEL_HE } from "@/types/exam";
 import type {
+  ExamAnswer,
   ExamDoc,
+  ExamPartStudent,
   ExamEvent,
   ExamEventSeverity,
   ExamEventType,
@@ -64,8 +71,12 @@ const MAX_LOGGED_EVENTS = 150;
 
 interface LocalCopy {
   text: string;
+  answers?: Record<string, ExamAnswer>;
   t: number;
 }
+
+const WRITING_ONLY: ExamPartStudent[] = [{ id: "writing", type: "writing" }];
+const HEB_LETTERS = ["א", "ב", "ג", "ד", "ה", "ו"];
 
 const localKey = (sessionId: string) => `ett_exam_${sessionId}`;
 
@@ -85,8 +96,13 @@ function formatClock(ms: number): string {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
-export function ExamRunner({ examId }: { examId: string }) {
+/**
+ * The student's exam page. With `preview` (exam owner only) it shows exactly
+ * what students see – no session, no lockdown, nothing saved.
+ */
+export function ExamRunner({ examId, preview = false }: { examId: string; preview?: boolean }) {
   const { user } = useAuth();
+  const isPreview = preview && user?.role === "teacher";
   const studentId = user?.role === "student" ? user.id : null;
   const sessionId = studentId ? sessionIdFor(examId, studentId) : "";
 
@@ -94,6 +110,9 @@ export function ExamRunner({ examId }: { examId: string }) {
   const [session, setSession] = useState<ExamSessionDoc | null | undefined>(undefined);
   const [variant, setVariant] = useState<ExamVariant | null>(null);
   const [text, setText] = useState("");
+  const [answers, setAnswers] = useState<Record<string, ExamAnswer>>({});
+  const [partIndex, setPartIndex] = useState(0);
+  const [previewKey, setPreviewKey] = useState("A");
   const [localLock, setLocalLock] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
@@ -107,6 +126,7 @@ export function ExamRunner({ examId }: { examId: string }) {
   const [extension] = useState<string | null>(() => detectWritingExtension());
 
   const textRef = useRef("");
+  const answersRef = useRef<Record<string, ExamAnswer>>({});
   const dirty = useRef(false);
   const pendingEvents = useRef<ExamEvent[]>([]);
   const eventCount = useRef(0);
@@ -145,9 +165,13 @@ export function ExamRunner({ examId }: { examId: string }) {
         if (existing) {
           const local = readLocal(existing.id);
           const serverT = tsMillis(existing.lastSeenAt) ?? 0;
-          const restored = local && local.t > serverT && existing.state === "active" ? local.text : existing.text;
+          const useLocal = Boolean(local && local.t > serverT && existing.state === "active");
+          const restored = useLocal && local ? local.text : existing.text;
+          const restoredAnswers = (useLocal && local?.answers) || existing.answers || {};
           textRef.current = restored;
           setText(restored);
+          answersRef.current = restoredAnswers;
+          setAnswers(restoredAnswers);
           eventCount.current = existing.events?.length ?? 0;
           setSession(existing);
           // Coming back mid-exam (refresh, crash, closed tab) locks until the teacher looks.
@@ -159,6 +183,7 @@ export function ExamRunner({ examId }: { examId: string }) {
                 lockReason: "resume",
                 text: restored,
                 wordCount: countWords(restored),
+                answers: restoredAnswers,
                 events: [{ t: Date.now(), type: "resume", severity: "lock" }],
               });
             } catch {
@@ -179,15 +204,17 @@ export function ExamRunner({ examId }: { examId: string }) {
 
   useEffect(() => () => sessionUnsub.current?.(), []);
 
-  const variantKey = session?.variantKey ?? (studentId ? exam?.variantByStudent?.[studentId] : undefined) ?? exam?.variantKeys?.[0];
+  const variantKey = isPreview
+    ? previewKey
+    : (session?.variantKey ?? (studentId ? exam?.variantByStudent?.[studentId] : undefined) ?? exam?.variantKeys?.[0]);
   const examOpen = exam?.status === "open";
 
   useEffect(() => {
-    if (!examOpen || !variantKey || variant?.key === variantKey) return;
+    if ((!examOpen && !isPreview) || !variantKey || variant?.key === variantKey) return;
     loadVariant(examId, variantKey)
       .then(setVariant)
       .catch(() => setError("לא ניתן לטעון את נושא המבחן."));
-  }, [examId, examOpen, variantKey, variant?.key]);
+  }, [examId, examOpen, isPreview, variantKey, variant?.key]);
 
   useEffect(() => {
     const id = window.setInterval(() => setNow(Date.now()), 1000);
@@ -232,13 +259,15 @@ export function ExamRunner({ examId }: { examId: string }) {
         text: textRef.current,
         wordCount: countWords(textRef.current),
         vocabUsedIds: exam ? matchVocab(textRef.current, exam.vocabHashes ?? [], exam.vocabSalt ?? "") : [],
+        answers: answersRef.current,
         ...extra,
         events,
       };
       dirty.current = false;
       try {
         await patchSession(session.id, patch);
-        localStorage.setItem(localKey(session.id), JSON.stringify({ text: textRef.current, t: Date.now() }));
+        const copy: LocalCopy = { text: textRef.current, answers: answersRef.current, t: Date.now() };
+        localStorage.setItem(localKey(session.id), JSON.stringify(copy));
         return true;
       } catch (err) {
         console.warn("exam save", err);
@@ -308,6 +337,12 @@ export function ExamRunner({ examId }: { examId: string }) {
 
   const needsFullscreen = fullscreenSupported && !noFullscreen && !isFullscreen;
   const showEditor = writing && !needsFullscreen;
+
+  const handleAnswer = (key: string, value: ExamAnswer) => {
+    answersRef.current = { ...answersRef.current, [key]: value };
+    dirty.current = true;
+    setAnswers(answersRef.current);
+  };
 
   const handleEdit = (next: string, prev: string) => {
     const op = diffOp(prev, next, Date.now());
@@ -382,18 +417,23 @@ export function ExamRunner({ examId }: { examId: string }) {
   }, [timeUp, session?.state, isLocked, handleSubmit]);
 
   // --- Screens -----------------------------------------------------------------------
-  if (!user || user.role !== "student") {
+  if (!user || (user.role !== "student" && !isPreview)) {
     return <CenterMessage title="המבחן מיועד לתלמידים" body="יש להתחבר כתלמיד/ה כדי לגשת למבחן." />;
   }
   if (error) return <CenterMessage title="משהו השתבש" body={error} tone="error" />;
-  if (exam === undefined || session === undefined) return <Loading />;
+  if (exam === undefined || (!isPreview && session === undefined)) return <Loading />;
   if (exam === null) return <CenterMessage title="המבחן לא נמצא" body="ייתכן שהקישור שגוי או שהמבחן נמחק." tone="error" />;
+  const kindHe = EXAM_KIND_HE[examKind(exam)];
+
+  if (isPreview) {
+    // Skip every session screen: straight to what students see while writing.
+  } else {
 
   if (session?.state === "submitted") {
     return (
       <CenterMessage
         icon={<CheckCircle2 className="h-10 w-10 text-success" />}
-        title="המבחן הוגש בהצלחה"
+        title={`ה${kindHe} הוגש בהצלחה`}
         body={`קוד אישור: ${session.receiptCode ?? "—"}. אפשר לסגור את המחשב בשקט.`}
         action={<Link href="/" className={buttonVariants()}>חזרה לדף הבית</Link>}
       />
@@ -404,7 +444,7 @@ export function ExamRunner({ examId }: { examId: string }) {
     return (
       <CenterMessage
         icon={<Clock className="h-10 w-10 text-muted-foreground" />}
-        title={exam.status === "closed" ? "המבחן הסתיים" : "המבחן עוד לא נפתח"}
+        title={exam.status === "closed" ? `ה${kindHe} הסתיים` : `ה${kindHe} עוד לא נפתח`}
         body={
           exam.status === "closed"
             ? "הזמן נגמר והמבחן נסגר על ידי המורה."
@@ -431,7 +471,7 @@ export function ExamRunner({ examId }: { examId: string }) {
     return (
       <CenterMessage
         icon={<Lock className="h-10 w-10 text-destructive" />}
-        title="המבחן ננעל – קרא/י למורה"
+        title={`ה${kindHe} ננעל – קרא/י למורה`}
         body="המערכת זיהתה יציאה ממסך המבחן או פעולה אסורה. המורה צריך/ה לשחרר את הנעילה מהמחשב שלו/ה. הזמן ממשיך לרוץ."
         tone="error"
         footer={remainingMs !== null ? `זמן שנותר: ${formatClock(remainingMs)}` : undefined}
@@ -447,8 +487,8 @@ export function ExamRunner({ examId }: { examId: string }) {
     return (
       <CenterMessage
         icon={<Expand className="h-10 w-10 text-primary" />}
-        title="חזרה למבחן"
-        body="המבחן נפתח במסך מלא בלבד."
+        title={`חזרה ל${kindHe}`}
+        body={`ה${kindHe} נפתח במסך מלא בלבד.`}
         action={
           <Button
             size="lg"
@@ -466,24 +506,45 @@ export function ExamRunner({ examId }: { examId: string }) {
     );
   }
 
+  }
+
+  const metas = examParts(exam);
+  const studentParts = variant?.parts?.length ? variant.parts : WRITING_ONLY;
+  const current = studentParts[Math.min(partIndex, studentParts.length - 1)];
+  const currentMeta = metas.find((m) => m.id === current?.id);
+  const hasWriting = studentParts.some((p) => p.type === "writing");
+  const onWriting = current?.type === "writing";
   const minVocab = exam.minVocabUsed;
   const vocabOk = vocabUsedIds.length >= minVocab;
   const wordsOk = wordCount >= exam.minWords;
   const lowTime = remainingMs !== null && remainingMs < 5 * 60_000;
+  const unanswered = studentParts
+    .filter((p) => p.type !== "writing")
+    .map((p, i) => ({ p, i, missing: partItemIds(p).length - answeredCount(p, answers) }))
+    .filter((x) => x.missing > 0);
+  const partLabel = (p: ExamPartStudent, i: number) =>
+    `חלק ${HEB_LETTERS[i] ?? i + 1}׳ · ${metas.find((m) => m.id === p.id)?.title || EXAM_PART_LABEL_HE[p.type]}`;
+  const editorVisible = isPreview || showEditor;
 
   return (
     <div dir="rtl" className="flex min-h-screen flex-col bg-background text-foreground">
       <header className="sticky top-0 z-10 flex flex-wrap items-center gap-3 border-b border-border bg-background/95 px-4 py-2 backdrop-blur">
         <ShieldCheck className="h-5 w-5 text-primary" />
         <div className="min-w-0 flex-1">
-          <div className="truncate text-sm font-bold">{exam.title}</div>
+          <div className="truncate text-sm font-bold">
+            {kindHe}: {exam.title}
+          </div>
           <div className="truncate text-xs text-muted-foreground">
             {user.name}
             {user.fullClass ? ` · ${user.fullClass}` : ""}
           </div>
         </div>
-        <Stat label="מילים" value={`${wordCount}`} ok={wordsOk} hint={`מינימום ${exam.minWords}`} />
-        <Stat label="מילים מהרשימה" value={`${vocabUsedIds.length}/${minVocab}`} ok={vocabOk} />
+        {onWriting && (
+          <>
+            <Stat label="מילים" value={`${wordCount}`} ok={wordsOk} hint={`מינימום ${exam.minWords}`} />
+            <Stat label="מילים מהרשימה" value={`${vocabUsedIds.length}/${minVocab}`} ok={vocabOk} />
+          </>
+        )}
         <div
           className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-mono text-lg font-bold tabular-nums ${
             lowTime ? "bg-destructive/10 text-destructive" : "bg-muted text-foreground"
@@ -495,12 +556,69 @@ export function ExamRunner({ examId }: { examId: string }) {
         </div>
         <ThemeToggle />
         {submitError && <span className="text-xs font-medium text-destructive">ההגשה נכשלה – בדקו חיבור ונסו שוב</span>}
-        <Button onClick={() => setConfirmOpen(true)}>
-          <Send />
-          הגשה
-        </Button>
+        {!isPreview && (
+          <Button onClick={() => setConfirmOpen(true)}>
+            <Send />
+            הגשה
+          </Button>
+        )}
       </header>
 
+      {isPreview && (
+        <div className="flex flex-wrap items-center gap-2 border-b border-warning/40 bg-warning/10 px-4 py-2 text-sm">
+          <span className="font-bold">תצוגה מקדימה למורה</span>
+          <span className="text-muted-foreground">כך התלמידים רואים את ה{kindHe}. שום דבר לא נשמר, ואין נעילה.</span>
+          {exam.variantKeys.length > 1 && (
+            <span className="flex items-center gap-1">
+              גרסה:
+              {exam.variantKeys.map((k) => (
+                <Button key={k} size="xs" variant={k === previewKey ? "default" : "outline"} onClick={() => setPreviewKey(k)}>
+                  {k}
+                </Button>
+              ))}
+            </span>
+          )}
+        </div>
+      )}
+
+      {studentParts.length > 1 && (
+        <nav className="flex flex-wrap gap-2 border-b border-border px-4 py-2" aria-label="חלקי המבחן">
+          {studentParts.map((p, i) => {
+            const total = partItemIds(p).length;
+            const done = p.type === "writing" ? null : answeredCount(p, answers);
+            return (
+              <Button
+                key={p.id}
+                size="sm"
+                variant={p.id === current?.id ? "default" : "outline"}
+                onClick={() => setPartIndex(i)}
+              >
+                {partLabel(p, i)}
+                {done !== null && (
+                  <span className="font-mono text-xs tabular-nums opacity-80">
+                    {done}/{total}
+                  </span>
+                )}
+              </Button>
+            );
+          })}
+        </nav>
+      )}
+
+      {!onWriting && current && (
+        <main className="mx-auto w-full max-w-7xl flex-1 space-y-3 p-4">
+          {currentMeta && studentParts.length > 1 && (
+            <h2 className="text-sm font-bold text-muted-foreground">
+              {partLabel(current, studentParts.indexOf(current))} · {currentMeta.points} נק׳
+            </h2>
+          )}
+          {current.type === "unseen" && <ExamUnseenPart part={current} answers={answers} onAnswer={handleAnswer} />}
+          {current.type === "vocab" && <ExamVocabPart part={current} answers={answers} onAnswer={handleAnswer} />}
+          {current.type === "grammar" && <ExamGrammarPart part={current} answers={answers} onAnswer={handleAnswer} />}
+        </main>
+      )}
+
+      {onWriting && (
       <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-4 p-4 lg:flex-row">
         <section className="flex min-w-0 flex-1 flex-col gap-3">
           <Card size="sm">
@@ -524,26 +642,28 @@ export function ExamRunner({ examId }: { examId: string }) {
               )}
             </CardContent>
           </Card>
-          {showEditor && <ExamEditor value={text} onChange={handleEdit} onViolation={onViolation} />}
+          {editorVisible && <ExamEditor value={text} onChange={handleEdit} onViolation={onViolation} />}
         </section>
         <aside className="w-full shrink-0 lg:w-72">
           <ExamWordList
             words={exam.vocabHebrew ?? []}
             usedIds={vocabUsedIds}
             minUsed={minVocab}
-            shuffleSeed={`${exam.id}:${studentId}`}
+            shuffleSeed={`${exam.id}:${studentId ?? "preview"}`}
           />
         </aside>
       </main>
+      )}
 
       <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <AlertDialogContent dir="rtl">
           <AlertDialogHeader className="sm:group-data-[size=default]/alert-dialog-content:place-items-start sm:group-data-[size=default]/alert-dialog-content:text-right">
-            <AlertDialogTitle>להגיש את המבחן?</AlertDialogTitle>
+            <AlertDialogTitle>להגיש את ה{kindHe}?</AlertDialogTitle>
             <AlertDialogDescription>
-              אחרי ההגשה לא ניתן לשנות את הטקסט.
-              {!wordsOk && ` כתבת ${wordCount} מילים – פחות מהמינימום (${exam.minWords}).`}
-              {!vocabOk && ` השתמשת ב-${vocabUsedIds.length} מילים מהרשימה – פחות מ-${minVocab}.`}
+              אחרי ההגשה לא ניתן לשנות תשובות.
+              {unanswered.map((u) => ` ב${partLabel(u.p, studentParts.indexOf(u.p))} יש ${u.missing} שאלות בלי תשובה.`).join("")}
+              {hasWriting && !wordsOk && ` בחיבור כתבת ${wordCount} מילים – פחות מהמינימום (${exam.minWords}).`}
+              {hasWriting && !vocabOk && ` השתמשת ב-${vocabUsedIds.length} מילים מהרשימה – פחות מ-${minVocab}.`}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -591,19 +711,32 @@ function ExamIntro({
         <CardContent className="space-y-4">
           <div className="flex items-center gap-2">
             <ShieldCheck className="h-6 w-6 text-primary" />
-            <h1 className="text-xl font-bold">{exam.title}</h1>
+            <h1 className="text-xl font-bold">
+              {EXAM_KIND_HE[examKind(exam)]}: {exam.title}
+            </h1>
           </div>
-          <p className="text-sm text-muted-foreground">
-            {exam.durationMin} דקות · {exam.minWords}–{exam.maxWords} מילים · לפחות {exam.minVocabUsed} מילים מתוך{" "}
-            {exam.vocabHebrew?.length ?? 0} ברשימה
-          </p>
+          <p className="text-sm text-muted-foreground">{exam.durationMin} דקות</p>
+          <ul className="space-y-1 text-sm">
+            {examParts(exam).map((p, i) => (
+              <li key={p.id} className="flex justify-between gap-2 rounded-lg border border-border px-3 py-1.5">
+                <span>
+                  חלק {HEB_LETTERS[i] ?? i + 1}׳ · {p.title || EXAM_PART_LABEL_HE[p.type]}
+                  {p.type === "writing"
+                    ? ` (${exam.minWords}–${exam.maxWords} מילים, לפחות ${exam.minVocabUsed} מילים מהרשימה)`
+                    : ` (${p.itemCount} שאלות)`}
+                </span>
+                <span className="tabular-nums text-muted-foreground">{p.points} נק׳</span>
+              </li>
+            ))}
+          </ul>
           <div className="space-y-2 rounded-xl border border-border bg-muted/50 p-4 text-sm">
             <div className="font-bold">כללי המבחן</div>
             <ul className="list-disc space-y-1 ps-5">
               <li>המבחן נפתח במסך מלא. יציאה ממסך מלא (כולל מקש Esc) נועלת את המבחן.</li>
               <li>מעבר ללשונית, לחלון או לתוכנה אחרת נועל את המבחן.</li>
-              <li>אין אפשרות להעתיק, להדביק או להשתמש בבודק איות ובהשלמה אוטומטית.</li>
-              <li>כותבים באנגלית בלבד. רשימת המילים מופיעה בעברית – המילה תסומן ✓ כשתכתבו אותה נכון באנגלית.</li>
+              <li>אין אפשרות להעתיק, להדביק או להשתמש בבודק איות, בתרגום, ברמזים או בהשלמה אוטומטית.</li>
+              <li>כותבים באנגלית בלבד.</li>
+              <li>אפשר לעבור בין החלקים בכל זמן. התשובות נשמרות לבד.</li>
               <li>כל הפעולות במבחן נשמרות. רענון הדף נועל את המבחן עד שהמורה משחרר/ת.</li>
               <li>אם המבחן ננעל – קראו למורה. הזמן ממשיך לרוץ.</li>
             </ul>
@@ -621,7 +754,7 @@ function ExamIntro({
           )}
           <Button size="lg" className="w-full" disabled={starting || !canStart} onClick={onStart}>
             {starting ? <Loader2 className="animate-spin" /> : <Expand />}
-            התחלת המבחן במסך מלא
+            התחלה במסך מלא
           </Button>
         </CardContent>
       </Card>

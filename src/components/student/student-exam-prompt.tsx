@@ -10,7 +10,8 @@ import { findOpenExams } from "@/lib/exam/exam-storage";
 import { isStudentTargeted } from "@/lib/exam/exam-targeting";
 import { buttonVariants } from "@/components/ui/button";
 import { ShieldCheck, ArrowLeft } from "lucide-react";
-import type { ExamDoc } from "@/types/exam";
+import { EXAM_KIND_HE, type ExamDoc } from "@/types/exam";
+import { examKind } from "@/lib/exam/exam-parts";
 
 export function StudentExamPrompt({ className }: { className?: string }) {
   const { user } = useAuth();
@@ -38,13 +39,15 @@ export function StudentExamPrompt({ className }: { className?: string }) {
         >
           <ShieldCheck className="h-6 w-6 shrink-0 text-primary" />
           <div className="min-w-0 flex-1">
-            <div className="font-bold">מבחן פתוח: {exam.title}</div>
+            <div className="font-bold">
+              {EXAM_KIND_HE[examKind(exam)]} פתוח: {exam.title}
+            </div>
             <div className="text-sm text-muted-foreground">
               {exam.durationMin} דקות · המבחן ייפתח במסך מלא
             </div>
           </div>
           <Link href={`/exam/${encodeURIComponent(exam.id)}`} className={buttonVariants({ size: "lg" })}>
-            כניסה למבחן
+            כניסה ל{EXAM_KIND_HE[examKind(exam)]}
             <ArrowLeft />
           </Link>
         </div>

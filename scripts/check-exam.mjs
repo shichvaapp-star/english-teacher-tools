@@ -9,6 +9,13 @@ const { hashAnswers, matchVocab, countWords } = await load("src/lib/exam/vocab-m
 const { diffOp, replay, typingStats } = await load("src/lib/exam/keylog.ts");
 const { compareAll, comparePair, similarityLevel, sharedWordMask } = await load("src/lib/exam/similarity.ts");
 const { assignVariants, neighbourPairs, seatVariantIndex } = await load("src/lib/exam/seat-plan.ts");
+const { versionOf, stripPart, stripGrammarItem, examParts, examKind, answerKey, baseItemId, answeredCount } = await load("src/lib/exam/exam-parts.ts");
+const { buildUnseenPart, buildVocabPart } = await load("src/lib/exam/exam-build.ts");
+const { gradeExam, vocabTypedCorrect } = await load("src/lib/exam/grade-exam.ts");
+const { answerPatternPairs, answerPatternLevel } = await load("src/lib/exam/similarity.ts");
+const { gradeGrammarItem } = await load("src/lib/grammar-grading.ts");
+const { GRAMMAR_ITEMS } = await load("src/data/grammar/index.ts");
+const { UNSEEN_STORIES } = await load("src/data/unseen/index.ts");
 
 const errors = [];
 const check = (name, cond, extra = "") => cond || errors.push(`${name}${extra ? ` – ${extra}` : ""}`);
@@ -94,6 +101,109 @@ check("seated variants alternate", assigned.s1 === "A" && assigned.s2 === "B" &&
 check("unseated get a variant", assigned.s4 === "A" && assigned.s5 === "B");
 const pairs = neighbourPairs(plan);
 check("neighbour pairs", pairs.has("s1|s2") && pairs.has("s2|s3") && !pairs.has("s1|s3"));
+
+
+// --- Parts: legacy exams ----------------------------------------------------------
+check("legacy exam = one writing part", examParts({}).length === 1 && examParts({}).at(0).type === "writing");
+check("legacy exam = test", examKind({}) === "test" && examKind({ kind: "quiz" }) === "quiz");
+
+// --- Grammar: stripping + grading round trip, every exercise type ------------------
+const correctResponse = (it) => {
+  switch (it.type) {
+    case "mcq": case "gap_bank": return { type: it.type, value: it.answer };
+    case "gap_type": case "transform": return { type: it.type, value: it.answers[0] };
+    case "unscramble": return { type: "unscramble", order: [...it.words] };
+    case "find_fix": return { type: "find_fix", index: it.wrongIndex, value: it.answers[0] };
+    case "sort": return { type: "sort", placement: Object.fromEntries(it.entries.map((e) => [e.text, e.bucket])) };
+    case "match_halves": return { type: "match_halves", matches: Object.fromEntries(it.pairs.map((p) => [p.left, p.right])) };
+    case "cloze_text": return { type: "cloze_text", values: it.blanks.map((b) => b.answers[0]) };
+    default: return null;
+  }
+};
+const seenTypes = new Set();
+for (const it of GRAMMAR_ITEMS) {
+  seenTypes.add(it.type);
+  const st = stripGrammarItem(it);
+  const where = `grammar ${it.id} (${it.type})`;
+  check(`${where}: explanation/hint removed`, !st.explanationHe && !st.explanationEn && !st.hintHe);
+  switch (it.type) {
+    case "mcq": case "gap_bank": check(`${where}: answer hidden`, st.answer === ""); break;
+    case "gap_type": case "transform": case "find_fix": check(`${where}: answers hidden`, st.answers.length === 0 && (it.type !== "find_fix" || st.wrongIndex === -1)); break;
+    case "unscramble": check(`${where}: same words`, [...st.words].sort().join("|") === [...it.words].sort().join("|") && !st.altAnswers); break;
+    case "sort": check(`${where}: buckets hidden`, st.entries.every((e) => e.bucket === "") && st.entries.length === it.entries.length); break;
+    case "match_halves": check(`${where}: same halves`, [...st.pairs.map((p) => p.right)].sort().join("|") === [...it.pairs.map((p) => p.right)].sort().join("|")); break;
+    case "cloze_text": check(`${where}: blanks hidden`, st.blanks.every((b) => b.answers.length === 0)); break;
+    case "write_own": check(`${where}: model hidden`, st.modelAnswers.length === 0); break;
+  }
+  const r = correctResponse(it);
+  if (r) check(`${where}: key grades 1`, gradeGrammarItem(it, r).score === 1, JSON.stringify(gradeGrammarItem(it, r)));
+}
+check("every grammar type covered", seenTypes.size === 10, [...seenTypes].join(","));
+
+// --- Unseen: build, strip, versions, grading ----------------------------------------
+const story = UNSEEN_STORIES.find((s) => s.questions.some((q) => q.type === "mcq") && s.questions.some((q) => q.type === "copy") && s.questions.some((q) => q.type === "open"));
+const uA = buildUnseenPart("p1", story.id, []);
+check("unseen part has all questions", uA.questions.length === story.questions.length);
+const uStudent = JSON.stringify(stripPart(uA));
+check("unseen stripped: no keys", !/correctIndex|targetSentence|modelAnswer|keywords|explanationHebrew/.test(uStudent));
+const uB = versionOf(uA, "B");
+for (const q of uA.questions.filter((q) => q.type === "mcq")) {
+  const b = uB.questions.find((x) => baseItemId(x.id) === q.id);
+  check(`unseen B keeps the right answer (${q.id})`, b.options[b.correctIndex] === q.options[q.correctIndex] && b.id === `${q.id}~B`);
+}
+const mcq = uA.questions.find((q) => q.type === "mcq");
+const copyQ = uA.questions.find((q) => q.type === "copy");
+const openQ = uA.questions.find((q) => q.type === "open");
+const uAnswers = {
+  [answerKey("p1", mcq.id)]: mcq.correctIndex,
+  [answerKey("p1", copyQ.id)]: copyQ.targetSentence,
+  [answerKey("p1", openQ.id)]: (openQ.keywords ?? []).join(" "),
+};
+const uMeta = [{ id: "p1", type: "unseen", title: "U", points: 50, itemCount: uA.questions.length }];
+let g = gradeExam(uMeta, [uA], uAnswers, null);
+const items = Object.fromEntries(g.parts[0].items.map((i) => [i.itemId, i]));
+check("unseen mcq right = 1", items[mcq.id].score === 1);
+check("unseen copy exact = 1", items[copyQ.id].score === 1);
+check("unseen open → needs review", items[openQ.id].needsReview === true);
+g = gradeExam(uMeta, [uA], uAnswers, { overrides: { [answerKey("p1", openQ.id)]: 0.5 } });
+check("teacher override wins + clears review", g.parts[0].items.find((i) => i.itemId === openQ.id).score === 0.5 && !g.parts[0].items.find((i) => i.itemId === openQ.id).needsReview);
+const gB = gradeExam(uMeta, [uB], { [answerKey("p1", `${openQ.id}~B`)]: "x" }, { overrides: { [answerKey("p1", openQ.id)]: 1 } });
+check("override applies to version B by base id", gB.parts[0].items.find((i) => i.baseId === openQ.id).score === 1);
+
+// --- Vocab ----------------------------------------------------------------------------
+const vw = [
+  { id: "w1", english: "borrow", hebrew: "לשאול (חפץ)" },
+  { id: "w2", english: "city", hebrew: "עיר" },
+  { id: "w3", english: "look after", hebrew: "לטפל ב" },
+  { id: "w4", english: "quiet", hebrew: "שקט" },
+  { id: "w5", english: "river", hebrew: "נהר" },
+];
+const vA = buildVocabPart("p2", vw, ["he_to_en_type", "en_to_he_choice", "he_to_en_choice"], 5, 42);
+check("vocab count + formats", vA.questions.length === 5 && new Set(vA.questions.map((q) => q.format)).size === 3);
+check("vocab choices have 4 options incl. answer", vA.questions.filter((q) => q.options).every((q) => q.options.length === 4 && q.options.includes(q.answer)));
+check("vocab stripped: no answer", !JSON.stringify(stripPart(vA)).includes('"answer"'));
+check("vocab B: same questions shuffled", versionOf(vA, "B").questions.map((q) => baseItemId(q.id)).sort().join() === vA.questions.map((q) => q.id).sort().join());
+check("typed: inflection ok", vocabTypedCorrect("Borrowed", "borrow") && vocabTypedCorrect("to borrow", "borrow") && vocabTypedCorrect("cities", "city"));
+check("typed: phrase + wrong", vocabTypedCorrect("look after", "look after") && !vocabTypedCorrect("borow", "borrow") && !vocabTypedCorrect("", "city"));
+
+// --- Whole exam total + writing -----------------------------------------------------------
+const metas = [...uMeta, { id: "p2", type: "vocab", title: "V", points: 30, itemCount: 5 }, { id: "w", type: "writing", title: "W", points: 20, itemCount: 1 }];
+const allRight = Object.fromEntries(vA.questions.map((q) => [answerKey("p2", q.id), q.answer]));
+const total = gradeExam(metas, [uA, vA, { id: "w", type: "writing" }], allRight, { overrides: {}, writingScore: 0.5 });
+check("vocab all right = full part", Math.abs(total.parts[1].earned - 30) < 1e-9);
+check("writing score scales", total.parts[2].earned === 10 && total.parts[2].needsReview === 0);
+check("writing ungraded → review", gradeExam(metas, [uA, vA], {}, null).parts[2].needsReview === 1);
+check("answeredCount", answeredCount(stripPart(vA), allRight) === 5);
+
+// --- Answer patterns -------------------------------------------------------------------------
+const sheet = (id, wrongs) => ({ studentId: id, answers: Object.fromEntries(Object.entries(wrongs).map(([k, t]) => [k, { text: t, correct: t === "ok" }])) });
+const pp = answerPatternPairs([
+  sheet("a", { q1: "x", q2: "y", q3: "z", q4: "w", q5: "ok" }),
+  sheet("b", { q1: "x", q2: "y", q3: "z", q4: "w", q5: "ok" }),
+  sheet("c", { q1: "ok", q2: "q", q3: "ok", q4: "ok", q5: "ok" }),
+]);
+check("answer pattern: copiers high", pp[0].a === "a" && pp[0].b === "b" && pp[0].sameWrong === 4 && answerPatternLevel(pp[0]) === "high");
+check("answer pattern: right answers don't count", !pp.some((p) => p.b === "c" && p.sameWrong > 0));
 
 if (errors.length) {
   console.error(`check:exam – ${errors.length} problem(s):\n  ${errors.join("\n  ")}`);

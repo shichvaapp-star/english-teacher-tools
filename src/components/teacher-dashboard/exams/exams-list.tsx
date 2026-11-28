@@ -13,13 +13,17 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ExamStatusBadge } from "./exam-status-badge";
 import { deleteExam, listTeacherExams } from "@/lib/exam/exam-storage";
 import { cleanClass } from "@/lib/class-names";
-import type { ExamDoc } from "@/types/exam";
+import { EXAM_KIND_HE, type ExamDoc, type ExamKind } from "@/types/exam";
+import { examKind, examParts } from "@/lib/exam/exam-parts";
+import { SegmentedControl } from "@/components/teacher-dashboard/shared-ui/segmented-control";
+import { Badge } from "@/components/ui/badge";
 import { ClipboardCheck, Pencil, Plus, Radio, SearchCheck, Trash2 } from "lucide-react";
 
 export function ExamsList() {
   const { user } = useTeacherSession();
   const confirm = useConfirm();
   const [exams, setExams] = useState<ExamDoc[] | null>(null);
+  const [kindFilter, setKindFilter] = useState<"all" | ExamKind>("all");
 
   const load = useCallback(() => {
     listTeacherExams(user.id)
@@ -67,9 +71,23 @@ export function ExamsList() {
     );
   }
 
+  const shown = exams.filter((e) => kindFilter === "all" || examKind(e) === kindFilter);
+  const count = (k: ExamKind) => exams.filter((e) => examKind(e) === k).length;
+
   return (
+    <div className="space-y-3">
+    <SegmentedControl
+      value={kindFilter}
+      onChange={setKindFilter}
+      options={[
+        { value: "all", label: "הכל", count: exams.length },
+        { value: "test", label: "מבחנים", count: count("test") },
+        { value: "quiz", label: "בחנים", count: count("quiz") },
+      ]}
+      aria-label="סינון לפי סוג"
+    />
     <div className="grid gap-3 md:grid-cols-2">
-      {exams.map((exam) => (
+      {shown.map((exam) => (
         <Card key={exam.id}>
           <CardContent className="space-y-3">
             <div className="flex items-start justify-between gap-2">
@@ -78,10 +96,15 @@ export function ExamsList() {
                 <div className="text-xs text-muted-foreground">
                   {exam.targetClass ? `כיתה ${cleanClass(exam.targetClass)}` : "כל התלמידים"}
                   {exam.targetGroup ? ` · הקבצה ${exam.targetGroup}` : ""} · {exam.durationMin} דק׳ ·{" "}
-                  {exam.vocabHebrew.length} מילים · {exam.variantKeys.length} נושאים
+                  {examParts(exam).map((p) => p.title).join(" + ")} · {exam.variantKeys.length} גרסאות
                 </div>
               </div>
-              <ExamStatusBadge status={exam.status} />
+              <div className="flex shrink-0 gap-1">
+                <Badge variant="outline" className={examKind(exam) === "quiz" ? "border-info/40 text-info" : "border-primary/40 text-primary"}>
+                  {EXAM_KIND_HE[examKind(exam)]}
+                </Badge>
+                <ExamStatusBadge status={exam.status} />
+              </div>
             </div>
             <div className="flex flex-wrap gap-2">
               <Link href={examHref(exam.id)} className={buttonVariants({ size: "sm" })}>
@@ -92,6 +115,11 @@ export function ExamsList() {
                 <Link href={`${examHref(exam.id)}/edit`} className={buttonVariants({ size: "sm", variant: "outline" })}>
                   <Pencil />
                   עריכה
+                </Link>
+              )}
+              {exam.status === "closed" && (
+                <Link href={`${examHref(exam.id)}/results`} className={buttonVariants({ size: "sm", variant: "outline" })}>
+                  ציונים
                 </Link>
               )}
               {exam.status === "closed" && (
@@ -110,6 +138,7 @@ export function ExamsList() {
           </CardContent>
         </Card>
       ))}
+    </div>
     </div>
   );
 }

@@ -36,6 +36,19 @@ export function detectWritingExtension(): string | null {
   return attr ?? null;
 }
 
+/** Characters a student may type: printable ASCII, new lines and typographic quotes/dashes. */
+export const ALLOWED_TEXT = /^[\x20-\x7E\n\r\t’‘“”–—…]*$/;
+/** More than this many characters in one input event is not normal typing. */
+export const MAX_INSERT = 3;
+
+const LOCK_INPUT_TYPES: Record<string, ExamEventType> = {
+  insertFromPaste: "paste",
+  insertFromPasteAsQuotation: "paste",
+  insertFromYank: "paste",
+  insertFromDrop: "drop",
+  insertReplacementText: "replacement",
+};
+
 const BLOCKED_KEYS = new Set(["c", "v", "x", "p", "s", "f", "g", "u", "z", "y", "o", "j", "i"]);
 
 function isBlockedShortcut(e: KeyboardEvent): boolean {
@@ -123,6 +136,69 @@ export function useExamLockdown({ active, onViolation }: Options) {
     const onCopy = block("blocked_key");
     const onContext = (e: Event) => e.preventDefault();
     const onDragStart = (e: Event) => e.preventDefault();
+    // Every text box on the page (essay, grammar gaps, open answers…):
+    // paste / spell-check replacements / big insertions lock, Hebrew is refused.
+    let lastNonEnglish = 0;
+    const onBeforeInput = (ev: Event) => {
+      const e = ev as InputEvent;
+      const lockType = LOCK_INPUT_TYPES[e.inputType];
+      if (lockType) {
+        e.preventDefault();
+        report(lockType, "lock", e.inputType);
+        return;
+      }
+      // Undo/redo could bring back a whole deleted paragraph at once.
+      if (e.inputType === "historyUndo" || e.inputType === "historyRedo") {
+        e.preventDefault();
+        return;
+      }
+      const data = e.data ?? "";
+      if (data && !ALLOWED_TEXT.test(data)) {
+        e.preventDefault();
+        if (Date.now() - lastNonEnglish > 15_000) {
+          lastNonEnglish = Date.now();
+          report("non_english", "flag", data.slice(0, 20));
+        }
+        return;
+      }
+      if (e.inputType === "insertText" && data.length > MAX_INSERT) {
+        e.preventDefault();
+        report("bulk_insert", "lock", `${data.length} תווים`);
+      }
+    };
+
+    // Safety net for browsers / tools that change a field without `beforeinput`
+    // (dictation, some keyboards, scripted insertion): compare with the last
+    // value and undo a big jump before React sees it.
+    const lastValue = new WeakMap<EventTarget, string>();
+    const isField = (t: EventTarget | null): t is HTMLInputElement | HTMLTextAreaElement =>
+      t instanceof HTMLTextAreaElement || (t instanceof HTMLInputElement && (t.type === "text" || t.type === "search" || t.type === ""));
+    const onFocusIn = (e: FocusEvent) => {
+      if (isField(e.target)) lastValue.set(e.target, e.target.value);
+    };
+    const onInput = (e: Event) => {
+      const el = e.target;
+      if (!isField(el)) return;
+      const next = el.value;
+      const prev = lastValue.get(el);
+      // Focused before the guard started (e.g. autofocus): nothing to compare with yet.
+      if (prev === undefined) {
+        lastValue.set(el, next);
+        return;
+      }
+      if (next.length - prev.length > MAX_INSERT + 1 || (!ALLOWED_TEXT.test(next) && ALLOWED_TEXT.test(prev))) {
+        e.stopImmediatePropagation();
+        el.value = prev;
+        if (next.length - prev.length > MAX_INSERT + 1) report("bulk_insert", "lock", `${next.length - prev.length} תווים`);
+        else if (Date.now() - lastNonEnglish > 15_000) {
+          lastNonEnglish = Date.now();
+          report("non_english", "flag");
+        }
+        return;
+      }
+      lastValue.set(el, next);
+    };
+
     const onKey = (e: KeyboardEvent) => {
       if (!isBlockedShortcut(e)) return;
       e.preventDefault();
@@ -164,6 +240,9 @@ export function useExamLockdown({ active, onViolation }: Options) {
     document.addEventListener("contextmenu", onContext, true);
     document.addEventListener("dragstart", onDragStart, true);
     window.addEventListener("keydown", onKey, true);
+    document.addEventListener("beforeinput", onBeforeInput, true);
+    document.addEventListener("focusin", onFocusIn, true);
+    document.addEventListener("input", onInput, true);
     window.addEventListener("resize", onResize);
     return () => {
       observer.disconnect();
@@ -176,6 +255,9 @@ export function useExamLockdown({ active, onViolation }: Options) {
       document.removeEventListener("contextmenu", onContext, true);
       document.removeEventListener("dragstart", onDragStart, true);
       window.removeEventListener("keydown", onKey, true);
+      document.removeEventListener("beforeinput", onBeforeInput, true);
+      document.removeEventListener("focusin", onFocusIn, true);
+      document.removeEventListener("input", onInput, true);
       window.removeEventListener("resize", onResize);
     };
   }, [active, report]);

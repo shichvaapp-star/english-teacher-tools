@@ -21,7 +21,14 @@ export interface SubmissionQuestionBreakdown {
   feedbackHebrew?: string; // Nuanced teacher feedback specifically on student's answer
 }
 
-export type SubmissionType = "writing" | "unseen" | "vocab" | "conversation" | "grammar";
+export type SubmissionType = "writing" | "unseen" | "vocab" | "conversation" | "grammar" | "exam";
+
+/** A lab test / quiz result released by the teacher (no answer key inside). */
+export interface ExamResultSummary {
+  examId: string;
+  kind: "test" | "quiz";
+  parts: { title: string; type: "writing" | "unseen" | "vocab" | "grammar"; earned: number; points: number }[];
+}
 
 export interface GrammarSubmissionEntry {
   itemId: string;
@@ -130,5 +137,6 @@ export interface SubmissionItem {
   mode?: "practice" | "graded";
   reviewedAt?: string;
   examInfo?: ExamSubmissionInfo;
+  examSummary?: ExamResultSummary;
 }
 

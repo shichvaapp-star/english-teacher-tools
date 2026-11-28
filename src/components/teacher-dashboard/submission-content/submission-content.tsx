@@ -2,6 +2,7 @@
 
 import React, { useMemo, useState } from "react";
 import Link from "next/link";
+import { ExamResultSummaryView } from "@/components/exam/exam-result-summary";
 import {
   BookOpen,
   Check,
@@ -592,7 +593,9 @@ export function SubmissionContent({ sub, corrections }: { sub: SubmissionItem; c
           </div>
         </div>
       )}
-      {sub.type === "grammar" ? (
+      {sub.type === "exam" ? (
+        <ExamResultSummaryView sub={sub} />
+      ) : sub.type === "grammar" ? (
         <GrammarContent sub={sub} />
       ) : sub.type === "vocab" ? (
         <VocabContent sub={sub} />

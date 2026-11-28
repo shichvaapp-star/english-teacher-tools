@@ -1,9 +1,19 @@
 "use client";
 
-import { useParams } from "next/navigation";
+import { Suspense } from "react";
+import { useParams, useSearchParams } from "next/navigation";
 import { ExamRunner } from "@/components/exam/exam-runner";
 
-export default function ExamPage() {
+function ExamPageInner() {
   const params = useParams<{ examId: string }>();
-  return <ExamRunner examId={params.examId} />;
+  const search = useSearchParams();
+  return <ExamRunner examId={params.examId} preview={search.get("preview") === "1"} />;
+}
+
+export default function ExamPage() {
+  return (
+    <Suspense fallback={null}>
+      <ExamPageInner />
+    </Suspense>
+  );
 }

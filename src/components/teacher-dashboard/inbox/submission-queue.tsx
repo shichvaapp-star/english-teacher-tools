@@ -58,6 +58,7 @@ const TYPE_OPTIONS: FilterOption[] = [
   { value: "vocab", label: "אוצר מילים" },
   { value: "conversation", label: "שיחה" },
   { value: "grammar", label: "דקדוק" },
+  { value: "exam", label: "מבחנים ובחנים" },
 ];
 
 const GROUP_OPTIONS: FilterOption[] = [

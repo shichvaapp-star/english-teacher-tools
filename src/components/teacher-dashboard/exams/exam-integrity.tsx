@@ -17,7 +17,18 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { KeystrokeReplay } from "./keystroke-replay";
 import { loadTeacherExam, subscribeExamSessions, type TeacherExamBundle } from "@/lib/exam/exam-storage";
-import { compareAll, ignoredShingles, sharedWordMask, similarityLevel, type SimilarityPair } from "@/lib/exam/similarity";
+import {
+  answerPatternLevel,
+  answerPatternPairs,
+  compareAll,
+  ignoredShingles,
+  sharedWordMask,
+  similarityLevel,
+  type AnswerSheet,
+  type SimilarityPair,
+} from "@/lib/exam/similarity";
+import { examParts } from "@/lib/exam/exam-parts";
+import { gradeExam } from "@/lib/exam/grade-exam";
 import { neighbourPairs, pairKey } from "@/lib/exam/seat-plan";
 import type { ExamSessionDoc } from "@/types/exam";
 import { PlayCircle, Users } from "lucide-react";
@@ -77,6 +88,23 @@ export function ExamIntegrity({ examId }: { examId: string }) {
     [sessions, prompts]
   );
   const neighbours = useMemo(() => neighbourPairs(bundle?.exam.seatPlan), [bundle]);
+
+  // Auto-graded parts: same wrong answers (compared by item, across versions).
+  const patterns = useMemo(() => {
+    if (!sessions || !bundle?.priv?.variants) return [];
+    const metas = examParts(bundle.exam);
+    const sheets: AnswerSheet[] = sessions.map((s) => {
+      const g = gradeExam(metas, bundle.priv?.variants?.[s.variantKey] ?? [], s.answers ?? {}, null);
+      const answers: AnswerSheet["answers"] = {};
+      g.parts.forEach((p) =>
+        p.items.forEach((it) => {
+          answers[`${p.id}|${it.baseId}`] = { text: it.studentAnswer, correct: it.autoScore >= 1 };
+        })
+      );
+      return { studentId: s.studentId, answers };
+    });
+    return answerPatternPairs(sheets).filter((p) => answerPatternLevel(p) !== "low");
+  }, [sessions, bundle]);
   const byId = useMemo(() => new Map((sessions ?? []).map((s) => [s.studentId, s])), [sessions]);
 
   if (bundle === undefined || sessions === null) return <Skeleton className="h-96 w-full rounded-xl" />;
@@ -162,6 +190,57 @@ export function ExamIntegrity({ examId }: { examId: string }) {
           )}
         </CardContent>
       </Card>
+
+      {bundle.priv?.variants && (
+        <Card>
+          <CardHeader>
+            <CardTitle>תשובות שגויות זהות</CardTitle>
+            <CardDescription>
+              בשאלות סגורות (בחירה, אוצר מילים, דקדוק) תשובות נכונות אמורות להיות זהות – אבל אותן טעויות בדיוק אצל שני תלמידים הן סימן
+              מוכר להעתקה. ההשוואה היא לפי שאלה, גם בין גרסאות שונות.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {patterns.length === 0 ? (
+              <p className="text-sm text-muted-foreground">לא נמצאו זוגות עם טעויות משותפות בולטות.</p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>תלמידים</TableHead>
+                    <TableHead>טעויות זהות</TableHead>
+                    <TableHead>מתוך הטעויות</TableHead>
+                    <TableHead>רמה</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {patterns.map((p) => {
+                    const level = answerPatternLevel(p);
+                    return (
+                      <TableRow key={`${p.a}-${p.b}`}>
+                        <TableCell className="font-medium">
+                          {name(p.a)} ↔ {name(p.b)}
+                          {neighbours.has(pairKey(p.a, p.b)) && (
+                            <Badge variant="outline" className="ms-2 gap-1 border-warning/50 text-3xs">
+                              <Users className="h-3 w-3" />
+                              שכנים
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell className="tabular-nums">{p.sameWrong}</TableCell>
+                        <TableCell className="tabular-nums">{Math.round(p.share * 100)}%</TableCell>
+                        <TableCell>
+                          <span className={cn("rounded-full border px-2 py-0.5 text-xs", LEVEL_STYLE[level])}>{LEVEL_LABEL[level]}</span>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>
