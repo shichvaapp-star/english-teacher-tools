@@ -66,6 +66,21 @@ export interface VocabPracticeSummary {
   wordsPracticed: VocabPracticedWord[];
 }
 
+/** Set on writing submissions that came from a lab exam. */
+export interface ExamSubmissionInfo {
+  examId: string;
+  variantKey: string;
+  prompt: string;
+  minWords: number;
+  maxWords: number;
+  minVocabUsed: number;
+  vocabTotal: number;
+  vocabUsed: { english: string; hebrew: string }[];
+  /** Times the exam locked (left the screen, paste…) and other logged warnings. */
+  locks: number;
+  flags: number;
+}
+
 export interface SubmissionItem {
   id: string;
   type: SubmissionType;
@@ -114,5 +129,6 @@ export interface SubmissionItem {
   status: "submitted" | "reviewed" | "completed";
   mode?: "practice" | "graded";
   reviewedAt?: string;
+  examInfo?: ExamSubmissionInfo;
 }
 

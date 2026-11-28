@@ -26,6 +26,7 @@ import {
   Shapes,
 } from "lucide-react";
 import { StudentAssignedTaskPrompt } from "@/components/student/student-assigned-task-prompt";
+import { StudentExamPrompt } from "@/components/student/student-exam-prompt";
 import { getStoredDrafts } from "@/lib/drafts-storage";
 import type { InProgressWorkItem } from "@/types/draft";
 
@@ -307,6 +308,7 @@ export default function Home() {
 
       {/* Hero Section */}
       <main className="flex-1 container mx-auto px-4 sm:px-8 py-10 sm:py-14 space-y-12">
+        <StudentExamPrompt className="max-w-6xl mx-auto" />
         <div className="max-w-3xl mx-auto text-center space-y-3">
           {/* Large Title in English */}
           <h1 className="text-4xl sm:text-5xl md:text-6xl font-normal tracking-tight text-foreground font-sans">

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useMemo, useState } from "react";
+import Link from "next/link";
 import {
   BookOpen,
   Check,
@@ -369,9 +370,42 @@ function segmentEssay(text: string, corrections: WritingCorrection[]): Segment[]
   return out;
 }
 
+function ExamInfoStrip({ exam }: { exam: NonNullable<SubmissionItem["examInfo"]> }) {
+  const vocabOk = exam.vocabUsed.length >= exam.minVocabUsed;
+  return (
+    <div className="space-y-2 rounded-lg border border-border p-3 text-sm">
+      <div className="flex flex-wrap items-center gap-3">
+        <span className="font-medium">מבחן במעבדה</span>
+        <span className={cn("tabular-nums", vocabOk ? "text-success" : "text-destructive")}>
+          מילים מהרשימה: {exam.vocabUsed.length}/{exam.vocabTotal} (נדרש {exam.minVocabUsed}) {vocabOk ? "✓" : "✗"}
+        </span>
+        <span className={cn("tabular-nums", exam.locks > 0 && "font-medium text-destructive")}>נעילות: {exam.locks}</span>
+        <span className="tabular-nums text-muted-foreground">התראות: {exam.flags}</span>
+        <Link
+          href={`/teacher/dashboard/exams/${encodeURIComponent(exam.examId)}/integrity`}
+          className="text-primary underline-offset-4 hover:underline"
+        >
+          בדיקת העתקות והקלטה
+        </Link>
+      </div>
+      {exam.vocabUsed.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {exam.vocabUsed.map((w) => (
+            <span key={w.english} className="rounded-full border border-success/40 bg-success/10 px-2 py-0.5 text-2xs">
+              <span dir="ltr">{w.english}</span> · {w.hebrew}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function WritingContent({ sub, corrections }: { sub: SubmissionItem; corrections?: WritingCorrection[] }) {
   const [showCorrections, setShowCorrections] = useState(true);
-  const task = findWritingTaskById(sub.taskId);
+  const exam = sub.examInfo;
+  const found = findWritingTaskById(sub.taskId);
+  const task = exam ? { prompt: exam.prompt, minWords: exam.minWords, maxWords: exam.maxWords } : found;
   const text = sub.essayText || "";
   const words = sub.wordCount ?? (text.trim() ? text.trim().split(/\s+/).length : 0);
   const outOfRange = task ? words < task.minWords || words > task.maxWords : false;
@@ -391,6 +425,7 @@ function WritingContent({ sub, corrections }: { sub: SubmissionItem; corrections
           <p className="text-foreground">{task.prompt}</p>
         </div>
       )}
+      {exam && <ExamInfoStrip exam={exam} />}
       <Section
         title="החיבור"
         aside={

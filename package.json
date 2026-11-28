@@ -7,12 +7,13 @@
     "prebuild": "npm run -s lint && npm run -s typecheck",
     "build": "next build --webpack",
     "start": "next start",
-    "lint": "npm run -s check:admins && npm run -s check:grammar && npm run -s check:content && npm run -s check:worksheet && eslint",
+    "lint": "npm run -s check:admins && npm run -s check:grammar && npm run -s check:content && npm run -s check:worksheet && npm run -s check:exam && eslint",
     "typecheck": "tsc --noEmit",
     "check:admins": "node scripts/check-admin-sync.mjs",
     "check:grammar": "node --no-warnings scripts/check-grammar.mjs",
     "check:content": "node --no-warnings scripts/check-content.mjs",
-    "check:worksheet": "node --no-warnings scripts/check-worksheet.mjs"
+    "check:worksheet": "node --no-warnings scripts/check-worksheet.mjs",
+    "check:exam": "node --no-warnings scripts/check-exam.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",

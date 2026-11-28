@@ -42,6 +42,7 @@ import {
   Volume2,
 } from "lucide-react";
 import { StudentAssignedTaskPrompt } from "@/components/student/student-assigned-task-prompt";
+import { StudentExamPrompt } from "@/components/student/student-exam-prompt";
 
 const LOCAL_SUBMISSIONS_KEY = "ett_writing_submissions";
 
@@ -370,7 +371,8 @@ export default function StudentPortalPage() {
         </div>
 
         {/* Active Assigned Tasks Alert Prompt */}
-        <StudentAssignedTaskPrompt />
+        <StudentExamPrompt />
+            <StudentAssignedTaskPrompt />
 
         {/* Stats Row */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4" dir="rtl">
