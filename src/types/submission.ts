@@ -21,7 +21,14 @@ export interface SubmissionQuestionBreakdown {
   feedbackHebrew?: string; // Nuanced teacher feedback specifically on student's answer
 }
 
-export type SubmissionType = "writing" | "unseen" | "vocab" | "conversation" | "grammar";
+export type SubmissionType = "writing" | "unseen" | "vocab" | "conversation" | "grammar" | "exam";
+
+/** A lab test / quiz result released by the teacher (no answer key inside). */
+export interface ExamResultSummary {
+  examId: string;
+  kind: "test" | "quiz";
+  parts: { title: string; type: "writing" | "unseen" | "vocab" | "grammar"; earned: number; points: number }[];
+}
 
 export interface GrammarSubmissionEntry {
   itemId: string;
@@ -64,6 +71,21 @@ export interface VocabPracticeSummary {
   quizScore?: number;
   completedModes: string[];
   wordsPracticed: VocabPracticedWord[];
+}
+
+/** Set on writing submissions that came from a lab exam. */
+export interface ExamSubmissionInfo {
+  examId: string;
+  variantKey: string;
+  prompt: string;
+  minWords: number;
+  maxWords: number;
+  minVocabUsed: number;
+  vocabTotal: number;
+  vocabUsed: { english: string; hebrew: string }[];
+  /** Times the exam locked (left the screen, paste…) and other logged warnings. */
+  locks: number;
+  flags: number;
 }
 
 export interface SubmissionItem {
@@ -114,5 +136,7 @@ export interface SubmissionItem {
   status: "submitted" | "reviewed" | "completed";
   mode?: "practice" | "graded";
   reviewedAt?: string;
+  examInfo?: ExamSubmissionInfo;
+  examSummary?: ExamResultSummary;
 }
 

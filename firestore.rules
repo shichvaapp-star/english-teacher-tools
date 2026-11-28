@@ -20,6 +20,12 @@ rules_version = '2';
 //   assignments/{id}                public read; owning teacher writes
 //   submissions/{id}                the student who submitted + their teacher + admins
 //   drafts/{id}                     the student only
+//   exams/{id}                      signed-in read (Hebrew words + hashes only); owning teacher writes
+//   exams/{id}/variants/{key}       the topic – owning teacher; students only while the exam is open
+//   exams/{id}/private/{doc}        owning teacher only (answer keys)
+//   exams/{id}/results/{studentId}  owning teacher only (grading before release)
+//   exam_sessions/{examId}__{uid}   the student (can't unlock or edit after submit) + their teacher
+//   exam_sessions/{id}/keylog/{id}  student appends; teacher reads (replay)
 //   site_suggestions/{id}           teachers create/read; admins manage
 //   users/{uid}/**                  the user only
 //   student_login_guards/{id}       server only (PIN attempt counter)
@@ -136,9 +142,11 @@ service cloud.firestore {
           isAdmin()
         );
       // Students submit their own work; the teacher's grading fields are off limits.
-      allow create: if signedIn() &&
-        request.resource.data.studentId == uid() &&
-        !request.resource.data.keys().hasAny(['grade', 'teacherFeedback', 'reviewedAt']);
+      // Teachers create submissions too (lab exams sent to grading).
+      allow create: if (signedIn() &&
+          request.resource.data.studentId == uid() &&
+          !request.resource.data.keys().hasAny(['grade', 'teacherFeedback', 'reviewedAt'])) ||
+        (isTeacherAccount() && request.resource.data.teacherId == uid());
       allow update: if signedIn() && (
           (resource.data.studentId == uid() &&
             request.resource.data.studentId == uid() &&
@@ -160,6 +168,92 @@ service cloud.firestore {
       allow update: if signedIn() &&
         resource.data.studentId == uid() &&
         request.resource.data.studentId == uid();
+    }
+
+    // ---------------------------------------------------------------
+    // Lab exams
+    // ---------------------------------------------------------------
+    function examData(examId) {
+      return get(/databases/$(database)/documents/exams/$(examId)).data;
+    }
+
+    function isExamOwner(examId) {
+      return (isTeacherAccount() && examData(examId).teacherId == uid()) || isAdmin();
+    }
+
+    match /exams/{examId} {
+      allow read: if signedIn();
+      allow create: if (isTeacherAccount() && request.resource.data.teacherId == uid()) || isAdmin();
+      allow update: if (isTeacherAccount() &&
+          resource.data.teacherId == uid() &&
+          request.resource.data.teacherId == uid()) ||
+        isAdmin();
+      allow delete: if (isTeacherAccount() && resource.data.teacherId == uid()) || isAdmin();
+
+      // The topic stays hidden from students until the teacher opens the exam.
+      match /variants/{variantKey} {
+        allow read: if isExamOwner(examId) || (isStudent() && examData(examId).status == 'open');
+        allow write: if isExamOwner(examId);
+      }
+
+      // Answer keys and builder settings.
+      match /private/{docId} {
+        allow read, write: if isExamOwner(examId);
+      }
+
+      // The teacher's grading (overrides, writing score, feedback) – hidden until released.
+      match /results/{studentId} {
+        allow read, write: if isExamOwner(examId);
+      }
+    }
+
+    match /exam_sessions/{sessionId} {
+      // A student may look up their own session id even before it exists
+      // (the exam page checks for one when it opens).
+      allow get: if signedIn() && (
+          sessionId.split('__')[1] == uid() ||
+          resource.data.studentId == uid() ||
+          resource.data.teacherId == uid() ||
+          isAdmin()
+        );
+      allow list: if signedIn() && (
+          resource.data.studentId == uid() ||
+          resource.data.teacherId == uid() ||
+          isAdmin()
+        );
+      // A student starts their own session while the exam is open.
+      allow create: if isStudent() &&
+        request.resource.data.studentId == uid() &&
+        sessionId == request.resource.data.examId + '__' + uid() &&
+        request.resource.data.state == 'active' &&
+        examData(request.resource.data.examId).status == 'open' &&
+        request.resource.data.teacherId == examData(request.resource.data.examId).teacherId &&
+        request.time < examData(request.resource.data.examId).closesAt;
+      // Students: no edits after submitting, no self-unlock, no text changes while
+      // locked, nothing after the time is up (2 min grace for the last save).
+      // Teachers: unlock and force-submit.
+      allow update: if (isStudent() &&
+          resource.data.studentId == uid() &&
+          !changes().hasAny(['studentId', 'teacherId', 'examId', 'variantKey']) &&
+          resource.data.state != 'submitted' &&
+          request.resource.data.state in ['active', 'locked', 'submitted'] &&
+          (resource.data.state != 'locked' ||
+            (request.resource.data.state == 'locked' &&
+              !changes().hasAny(['text', 'wordCount', 'vocabUsedIds', 'answers']))) &&
+          request.time < examData(resource.data.examId).closesAt + duration.value(2, 'm')) ||
+        (isTeacherAccount() &&
+          resource.data.teacherId == uid() &&
+          !changes().hasAny(['studentId', 'teacherId', 'examId'])) ||
+        isAdmin();
+      allow delete: if (isTeacherAccount() && resource.data.teacherId == uid()) || isAdmin();
+
+      // Keystroke batches for the replay: append-only.
+      match /keylog/{chunkId} {
+        allow create: if isStudent() &&
+          sessionId.split('__')[1] == uid() &&
+          request.resource.data.studentId == uid();
+        allow read: if signedIn() && (resource.data.teacherId == uid() || isAdmin());
+      }
     }
 
     // ---------------------------------------------------------------
