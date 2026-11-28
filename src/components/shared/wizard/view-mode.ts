@@ -7,7 +7,7 @@ import { useStoredRaw, writeRaw } from "@/lib/use-stored-value";
 export type ViewMode = "wizard" | "classic";
 
 /** Which screens share one remembered choice. */
-export type ViewModeScope = "assignTask" | "activitySetup";
+export type ViewModeScope = "assignTask" | "activitySetup" | "examSetup";
 
 const storageKey = (scope: ViewModeScope) => `ett.viewMode.${scope}`;
 
